@@ -1,0 +1,42 @@
+# Node.js for api backend
+node_modules/
+pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js for frontend
+.next/
+out/
+build/
+.swc/
+
+# Python for analytics
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+.tox/
+
+# Environment 
+.env
+.env.local
+fontend/ .env
+backend/ .env
+forntend/ .env.local
+backend/ .env.local
+
+# coverage 
+coverage/
+htmlcov/
+
+# Logs and IDE
+.vscode/
+logs/
+*.log
+
+# JS Storybook configs 
+frontend/.storybook/*.js
