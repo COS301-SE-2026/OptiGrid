@@ -11,6 +11,7 @@ out/
 build/
 .swc/
 
+
 # Python for analytics
 __pycache__/
 *.py[cod]
@@ -24,8 +25,10 @@ env/
 # Environment 
 .env
 .env.local
+.env.example
 fontend/ .env
 backend/ .env
+backend/core/ .env.example
 forntend/ .env.local
 backend/ .env.local
 
@@ -38,5 +41,5 @@ htmlcov/
 logs/
 *.log
 
-# JS Storybook configs 
-frontend/.storybook/*.js
+# All JS configs n files 
+*.js
