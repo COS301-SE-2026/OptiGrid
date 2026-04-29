@@ -1,0 +1,8 @@
+aws_region       = "us-east-1"
+environment      = "production"
+project_name     = "OptiGrid"
+instance_type    = "t3.medium"
+allowed_ssh_cidr = "203.0.113.10/32"
+
+# Use your own public key; never commit private keys.
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAEXAMPLE_REPLACE_ME your-email@example.com"
