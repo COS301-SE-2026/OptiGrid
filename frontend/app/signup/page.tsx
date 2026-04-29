@@ -1,77 +1,205 @@
 "use client";
 
-import { useState, type ChangeEvent, type SyntheticEvent } from "react";
-import { Title, Card, TextInput, Button } from "@tremor/react";
-import Link from "next/link";
+import { useMemo, useState, type ChangeEvent, type FocusEvent, type SubmitEvent } from "react";
+import { initialSignupFormData, validateSignup, type SignupFormData } from "./validation";
 
-export default function RegistrationForm() {
-    const [formData, setFormData] = useState({
-        firstName: "",
-        lastName: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-    });
+type SignupErrors = Partial<Record<keyof SignupFormData, string>>;
+type SignupTouched = Partial<Record<keyof SignupFormData, boolean>>;
 
-    const [error, setError] = useState("");
+const allTouched: SignupTouched = {
+    firstName: true,
+    lastName: true,
+    email: true,
+    password: true,
+    confirmPassword: true
+};
+
+export default function SignupPage() {
+    const [formData, setFormData] = useState<SignupFormData>(initialSignupFormData);
+    const [errors, setErrors] = useState<SignupErrors>({});
+    const [touched, setTouched] = useState<SignupTouched>({});
+    const [status, setStatus] = useState<"idle" | "success">("idle");
+
+    const hasErrors = useMemo(
+        () => Object.keys(errors).length > 0,
+        [errors]
+    );
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
+        setFormData((previous) => ({ ...previous, [name]: value }));
+        if (status === "success") {
+            setStatus("idle");
+        }
     };
 
-    const [loading, setLoading] = useState(false);
+    const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
+        const { name } = event.target;
+        setTouched((previous) => ({ ...previous, [name]: true }));
+    };
 
-    const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
+    const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
-
-        if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match");
+        const nextErrors = validateSignup(formData);
+        setErrors(nextErrors);
+        setTouched(allTouched);
+        if (Object.keys(nextErrors).length > 0) {
+            setStatus("idle");
             return;
         }
-
-        setError("");
-        setLoading(true);
-
-        try {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            console.log(formData);
-        }
-        catch (error) {
-            setError("Something went wrong")
-        }
-        finally {
-            setLoading(false);
-        }
+        setStatus("success");
+        setFormData(initialSignupFormData);
+        setErrors({});
+        setTouched({});
     };
 
+    const showError = (field: keyof SignupFormData) => Boolean(errors[field] && touched[field]);
+
     return (
-        <div className="flex justify-center items-center min-h-screen bg-gray-50 px-4">
-            <Card className="w-full max-w-md p-6 space-y-6">
-                <Title>Create Account</Title>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="flex gap-4">
-                        <TextInput name="firstName" placeholder="First Name" value={formData.firstName} onChange={handleChange} required />
-                        <TextInput name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange} required />
+        <main className="min-h-screen bg-slate-950 px-6 py-16 text-slate-100">
+            <div className="mx-auto w-full max-w-xl rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-xl shadow-slate-950/40">
+                <header className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
+                        OptiGrid Access
+                    </p>
+                    <h1 className="text-3xl font-semibold text-slate-100">
+                        Create your account
+                    </h1>
+                    <p className="text-sm text-slate-300">
+                        Join the platform to monitor energy usage, spot anomalies, and unlock optimization insights across your buildings.
+                    </p>
+                </header>
+                <form className="mt-8 space-y-5" noValidate onSubmit={handleSubmit}>
+                    <div className="grid gap-5 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-200" htmlFor="firstName">
+                                First Name
+                            </label>
+                            <input
+                                id="firstName"
+                                name="firstName"
+                                type="text"
+                                autoComplete="given-name"
+                                value={formData.firstName}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                aria-invalid={showError("firstName")}
+                                aria-describedby={showError("firstName") ? "firstName-error" : undefined}
+                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                                placeholder="Avery"
+                            />
+                            {showError("firstName") && (
+                                <p id="firstName-error" role="alert" className="text-xs text-rose-300">
+                                    {errors.firstName}
+                                </p>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-200" htmlFor="lastName">
+                                Last Name
+                            </label>
+                            <input
+                                id="lastName"
+                                name="lastName"
+                                type="text"
+                                autoComplete="family-name"
+                                value={formData.lastName}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                aria-invalid={showError("lastName")}
+                                aria-describedby={showError("lastName") ? "lastName-error" : undefined}
+                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                                placeholder="Rivera"
+                            />
+                            {showError("lastName") && (
+                                <p id="lastName-error" role="alert" className="text-xs text-rose-300">
+                                    {errors.lastName}
+                                </p>
+                            )}
+                        </div>
                     </div>
-                    <TextInput name="email" type="email" placeholder="Email" value={formData.email} onChange={handleChange} required />
-                    <TextInput name="password" type="password" placeholder="Password" value={formData.password} onChange={handleChange} required />
-                    <TextInput name="confirmPassword" type="password" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} required />
-                    {error && <p className="text-red-500 text-sm">{error}</p>}
-                    <Button className="w-full" type="submit">
-                        Create Account
-                    </Button>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-200" htmlFor="email">
+                            Email Address
+                        </label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            autoComplete="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            aria-invalid={showError("email")}
+                            aria-describedby={showError("email") ? "email-error" : undefined}
+                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                            placeholder="avery.rivera@optigrid.io"
+                        />
+                        {showError("email") && (
+                            <p id="email-error" role="alert" className="text-xs text-rose-300">
+                                {errors.email}
+                            </p>
+                        )}
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-200" htmlFor="password">
+                            Password
+                        </label>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            autoComplete="new-password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            aria-invalid={showError("password")}
+                            aria-describedby={showError("password") ? "password-error" : undefined}
+                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                            placeholder="At least 8 characters"
+                        />
+                        {showError("password") && (
+                            <p id="password-error" role="alert" className="text-xs text-rose-300">
+                                {errors.password}
+                            </p>
+                        )}
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-200" htmlFor="confirmPassword">
+                            Confirm Password
+                        </label>
+                        <input
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            type="password"
+                            autoComplete="new-password"
+                            value={formData.confirmPassword}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            aria-invalid={showError("confirmPassword")}
+                            aria-describedby={showError("confirmPassword") ? "confirmPassword-error" : undefined}
+                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                            placeholder="Re-enter password"
+                        />
+                        {showError("confirmPassword") && (
+                            <p id="confirmPassword-error" role="alert" className="text-xs text-rose-300">
+                                {errors.confirmPassword}
+                            </p>
+                        )}
+                    </div>
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-xs text-slate-400">
+                        By creating an account, you will be enrolled in OptiGrid's multi-site energy optimization workspace.
+                    </div>
+                    <button type="submit" className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+                        Create account
+                    </button>
+                    {status === "success" && !hasErrors && (
+                        <div role="status" className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                            Account created. Check your inbox to verify your workspace access.
+                        </div>
+                    )}
                 </form>
-                <p className="text-sm text-gray-600">
-                    Already have an account?{" "}
-                    <Link className="text-blue-600 hover:text-blue-700 underline" href="/login">
-                        Log in
-                    </Link>
-                </p>
-            </Card>
-        </div>
+            </div>
+        </main>
     );
 }
