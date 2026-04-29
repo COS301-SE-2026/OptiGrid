@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.next
+.git
+__pycache__
+.pytest_cache
+.env
+.venv
+coverage
