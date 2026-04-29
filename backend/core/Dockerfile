@@ -8,7 +8,7 @@ COPY package.json ./
 COPY backend/core/package.json ./backend/core/package.json
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --no-frozen-lockfile --ignore-scripts
 
 COPY backend/core ./backend/core
 
@@ -26,7 +26,7 @@ COPY package.json ./
 COPY backend/core/package.json ./backend/core/package.json
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 
-RUN pnpm install --prod --no-frozen-lockfile
+RUN pnpm install --prod --no-frozen-lockfile --ignore-scripts
 
 COPY --from=builder /app/backend/core ./backend/core
 

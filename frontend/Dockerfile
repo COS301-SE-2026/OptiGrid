@@ -8,7 +8,7 @@ COPY package.json ./
 COPY frontend/package.json ./frontend/package.json
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --no-frozen-lockfile --ignore-scripts
 
 COPY frontend ./frontend
 
@@ -26,7 +26,7 @@ COPY package.json ./
 COPY frontend/package.json ./frontend/package.json
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 
-RUN pnpm install --prod --no-frozen-lockfile
+RUN pnpm install --prod --no-frozen-lockfile --ignore-scripts
 
 COPY --from=builder /app/frontend ./frontend
 
