@@ -27,7 +27,9 @@ export const signup = async (req: Request, res: Response) => {
     }
 };
 
+// this function is used for login logic, we validate the email and password
 export const login = async (req: Request, res: Response) => {
+    //validating that the email and password fields are present
     try{
         const {email, password} = req.body;
         if(!email || !password){

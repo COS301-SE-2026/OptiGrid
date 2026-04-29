@@ -35,6 +35,7 @@ export const signup = async (email: string, password: string, name: string) => {
     return user;
 };
 
+//this function is used for the login logic
 export const login = async (email: string, password: string) => {
     const user = await prisma.user.findUnique({
         where: {email},
