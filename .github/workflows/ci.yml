@@ -1,11 +1,99 @@
-name: CI/CD Optigrid Pipeline
+name: OptiGrid Validation
 
 on:
-  push:
-    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main", "develop" ]
+  push:
+    branches:
+      - main
 
 jobs:
-  build-and-test:
+  frontend-core:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend lint (if script exists)
+        run: |
+          if node -e "const s=require('./frontend/package.json').scripts||{}; process.exit(s.lint?0:1)"; then
+            pnpm --filter @optigrid/frontend run lint
+          else
+            echo "No frontend lint script; skipping."
+          fi
+
+      - name: Frontend tests (if script exists)
+        run: |
+          if node -e "const s=require('./frontend/package.json').scripts||{}; process.exit(s.test?0:1)"; then
+            pnpm --filter @optigrid/frontend run test
+          else
+            echo "No frontend test script; skipping."
+          fi
+
+      - name: Frontend build (if script exists)
+        run: |
+          if node -e "const s=require('./frontend/package.json').scripts||{}; process.exit(s.build?0:1)"; then
+            pnpm --filter @optigrid/frontend run build
+          else
+            echo "No frontend build script; skipping."
+          fi
+
+      - name: Backend/core tests (if script exists)
+        run: |
+          if node -e "const s=require('./backend/core/package.json').scripts||{}; process.exit(s.test?0:1)"; then
+            pnpm --filter @optigrid/core run test
+          else
+            echo "No backend/core test script; skipping."
+          fi
+
+      - name: Backend/core lint (if script exists)
+        run: |
+          if node -e "const s=require('./backend/core/package.json').scripts||{}; process.exit(s.lint?0:1)"; then
+            pnpm --filter @optigrid/core run lint
+          else
+            echo "No backend/core lint script; skipping."
+          fi
+
+      - name: Backend/core build (if script exists)
+        run: |
+          if node -e "const s=require('./backend/core/package.json').scripts||{}; process.exit(s.build?0:1)"; then
+            pnpm --filter @optigrid/core run build
+          else
+            echo "No backend/core build script; skipping."
+          fi
+
+  python-services:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ingestion dependencies
+        run: pip install -r backend/ingestion/requirements.txt
+
+      - name: Ingestion syntax/import check
+        run: python -m py_compile backend/ingestion/src/main.py
+
+      - name: Install analytics dependencies
+        run: pip install -r backend/analytics/requirements.txt
+
+      - name: Analytics syntax/import check
+        run: python -m py_compile backend/analytics/src/main.py
