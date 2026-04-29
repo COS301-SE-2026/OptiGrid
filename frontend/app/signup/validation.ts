@@ -15,6 +15,7 @@ export const initialSignupFormData: SignupFormData = {
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
 
 export function validateSignup(data: SignupFormData): Partial<Record<keyof SignupFormData, string>> {
     const errors: Partial<Record<keyof SignupFormData, string>> = {};
@@ -37,6 +38,9 @@ export function validateSignup(data: SignupFormData): Partial<Record<keyof Signu
         errors.password = "Password is required.";
     } else if (data.password.length < 8) {
         errors.password = "Password must be at least 8 characters.";
+    } else if (!passwordPattern.test(data.password)) {
+        errors.password =
+            "Password must include uppercase, lowercase, number, and symbol.";
     }
 
     if (!data.confirmPassword) {
