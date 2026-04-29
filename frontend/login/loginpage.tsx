@@ -24,3 +24,27 @@ export default function LoginPage() {
 
     if (error) setError("");
   };
+//form validation
+
+    const handleSubmit = async (e: SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!formData.email || !formData.password) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+
+    try {
+      
+      await new Promise((res) => setTimeout(res, 1500));
+
+      console.log("Login data:", formData);
+    } catch (err) {
+      setError("Login failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
