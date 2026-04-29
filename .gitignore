@@ -44,3 +44,6 @@ logs/
 
 # All JS configs n files 
 *.js
+
+.gitignore
+package-lock.json
