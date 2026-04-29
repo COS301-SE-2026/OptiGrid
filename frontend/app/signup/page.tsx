@@ -1,29 +1,15 @@
 "use client";
 
 import { useMemo, useState, type ChangeEvent, type FocusEvent, type SubmitEvent } from "react";
-import { initialSignupFormData, validateSignup, type SignupFormData } from "./validation";
-
-type SignupErrors = Partial<Record<keyof SignupFormData, string>>;
-type SignupTouched = Partial<Record<keyof SignupFormData, boolean>>;
-
-const allTouched: SignupTouched = {
-    firstName: true,
-    lastName: true,
-    email: true,
-    password: true,
-    confirmPassword: true
-};
+import { getSubmitResult, hasErrors, shouldShowError, type SignupErrors, type SignupTouched } from "./logic";
+import { initialSignupFormData, type SignupFormData } from "./validation";
 
 export default function SignupPage() {
     const [formData, setFormData] = useState<SignupFormData>(initialSignupFormData);
     const [errors, setErrors] = useState<SignupErrors>({});
     const [touched, setTouched] = useState<SignupTouched>({});
     const [status, setStatus] = useState<"idle" | "success">("idle");
-
-    const hasErrors = useMemo(
-        () => Object.keys(errors).length > 0,
-        [errors]
-    );
+    const hasAnyErrors = useMemo(() => hasErrors(errors), [errors]);
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
@@ -40,20 +26,14 @@ export default function SignupPage() {
 
     const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const nextErrors = validateSignup(formData);
-        setErrors(nextErrors);
-        setTouched(allTouched);
-        if (Object.keys(nextErrors).length > 0) {
-            setStatus("idle");
-            return;
-        }
-        setStatus("success");
-        setFormData(initialSignupFormData);
-        setErrors({});
-        setTouched({});
+        const result = getSubmitResult(formData);
+        setErrors(result.errors);
+        setTouched(result.touched);
+        setStatus(result.status);
+        setFormData(result.nextFormData);
     };
 
-    const showError = (field: keyof SignupFormData) => Boolean(errors[field] && touched[field]);
+    const showError = (field: keyof SignupFormData) => shouldShowError(field, errors, touched);
 
     return (
         <main className="min-h-screen bg-slate-950 px-6 py-16 text-slate-100">
@@ -84,9 +64,12 @@ export default function SignupPage() {
                                 onChange={handleChange}
                                 onBlur={handleBlur}
                                 aria-invalid={showError("firstName")}
-                                aria-describedby={showError("firstName") ? "firstName-error" : undefined}
-                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
-                                placeholder="Avery"
+                                aria-describedby={
+                                    showError("firstName")
+                                        ? "firstName-error"
+                                        : undefined
+                                }
+                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="Avery"
                             />
                             {showError("firstName") && (
                                 <p id="firstName-error" role="alert" className="text-xs text-rose-300">
@@ -107,9 +90,12 @@ export default function SignupPage() {
                                 onChange={handleChange}
                                 onBlur={handleBlur}
                                 aria-invalid={showError("lastName")}
-                                aria-describedby={showError("lastName") ? "lastName-error" : undefined}
-                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
-                                placeholder="Rivera"
+                                aria-describedby={
+                                    showError("lastName")
+                                        ? "lastName-error"
+                                        : undefined
+                                }
+                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="Rivera"
                             />
                             {showError("lastName") && (
                                 <p id="lastName-error" role="alert" className="text-xs text-rose-300">
@@ -131,9 +117,10 @@ export default function SignupPage() {
                             onChange={handleChange}
                             onBlur={handleBlur}
                             aria-invalid={showError("email")}
-                            aria-describedby={showError("email") ? "email-error" : undefined}
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
-                            placeholder="avery.rivera@optigrid.io"
+                            aria-describedby={
+                                showError("email") ? "email-error" : undefined
+                            }
+                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="avery.rivera@optigrid.io"
                         />
                         {showError("email") && (
                             <p id="email-error" role="alert" className="text-xs text-rose-300">
@@ -154,9 +141,12 @@ export default function SignupPage() {
                             onChange={handleChange}
                             onBlur={handleBlur}
                             aria-invalid={showError("password")}
-                            aria-describedby={showError("password") ? "password-error" : undefined}
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
-                            placeholder="At least 8 characters"
+                            aria-describedby={
+                                showError("password")
+                                    ? "password-error"
+                                    : undefined
+                            }
+                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="At least 8 characters"
                         />
                         {showError("password") && (
                             <p id="password-error" role="alert" className="text-xs text-rose-300">
@@ -177,10 +167,12 @@ export default function SignupPage() {
                             onChange={handleChange}
                             onBlur={handleBlur}
                             aria-invalid={showError("confirmPassword")}
-                            aria-describedby={showError("confirmPassword") ? "confirmPassword-error" : undefined}
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
-                            placeholder="Re-enter password"
-                        />
+                            aria-describedby={
+                                showError("confirmPassword")
+                                    ? "confirmPassword-error"
+                                    : undefined
+                            }
+                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="Re-enter password"/>
                         {showError("confirmPassword") && (
                             <p id="confirmPassword-error" role="alert" className="text-xs text-rose-300">
                                 {errors.confirmPassword}
@@ -193,7 +185,7 @@ export default function SignupPage() {
                     <button type="submit" className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200">
                         Create account
                     </button>
-                    {status === "success" && !hasErrors && (
+                    {status === "success" && !hasAnyErrors && (
                         <div role="status" className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
                             Account created. Check your inbox to verify your workspace access.
                         </div>
