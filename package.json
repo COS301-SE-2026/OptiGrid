@@ -4,12 +4,12 @@
 	"version": "0.1.0",
 	"packageManager": "pnpm@10.0.0",
 	"scripts": {
-		"dev": "pnpm --parallel --filter ./frontend --filter ./backend/core run dev",
-		"build": "pnpm -r run build",
-		"test": "pnpm -r run test",
+		"dev": "corepack pnpm --parallel --filter ./frontend --filter ./backend/core run dev",
+		"build": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/core -r run build",
+		"test": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/core -r run test",
 		"test:e2e": "playwright test",
-		"storybook": "pnpm --filter ./frontend run storybook",
-		"storybook:build": "pnpm --filter ./frontend run build-storybook",
+		"storybook": "corepack pnpm --filter ./frontend run storybook",
+		"storybook:build": "corepack pnpm --filter ./frontend run build-storybook",
 		"security:test": "snyk test --all-projects",
 		"security:monitor": "snyk monitor --all-projects",
 		"prepare": "playwright install --with-deps"
