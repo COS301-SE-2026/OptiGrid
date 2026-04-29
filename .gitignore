@@ -10,6 +10,7 @@ yarn-error.log*
 out/
 build/
 .swc/
+dist/
 
 
 # Python for analytics
@@ -26,11 +27,11 @@ env/
 .env
 .env.local
 .env.example
-fontend/ .env
-backend/ .env
-backend/core/ .env.example
-forntend/ .env.local
-backend/ .env.local
+.env
+.env.local
+.env.*.local
+backend/.env*
+frontend/.env*
 
 # coverage 
 coverage/
