@@ -3,11 +3,9 @@ import * as authService from '../services/user_auth.services';
 
 export const signup = async (req: Request, res: Response) => {
     try {
-        //we check and validate the fields are indeed filled in
         const { email, password, name } = req.body
-        if(!email || !password || !name) return res.status(400).json({ message: 'Email, password and name are required fields.' });
-
         const user = await authService.signup(email, password, name);
+            
         return res.status(201).json({
             message: 'User created successfully',
             user,
