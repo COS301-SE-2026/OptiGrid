@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-frontend:latest
+    image: ghcr.io/local/optigrid-frontend:latest
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -8,7 +8,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       CORE_URL: http://core:${CORE_PORT:-4000}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -18,7 +18,7 @@ services:
         condition: service_healthy
 
   core:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-core:latest
+    image: ghcr.io/local/optigrid-core:latest
     restart: unless-stopped
     ports:
       - "${CORE_PORT:-4000}:4000"
@@ -38,7 +38,7 @@ services:
       start_period: 20s
 
   ingestion:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-ingestion:latest
+    image: ghcr.io/local/optigrid-ingestion:latest
     restart: unless-stopped
     ports:
       - "${INGESTION_PORT:-8000}:8000"
@@ -55,7 +55,7 @@ services:
       start_period: 20s
 
   analytics:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
+    image: ghcr.io/local/optigrid-analytics:latest
     restart: unless-stopped
     ports:
       - "${ANALYTICS_PORT:-8001}:8001"
