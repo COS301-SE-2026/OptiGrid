@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import { hashPassword } from '../lib/password';
 import { randomUUID } from 'crypto';
+import type { Prisma } from '@prisma/client';
 
 //This function is used for the signup logic
 export const signup = async (email: string, password: string, name: string) => {
@@ -13,7 +14,7 @@ export const signup = async (email: string, password: string, name: string) => {
     const firstName = name.split(' ')[0];
     const lastName = name.split(' ')[1] || '';
     
-    const createData: any = {
+    const createData = {
         userId: randomUUID(),
         email,
         passwordHash: hashPass,
@@ -21,7 +22,7 @@ export const signup = async (email: string, password: string, name: string) => {
         lastName,
     };
 
-    const user = await (prisma.user as any).create({
+    const user = await prisma.user.create({
         data: createData,
         //we ensure not to show the password hash or return to frontend side
         select: {
