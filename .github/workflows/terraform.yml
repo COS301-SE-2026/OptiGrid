@@ -48,9 +48,26 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
+      - name: Check Terraform Secret Inputs
+        id: tf_inputs
+        shell: bash
+        run: |
+          if [[ -n "${AWS_ACCESS_KEY_ID}" && -n "${AWS_SECRET_ACCESS_KEY}" && -n "${AWS_REGION}" && -n "${TF_VAR_ssh_public_key}" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Terraform plan/apply inputs detected."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Terraform plan/apply skipped: required AWS/TF secrets are missing for this run."
+          fi
+
       - name: Terraform plan
+        if: steps.tf_inputs.outputs.ready == 'true'
         run: terraform plan -no-color
 
+      - name: Terraform plan skipped
+        if: steps.tf_inputs.outputs.ready != 'true'
+        run: echo "Skipping terraform plan because required secrets are unavailable."
+
       - name: Terraform apply
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: steps.tf_inputs.outputs.ready == 'true' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
         run: terraform apply -auto-approve -no-color
