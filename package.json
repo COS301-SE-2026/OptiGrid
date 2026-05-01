@@ -23,6 +23,11 @@
 		"infra:t3:e2e": "node scripts/infra-t3-e2e.mjs run",
 		"infra:t3:e2e:autodestroy": "node scripts/infra-t3-e2e.mjs run --destroy",
 		"infra:t3:destroy": "node scripts/infra-t3-e2e.mjs destroy",
+		"infra:app:deploy": "node scripts/deploy-ec2-stack.mjs deploy",
+		"infra:app:deploy:skip-build": "node scripts/deploy-ec2-stack.mjs deploy --skip-build",
+		"infra:app:resume": "node scripts/deploy-ec2-stack.mjs resume",
+		"infra:app:down": "node scripts/deploy-ec2-stack.mjs down",
+		"infra:app:status": "node scripts/deploy-ec2-stack.mjs status",
 		"security:test": "snyk test --all-projects",
 		"security:monitor": "snyk monitor --all-projects",
 		"prepare": "playwright install --with-deps"

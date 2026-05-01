@@ -22,6 +22,12 @@ variable "instance_type" {
   default     = "t3.medium"
 }
 
+variable "root_volume_size_gb" {
+  description = "Root EBS volume size in GB."
+  type        = number
+  default     = 20
+}
+
 variable "ssh_public_key" {
   description = "Public SSH key content used to create the EC2 key pair."
   type        = string

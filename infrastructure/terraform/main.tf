@@ -75,6 +75,11 @@ resource "aws_instance" "optigrid_server" {
   key_name               = aws_key_pair.optigrid.key_name
   user_data              = file("${path.module}/docker-user-data.sh")
 
+  root_block_device {
+    volume_size = var.root_volume_size_gb
+    volume_type = "gp3"
+  }
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-server"
     Project     = var.project_name
