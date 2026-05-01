@@ -73,6 +73,7 @@ resource "aws_instance" "optigrid_server" {
   subnet_id              = data.aws_subnets.default_vpc_subnets.ids[0]
   vpc_security_group_ids = [aws_security_group.optigrid_server.id]
   key_name               = aws_key_pair.optigrid.key_name
+  user_data              = file("${path.module}/docker-user-data.sh")
 
   tags = {
     Name        = "${var.project_name}-${var.environment}-server"
