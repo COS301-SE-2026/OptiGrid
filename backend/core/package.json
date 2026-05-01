@@ -3,11 +3,12 @@
 	"private": true,
 	"version": "0.1.0",
 	"scripts": {
+		"postinstall": "prisma generate --schema=./prisma/schema.prisma",
 		"dev": "tsx watch src/server.ts",
 		"build": "tsc -p tsconfig.json",
 		"start": "node dist/server.js",
 		"test": "jest --passWithNoTests",
-		"lint": "sh -c \"if [ -f .eslintrc.json ] || [ -f .eslintrc.js ] || [ -f .eslintrc ] || [ -f .eslintrc.cjs ]; then eslint . --ext .ts,.tsx --cache; else echo 'No ESLint config for @optigrid/core — skipping'; fi\"",
+		"lint": "eslint .",
 		"test:unit": "jest",
 		"db:generate": "prisma generate",
 		"db:migrate": "prisma migrate dev",
