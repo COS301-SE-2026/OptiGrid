@@ -27,6 +27,10 @@ function runQuiet(cmd) {
   execSync(cmd, { stdio: "pipe", cwd: root });
 }
 
+function runQuietCapture(cmd) {
+  return execSync(cmd, { stdio: ["ignore", "pipe", "pipe"], cwd: root, encoding: "utf8" }).trim();
+}
+
 function sleep(ms) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
@@ -47,6 +51,38 @@ async function waitForHealth(name, urls, attempts = 30, delayMs = 2000) {
     await sleep(delayMs);
   }
   throw new Error(`${name} health check failed after retries.`);
+}
+
+async function waitForWorkerRunning(name, attempts = 30, delayMs = 2000) {
+  console.log(`Checking ${name} worker...`);
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      const containerId = runQuietCapture(
+        `docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-file infrastructure/docker/.env.localtest ps -q ${name}`
+      );
+      if (!containerId) {
+        throw new Error("container id not found");
+      }
+
+      const status = runQuietCapture(`docker inspect -f "{{.State.Status}}" ${containerId}`);
+      const restartCount = Number(runQuietCapture(`docker inspect -f "{{.RestartCount}}" ${containerId}`));
+
+      if (status === "running" && restartCount === 0) {
+        console.log(`Checking ${name} worker... OK`);
+        return;
+      }
+
+      console.log(
+        `Checking ${name} worker... retry ${i + 1}/${attempts} (status=${status}, restarts=${restartCount})`
+      );
+    } catch {
+      console.log(`Checking ${name} worker... retry ${i + 1}/${attempts}`);
+    }
+
+    await sleep(delayMs);
+  }
+
+  throw new Error(`${name} worker check failed after retries.`);
 }
 
 const compose = readFileSync(composeProd, "utf8").replaceAll("YOUR_GITHUB_USERNAME", "local");
@@ -81,8 +117,8 @@ run("docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-
 try {
   await waitForHealth("frontend", ["http://localhost:3000/health"]);
   await waitForHealth("core", ["http://localhost:4000/health"]);
-  await waitForHealth("ingestion", ["http://localhost:8000/health"]);
-  await waitForHealth("analytics", ["http://localhost:8001/health"]);
+  await waitForWorkerRunning("ingestion");
+  await waitForWorkerRunning("analytics");
   run("docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-file infrastructure/docker/.env.localtest ps");
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Health check failed.");

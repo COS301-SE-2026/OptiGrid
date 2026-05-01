@@ -40,25 +40,15 @@ services:
   ingestion:
     image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-ingestion:latest
     restart: unless-stopped
-    ports:
-      - "${INGESTION_PORT:-8000}:8000"
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
       INFLUXDB_ORG: ${INFLUXDB_ORG}
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
 
   analytics:
     image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
     restart: unless-stopped
-    ports:
-      - "${ANALYTICS_PORT:-8001}:8001"
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
@@ -66,9 +56,3 @@ services:
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s

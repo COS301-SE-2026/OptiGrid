@@ -414,7 +414,7 @@ function remoteComposeStatus(host) {
 
 if (!existsSync(tfvarsPath)) {
   console.error(
-    "Missing infrastructure/terraform/terraform.tfvars. Copy terraform.tfvars.example and set ssh_public_key first.",
+    "Missing infrastructure/terraform/terraform.tfvars. Create it and set ssh_public_key first.",
   );
   process.exit(1);
 }

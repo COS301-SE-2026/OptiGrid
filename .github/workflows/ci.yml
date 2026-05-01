@@ -64,29 +64,3 @@ jobs:
 
       - name: test
         run: pnpm --filter @optigrid/core run test
-
-      
-
-  # python-services:
-  #   name: Python Workers Checks
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-
-  #     - name: Setup Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: "3.11"
-
-  #     - name: Install ingestion dependencies
-  #       run: pip install -r backend/ingestion/requirements.txt
-
-  #     - name: Ingestion tests
-  #       run: pytest backend/ingestion/tests/ 
-
-  #     - name: Install analytics dependencies
-  #       run: pip install -r backend/analytics/requirements.txt
-
-  #     - name: Analytics tests
-  #       run: pytest backend/analytics/tests/

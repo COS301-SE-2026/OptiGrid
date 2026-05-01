@@ -13,11 +13,7 @@ This Terraform configuration provisions one Ubuntu EC2 server (default `t3.mediu
 
 ## Usage
 
-1. Copy the example variables file and edit values:
-
-```bash
-cp terraform.tfvars.example terraform.tfvars
-```
+1. Create a `terraform.tfvars` file in this directory and set values for your environment (at minimum `ssh_public_key`).
 
 2. Initialize Terraform:
 

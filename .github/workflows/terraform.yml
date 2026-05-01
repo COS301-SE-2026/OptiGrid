@@ -69,5 +69,5 @@ jobs:
         run: echo "Skipping terraform plan because required secrets are unavailable."
 
       - name: Terraform apply
-        if: steps.tf_inputs.outputs.ready == 'true' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+        if: steps.tf_inputs.outputs.ready == 'true' && github.event_name == 'workflow_dispatch'
         run: terraform apply -auto-approve -no-color

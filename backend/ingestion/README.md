@@ -1,15 +1,10 @@
-# Ingestion Service
+# Ingestion Worker
 
-Telemetry ingestion service for OptiGrid.
-
-## Endpoints
-
-- `GET /health`
-- `POST /readings`
+Background ingestion worker for OptiGrid.
 
 ## Local Run
 
 ```bash
 pip install -r requirements.txt
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+python -m src.main
 ```

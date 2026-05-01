@@ -1,26 +1,33 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+import os
+import signal
+import time
 
-app = FastAPI(title="OptiGrid Ingestion Service")
-
-
-class Reading(BaseModel):
-    buildingId: str
-    meterId: str
-    timestamp: str
-    value: float
-    unit: str
+running = True
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "ingestion"}
+def stop_worker(signum, _frame):
+    global running
+    print(f"[ingestion-worker] received signal {signum}, shutting down...")
+    running = False
 
 
-@app.post("/readings")
-def ingest_reading(reading: Reading) -> dict[str, object]:
-    return {
-        "status": "accepted",
-        "message": "Reading received",
-        "reading": reading.model_dump(),
-    }
+def main() -> None:
+    signal.signal(signal.SIGINT, stop_worker)
+    signal.signal(signal.SIGTERM, stop_worker)
+
+    interval_seconds = int(os.getenv("INGESTION_TICK_SECONDS", "10"))
+    influx_bucket = os.getenv("INFLUXDB_BUCKET", "unset")
+    influx_org = os.getenv("INFLUXDB_ORG", "unset")
+
+    print(
+        f"[ingestion-worker] started (tick={interval_seconds}s, bucket={influx_bucket}, org={influx_org})"
+    )
+    while running:
+        print("[ingestion-worker] idle cycle complete")
+        time.sleep(interval_seconds)
+
+    print("[ingestion-worker] stopped")
+
+
+if __name__ == "__main__":
+    main()

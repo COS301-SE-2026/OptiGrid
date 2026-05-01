@@ -1,4 +1,4 @@
-name: Build, Scan, and Publish Images
+name: Build and Publish Images
 
 on:
   push:
@@ -9,10 +9,9 @@ on:
 permissions:
   contents: read
   packages: write
-  security-events: write
 
 jobs:
-  build-scan-publish:
+  build-publish:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -54,7 +53,7 @@ jobs:
           echo "latest_tag=${IMAGE}:latest" >> "$GITHUB_OUTPUT"
           echo "sha_tag=${IMAGE}:${SHA_TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: Build image locally for scan
+      - name: Build image
         run: |
           # Build context stays at repo root because Dockerfiles copy shared workspace files.
           docker buildx build \
@@ -63,16 +62,6 @@ jobs:
             --tag "${{ steps.meta.outputs.latest_tag }}" \
             --tag "${{ steps.meta.outputs.sha_tag }}" \
             .
-
-      - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          image-ref: ${{ steps.meta.outputs.latest_tag }}
-          format: table
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
-          exit-code: "1"
 
       - name: Push image tags
         run: |

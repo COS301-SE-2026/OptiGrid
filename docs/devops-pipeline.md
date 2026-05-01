@@ -2,7 +2,7 @@
 
 ## Overview
 
-OptiGrid uses a lightweight production CI/CD pipeline built on GitHub Actions, Docker, GitHub Container Registry (GHCR), Terraform, and Docker Compose. The pipeline validates code, builds and scans container images, provisions infrastructure, and deploys services to a single Ubuntu server.
+OptiGrid uses a lightweight production CI/CD pipeline built on GitHub Actions, Docker, GitHub Container Registry (GHCR), Terraform, and Docker Compose. The pipeline validates code, builds and publishes container images, provisions infrastructure, and deploys services to a single Ubuntu server.
 
 ## Runtime Container Model
 
@@ -26,7 +26,6 @@ The runtime model uses exactly four containers:
 - Unit tests
 - Build React frontend
 - Build Docker images
-- Security scan
 - Push images to GitHub Container Registry
 - Terraform validate, plan, apply
 - SSH deployment
@@ -67,7 +66,6 @@ flowchart LR
         Test[Run Unit Tests]:::ci
         BuildFrontend[Build React Frontend]:::ci
         BuildImages[Build Docker Images]:::ci
-        Scan[Security Scan]:::ci
     end
 
     subgraph IaC["Infrastructure as Code<br/>Terraform"]
@@ -96,7 +94,7 @@ flowchart LR
         direction TB
         Frontend[Container 1<br/>frontend<br/>React Web App]:::runtime
         Core[Container 2<br/>core<br/>API Gateway + Config Service]:::runtime
-        Ingestion[Container 3<br/>ingestion<br/>FastAPI Telemetry Service]:::runtime
+        Ingestion[Container 3<br/>ingestion<br/>Telemetry Worker]:::runtime
         Analytics[Container 4<br/>analytics<br/>Forecasting + Anomaly Detection]:::runtime
     end
 
@@ -114,8 +112,7 @@ flowchart LR
     Lint --> Test
     Test --> BuildFrontend
     BuildFrontend --> BuildImages
-    BuildImages --> Scan
-    Scan -->|Push versioned images| GHCR
+    BuildImages -->|Push versioned images| GHCR
 
     Checkout --> TFValidate
     TFValidate --> TFPlan
