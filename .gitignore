@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Next.js for frontend
+*.js
 .next/
 out/
 build/
@@ -40,3 +41,16 @@ logs/
 
 # JS Storybook configs 
 frontend/.storybook/*.js
+
+# Terraform local state and vars
+infrastructure/terraform/.terraform/
+infrastructure/terraform/terraform.tfstate
+infrastructure/terraform/terraform.tfstate.backup
+infrastructure/terraform/terraform.tfvars
+
+# Generated EC2 deployment artifacts
+infrastructure/docker/.generated/
+
+# Local test-only Docker assets
+infrastructure/docker/.env.localtest
+infrastructure/docker/docker-compose.localtest.yml
