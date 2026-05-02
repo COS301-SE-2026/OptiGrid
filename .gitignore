@@ -45,6 +45,14 @@ logs/
 
 # All JS configs n files 
 *.js
+# Terraform local state and vars
+infrastructure/terraform/.terraform/
+infrastructure/terraform/terraform.tfstate
+infrastructure/terraform/terraform.tfstate.backup
+infrastructure/terraform/terraform.tfvars
+
+# Generated EC2 deployment artifacts
+infrastructure/docker/.generated/
 
 .gitignore
 package-lock.json
