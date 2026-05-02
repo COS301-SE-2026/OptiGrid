@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { comparePassword, hashPassword } from '../lib/password';
+import { comparePass, hashPassword } from '../lib/password';
 import { randomUUID } from 'crypto';
 import type { Prisma } from '@prisma/client';
 
@@ -53,7 +53,7 @@ export const login = async (email: string, password: string) => {
         throw new Error("Invalid email or password");
     }
 
-    const isPasswordValid = await comparePassword(password, user.passwordHash);
+    const isPasswordValid = await comparePass(password, user.passwordHash);
     if (!isPasswordValid) {
         throw new Error("Invalid email or password");
     }

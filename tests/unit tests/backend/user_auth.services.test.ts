@@ -2,7 +2,7 @@ import * as authServices from '../../../backend/core/src/services/user_auth.serv
 import prisma from '../../../backend/core/src/lib/prisma';
 import { randomUUID } from 'crypto';
 import {login} from '../../../backend/core/src/services/user_auth.services';
-import { comparePassword } from '../../../backend/core/src/lib/password';
+import { comparePass } from '../../../backend/core/src/lib/password';
 
 //mocking prisma client
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -13,7 +13,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 
 //mock password comparison utility
 jest.mock('../../../backend/core/src/lib/password', () => ({
-    comparePassword: jest.fn(),
+    comparePass: jest.fn(),
 }));
 
 describe("User Authentication Service - Login", () => { 
@@ -32,7 +32,7 @@ describe("User Authentication Service - Login", () => {
     // Test Case 1: Successful login with valid credentials
     it("should login successfully with valid credentials", async () => {
         (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-        (comparePassword as jest.Mock).mockResolvedValue(true);
+        (comparePass as jest.Mock).mockResolvedValue(true);
 
         const result = await authServices.login("test@testing.com", "password1234");
         expect(result).not.toHaveProperty("passwordHash");
@@ -47,7 +47,7 @@ describe("User Authentication Service - Login", () => {
     // Test Case 3: Handle login with invalid password
     it("should throw an error if the password is incorrect", async () => {
         (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-        (comparePassword as jest.Mock).mockResolvedValue(false);
+        (comparePass as jest.Mock).mockResolvedValue(false);
         await expect(authServices.login("test@testing.com", "password1234")).rejects.toThrow("Invalid email or password");
     });
 });
