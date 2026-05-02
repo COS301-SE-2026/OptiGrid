@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "pnpm --parallel --filter ./frontend --filter ./backend/core run dev",
 		"build": "pnpm -r run build",
-		"test": "pnpm -r run test",
+		"test": "pnpm -r run test", 
 		"test:e2e": "playwright test",
 		"storybook": "pnpm --filter ./frontend run storybook",
 		"storybook:build": "pnpm --filter ./frontend run build-storybook",
@@ -35,4 +35,7 @@
 			"ssh2"
 		]
 	}
+
+
+
 }

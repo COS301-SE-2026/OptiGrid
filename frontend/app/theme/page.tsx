@@ -14,9 +14,7 @@ export default function ThemeTogglePage() {
   }, []);
 
 
-  if (theme === null){
-    return null;
-  }
+
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";

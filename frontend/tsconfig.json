@@ -28,7 +28,7 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
-  ],
+, "../tests/unit_tests/frontend/page.test.tsx", "jest.config.ts"  ],
   "exclude": [
     "node_modules"
   ]
