@@ -180,7 +180,7 @@ export default function SignupPage() {
                         )}
                     </div>
                     <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-xs text-slate-400">
-                        By creating an account, you will be enrolled in OptiGrid's multi-site energy optimization workspace.
+                        By creating an account, you will be enrolled in {"OptiGrid's"} multi-site energy optimization workspace.
                     </div>
                     <button type="submit" className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200">
                         Create account
