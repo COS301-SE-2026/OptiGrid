@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type FocusEvent, type SubmitEvent } from "react";
+import { useMemo, useState, type ChangeEvent, type FocusEvent, type FormEvent } from "react";
 import { getSubmitResult, hasErrors, shouldShowError, type SignupErrors, type SignupTouched } from "./logic";
 import { initialSignupFormData, type SignupFormData } from "./validation";
 
@@ -24,7 +24,7 @@ export default function SignupPage() {
         setTouched((previous) => ({ ...previous, [name]: true }));
     };
 
-    const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const result = getSubmitResult(formData);
         setErrors(result.errors);
