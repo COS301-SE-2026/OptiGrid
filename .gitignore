@@ -43,6 +43,8 @@ htmlcov/
 logs/
 *.log
 
+# All JS configs n files 
+*.js
 # Terraform local state and vars
 infrastructure/terraform/.terraform/
 infrastructure/terraform/terraform.tfstate
@@ -52,6 +54,5 @@ infrastructure/terraform/terraform.tfvars
 # Generated EC2 deployment artifacts
 infrastructure/docker/.generated/
 
-# Local test-only Docker assets
-infrastructure/docker/.env.localtest
-infrastructure/docker/docker-compose.localtest.yml
+.gitignore
+package-lock.json
