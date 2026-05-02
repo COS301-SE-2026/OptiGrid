@@ -26,6 +26,8 @@ jobs:
 
       - name: Install root dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
       - name: Build
         run: pnpm --filter @optigrid/frontend run build
@@ -55,6 +57,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
       - name: build
         run: pnpm --filter @optigrid/core run build

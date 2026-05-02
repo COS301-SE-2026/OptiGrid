@@ -30,7 +30,9 @@
 		"infra:app:status": "node scripts/deploy-ec2-stack.mjs status",
 		"security:test": "snyk test --all-projects",
 		"security:monitor": "snyk monitor --all-projects",
-		"prepare": "playwright install --with-deps"
+		"prepare": "playwright install --with-deps",
+		"lint": "pnpm -w exec eslint . --ignore-pattern .gitignore",
+		"lint:fix": "pnpm -w exec eslint . --fix --ignore-pattern .gitignore"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.52.0",
@@ -40,6 +42,13 @@
 		"snyk": "^1.1304.0",
 		"testcontainers": "^10.21.0",
 		"typescript": "^6.0.3"
+		"@typescript-eslint/eslint-plugin": "^6.21.0",
+		"@typescript-eslint/parser": "^6.21.0",
+		"eslint": "^8.57.1",
+		"jest": "^29.7.0",
+		"snyk": "^1.1304.0",
+		"testcontainers": "^10.21.0",
+		"ts-jest": "^29.4.9"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -59,5 +68,6 @@
 	"dependencies": {
 		"react": "^19.2.5",
 		"react-dom": "^19.2.5"
+		"zod": "^4.3.6"
 	}
 }
