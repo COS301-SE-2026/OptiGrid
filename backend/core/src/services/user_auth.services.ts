@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { hashPassword } from '../lib/password';
+import { comparePass, hashPassword } from '../lib/password';
 import { randomUUID } from 'crypto';
 import type { Prisma } from '@prisma/client';
 
@@ -34,4 +34,30 @@ export const signup = async (email: string, password: string, name: string) => {
     });
 
     return user;
+};
+
+//this function is used for the login logic
+export const login = async (email: string, password: string) => {
+    const user = await prisma.user.findUnique({
+        where: {email},
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            passwordHash: true,
+        }
+    });
+
+    if(!user){
+        throw new Error("Invalid email or password");
+    }
+
+    const isPasswordValid = await comparePass(password, user.passwordHash);
+    if (!isPasswordValid) {
+        throw new Error("Invalid email or password");
+    }
+
+    const {passwordHash, ...safeUser} = user;
+    return safeUser;
 };
