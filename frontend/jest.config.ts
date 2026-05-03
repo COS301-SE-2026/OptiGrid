@@ -15,7 +15,7 @@ const customJestConfig = {
     "^react-dom$": path.resolve(__dirname, "node_modules/react-dom"),
     "^react-dom/client$": path.resolve(__dirname, "node_modules/react-dom/client"),
   },
-  roots: ["<rootDir>", "/home/tali_seaba/OptiGrid-1/tests"],
+  roots: ["<rootDir>",path.resolve(__dirname, "../tests"), ],
 };
 
 export default createJestConfig(customJestConfig);
