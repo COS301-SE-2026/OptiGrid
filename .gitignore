@@ -6,10 +6,13 @@ yarn-debug.log*
 yarn-error.log*
 
 # Next.js for frontend
+*.js
 .next/
 out/
 build/
 .swc/
+dist/
+
 
 # Python for analytics
 __pycache__/
@@ -24,10 +27,12 @@ env/
 # Environment 
 .env
 .env.local
-fontend/ .env
-backend/ .env
-forntend/ .env.local
-backend/ .env.local
+.env.example
+.env
+.env.local
+.env.*.local
+backend/.env*
+frontend/.env*
 
 # coverage 
 coverage/
@@ -38,5 +43,16 @@ htmlcov/
 logs/
 *.log
 
-# JS Storybook configs 
-frontend/.storybook/*.js
+# All JS configs n files 
+*.js
+# Terraform local state and vars
+infrastructure/terraform/.terraform/
+infrastructure/terraform/terraform.tfstate
+infrastructure/terraform/terraform.tfstate.backup
+infrastructure/terraform/terraform.tfvars
+
+# Generated EC2 deployment artifacts
+infrastructure/docker/.generated/
+
+.gitignore
+package-lock.json
