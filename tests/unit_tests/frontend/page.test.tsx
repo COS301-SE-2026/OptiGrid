@@ -148,11 +148,12 @@ describe("LoginPage", () => {
       fillEmail("test@example.com");
       fillPassword("secret123");
 
-      await act(async () => {
-        submitForm();
-      });
-
+ act(() => { submitForm(); });     
+ 
       expect(screen.queryByText(/please fill in all fields/i)).not.toBeInTheDocument();
+
+    await act(async () => { jest.advanceTimersByTime(1500); });
+
     });
   });
 
@@ -164,11 +165,12 @@ describe("LoginPage", () => {
       fillEmail("test@example.com");
       fillPassword("secret123");
 
-      await act(async () => {
-        submitForm();
-      });
+     act(() => { submitForm(); });
 
       expect(screen.getByRole("button", { name: /logging in/i })).toBeInTheDocument();
+
+    await act(async () => { jest.advanceTimersByTime(1500); });
+      
     });
 
     it("disables the submit button while loading", async () => {
@@ -176,11 +178,11 @@ describe("LoginPage", () => {
       fillEmail("test@example.com");
       fillPassword("secret123");
 
-      await act(async () => {
-        submitForm();
-      });
+    act(() => { submitForm(); });      
 
       expect(screen.getByRole("button", { name: /logging in/i })).toBeDisabled();
+
+       await act(async () => { jest.advanceTimersByTime(1500); });
     });
 
     it("re-enables the button and restores label after loading completes", async () => {
@@ -188,11 +190,9 @@ describe("LoginPage", () => {
       fillEmail("test@example.com");
       fillPassword("secret123");
 
-      await act(async () => {
-        submitForm();
-      });
+      act(() => { submitForm(); });
 
-      // Advance past the 1500ms fake timeout
+      
       await act(async () => {
         jest.advanceTimersByTime(1500);
       });
