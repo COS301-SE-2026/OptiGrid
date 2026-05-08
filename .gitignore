@@ -56,3 +56,7 @@ infrastructure/docker/.generated/
 
 .gitignore
 package-lock.json
+
+# Playwright artifacts
+playwright-report/
+test-results/
