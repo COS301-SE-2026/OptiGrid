@@ -1,0 +1,9 @@
+{
+	"preset": "ts-jest",
+	"testEnvironment": "node",
+	"setupFiles": ["<rootDir>/tests/integration/setup-env.ts"],
+	"testMatch": ["<rootDir>/tests/integration/**/*.integration.test.ts"],
+	"clearMocks": true,
+	"restoreMocks": true,
+	"testTimeout": 180000
+}
