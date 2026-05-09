@@ -1,0 +1,73 @@
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infrastructure/terraform/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure/terraform
+
+    # AWS credentials and TF_VAR_* values are expected in GitHub Secrets.
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+      TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_ssh_public_key }}
+      TF_VAR_allowed_ssh_cidr: ${{ secrets.TF_VAR_allowed_ssh_cidr }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt check
+        run: terraform fmt -check
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Check Terraform Secret Inputs
+        id: tf_inputs
+        shell: bash
+        run: |
+          if [[ -n "${AWS_ACCESS_KEY_ID}" && -n "${AWS_SECRET_ACCESS_KEY}" && -n "${AWS_REGION}" && -n "${TF_VAR_ssh_public_key}" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Terraform plan/apply inputs detected."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Terraform plan/apply skipped: required AWS/TF secrets are missing for this run."
+          fi
+
+      - name: Terraform plan
+        if: steps.tf_inputs.outputs.ready == 'true'
+        run: terraform plan -no-color
+
+      - name: Terraform plan skipped
+        if: steps.tf_inputs.outputs.ready != 'true'
+        run: echo "Skipping terraform plan because required secrets are unavailable."
+
+      - name: Terraform apply
+        if: steps.tf_inputs.outputs.ready == 'true' && github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve -no-color

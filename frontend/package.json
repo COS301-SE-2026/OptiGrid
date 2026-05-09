@@ -6,8 +6,8 @@
 		"dev": "next dev",
 		"build": "next build",
 		"start": "next start",
-		"lint": "next lint",
-		"test": "jest --passWithNoTests",
+		"lint": "eslint .",
+		"test": "jest",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},
@@ -17,15 +17,13 @@
 		"@tanstack/react-query": "^5.74.4",
 		"@tremor/react": "^3.18.7",
 		"next": "^15.3.1",
-		"react": "^18.3.1",
-		"react-dom": "^18.3.1",
+		"react": "^19.2.5",
+		"react-dom": "^19.2.5",
 		"recharts": "^2.15.3"
 	},
 	"devDependencies": {
-		
-
 		"@eslint/eslintrc": "^3.3.5",
-		"@storybook/addon-essentials": "^8.6.14 https://github.com/COS301-SE-2026/OptiGrid/pull/39/conflict?name=frontend%252Fpackage.json&ancestor_oid=be3b8ae6b9d199a6fbd163fd45d53152c6fc90c9&base_oid=6014b585a3e06df46258ac45b91ee03ddc5b3976&head_oid=5eef997f6b36aef0d0a9b9bdec03d81542d8a684",
+		"@storybook/addon-essentials": "^8.6.14",
 		"@storybook/nextjs": "^8.6.14",
 		"@tailwindcss/postcss": "^4.1.4",
 		"@testing-library/jest-dom": "^6.6.3",
@@ -35,6 +33,8 @@
 		"@types/node": "^22.14.1",
 		"@types/react": "^18.3.12",
 		"@types/react-dom": "^18.3.1",
+		"@typescript-eslint/eslint-plugin": "^6.21.0",
+		"@typescript-eslint/parser": "^6.21.0",
 		"autoprefixer": "^10.4.21",
 		"eslint": "^8.57.1",
 		"eslint-config-next": "^15.3.1",
@@ -43,7 +43,6 @@
 		"postcss": "^8.5.3",
 		"storybook": "^8.6.14",
 		"tailwindcss": "^4.1.4",
-		"ts-jest": "^29.4.9",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.8.3"
 	}

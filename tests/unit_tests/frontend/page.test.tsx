@@ -1,152 +1,227 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import ThemeTogglePage from "../../../frontend/app/theme/page";
 import React from "react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import LoginPage from "../../../frontend/app/login/page";
 
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: jest.fn((key: string) => store[key] ?? null),
-    setItem: jest.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: jest.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: jest.fn(() => {
-      store = {};
-    }),
-  };
-})();
- 
-Object.defineProperty(window, "localStorage", { value: localStorageMock });
- 
-beforeEach(() => {
-  localStorageMock.clear();
-  jest.clearAllMocks();
-  // Reset <html> classes between tests
-  document.documentElement.className = "";
-});
- 
 
- 
-describe("ThemeTogglePage", () => {
+jest.mock("@tremor/react", () => ({
+  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  Title: ({ children }: any) => <h1>{children}</h1>,
+  TextInput: ({ name, type, placeholder, value, onChange, required }: any) => (
+    <input
+      name={name}
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      required={required}
+      data-testid={`input-${name}`}
+    />
+  ),
+  Button: ({ children, type, disabled, className }: any) => (
+    <button type={type} disabled={disabled} className={className}>
+      {children}
+    </button>
+  ),
+}));
+
+
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ children, href }: any) => <a href={href}>{children}</a>,
+}));
+
+
+
+const fillEmail = (value: string) =>
+  fireEvent.change(screen.getByTestId("input-email"), { target: { name: "email", value } });
+
+const fillPassword = (value: string) =>
+  fireEvent.change(screen.getByTestId("input-password"), { target: { name: "password", value } });
+
+const submitForm = () =>
+  fireEvent.submit(screen.getByRole("button", { name: /login/i }).closest("form")!);
+
+
+
+describe("LoginPage", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  
+
   describe("Initial render", () => {
-    it("renders the page heading", () => {
-      render(<ThemeTogglePage />);
-      expect(screen.getByRole("heading", { name: /theme/i })).toBeInTheDocument();
+    it("renders the Login heading", () => {
+      render(<LoginPage />);
+      expect(screen.getByRole("heading", { name: /login/i })).toBeInTheDocument();
     });
- 
-    it("defaults to light theme when localStorage is empty", () => {
-      render(<ThemeTogglePage />);
-      expect(screen.getByText(/current theme:/i)).toBeInTheDocument();
-      expect(screen.getByRole("strong" as any) ?? screen.getByText("light")).toBeInTheDocument();
-      expect(screen.getByRole("button")).toHaveTextContent(/switch to dark mode/i);
+
+    it("renders the email input", () => {
+      render(<LoginPage />);
+      expect(screen.getByTestId("input-email")).toBeInTheDocument();
     });
- 
-    it("does not add 'dark' class to <html> when no saved theme", () => {
-      render(<ThemeTogglePage />);
-      expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+    it("renders the password input", () => {
+      render(<LoginPage />);
+      expect(screen.getByTestId("input-password")).toBeInTheDocument();
     });
-  });
- 
-  describe("Persisted theme from localStorage", () => {
-    it("restores dark theme saved in localStorage", () => {
-      localStorageMock.getItem.mockReturnValueOnce("dark");
-      render(<ThemeTogglePage />);
-      expect(screen.getByRole("button")).toHaveTextContent(/switch to light mode/i);
-      expect(document.documentElement.classList.contains("dark")).toBe(true);
+
+    it("renders the submit button with 'Login' label", () => {
+      render(<LoginPage />);
+      expect(screen.getByRole("button", { name: /^login$/i })).toBeInTheDocument();
     });
- 
-    it("restores light theme saved in localStorage", () => {
-      localStorageMock.getItem.mockReturnValueOnce("light");
-      render(<ThemeTogglePage />);
-      expect(screen.getByRole("button")).toHaveTextContent(/switch to dark mode/i);
-      expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+    it("submit button is enabled initially", () => {
+      render(<LoginPage />);
+      expect(screen.getByRole("button", { name: /^login$/i })).not.toBeDisabled();
     });
-  });
- 
-  describe("Toggle button", () => {
-    it("switches from light to dark on first click", () => {
-      render(<ThemeTogglePage />);
-      const button = screen.getByRole("button");
- 
-      fireEvent.click(button);
- 
-      expect(button).toHaveTextContent(/switch to light mode/i);
-      expect(screen.getByText("dark")).toBeInTheDocument();
+
+    it("renders the sign-up link pointing to /register", () => {
+      render(<LoginPage />);
+      const link = screen.getByRole("link", { name: /sign up/i });
+      expect(link).toBeInTheDocument();
+      expect(link).toHaveAttribute("href", "/register");
     });
- 
-    it("switches from dark back to light on second click", () => {
-      render(<ThemeTogglePage />);
-      const button = screen.getByRole("button");
- 
-      fireEvent.click(button); 
-      fireEvent.click(button); 
- 
-      expect(button).toHaveTextContent(/switch to dark mode/i);
-      expect(screen.getByText("light")).toBeInTheDocument();
-    });
- 
-    it("adds 'dark' class to <html> when switching to dark", () => {
-      render(<ThemeTogglePage />);
-      fireEvent.click(screen.getByRole("button"));
-      expect(document.documentElement.classList.contains("dark")).toBe(true);
-    });
- 
-    it("removes 'dark' class from <html> when switching back to light", () => {
-      document.documentElement.classList.add("dark");
-      localStorageMock.getItem.mockReturnValueOnce("dark");
-      render(<ThemeTogglePage />);
- 
-      fireEvent.click(screen.getByRole("button")); 
- 
-      expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+    it("does not show an error message on initial render", () => {
+      render(<LoginPage />);
+      expect(screen.queryByText(/please fill in all fields/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/login failed/i)).not.toBeInTheDocument();
     });
   });
- 
-  describe("localStorage persistence", () => {
-    it("persists 'dark' to localStorage after toggling to dark", () => {
-      render(<ThemeTogglePage />);
-      fireEvent.click(screen.getByRole("button"));
-      expect(localStorageMock.setItem).toHaveBeenCalledWith("theme", "dark");
+
+
+  describe("Form inputs", () => {
+    it("updates email field on change", () => {
+      render(<LoginPage />);
+      fillEmail("test@example.com");
+      expect(screen.getByTestId("input-email")).toHaveValue("test@example.com");
     });
- 
-    it("persists 'light' to localStorage after toggling back to light", () => {
-      localStorageMock.getItem.mockReturnValueOnce("dark");
-      render(<ThemeTogglePage />);
-      fireEvent.click(screen.getByRole("button")); 
-      expect(localStorageMock.setItem).toHaveBeenCalledWith("theme", "light");
+
+    it("updates password field on change", () => {
+      render(<LoginPage />);
+      fillPassword("secret123");
+      expect(screen.getByTestId("input-password")).toHaveValue("secret123");
     });
- 
-    it("reads from localStorage on mount", () => {
-      render(<ThemeTogglePage />);
-      expect(localStorageMock.getItem).toHaveBeenCalledWith("theme");
+
+    it("clears error when user starts typing after an error", () => {
+      render(<LoginPage />);
+      submitForm(); // triggers empty-field error
+      expect(screen.getByText(/please fill in all fields/i)).toBeInTheDocument();
+
+      fillEmail("a@b.com");
+      expect(screen.queryByText(/please fill in all fields/i)).not.toBeInTheDocument();
     });
   });
+
+
+
+  describe("Validation", () => {
+    it("shows error when both fields are empty on submit", () => {
+      render(<LoginPage />);
+      submitForm();
+      expect(screen.getByText(/please fill in all fields/i)).toBeInTheDocument();
+    });
+
+    it("shows error when only email is filled", () => {
+      render(<LoginPage />);
+      fillEmail("test@example.com");
+      submitForm();
+      expect(screen.getByText(/please fill in all fields/i)).toBeInTheDocument();
+    });
+
+    it("shows error when only password is filled", () => {
+      render(<LoginPage />);
+      fillPassword("secret123");
+      submitForm();
+      expect(screen.getByText(/please fill in all fields/i)).toBeInTheDocument();
+    });
+
+    it("does not show validation error when both fields are filled", async () => {
+      render(<LoginPage />);
+      fillEmail("test@example.com");
+      fillPassword("secret123");
+
+ act(() => { submitForm(); });     
  
+      expect(screen.queryByText(/please fill in all fields/i)).not.toBeInTheDocument();
+
+    await act(async () => { jest.advanceTimersByTime(1500); });
+
+    });
+  });
+
+ 
+
+  describe("Loading state", () => {
+    it("shows 'Logging in...' while the request is pending", async () => {
+      render(<LoginPage />);
+      fillEmail("test@example.com");
+      fillPassword("secret123");
+
+     act(() => { submitForm(); });
+
+      expect(screen.getByRole("button", { name: /logging in/i })).toBeInTheDocument();
+
+    await act(async () => { jest.advanceTimersByTime(1500); });
+      
+    });
+
+    it("disables the submit button while loading", async () => {
+      render(<LoginPage />);
+      fillEmail("test@example.com");
+      fillPassword("secret123");
+
+    act(() => { submitForm(); });      
+
+      expect(screen.getByRole("button", { name: /logging in/i })).toBeDisabled();
+
+       await act(async () => { jest.advanceTimersByTime(1500); });
+    });
+
+    it("re-enables the button and restores label after loading completes", async () => {
+      render(<LoginPage />);
+      fillEmail("test@example.com");
+      fillPassword("secret123");
+
+      act(() => { submitForm(); });
+
+      
+      await act(async () => {
+        jest.advanceTimersByTime(1500);
+      });
+
+      expect(screen.getByRole("button", { name: /^login$/i })).not.toBeDisabled();
+    });
+  });
+
+ 
+
   describe("Accessibility & UI", () => {
-    it("renders exactly one button", () => {
-      render(<ThemeTogglePage />);
+    it("password input has type='password'", () => {
+      render(<LoginPage />);
+      expect(screen.getByTestId("input-password")).toHaveAttribute("type", "password");
+    });
+
+    it("email input has type='email'", () => {
+      render(<LoginPage />);
+      expect(screen.getByTestId("input-email")).toHaveAttribute("type", "email");
+    });
+
+    it("renders exactly one submit button", () => {
+      render(<LoginPage />);
       expect(screen.getAllByRole("button")).toHaveLength(1);
     });
- 
-    it("displays current theme name in bold", () => {
-      render(<ThemeTogglePage />);
-      const strong = document.querySelector("strong");
-      expect(strong).toBeInTheDocument();
-      expect(strong?.textContent).toBe("light");
-    });
- 
-    it("button label updates correctly after multiple toggles", () => {
-      render(<ThemeTogglePage />);
-      const button = screen.getByRole("button");
- 
-      expect(button).toHaveTextContent(/dark mode/i);
-      fireEvent.click(button);
-      expect(button).toHaveTextContent(/light mode/i);
-      fireEvent.click(button);
-      expect(button).toHaveTextContent(/dark mode/i);
+
+    it("renders the 'Don't have an account?' prompt", () => {
+      render(<LoginPage />);
+      expect(screen.getByText(/don't have an account/i)).toBeInTheDocument();
     });
   });
 });
