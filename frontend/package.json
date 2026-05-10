@@ -23,7 +23,7 @@
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.3.5",
-		"@storybook/addon-essentials": "^8.6.14 https://github.com/COS301-SE-2026/OptiGrid/pull/39/conflict?name=frontend%252Fpackage.json&ancestor_oid=be3b8ae6b9d199a6fbd163fd45d53152c6fc90c9&base_oid=6014b585a3e06df46258ac45b91ee03ddc5b3976&head_oid=5eef997f6b36aef0d0a9b9bdec03d81542d8a684",
+		"@storybook/addon-essentials": "^8.6.14",
 		"@storybook/nextjs": "^8.6.14",
 		"@tailwindcss/postcss": "^4.1.4",
 		"@testing-library/jest-dom": "^6.6.3",
