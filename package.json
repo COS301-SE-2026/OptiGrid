@@ -24,6 +24,7 @@
 		"infra:t3:e2e:autodestroy": "node scripts/infra-t3-e2e.mjs run --destroy",
 		"infra:t3:destroy": "node scripts/infra-t3-e2e.mjs destroy",
 		"test:integration:tf:smoke": "node scripts/terraform-apply-destroy-smoke.mjs",
+		"test:integration:ec2-bootstrap": "node scripts/verify-ec2-docker-bootstrap.mjs",
 		"infra:app:deploy": "node scripts/deploy-ec2-stack.mjs deploy",
 		"infra:app:deploy:skip-build": "node scripts/deploy-ec2-stack.mjs deploy --skip-build",
 		"infra:app:resume": "node scripts/deploy-ec2-stack.mjs resume",
