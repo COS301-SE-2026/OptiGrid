@@ -11,6 +11,7 @@
 		"lint": "eslint .",
 		"test:unit": "jest",
 		"test:integration": "jest --config ./jest.integration.json --runInBand",
+		"test:supabase": "jest --config ./jest.supabase.json --runInBand",
 		"db:generate": "prisma generate",
 		"db:migrate": "prisma migrate dev",
 		"db:deploy": "prisma migrate deploy"

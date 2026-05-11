@@ -9,16 +9,23 @@ export interface CoreApiHarness {
 	stop: () => Promise<void>;
 }
 
+export interface CoreApiHarnessOptions {
+	prepareDatabase?: (connectionString: string) => Promise<void>;
+	resetDatabase?: (connectionString: string) => Promise<void>;
+}
+
 async function disconnectPrismaClient(): Promise<void> {
 	const prismaModule = await import('../../../src/lib/prisma');
 	await prismaModule.default.$disconnect();
 }
 
-export async function createCoreApiHarness(): Promise<CoreApiHarness> {
+export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}): Promise<CoreApiHarness> {
 	const postgresHarness = await startPostgresHarness();
 	process.env.DATABASE_URL = postgresHarness.connectionString;
 
-	await bootstrapCoreSchema(postgresHarness.connectionString);
+	const prepareDatabase = options.prepareDatabase ?? bootstrapCoreSchema;
+	const resetDatabase = options.resetDatabase ?? resetCoreSchema;
+	await prepareDatabase(postgresHarness.connectionString);
 
 	const { createApp } = await import('../../../src/app');
 	const app = createApp(0);
@@ -26,7 +33,7 @@ export async function createCoreApiHarness(): Promise<CoreApiHarness> {
 	return {
 		app,
 		databaseUrl: postgresHarness.connectionString,
-		resetDatabase: async () => resetCoreSchema(postgresHarness.connectionString),
+		resetDatabase: async () => resetDatabase(postgresHarness.connectionString),
 		stop: async () => stopCoreApiHarness(postgresHarness),
 	};
 }
