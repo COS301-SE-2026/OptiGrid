@@ -192,7 +192,7 @@ describe('Building Services, happy path', () => {
 						create: jest.fn().mockResolvedValue(mockBuilding),
 					},
 					userBuildingAccess: {
-						create: jest.fn(async (data) => {
+						create: jest.fn(async ({ data }) => {
 							buildingAccessCreated = true;
 							expect(data).toEqual({
 								user_id: mockUserId,
@@ -212,6 +212,218 @@ describe('Building Services, happy path', () => {
 
 			// Assert
 			expect(buildingAccessCreated).toBe(true);
+		});
+
+		describe('error handling', () => {
+			it('should_throw_an_error_when_building_creation_fails', async () => {
+				// Arrange
+				const payload: buildingPayload = {
+					tenant_id: mockTenantId,
+					building_name: 'Broken Building',
+				};
+
+				const mockTransaction = jest.fn(async (callback) => {
+					const mockTx = {
+						building: {
+							create: jest.fn().mockRejectedValue(new Error('Failed to create building')),
+						},
+						userBuildingAccess: {
+							create: jest.fn(),
+						},
+					};
+
+					return await callback(mockTx);
+				});
+
+				mockedPrisma.$transaction.mockImplementation(mockTransaction);
+
+				// Act & Assert
+				await expect(createBuilding(mockUserId, payload)).rejects.toThrow('Failed to create building');
+				expect(mockedPrisma.$transaction).toHaveBeenCalled();
+			});
+
+			it('should_throw_an_error_when_access_creation_fails_after_building_creation', async () => {
+				// Arrange
+				const payload: buildingPayload = {
+					tenant_id: mockTenantId,
+					building_name: 'Partially Broken Building',
+				};
+
+				const mockBuilding = {
+					building_id: mockBuildingId,
+					tenant_id: mockTenantId,
+					building_name: 'Partially Broken Building',
+					building_type: 'Residential',
+					square_footage: null,
+					physical_address: null,
+					timezone: 'UTC',
+					max_occupancy: null,
+				};
+
+				const mockTransaction = jest.fn(async (callback) => {
+					const mockTx = {
+						building: {
+							create: jest.fn().mockResolvedValue(mockBuilding),
+						},
+						userBuildingAccess: {
+							create: jest.fn().mockRejectedValue(new Error('Failed to grant building access')),
+						},
+					};
+
+					return await callback(mockTx);
+				});
+
+				mockedPrisma.$transaction.mockImplementation(mockTransaction);
+
+				// Act & Assert
+				await expect(createBuilding(mockUserId, payload)).rejects.toThrow('Failed to grant building access');
+				expect(mockedPrisma.$transaction).toHaveBeenCalled();
+			});
+
+			it('should_propagate_a_direct_transaction_failure', async () => {
+				// Arrange
+				const payload: buildingPayload = {
+					tenant_id: mockTenantId,
+					building_name: 'Transaction Failure Building',
+				};
+
+				mockedPrisma.$transaction.mockRejectedValue(new Error('Transaction failed to start'));
+
+				// Act & Assert
+				await expect(createBuilding(mockUserId, payload)).rejects.toThrow('Transaction failed to start');
+				expect(mockedPrisma.$transaction).toHaveBeenCalled();
+			});
+		});
+
+		describe('edge cases', () => {
+			it('should_handle_zero_square_size', async () => {
+				// Arrange
+				const payload: buildingPayload = {
+					tenant_id: mockTenantId,
+					building_name: 'Zero Square Building',
+					square_footage: 0,
+				};
+
+				const mockBuilding = {
+					building_id: mockBuildingId,
+					tenant_id: mockTenantId,
+					building_name: 'Zero Square Building',
+					building_type: 'Residential',
+					square_footage: 0,
+					physical_address: null,
+					timezone: 'UTC',
+					max_occupancy: null,
+				};
+
+				const mockTransaction = jest.fn(async (callback) => {
+					const mockTx = {
+						building: {
+							create: jest.fn().mockResolvedValue(mockBuilding),
+						},
+						userBuildingAccess: {
+							create: jest.fn().mockResolvedValue({
+								user_id: mockUserId,
+								building_id: mockBuildingId,
+							}),
+						},
+					};
+					return await callback(mockTx);
+				});
+
+				mockedPrisma.$transaction.mockImplementation(mockTransaction);
+
+				// Act
+				const result = await createBuilding(mockUserId, payload);
+
+				// Assert
+				expect(result.square_footage).toBe(0);
+			});
+
+			it('should_handle_zero_max_occupancy', async () => {
+				// Arrange
+				const payload: buildingPayload = {
+					tenant_id: mockTenantId,
+					building_name: 'Zero Occupancy Building',
+					max_occupancy: 0,
+				};
+
+				const mockBuilding = {
+					building_id: mockBuildingId,
+					tenant_id: mockTenantId,
+					building_name: 'Zero Occupancy Building',
+					building_type: 'Residential',
+					square_footage: null,
+					physical_address: null,
+					timezone: 'UTC',
+					max_occupancy: 0,
+				};
+
+				const mockTransaction = jest.fn(async (callback) => {
+					const mockTx = {
+						building: {
+							create: jest.fn().mockResolvedValue(mockBuilding),
+						},
+						userBuildingAccess: {
+							create: jest.fn().mockResolvedValue({
+								user_id: mockUserId,
+								building_id: mockBuildingId,
+							}),
+						},
+					};
+					return await callback(mockTx);
+				});
+
+				mockedPrisma.$transaction.mockImplementation(mockTransaction);
+
+				// Act
+				const result = await createBuilding(mockUserId, payload);
+
+				// Assert
+				expect(result.max_occupancy).toBe(0);
+			});
+
+			it('should_handle_an_empty_physical_address', async () => {
+				// Arrange
+				const payload: buildingPayload = {
+					tenant_id: mockTenantId,
+					building_name: 'Empty Address Building',
+					physical_address: '',
+				};
+
+				const mockBuilding = {
+					building_id: mockBuildingId,
+					tenant_id: mockTenantId,
+					building_name: 'Empty Address Building',
+					building_type: 'Residential',
+					square_footage: null,
+					physical_address: '',
+					timezone: 'UTC',
+					max_occupancy: null,
+				};
+
+				const mockTransaction = jest.fn(async (callback) => {
+					const mockTx = {
+						building: {
+							create: jest.fn().mockResolvedValue(mockBuilding),
+						},
+						userBuildingAccess: {
+							create: jest.fn().mockResolvedValue({
+								user_id: mockUserId,
+								building_id: mockBuildingId,
+							}),
+						},
+					};
+					return await callback(mockTx);
+				});
+
+				mockedPrisma.$transaction.mockImplementation(mockTransaction);
+
+				// Act
+				const result = await createBuilding(mockUserId, payload);
+
+				// Assert
+				expect(result.physical_address).toBe('');
+			});
 		});
     });
 });
