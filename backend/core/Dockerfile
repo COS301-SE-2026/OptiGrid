@@ -20,16 +20,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-COPY package.json ./
-COPY backend/core/package.json ./backend/core/package.json
-COPY pnpm-lock.yaml pnpm-workspace.yaml ./
-
-RUN pnpm install --prod --no-frozen-lockfile --ignore-scripts
-
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/backend/core ./backend/core
 
 EXPOSE 4000
 
-CMD ["pnpm", "--filter", "@optigrid/core", "start"]
+CMD ["node", "backend/core/dist/src/server.js"]

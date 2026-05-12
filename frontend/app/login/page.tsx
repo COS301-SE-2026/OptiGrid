@@ -12,6 +12,7 @@ export default function LoginPage() {
   });
 
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -23,6 +24,7 @@ export default function LoginPage() {
     }));
 
     if (error) setError("");
+    if (success) setSuccess("");
   };
 //form validation
 
@@ -39,11 +41,26 @@ export default function LoginPage() {
 
     try {
       
-      await new Promise((res) => setTimeout(res, 1500));
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
 
-      console.log("Login data:", formData);
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Login failed. Try again.");
+      }
+
+      const firstName = payload?.user?.firstName as string | undefined;
+      setSuccess(`Login successful${firstName ? `, ${firstName}` : ""}.`);
+      setFormData({ email: "", password: "" });
     } catch (err) {
-      setError("Login failed. Try again.");
+      const message = err instanceof Error ? err.message : "Login failed. Try again.";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -76,6 +93,7 @@ export default function LoginPage() {
           />
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
+          {success && <p className="text-green-600 text-sm">{success}</p>}
 
           <Button className="w-full" type="submit" disabled={loading}>
             {loading ? "Logging in..." : "Login"}
@@ -85,7 +103,7 @@ export default function LoginPage() {
         <p className="text-sm text-gray-600">
           {"Don't"} have an account?{" "}
           <Link
-            href="/register"
+            href="/signup"
             className="text-blue-600 hover:text-blue-700 underline"
           >
             Sign up

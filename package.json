@@ -15,7 +15,7 @@
 		"stack:down": "node scripts/docker-stack-down.mjs",
 		"infra:tf:init": "terraform -chdir=infrastructure/terraform init -input=false",
 		"infra:tf:validate": "terraform -chdir=infrastructure/terraform validate",
-		"infra:tf:test": "terraform -chdir=infrastructure/terraform test",
+		"infra:tf:test": "terraform -chdir=infrastructure/terraform init -input=false && terraform -chdir=infrastructure/terraform test",
 		"infra:deploy:t2:docker": "terraform -chdir=infrastructure/terraform apply -auto-approve -input=false -var \"instance_type=t2.micro\"",
 		"infra:destroy:t2": "terraform -chdir=infrastructure/terraform destroy -auto-approve -input=false -var \"instance_type=t2.micro\"",
 		"infra:tf:output": "terraform -chdir=infrastructure/terraform output",

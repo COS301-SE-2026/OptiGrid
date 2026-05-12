@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-frontend:latest
+    image: ghcr.io/local/optigrid-frontend:latest
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -18,14 +18,14 @@ services:
         condition: service_healthy
 
   core:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-core:latest
+    image: ghcr.io/local/optigrid-core:latest
     restart: unless-stopped
     ports:
       - "${CORE_PORT:-4000}:4000"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${CORE_PORT:-4000}
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://dummy:dummy@localhost:5432/dummy}
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       INFLUXDB_URL: ${INFLUXDB_URL}
@@ -40,7 +40,7 @@ services:
       start_period: 20s
 
   ingestion:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-ingestion:latest
+    image: ghcr.io/local/optigrid-ingestion:latest
     restart: unless-stopped
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL}
@@ -49,7 +49,7 @@ services:
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
 
   analytics:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
+    image: ghcr.io/local/optigrid-analytics:latest
     restart: unless-stopped
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL}

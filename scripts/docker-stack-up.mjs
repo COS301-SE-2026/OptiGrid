@@ -7,6 +7,7 @@ const args = new Set(process.argv.slice(2));
 const skipBuild = args.has("--skip-build");
 
 const env = {
+  databaseUrl: process.env.DATABASE_URL,
   supabaseUrl: process.env.SUPABASE_URL ?? "https://example.supabase.co",
   supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "dummy",
   influxUrl: process.env.INFLUXDB_URL ?? "http://example-influx:8086",
@@ -85,6 +86,11 @@ async function waitForWorkerRunning(name, attempts = 30, delayMs = 2000) {
   throw new Error(`${name} worker check failed after retries.`);
 }
 
+if (!env.databaseUrl) {
+  console.error("Missing DATABASE_URL. Set it to your Supabase Postgres connection string.");
+  process.exit(1);
+}
+
 const compose = readFileSync(composeProd, "utf8").replaceAll("YOUR_GITHUB_USERNAME", "local");
 writeFileSync(composeLocal, compose);
 
@@ -96,6 +102,7 @@ writeFileSync(
     "CORE_PORT=4000",
     "INGESTION_PORT=8000",
     "ANALYTICS_PORT=8001",
+    `DATABASE_URL=${env.databaseUrl}`,
     `SUPABASE_URL=${env.supabaseUrl}`,
     `SUPABASE_SERVICE_ROLE_KEY=${env.supabaseKey}`,
     `INFLUXDB_URL=${env.influxUrl}`,

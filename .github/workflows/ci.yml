@@ -67,4 +67,4 @@ jobs:
         run: pnpm --filter @optigrid/core run lint
 
       - name: test
-        run: pnpm --filter @optigrid/core run test
+        run: pnpm --filter @optigrid/core run test:integration
