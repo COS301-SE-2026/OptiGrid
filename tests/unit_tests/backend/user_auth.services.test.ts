@@ -1,18 +1,18 @@
-import * as authServices from '../../../backend/core/src/services/user_auth.services';
-import prisma from '../../../backend/core/src/lib/prisma';
+import * as authServices from '../../../backend/configuration/src/services/user_auth.services';
+import prisma from '../../../backend/configuration/src/lib/prisma';
 import { randomUUID } from 'crypto';
-import {login} from '../../../backend/core/src/services/user_auth.services';
-import { comparePass } from '../../../backend/core/src/lib/password';
+import {login} from '../../../backend/configuration/src/services/user_auth.services';
+import { comparePass } from '../../../backend/configuration/src/lib/password';
 
 //mocking prisma client
-jest.mock('../../../backend/core/src/lib/prisma', () => ({
+jest.mock('../../../backend/configuration/src/lib/prisma', () => ({
     user: {
         findUnique: jest.fn(),
     },
 }));
 
 //mock password comparison utility
-jest.mock('../../../backend/core/src/lib/password', () => ({
+jest.mock('../../../backend/configuration/src/lib/password', () => ({
     comparePass: jest.fn(),
 }));
 

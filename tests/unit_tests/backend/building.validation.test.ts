@@ -1,5 +1,5 @@
 import { BuildingType } from '@prisma/client';
-import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import { createBuildingSchema } from '../../../backend/configuration/src/validation/building.validation';
 
 describe('building validation', () => {
 	it('accepts_a_valid_building_payload', () => {

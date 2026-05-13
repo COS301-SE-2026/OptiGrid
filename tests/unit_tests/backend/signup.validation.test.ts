@@ -1,4 +1,4 @@
-import { validateSignUp, signupSchema } from '../../../backend/core/src/validation/user_auth.validation';
+import { validateSignUp, signupSchema } from '../../../backend/configuration/src/validation/user_auth.validation';
 
 /**so this test suite is for signup validation, we test that valid payloads pass through to next()
 and invalid payload return proper errors with 400 status**/

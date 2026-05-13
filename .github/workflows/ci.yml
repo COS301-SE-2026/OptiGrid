@@ -29,17 +29,17 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
-      - name: Build
-        run: pnpm --filter @optigrid/frontend run build
-
       - name: Lint
         run: pnpm --filter @optigrid/frontend run lint
 
-      - name: Test
+      - name: Unit Test
         run: pnpm --filter @optigrid/frontend run test
 
-  backend-core:
-    name: Backend(Core)
+      - name: Build
+        run: pnpm --filter @optigrid/frontend run build
+
+  backend-configuration:
+    name: Backend(Configuration)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -60,11 +60,11 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
-      - name: build
-        run: pnpm --filter @optigrid/core run build
+      - name: Lint
+        run: pnpm --filter @optigrid/configuration run lint
 
-      - name: lint
-        run: pnpm --filter @optigrid/core run lint
+      - name: Unit Test
+        run: pnpm --filter @optigrid/configuration run test
 
-      - name: test
-        run: pnpm --filter @optigrid/core run test
+      - name: Build
+        run: pnpm --filter @optigrid/configuration run build

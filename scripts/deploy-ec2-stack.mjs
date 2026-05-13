@@ -23,7 +23,7 @@ const dockerRetryMs = Number(process.env.DOCKER_RETRY_MS || 5000);
 const imageNamespace = process.env.IMAGE_NAMESPACE || "local";
 const imageTags = [
   `ghcr.io/${imageNamespace}/optigrid-frontend:latest`,
-  `ghcr.io/${imageNamespace}/optigrid-core:latest`,
+  `ghcr.io/${imageNamespace}/optigrid-configuration:latest`,
   `ghcr.io/${imageNamespace}/optigrid-ingestion:latest`,
   `ghcr.io/${imageNamespace}/optigrid-analytics:latest`,
 ];
@@ -294,7 +294,7 @@ function generateComposeAndEnv() {
   const envText = [
     `NODE_ENV=${runtimeEnv.nodeEnv}`,
     `FRONTEND_PORT=${runtimeEnv.frontendPort}`,
-    `CORE_PORT=${runtimeEnv.corePort}`,
+    `CONFIGURATION_PORT=${runtimeEnv.corePort}`,
     `INGESTION_PORT=${runtimeEnv.ingestionPort}`,
     `ANALYTICS_PORT=${runtimeEnv.analyticsPort}`,
     `SUPABASE_URL=${runtimeEnv.supabaseUrl}`,
@@ -311,7 +311,7 @@ function generateComposeAndEnv() {
 function buildImages() {
   phase("Building Docker images locally");
   run("docker", ["build", "-f", "frontend/Dockerfile", "-t", imageTags[0], "."]);
-  run("docker", ["build", "-f", "backend/core/Dockerfile", "-t", imageTags[1], "."]);
+  run("docker", ["build", "-f", "backend/configuration/Dockerfile", "-t", imageTags[1], "."]);
   run("docker", ["build", "-f", "backend/ingestion/Dockerfile", "-t", imageTags[2], "."]);
   run("docker", ["build", "-f", "backend/analytics/Dockerfile", "-t", imageTags[3], "."]);
 }

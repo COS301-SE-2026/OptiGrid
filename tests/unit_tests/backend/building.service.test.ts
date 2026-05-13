@@ -1,9 +1,9 @@
-import prisma from '../../../backend/core/src/lib/prisma';
-import { createBuilding, buildingPayload } from '../../../backend/core/src/services/building.services';
+import prisma from '../../../backend/configuration/src/lib/prisma';
+import { createBuilding, buildingPayload } from '../../../backend/configuration/src/services/building.services';
 import { BuildingType } from '@prisma/client';
 
 // Mock Prisma with 
-jest.mock('../../../backend/core/src/lib/prisma', () => ({
+jest.mock('../../../backend/configuration/src/lib/prisma', () => ({
 	__esModule: true,
 	default: {
 		$transaction: jest.fn(),

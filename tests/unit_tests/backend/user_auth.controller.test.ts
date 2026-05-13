@@ -12,7 +12,7 @@ jest.mock('@prisma/client', () => ({
     })),
 }));
 
-jest.mock('../../../backend/core/src/lib/prisma', () => ({
+jest.mock('../../../backend/configuration/src/lib/prisma', () => ({
     prisma: {
         user: {
             findUnique: jest.fn(),
@@ -24,11 +24,11 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
     },
 }));
 
-import { login } from '../../../backend/core/src/controllers/user_auth.controller';
-import * as authServices from '../../../backend/core/src/services/user_auth.services';
+import { login } from '../../../backend/configuration/src/controllers/user_auth.controller';
+import * as authServices from '../../../backend/configuration/src/services/user_auth.services';
 import { Request, Response } from 'express';
 
-jest.mock("../../../backend/core/src/services/user_auth.services")
+jest.mock("../../../backend/configuration/src/services/user_auth.services")
 
 describe("User Authentication Controller - Login", () => {
     let mockRequest: Partial<Request>;

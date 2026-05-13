@@ -1,9 +1,9 @@
-import prisma from '../../../backend/core/src/lib/prisma';
-import { hashPassword } from '../../../backend/core/src/lib/password';
-import { signup } from '../../../backend/core/src/services/user_auth.services';
+import prisma from '../../../backend/configuration/src/lib/prisma';
+import { hashPassword } from '../../../backend/configuration/src/lib/password';
+import { signup } from '../../../backend/configuration/src/services/user_auth.services';
 
 //so this jest.mock is used to mock prisma client
-jest.mock('../../../backend/core/src/lib/prisma', () => ({
+jest.mock('../../../backend/configuration/src/lib/prisma', () => ({
 	__esModule: true,
 	default: {
 		user: {
@@ -14,7 +14,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 }));
 
 //this one is used to mock hpassword hashing 
-jest.mock('../../../backend/core/src/lib/password', () => ({
+jest.mock('../../../backend/configuration/src/lib/password', () => ({
 	__esModule: true,
 	hashPassword: jest.fn(),
 }));

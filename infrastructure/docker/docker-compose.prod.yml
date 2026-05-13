@@ -6,7 +6,7 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      CORE_URL: http://core:${CORE_PORT:-4000}
+      CONFIGURATION_URL: http://configuration:${CONFIGURATION_PORT:-4000}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
       interval: 30s
@@ -17,11 +17,11 @@ services:
       core:
         condition: service_healthy
 
-  core:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-core:latest
+  configuration:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-configuration:latest
     restart: unless-stopped
     ports:
-      - "${CORE_PORT:-4000}:4000"
+      - "${CONFIGURATION_PORT:-4000}:4000"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       SUPABASE_URL: ${SUPABASE_URL}

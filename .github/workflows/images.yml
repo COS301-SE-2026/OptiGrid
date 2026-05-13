@@ -20,9 +20,9 @@ jobs:
           - service: frontend
             image_name: optigrid-frontend
             dockerfile: ./frontend/Dockerfile
-          - service: core
-            image_name: optigrid-core
-            dockerfile: ./backend/core/Dockerfile
+          - service: configuration
+            image_name: optigrid-configuration
+            dockerfile: ./backend/configuration/Dockerfile
           - service: ingestion
             image_name: optigrid-ingestion
             dockerfile: ./backend/ingestion/Dockerfile

@@ -93,7 +93,7 @@ writeFileSync(
   [
     "NODE_ENV=production",
     "FRONTEND_PORT=3000",
-    "CORE_PORT=4000",
+    "CONFIGURATION_PORT=4000",
     "INGESTION_PORT=8000",
     "ANALYTICS_PORT=8001",
     `SUPABASE_URL=${env.supabaseUrl}`,
@@ -108,7 +108,7 @@ writeFileSync(
 
 if (!skipBuild) {
   run("docker build -f frontend/Dockerfile -t ghcr.io/local/optigrid-frontend:latest .");
-  run("docker build -f backend/core/Dockerfile -t ghcr.io/local/optigrid-core:latest .");
+  run("docker build -f backend/configuration/Dockerfile -t ghcr.io/local/optigrid-configuration:latest .");
   run("docker build -f backend/ingestion/Dockerfile -t ghcr.io/local/optigrid-ingestion:latest .");
   run("docker build -f backend/analytics/Dockerfile -t ghcr.io/local/optigrid-analytics:latest .");
 }
@@ -116,7 +116,7 @@ if (!skipBuild) {
 run("docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-file infrastructure/docker/.env.localtest up -d");
 try {
   await waitForHealth("frontend", ["http://localhost:3000/health"]);
-  await waitForHealth("core", ["http://localhost:4000/health"]);
+  await waitForHealth("configuration", ["http://localhost:4000/health"]);
   await waitForWorkerRunning("ingestion");
   await waitForWorkerRunning("analytics");
   run("docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-file infrastructure/docker/.env.localtest ps");

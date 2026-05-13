@@ -4,9 +4,9 @@
 	"version": "0.1.0",
 	"packageManager": "pnpm@10.0.0",
 	"scripts": {
-		"dev": "corepack pnpm --parallel --filter ./frontend --filter ./backend/core run dev",
-		"build": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/core -r run build",
-		"test": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/core -r run test",
+		"dev": "corepack pnpm --parallel --filter ./frontend --filter ./backend/configuration run dev",
+		"build": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/configuration -r run build",
+		"test": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/configuration -r run test",
 		"test:e2e": "playwright test",
 		"storybook": "corepack pnpm --filter ./frontend run storybook",
 		"storybook:build": "corepack pnpm --filter ./frontend run build-storybook",

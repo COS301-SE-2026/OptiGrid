@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 
 // Mock Prisma before importing
-jest.mock('../../../backend/core/src/lib/prisma', () => ({
+jest.mock('../../../backend/configuration/src/lib/prisma', () => ({
 	__esModule: true,
 	default: {
 		building: {
@@ -14,14 +14,14 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	},
 }));
 
-jest.mock('../../../backend/core/src/services/building.services');
-jest.mock('../../../backend/core/src/services/idempotency.services');
-jest.mock('../../../backend/core/src/validation/building.validation');
+jest.mock('../../../backend/configuration/src/services/building.services');
+jest.mock('../../../backend/configuration/src/services/idempotency.services');
+jest.mock('../../../backend/configuration/src/validation/building.validation');
 
-import { createBuildingController } from '../../../backend/core/src/controllers/building.controller';
-import { createBuilding } from '../../../backend/core/src/services/building.services';
-import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
-import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import { createBuildingController } from '../../../backend/configuration/src/controllers/building.controller';
+import { createBuilding } from '../../../backend/configuration/src/services/building.services';
+import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/configuration/src/services/idempotency.services';
+import { createBuildingSchema } from '../../../backend/configuration/src/validation/building.validation';
 
 const mockedCreateBuilding = createBuilding as jest.MockedFunction<typeof createBuilding>;
 const mockedCheckIdempotencyKey = checkIdempotencyKey as jest.MockedFunction<typeof checkIdempotencyKey>;
