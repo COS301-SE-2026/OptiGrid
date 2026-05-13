@@ -7,7 +7,7 @@
 		"dev": "corepack pnpm --parallel --filter ./frontend --filter ./backend/core run dev",
 		"build": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/core -r run build",
 		"test": "corepack pnpm --filter @optigrid/frontend run test && corepack pnpm --filter @optigrid/core run test",
-		"test:e2e": "playwright test --config playwright.config.ts --pass-with-no-tests",
+		"test:e2e": "playwright test --config playwright.config.ts",
 		"storybook": "corepack pnpm --filter ./frontend run storybook",
 		"storybook:build": "corepack pnpm --filter ./frontend run build-storybook",
 		"stack:up": "node scripts/docker-stack-up.mjs",

@@ -9,7 +9,7 @@
 		"start": "node dist/src/server.js",
 		"test": "jest",
 		"lint": "eslint .",
-		"test:unit": "jest --passWithNoTests --testPathPattern=tests/unit",
+		"test:unit": "jest",
 		"test:integration": "jest --config ./jest.integration.json --runInBand",
 		"test:supabase": "jest --config ./jest.supabase.json --runInBand",
 		"db:generate": "prisma generate",
