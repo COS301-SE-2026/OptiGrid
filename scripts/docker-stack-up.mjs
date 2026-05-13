@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(process.cwd());
@@ -17,8 +17,9 @@ const env = {
 };
 
 const composeProd = resolve(root, "infrastructure/docker/docker-compose.prod.yml");
-const composeLocal = resolve(root, "infrastructure/docker/docker-compose.localtest.yml");
-const envLocal = resolve(root, "infrastructure/docker/.env.localtest");
+const generatedDir = resolve(root, "infrastructure/docker/.generated");
+const composeLocal = resolve(generatedDir, "docker-compose.local.yml");
+const envLocal = resolve(generatedDir, ".env.local");
 
 function run(cmd) {
   execSync(cmd, { stdio: "inherit", cwd: root });
@@ -30,6 +31,10 @@ function runQuiet(cmd) {
 
 function runQuietCapture(cmd) {
   return execSync(cmd, { stdio: ["ignore", "pipe", "pipe"], cwd: root, encoding: "utf8" }).trim();
+}
+
+function composeCmd(command) {
+  return `docker compose -f "${composeLocal}" --env-file "${envLocal}" ${command}`;
 }
 
 function sleep(ms) {
@@ -59,7 +64,7 @@ async function waitForWorkerRunning(name, attempts = 30, delayMs = 2000) {
   for (let i = 0; i < attempts; i += 1) {
     try {
       const containerId = runQuietCapture(
-        `docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-file infrastructure/docker/.env.localtest ps -q ${name}`
+        composeCmd(`ps -q ${name}`)
       );
       if (!containerId) {
         throw new Error("container id not found");
@@ -92,6 +97,7 @@ if (!env.databaseUrl) {
 }
 
 const compose = readFileSync(composeProd, "utf8").replaceAll("YOUR_GITHUB_USERNAME", "local");
+mkdirSync(generatedDir, { recursive: true });
 writeFileSync(composeLocal, compose);
 
 writeFileSync(
@@ -120,16 +126,16 @@ if (!skipBuild) {
   run("docker build -f backend/analytics/Dockerfile -t ghcr.io/local/optigrid-analytics:latest .");
 }
 
-run("docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-file infrastructure/docker/.env.localtest up -d");
+run(composeCmd("up -d"));
 try {
   await waitForHealth("frontend", ["http://localhost:3000/health"]);
   await waitForHealth("core", ["http://localhost:4000/health"]);
   await waitForWorkerRunning("ingestion");
   await waitForWorkerRunning("analytics");
-  run("docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-file infrastructure/docker/.env.localtest ps");
+  run(composeCmd("ps"));
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Health check failed.");
-  run("docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-file infrastructure/docker/.env.localtest ps");
-  run("docker compose -f infrastructure/docker/docker-compose.localtest.yml --env-file infrastructure/docker/.env.localtest logs --tail=100");
+  run(composeCmd("ps"));
+  run(composeCmd("logs --tail=100"));
   process.exit(1);
 }

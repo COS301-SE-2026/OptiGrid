@@ -60,7 +60,6 @@ const envFileCandidates = [
   process.env.DEPLOY_ENV_FILE,
   ".env.local",
   ".env",
-  path.join("infrastructure", "docker", ".env.localtest"),
 ];
 
 const resolvedEnvFile = resolveEnvFile(envFileCandidates);
@@ -495,7 +494,7 @@ if (!["deploy", "resume", "down", "status"].includes(action)) {
 
 if ((action === "deploy" || action === "resume") && !runtimeEnv.databaseUrl) {
   console.error(
-    "Missing DATABASE_URL. Set it in your shell or in infrastructure/docker/.env.localtest (or .env.local).",
+    "Missing DATABASE_URL. Set it in your shell or in .env.local/.env.",
   );
   process.exit(1);
 }
