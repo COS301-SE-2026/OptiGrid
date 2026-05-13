@@ -7,9 +7,9 @@ datasource db {
 }
 
 enum UserRole {
-  ADMIN    @map("Admin")
-  OPERATOR @map("Operator")
-  VIEWER   @map("Viewer")
+  ADMIN            @map("Admin")
+  BUILDING_MANAGER @map("Building_Manager")
+  VIEWER           @map("Viewer")
 
   @@map("user_role")
 }
@@ -22,18 +22,81 @@ enum ThemePreference {
   @@map("theme_preference")
 }
 
-// User table essentialy,  which is made according to the db schema
-model User {
-  userId             String                         @id @map("user_id") @db.Uuid
-  tenantId           String?                        @map("tenant_id") @db.Uuid
-  email              String                         @unique @db.VarChar(255)
-  roleType           UserRole                       @default(VIEWER) @map("role_type")
-  firstName          String?                        @map("first_name") @db.VarChar(100)
-  lastName           String?                        @map("last_name") @db.VarChar(100)
-  preferredTheme     ThemePreference                @default(SYSTEM) @map("preferred_theme")
-  passwordHash      String                          @map("password_hash") @db.VarChar(255)
-  createdAt          DateTime?                      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime?                      @default(now()) @map("updated_at") @db.Timestamptz(6)
+enum BuildingType {
+  Residential
+  Commercial
+  Industrial
+  Healthcare
+  Construction
+  Mixed_Use
+  ShoppingCentre
+  Other
+}
 
+// All the models for db tables are made here
+model User {
+  userId         String          @id @map("user_id") @db.Uuid
+  tenantId       String?         @map("tenant_id") @db.Uuid
+  email          String          @unique @db.VarChar(255)
+  roleType       UserRole        @default(VIEWER) @map("role_type")
+  firstName      String?         @map("first_name") @db.VarChar(100)
+  lastName       String?         @map("last_name") @db.VarChar(100)
+  preferredTheme ThemePreference @default(SYSTEM) @map("preferred_theme")
+  passwordHash   String          @map("password_hash") @db.VarChar(255)
+  createdAt      DateTime?       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime?       @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  // Relations with other tables
+  tenant         Tenant?              @relation(fields: [tenantId], references: [tenant_id], onDelete: Cascade)
+  buildingAccess UserBuildingAccess[]
+
+  @@index([tenantId])
   @@map("users")
+}
+
+model Tenant {
+  tenant_id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_name      String    @db.VarChar(255)
+  subscription_tier String?   @default("Standard") @db.VarChar(50)
+  created_at        DateTime? @default(now()) @db.Timestamptz
+  updated_at        DateTime? @default(now()) @db.Timestamptz
+
+  // Relations with other tables
+  users             User[]
+  buildings         Building[]
+
+  @@map("tenants")
+}
+
+model Building {
+  building_id      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id        String?       @db.Uuid
+  building_name    String        @db.VarChar(255)
+  building_type    BuildingType? @default(Residential) @map("building_type")
+  square_footage   Decimal?      @db.Decimal
+  physical_address String?
+  timezone         String?       @default("UTC") @db.VarChar(50)
+  max_occupancy    Int?
+  created_at       DateTime?     @default(now()) @db.Timestamptz
+  updated_at       DateTime?     @default(now()) @db.Timestamptz
+
+  // Relations with other tables
+  tenant           Tenant?               @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  authorized_users UserBuildingAccess[]
+
+  @@index([tenant_id])
+  @@map("buildings")
+}
+
+model UserBuildingAccess {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String   @db.Uuid
+  building_id String   @db.Uuid
+
+  // Relations
+  user        User     @relation(fields: [user_id], references: [userId], onDelete: Cascade)
+  building    Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@unique([user_id, building_id])
+  @@map("user_building_access")
 }
