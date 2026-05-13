@@ -18,7 +18,7 @@ describe("signup page logic", () => {
             lastName: "Esam",
             email: "abdelrahman.esam@optigrid.io",
             password: "PassWord#1",
-            confirmPassword: "PassWord#1"
+            confirmPassword: "PassWord#1",
         });
         expect(result.status).toBe("success");
         expect(result.errors).toEqual({});
