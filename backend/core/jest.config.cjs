@@ -1,8 +1,12 @@
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  clearMocks: true,
-  restoreMocks: true,
-  testTimeout: 180000,
-  testMatch: ['<rootDir>/tests/**/*.test.ts'],
+	preset: 'ts-jest',
+	testEnvironment: 'node',
+	roots: ['<rootDir>/../../tests/unit/backend'],
+	testMatch: ['**/*.test.ts'],
+	transform: {
+		'^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.jest.json' }],
+	},
+	clearMocks: true,
+	restoreMocks: true,
+	testTimeout: 180000,
 };

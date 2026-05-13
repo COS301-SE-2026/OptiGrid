@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { bootstrapCoreSchema, resetCoreSchema } from './db-schema';
+import { bootstrapCoreSchema, resetCoreSchema } from './prisma-schema';
 import { startPostgresHarness, stopPostgresHarness, type StartedPostgresHarness } from './postgres-container';
 
 export interface CoreApiHarness {
@@ -15,19 +15,21 @@ export interface CoreApiHarnessOptions {
 }
 
 async function disconnectPrismaClient(): Promise<void> {
-	const prismaModule = await import('../../../src/lib/prisma');
+	const prismaModule = await import('../../../../../backend/core/src/lib/prisma');
 	await prismaModule.default.$disconnect();
 }
 
 export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}): Promise<CoreApiHarness> {
 	const postgresHarness = await startPostgresHarness();
+
+	// Point the runtime Prisma client to this test's isolated database.
 	process.env.DATABASE_URL = postgresHarness.connectionString;
 
 	const prepareDatabase = options.prepareDatabase ?? bootstrapCoreSchema;
 	const resetDatabase = options.resetDatabase ?? resetCoreSchema;
 	await prepareDatabase(postgresHarness.connectionString);
 
-	const { createApp } = await import('../../../src/app');
+	const { createApp } = await import('../../../../../backend/core/src/app');
 	const app = createApp(0);
 
 	return {

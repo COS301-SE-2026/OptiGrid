@@ -1,9 +1,9 @@
 import { Client } from 'pg';
 import request from 'supertest';
 import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
-import { applySupabaseMigrationAndSeed, resetSupabaseFixtureData } from './harness/supabase-fixtures';
+import { applySupabaseMigrationAndSeed, resetSupabaseFixtureData } from './harness/integration-seed-fixtures';
 
-describe('Supabase schema + API integration', () => {
+describe('Supabase-backed login integration', () => {
 	let harness: CoreApiHarness;
 
 	beforeAll(async () => {
@@ -19,7 +19,7 @@ describe('Supabase schema + API integration', () => {
 		}
 	});
 
-	it('loads baseline data and supports signup/login against that schema', async () => {
+	it('loads baseline user data and supports signup/login', async () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
 

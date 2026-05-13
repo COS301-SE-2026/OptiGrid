@@ -1,5 +1,5 @@
 import { Client } from 'pg';
-import { bootstrapCoreSchema, resetCoreSchema } from './db-schema';
+import { bootstrapCoreSchema, resetCoreSchema } from './prisma-schema';
 
 async function runSql(connectionString: string, sql: string): Promise<void> {
 	const client = new Client({ connectionString });
@@ -12,6 +12,7 @@ async function runSql(connectionString: string, sql: string): Promise<void> {
 }
 
 export async function applySupabaseMigrationAndSeed(connectionString: string): Promise<void> {
+	// Initialize schema via Prisma, then insert a deterministic user fixture.
 	await bootstrapCoreSchema(connectionString);
 	await runSql(
 		connectionString,

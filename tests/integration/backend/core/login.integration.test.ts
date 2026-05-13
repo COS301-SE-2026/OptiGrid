@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
 
-describe('Core API integration harness', () => {
+describe('Login integration', () => {
 	let harness: CoreApiHarness;
 
 	beforeAll(async () => {
@@ -27,7 +27,7 @@ describe('Core API integration harness', () => {
 		expect(response.body).toEqual({ status: 'ok', service: 'core' });
 	});
 
-	it('writes and reads auth users against an isolated postgres container', async () => {
+	it('creates a user via signup and authenticates with login', async () => {
 		const signupPayload = {
 			email: 'integration.user@optigrid.test',
 			password: 'StrongPass123!',
