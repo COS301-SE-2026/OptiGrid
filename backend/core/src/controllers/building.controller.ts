@@ -19,7 +19,6 @@ export const createBuildingController = async (req: Request, res: Response) => {
     //handle missing key and already requested scenarios
     if (!idempotencyKey) return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
     if (cachedResponse) {
-        console.log('Request already processed. Returning cached response.');
         return res.status(200).json(cachedResponse);
     }
 
@@ -37,7 +36,6 @@ export const createBuildingController = async (req: Request, res: Response) => {
     res.status(201).json(successResponse);
 
   } catch (error) {
-    console.error('Building creation failed:', error);
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };

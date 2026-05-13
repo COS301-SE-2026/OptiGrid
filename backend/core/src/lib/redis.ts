@@ -1,11 +1,22 @@
 import Redis from 'ioredis';
 
-export const redis = new Redis(process.env.Redis_URL || 'redis://localhost:6379');
-//successfull and unsuccessful connection handler
-redis.on('connect', () => {
-    console.log('Successfully connected to Redis.');
+const createRedisClient = () => ({
+    get: async () => null,
+    set: async () => 'OK',
+    on: () => undefined,
+    quit: async () => undefined,
 });
-redis.on('error', (err) => {
-    console.error('Redis connection error:', err);
-});
+
+export const redis = process.env.NODE_ENV === 'test'
+    ? (createRedisClient() as unknown as Redis)
+    : new Redis(process.env.Redis_URL || 'redis://localhost:6379');
+
+if (process.env.NODE_ENV !== 'test') {
+    redis.on('connect', () => {
+        console.log('Successfully connected to Redis.');
+    });
+    redis.on('error', (err) => {
+        console.error('Redis connection error:', err);
+    });
+}
 
