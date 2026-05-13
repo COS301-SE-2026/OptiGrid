@@ -1,48 +1,57 @@
+import { execSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { Client } from 'pg';
-const bootstrapSql = `
-DO $$
-BEGIN
-	CREATE TYPE user_role AS ENUM ('Admin', 'Operator', 'Viewer');
-EXCEPTION
-	WHEN duplicate_object THEN NULL;
-END
-$$;
 
-DO $$
-BEGIN
-	CREATE TYPE theme_preference AS ENUM ('light', 'dark', 'system');
-EXCEPTION
-	WHEN duplicate_object THEN NULL;
-END
-$$;
+const repoRoot = path.resolve(__dirname, '../../../../../');
+const coreWorkspace = path.resolve(repoRoot, 'backend/core');
+let cachedSchemaSql: string | null = null;
 
-CREATE TABLE IF NOT EXISTS users (
-	user_id UUID PRIMARY KEY,
-	tenant_id UUID NULL,
-	email VARCHAR(255) NOT NULL UNIQUE,
-	role_type user_role NOT NULL DEFAULT 'Viewer',
-	first_name VARCHAR(100) NULL,
-	last_name VARCHAR(100) NULL,
-	preferred_theme theme_preference NOT NULL DEFAULT 'system',
-	password_hash VARCHAR(255) NOT NULL,
-	created_at TIMESTAMPTZ(6) NOT NULL DEFAULT NOW(),
-	updated_at TIMESTAMPTZ(6) NOT NULL DEFAULT NOW()
-);
-`;
+function withPublicSchema(connectionString: string): string {
+	const url = new URL(connectionString);
+	url.searchParams.set('schema', 'public');
+	return url.toString();
+}
+
+function getSchemaSqlFromPrismaSchema(): string {
+	if (cachedSchemaSql) {
+		return cachedSchemaSql;
+	}
+
+	const tempDir = mkdtempSync(path.join(os.tmpdir(), 'optigrid-prisma-diff-'));
+	const outputPath = path.join(tempDir, 'schema.sql');
+
+	try {
+		// Generate SQL from schema.prisma instead of maintaining handwritten DDL.
+		execSync(`pnpm exec prisma migrate diff --from-empty --to-schema "./prisma/schema.prisma" --script --output "${outputPath}"`, {
+			cwd: coreWorkspace,
+			stdio: 'inherit',
+			shell: true,
+			env: { ...process.env },
+		});
+		cachedSchemaSql = readFileSync(outputPath, 'utf8');
+		return cachedSchemaSql;
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+}
 
 export async function bootstrapCoreSchema(connectionString: string): Promise<void> {
-	const client = new Client({ connectionString });
+	const schemaSql = getSchemaSqlFromPrismaSchema();
+	const client = new Client({ connectionString: withPublicSchema(connectionString) });
 	await client.connect();
+
 	try {
-		// Mirrors the current prisma User contract for fast and deterministic integration setup.
-		await client.query(bootstrapSql);
+		// Apply SQL produced from schema.prisma as the integration bootstrap.
+		await client.query(schemaSql);
 	} finally {
 		await client.end();
 	}
 }
 
 export async function resetCoreSchema(connectionString: string): Promise<void> {
-	const client = new Client({ connectionString });
+	const client = new Client({ connectionString: withPublicSchema(connectionString) });
 	await client.connect();
 	try {
 		// Keep each test independent by truncating all public tables.

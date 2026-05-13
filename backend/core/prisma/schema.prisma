@@ -6,15 +6,31 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  ADMIN    @map("Admin")
+  OPERATOR @map("Operator")
+  VIEWER   @map("Viewer")
+
+  @@map("user_role")
+}
+
+enum ThemePreference {
+  LIGHT  @map("light")
+  DARK   @map("dark")
+  SYSTEM @map("system")
+
+  @@map("theme_preference")
+}
+
 // User table essentialy,  which is made according to the db schema
 model User {
   userId             String                         @id @map("user_id") @db.Uuid
   tenantId           String?                        @map("tenant_id") @db.Uuid
   email              String                         @unique @db.VarChar(255)
-  roleType           Unsupported("user_role")      @default(dbgenerated("'Viewer'::user_role")) @map("role_type")
+  roleType           UserRole                       @default(VIEWER) @map("role_type")
   firstName          String?                        @map("first_name") @db.VarChar(100)
   lastName           String?                        @map("last_name") @db.VarChar(100)
-  preferredTheme     Unsupported("theme_preference") @default(dbgenerated("'system'::theme_preference")) @map("preferred_theme")
+  preferredTheme     ThemePreference                @default(SYSTEM) @map("preferred_theme")
   passwordHash      String                          @map("password_hash") @db.VarChar(255)
   createdAt          DateTime?                      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime?                      @default(now()) @map("updated_at") @db.Timestamptz(6)
