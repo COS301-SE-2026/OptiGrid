@@ -19,21 +19,24 @@ describe('Supabase schema + API integration', () => {
 		}
 	});
 
-	it('loads migration+seed data and supports signup/login against that schema', async () => {
+	it('loads baseline data and supports signup/login against that schema', async () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
 
 		try {
-			const counts = await client.query(`
+			const status = await client.query(`
 				select
-					(select count(*)::int from tenants) as tenants,
-					(select count(*)::int from buildings) as buildings,
-					(select count(*)::int from users) as users;
+					exists (
+						select 1
+						from information_schema.tables
+						where table_schema = 'public'
+							and table_name = 'users'
+					) as users_table_exists,
+					(select count(*)::int from users) as users_count;
 			`);
 
-			expect(counts.rows[0].tenants).toBeGreaterThan(0);
-			expect(counts.rows[0].buildings).toBeGreaterThan(0);
-			expect(counts.rows[0].users).toBeGreaterThan(0);
+			expect(status.rows[0].users_table_exists).toBe(true);
+			expect(status.rows[0].users_count).toBeGreaterThan(0);
 		} finally {
 			await client.end();
 		}

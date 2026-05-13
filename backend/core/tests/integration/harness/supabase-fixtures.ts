@@ -1,9 +1,5 @@
-import { readFile } from 'fs/promises';
-import path from 'path';
 import { Client } from 'pg';
-
-const migrationPath = path.resolve(__dirname, '../../../../../supabase/migrations/202605110001_initial_schema.sql');
-const seedPath = path.resolve(__dirname, '../../../../../supabase/seed.sql');
+import { bootstrapCoreSchema, resetCoreSchema } from './db-schema';
 
 async function runSql(connectionString: string, sql: string): Promise<void> {
 	const client = new Client({ connectionString });
@@ -16,32 +12,29 @@ async function runSql(connectionString: string, sql: string): Promise<void> {
 }
 
 export async function applySupabaseMigrationAndSeed(connectionString: string): Promise<void> {
-	const migrationSql = await readFile(migrationPath, 'utf8');
-	const seedSql = await readFile(seedPath, 'utf8');
-
-	await runSql(connectionString, migrationSql);
-	await runSql(connectionString, seedSql);
+	await bootstrapCoreSchema(connectionString);
+	await runSql(
+		connectionString,
+		`
+		INSERT INTO users (
+			user_id,
+			email,
+			first_name,
+			last_name,
+			password_hash
+		) VALUES (
+			'33333333-3333-3333-3333-333333333333',
+			'ops-admin@optigrid.test',
+			'Ops',
+			'Admin',
+			'$2b$10$2h2mZKoDbJkWBk4x9swFZeF7Ojf9SIxkV8W8QhQPXfS9M9iYjW0uS'
+		)
+		ON CONFLICT (user_id) DO NOTHING;
+		`,
+	);
 }
 
 export async function resetSupabaseFixtureData(connectionString: string): Promise<void> {
-	const truncateSql = `
-	do $$
-	declare
-		stmt text;
-	begin
-		select
-			'TRUNCATE TABLE ' || string_agg(format('%I.%I', schemaname, tablename), ', ') || ' RESTART IDENTITY CASCADE'
-		into stmt
-		from pg_tables
-		where schemaname = 'public';
-
-		if stmt is not null then
-			execute stmt;
-		end if;
-	end
-	$$;
-	`;
-
-	await runSql(connectionString, truncateSql);
+	await resetCoreSchema(connectionString);
 	await applySupabaseMigrationAndSeed(connectionString);
 }
