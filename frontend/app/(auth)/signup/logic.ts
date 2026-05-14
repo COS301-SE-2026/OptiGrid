@@ -38,7 +38,7 @@ export function getSubmitResult(formData: SignupFormData): SubmitResult {
             nextFormData: formData,
         };
     }
-    
+
     return {
         errors: {},
         touched: {},

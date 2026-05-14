@@ -1,7 +1,19 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type FocusEvent, type FormEvent } from "react";
-import { getSubmitResult, hasErrors, shouldShowError, type SignupErrors, type SignupTouched } from "./logic";
+import {
+    useMemo,
+    useState,
+    type ChangeEvent,
+    type FocusEvent,
+    type SubmitEvent,
+} from "react";
+import {
+    getSubmitResult,
+    hasErrors,
+    shouldShowError,
+    type SignupErrors,
+    type SignupTouched,
+} from "./logic";
 import { initialSignupFormData, type SignupFormData } from "./validation";
 
 export default function SignupPage() {
@@ -24,7 +36,7 @@ export default function SignupPage() {
         setTouched((previous) => ({ ...previous, [name]: true }));
     };
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
         const result = getSubmitResult(formData);
         setErrors(result.errors);
@@ -172,7 +184,7 @@ export default function SignupPage() {
                                     ? "confirmPassword-error"
                                     : undefined
                             }
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="Re-enter password"/>
+                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="Re-enter password" />
                         {showError("confirmPassword") && (
                             <p id="confirmPassword-error" role="alert" className="text-xs text-rose-300">
                                 {errors.confirmPassword}
