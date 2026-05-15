@@ -29,14 +29,14 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
-      - name: Build
-        run: pnpm --filter @optigrid/frontend run build
-
       - name: Lint
         run: pnpm --filter @optigrid/frontend run lint
 
-      - name: Test
+      - name: Unit Test
         run: pnpm --filter @optigrid/frontend run test
+
+      - name: Build
+        run: pnpm --filter @optigrid/frontend run build
 
   backend-core:
     name: Backend(Core)
@@ -60,14 +60,14 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
-      - name: build
-        run: pnpm --filter @optigrid/core run build
-
       - name: lint
         run: pnpm --filter @optigrid/core run lint
 
-      - name: test
+      - name: Unit Test
         run: pnpm --filter @optigrid/core run test
+
+      - name: Build
+        run: pnpm --filter @optigrid/core run build
 
   integration-foundation:
     name: Integration (Terraform + Auth)
