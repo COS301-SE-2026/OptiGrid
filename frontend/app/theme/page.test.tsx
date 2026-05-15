@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import ThemeTogglePage from "../../../frontend/app/theme/page";
+import ThemeTogglePage from "./page";
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};

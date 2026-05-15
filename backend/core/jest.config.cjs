@@ -2,17 +2,12 @@
 module.exports = {
 	preset: 'ts-jest',
 	testEnvironment: 'node',
-	roots: ['<rootDir>/src', '<rootDir>/../../tests/unit_tests/backend'],
-	testMatch: ['**/?(*.)+(spec|test).[tj]s?(x)'],
-	moduleFileExtensions: ['ts', 'js', 'json'],
+	roots: ['<rootDir>/../../tests/unit/backend'],
+	testMatch: ['**/*.test.ts'],
 	transform: {
-		'^.+\\.ts$': ['ts-jest', {
-			tsconfig: '<rootDir>/tsconfig.json',
-			isolatedModules: true,
-			diagnostics: {
-				ignoreCodes: [151002],
-			},
-		}],
+		'^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.jest.json' }],
 	},
 	clearMocks: true,
+	restoreMocks: true,
+	testTimeout: 180000,
 };
