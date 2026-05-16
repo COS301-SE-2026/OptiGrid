@@ -2,8 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 const navigation = [
-    { label: "Dashboard", href: "/" },
-    { label: "Buildings", href: "/buildings" },
+    { label: "Dashboard", href: "/dashboard" },
     { label: "Compare", href: "/compare" },
     { label: "Forecast", href: "/forecast" },
 ];
