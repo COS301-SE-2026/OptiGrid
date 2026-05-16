@@ -3,6 +3,7 @@ import express from 'express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import userAuthRoutes from './routes/user_auth.routes';
+import sensorRoutes from './routes/sensor.routes'
 
 // Load environment variables from .env file
 dotenv.config();
@@ -33,6 +34,7 @@ const swaggerSpec = swaggerJsdoc({
 app.use(express.json());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/auth', userAuthRoutes);
+app.use("api/sensors", sensorRoutes);
 
 // Merged Health Check: Express routing instead of native server
 app.get('/health', (_req, res) => {
@@ -48,3 +50,4 @@ app.listen(port, () => {
     console.log(`Core service (OptiGrid API) listening on port ${port}`);
     console.log(`Swagger docs available at http://localhost:${port}/api-docs`);
 });
+
