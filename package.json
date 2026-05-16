@@ -6,8 +6,8 @@
 	"scripts": {
 		"dev": "corepack pnpm --parallel --filter ./frontend --filter ./backend/core run dev",
 		"build": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/core -r run build",
-		"test": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/core -r run test",
-		"test:e2e": "playwright test",
+		"test": "corepack pnpm --filter @optigrid/frontend run test && corepack pnpm --filter @optigrid/core run test",
+		"test:e2e": "playwright test --config playwright.config.ts",
 		"storybook": "corepack pnpm --filter ./frontend run storybook",
 		"storybook:build": "corepack pnpm --filter ./frontend run build-storybook",
 		"stack:up": "node scripts/docker-stack-up.mjs",
@@ -15,6 +15,7 @@
 		"stack:down": "node scripts/docker-stack-down.mjs",
 		"infra:tf:init": "terraform -chdir=infrastructure/terraform init -input=false",
 		"infra:tf:validate": "terraform -chdir=infrastructure/terraform validate",
+		"infra:tf:test": "terraform -chdir=infrastructure/terraform init -input=false && terraform -chdir=infrastructure/terraform test",
 		"infra:deploy:t2:docker": "terraform -chdir=infrastructure/terraform apply -auto-approve -input=false -var \"instance_type=t2.micro\"",
 		"infra:destroy:t2": "terraform -chdir=infrastructure/terraform destroy -auto-approve -input=false -var \"instance_type=t2.micro\"",
 		"infra:tf:output": "terraform -chdir=infrastructure/terraform output",
@@ -23,6 +24,11 @@
 		"infra:t3:e2e": "node scripts/infra-t3-e2e.mjs run",
 		"infra:t3:e2e:autodestroy": "node scripts/infra-t3-e2e.mjs run --destroy",
 		"infra:t3:destroy": "node scripts/infra-t3-e2e.mjs destroy",
+		"test:integration:tf:smoke": "node scripts/terraform-apply-destroy-smoke.mjs",
+		"test:integration:ec2-bootstrap": "node scripts/verify-ec2-docker-bootstrap.mjs",
+		"test:supabase": "pnpm --filter @optigrid/core run test:supabase",
+		"test:bottom-up": "pnpm run test:bottom-up:local",
+		"test:bottom-up:local": "pnpm run infra:tf:test && pnpm run test:supabase",
 		"infra:app:deploy": "node scripts/deploy-ec2-stack.mjs deploy",
 		"infra:app:deploy:skip-build": "node scripts/deploy-ec2-stack.mjs deploy --skip-build",
 		"infra:app:resume": "node scripts/deploy-ec2-stack.mjs resume",
@@ -38,15 +44,16 @@
 		"@playwright/test": "^1.52.0",
 		"@types/express": "4.17.21",
 		"@types/jest": "^29.5.14",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
 		"@typescript-eslint/eslint-plugin": "^6.21.0",
 		"@typescript-eslint/parser": "^6.21.0",
 		"eslint": "^8.57.1",
 		"jest": "^29.7.0",
+		"jest-environment-jsdom": "29.7.0",
 		"snyk": "^1.1304.0",
 		"testcontainers": "^10.21.0",
 		"ts-jest": "^29.4.9",
-		"@types/react": "^19.2.14",
-		"@types/react-dom": "^19.2.3",
 		"typescript": "^6.0.3"
 	},
 	"pnpm": {
@@ -65,11 +72,10 @@
 		],
 		"overrides": {
 			"@types/react": "^19.0.0",
-      		"@types/react-dom": "^19.0.0"
+			"@types/react-dom": "^19.0.0"
 		}
 	},
 	"dependencies": {
-
 		"zod": "^4.3.6"
 	}
 }

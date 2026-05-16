@@ -1,0 +1,14 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"isolatedModules": true
+	},
+	"include": [
+		"src/**/*.ts",
+		"prisma.config.ts",
+		"../../tests/unit/backend/**/*.ts",
+		"../../tests/integration/backend/core/**/*.ts"
+	]
+}
