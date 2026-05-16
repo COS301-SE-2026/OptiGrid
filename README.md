@@ -11,7 +11,7 @@ This project introduces a centralised, intelligent energy management system that
 ## Team Members
 
 | Name | Role | LinkedIn |
-| --- | --- | --- |
+| Hamdaan Mirza | Team Lead & Backend Developer | [https://www.linkedin.com/in/hamdaan-mirza/] |
 | Abdelrahman Ahmed | Lead Frontend Developer | [LinkedIn]() |
 |      |      | [LinkedIn]() |
 |      |      | [LinkedIn]() |
