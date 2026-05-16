@@ -1,4 +1,20 @@
-main readme
+# OptiGrid
+*by Coreflow*
+
+This project introduces a centralised, intelligent energy management system that integrates data ingestion, predictive analytics, and optimisation insights to improve operational efficiency and sustainability.
+
+## Quick Links
+
+- [Functional Requirements (SRS)](docs/SRS.md)
+- [Project Board]()
+
+## Team Members
+
+| Name | Role | LinkedIn |
+| --- | --- | --- |
+| Abdelrahman Ahmed | Lead Frontend Developer | [LinkedIn]() |
+|      |      | [LinkedIn]() |
+|      |      | [LinkedIn]() |
 
 ## Project Structure
 
