@@ -3,9 +3,9 @@ scikit-learn==1.6.1
 mlflow==2.22.0
 optuna==4.3.0
 pytest==8.3.5
-fastapi==0.110.0
-uvicorn==0.27.1
-redis==5.0.1
+fastapi>=0.100.0
+uvicorn>=0.22.0
+redis>=4.6.0
 prisma==0.13.1
-influxdb-client==1.40.0
+influxdb-client>=1.36.0
 pydantic==2.6.1

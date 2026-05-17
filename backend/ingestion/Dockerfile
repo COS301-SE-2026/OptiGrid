@@ -10,11 +10,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-COPY backend/ingestion/requirements.txt ./requirements.txt
+# FIXED: Removed 'backend/ingestion/' prefix since Docker build context is now inside this folder
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/ingestion/src ./src
+# FIXED: Removed prefix so it copies the local src folder straight to /app/src
+COPY src ./src
 
-RUN prisma generate
+# Note: Removed 'RUN prisma generate' as this is a Python service. 
+# Databases/Prisma are already successfully handled by your core-api container!
 
 CMD ["python", "-m", "src.main"]

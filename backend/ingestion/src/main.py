@@ -1,33 +1,17 @@
+from fastapi import FastAPI, HTTPException
+import redis
+import json
 import os
-import signal
-import time
 
-running = True
+app = FastAPI()
+r = redis.Redis(host=os.getenv("REDIS_HOST", "optigrid-redis"), port=6379, db=0, decode_responses=True)
 
-
-def stop_worker(signum, _frame):
-    global running
-    print(f"[ingestion-worker] received signal {signum}, shutting down...")
-    running = False
-
-
-def main() -> None:
-    signal.signal(signal.SIGINT, stop_worker)
-    signal.signal(signal.SIGTERM, stop_worker)
-
-    interval_seconds = int(os.getenv("INGESTION_TICK_SECONDS", "10"))
-    influx_bucket = os.getenv("INFLUXDB_BUCKET", "unset")
-    influx_org = os.getenv("INFLUXDB_ORG", "unset")
-
-    print(
-        f"[ingestion-worker] started (tick={interval_seconds}s, bucket={influx_bucket}, org={influx_org})"
-    )
-    while running:
-        print("[ingestion-worker] idle cycle complete")
-        time.sleep(interval_seconds)
-
-    print("[ingestion-worker] stopped")
-
-
-if __name__ == "__main__":
-    main()
+@app.post("/ingest")
+def ingest_entry(data: dict):
+    #data arrives as raw dictionary from csv reader
+    try:
+        r.lpush("ingestion_queue", json.dumps(data))
+        return {"status": "success", "message": "Data buffered"}
+    except Exception as e:
+        print("Ingestion Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

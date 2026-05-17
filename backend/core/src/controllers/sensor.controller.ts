@@ -1,14 +1,19 @@
 import {Request, Response} from "express"
-import {forwardToIngestion} from "../services/sensor.services"
+import {forwardToIngestionService} from "../services/sensor.services"
 
-export const receiveSensorData = async (req: Request, res: Response) =>{
+export const handleSensorTelemetry = async (req: Request, res: Response): Promise<void> => {
     try{
-        const sensorData = req.body;
-        await forwardToIngestion(sensorData);
-        res.status(200).json({status: "success", "message": "Data received"});
+        const telemetryData = req.body;
+
+        //basic validation before moving down pipeline
+        if(!telemetryData.sensor_id || !telemetryData.building_id || !telemetryData.usage){
+            res.status(400).json({status: "error", message: "Missing required telemetry fields"});
+            return;
+        }
+        await forwardToIngestionService(telemetryData);
     }
-    catch(error){
-        console.error("API gateway error forwarding sensor data");
-        res.status(500).json({status: "error", "message": "Internal server error"});
+    catch(error :any){
+        console.error("Core API Gateway error forwarding sensor data: ", error.message);
+        res.status(500).json({status: 'error', 'message': "Failed to process telemetry payload."});
     }
 }

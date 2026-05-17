@@ -1,6 +1,6 @@
-const INGESTION_URL = process.env.INGESTION_API_URL || "https://localhost:8000/ingestion"
+const INGESTION_URL = process.env.INGESTION_API_URL || "http://ingestion-api:8000/ingest"
 
-export const forwardToIngestion = async (data: any) => {
+export const forwardToIngestionService = async (data: any): Promise<any> => {
     const response = await fetch(INGESTION_URL, {
         method: "POST",
         headers: {"Content-Type": "application/json"},

@@ -8,9 +8,11 @@ services:
   
   ingestion-api:
     build: 
-      context: .
-      dockerfile: backend/ingestion/Dockerfile
+      context: ./backend/ingestion
+      dockerfile: Dockerfile
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
     environment:
       - REDIS_HOST=optigrid_redis
     depends_on:
@@ -18,8 +20,8 @@ services:
 
   ingestion-worker:
     build: 
-      context: .
-      dockerfile: backend/ingestion/Dockerfile
+      context: ./backend/ingestion
+      dockerfile: Dockerfile
     command: python src/worker.py
     environment:
       - REDIS_HOST=optigrid_redis
