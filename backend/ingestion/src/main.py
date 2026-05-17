@@ -4,11 +4,14 @@ import json
 import os
 
 app = FastAPI()
+#connect to Redis
 r = redis.Redis(host=os.getenv("REDIS_HOST", "optigrid-redis"), port=6379, db=0, decode_responses=True)
 
+#endpoint to receives data from core-api
 @app.post("/ingest")
 def ingest_entry(data: dict):
-    #data arrives as raw dictionary from csv reader
+    #pushes incoming data to redis queue (left push)
+    #worker will pick it up from right side (brpop)
     try:
         r.lpush("ingestion_queue", json.dumps(data))
         return {"status": "success", "message": "Data buffered"}

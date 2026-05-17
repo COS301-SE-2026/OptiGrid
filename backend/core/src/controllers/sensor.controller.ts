@@ -1,6 +1,7 @@
 import {Request, Response} from "express"
 import {forwardToIngestionService} from "../services/sensor.services"
 
+// handing incoming sensor data from IoT devices
 export const handleSensorTelemetry = async (req: Request, res: Response): Promise<void> => {
     try{
         const telemetryData = req.body;
@@ -10,6 +11,7 @@ export const handleSensorTelemetry = async (req: Request, res: Response): Promis
             res.status(400).json({status: "error", message: "Missing required telemetry fields"});
             return;
         }
+        // forward validated data to ingestion service (which sends to redis)
         await forwardToIngestionService(telemetryData);
     }
     catch(error :any){
