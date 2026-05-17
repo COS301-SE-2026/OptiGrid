@@ -1,9 +1,10 @@
 import { BuildingType } from '@prisma/client';
 import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import { compareBuildingsSchema } from '../../../backend/core/src/validation/building.validation';
 
 describe('building validation', () => {
 	it('accepts_a_valid_building_payload', () => {
-		// Arrange
+		// arrange
 		const payload = {
 			building_name: 'Main Office',
 			building_type: BuildingType.Commercial,
@@ -13,44 +14,44 @@ describe('building validation', () => {
 			physical_address: '123 Main Street, Cape Town',
 		};
 
-		// Act
+		// act
 		const result = createBuildingSchema.parse(payload);
 
-		// Assert
+		//assert
 		expect(result).toEqual(payload);
 	});
 
 	it('accepts_required_fields_with_optional_fields_omitted', () => {
-		// Arrange
+		// arrange
 		const payload = {
 			building_name: 'House A',
 		};
 
-		// Act
+		//act
 		const result = createBuildingSchema.parse(payload);
 
-		// Assert
+		// assert
 		expect(result).toEqual(payload);
 	});
 
 	it('rejects_a_building_name_that_is_too_short', () => {
-		// Arrange
+		// arrange
 		const payload = {
 			building_name: 'A',
 		};
 
-		// Act & Assert
+		//act and assert
 		expect(() => createBuildingSchema.parse(payload)).toThrow('Building name must be at least 2 characters');
 	});
 
 	it('rejects_non-positive_square_footage', () => {
-		// Arrange
+		// arrange
 		const payload = {
 			building_name: 'Warehouse',
 			square_footage: 0,
 		};
 
-		// Act & Assert
+		//act and Assert
 		expect(() => createBuildingSchema.parse(payload)).toThrow('Square footage must be a positive number');
 	});
 
@@ -61,18 +62,88 @@ describe('building validation', () => {
 			max_occupancy: 0,
 		};
 
-		// Act & Assert
+		// act and assert
 		expect(() => createBuildingSchema.parse(payload)).toThrow('Max occupancy must be greater than 0');
 	});
 
 	it('rejects_payloads_with_unknown_fields_because_the_schema_is_strict', () => {
-		// Arrange
+		// arrrange
 		const payload = {
 			building_name: 'Commercial Building',
 			unexpected_field: 'not allowed',
 		};
 
-		// Act & Assert
+		// act and assert
 		expect(() => createBuildingSchema.parse(payload)).toThrow();
+	});
+});
+
+describe('compareBuildings validation', () => {
+	it('accepts_valid_query_parameters', () => {
+		// arrange
+		const payload = {
+			building_id_a: '11111111-1111-1111-1111-111111111111',
+			building_id_b: '22222222-2222-2222-2222-222222222222',
+			time_range: '30d',
+		};
+
+		//act
+		const result = compareBuildingsSchema.parse(payload);
+
+		// assert
+		expect(result).toEqual(payload);
+	});
+
+	it('rejects_missing_building_ids', () => {
+		// arrange
+		const payload = {
+			building_id_a: '11111111-1111-1111-1111-111111111111',
+			time_range: '7d',
+		} as any;
+
+		// act and assert
+		expect(() => compareBuildingsSchema.parse(payload)).toThrow();
+	});
+
+	it('rejects_invalid_uuid_building_ids', () => {
+		//arrange
+		const payload = {
+			building_id_a: 'not-a-uuid',
+			building_id_b: 'also-not-a-uuid',
+			time_range: '7d',
+		} as any;
+
+		// act and assert
+		expect(() => compareBuildingsSchema.parse(payload)).toThrow();
+	});
+
+	it('rejects_missing_or_invalid_time_range', () => {
+		// arrange
+		const missing = {
+			building_id_a: '11111111-1111-1111-1111-111111111111',
+			building_id_b: '22222222-2222-2222-2222-222222222222',
+		} as any;
+
+		const invalid = {
+			building_id_a: '11111111-1111-1111-1111-111111111111',
+			building_id_b: '22222222-2222-2222-2222-222222222222',
+			time_range: '30days',
+		} as any;
+
+		// act and assert
+		expect(() => compareBuildingsSchema.parse(missing)).toThrow();
+		expect(() => compareBuildingsSchema.parse(invalid)).toThrow();
+	});
+
+	it('rejects_when_building_ids_are_identical', () => {
+		// arrange
+		const payload = {
+			building_id_a: '11111111-1111-1111-1111-111111111111',
+			building_id_b: '11111111-1111-1111-1111-111111111111',
+			time_range: '7d',
+		};
+
+		// act and assert
+		expect(() => compareBuildingsSchema.parse(payload)).toThrow();
 	});
 });
