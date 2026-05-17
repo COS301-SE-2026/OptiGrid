@@ -9,3 +9,4 @@ redis>=4.6.0
 prisma==0.13.1
 influxdb-client>=1.36.0
 pydantic==2.6.1
+requests>=2.31.0,<3.0.0

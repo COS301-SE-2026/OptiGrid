@@ -51,4 +51,25 @@ describe('sensor service unit tests', () => {
             'Ingestion API responded with status: 500'
         );
     });
+
+    //Test Case 3: Edge case checking handling malformed or non-JSON payloads
+    it('throws and error if Ingestion API responds with 200 but invalid payloads', async () => {
+        const mockPayload = { sensor_id: 'sensor-001', building_id: 'building-001', usage: '10.0' };
+
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: jest.fn().mockRejectedValue(new Error('Unexpected token < in JSON at position 0')),
+        });
+
+        await expect(forwardToIngestionService(mockPayload)).rejects.toThrow('Unexpected token < in JSON at position 0');
+    }); 
+
+    //Test Case 4: Edge case covering a complete downstream pipeline drop, causing fetch to throw infrastructure error
+    it('catches and escalates underlying system-level network connection drop errors', async () => {
+        const mockPayload = { sensor_id: 'sensor-001', building_id: 'building-001', usage: '100.0' };
+
+        global.fetch = jest.fn().mockRejectedValue(new Error('fetch failed'));
+
+        await expect(forwardToIngestionService(mockPayload)).rejects.toThrow('fetch failed');
+    });
 });
