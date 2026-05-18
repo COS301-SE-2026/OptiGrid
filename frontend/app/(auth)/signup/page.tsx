@@ -93,14 +93,15 @@ export default function SignupPage() {
                         Create your account
                     </h1>
                     <p className="text-sm text-slate-300">
-                        Join the platform to monitor energy usage, spot anomalies, and unlock optimization insights across your buildings.
+                        Start optimising in minutes. Monitor energy usage, spot anomalies, and unlock optimization insights across your buildings.
                     </p>
                 </header>
+
                 <form className="mt-8 space-y-5" noValidate onSubmit={handleSubmit}>
                     <div className="grid gap-5 md:grid-cols-2">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-200" htmlFor="firstName">
-                                First Name
+                                First name
                             </label>
                             <input
                                 id="firstName"
@@ -110,13 +111,11 @@ export default function SignupPage() {
                                 value={formData.firstName}
                                 onChange={handleChange}
                                 onBlur={handleBlur}
+                                disabled={loading}
                                 aria-invalid={showError("firstName")}
-                                aria-describedby={
-                                    showError("firstName")
-                                        ? "firstName-error"
-                                        : undefined
-                                }
-                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="Avery"
+                                aria-describedby={showError("firstName") ? "firstName-error" : undefined}
+                                className={inputClass}
+                                placeholder="Avery"
                             />
                             {showError("firstName") && (
                                 <p id="firstName-error" role="alert" className="text-xs text-rose-300">
@@ -124,9 +123,10 @@ export default function SignupPage() {
                                 </p>
                             )}
                         </div>
+
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-200" htmlFor="lastName">
-                                Last Name
+                                Last name
                             </label>
                             <input
                                 id="lastName"
@@ -136,13 +136,11 @@ export default function SignupPage() {
                                 value={formData.lastName}
                                 onChange={handleChange}
                                 onBlur={handleBlur}
+                                disabled={loading}
                                 aria-invalid={showError("lastName")}
-                                aria-describedby={
-                                    showError("lastName")
-                                        ? "lastName-error"
-                                        : undefined
-                                }
-                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="Rivera"
+                                aria-describedby={showError("lastName") ? "lastName-error" : undefined}
+                                className={inputClass}
+                                placeholder="Rivera"
                             />
                             {showError("lastName") && (
                                 <p id="lastName-error" role="alert" className="text-xs text-rose-300">
@@ -151,9 +149,10 @@ export default function SignupPage() {
                             )}
                         </div>
                     </div>
+
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-slate-200" htmlFor="email">
-                            Email Address
+                            Work email
                         </label>
                         <input
                             id="email"
@@ -163,11 +162,11 @@ export default function SignupPage() {
                             value={formData.email}
                             onChange={handleChange}
                             onBlur={handleBlur}
+                            disabled={loading}
                             aria-invalid={showError("email")}
-                            aria-describedby={
-                                showError("email") ? "email-error" : undefined
-                            }
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="avery.rivera@optigrid.io"
+                            aria-describedby={showError("email") ? "email-error" : undefined}
+                            className={inputClass}
+                            placeholder="avery.rivera@company.io"
                         />
                         {showError("email") && (
                             <p id="email-error" role="alert" className="text-xs text-rose-300">
@@ -175,6 +174,7 @@ export default function SignupPage() {
                             </p>
                         )}
                     </div>
+
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-slate-200" htmlFor="password">
                             Password
@@ -187,13 +187,11 @@ export default function SignupPage() {
                             value={formData.password}
                             onChange={handleChange}
                             onBlur={handleBlur}
+                            disabled={loading}
                             aria-invalid={showError("password")}
-                            aria-describedby={
-                                showError("password")
-                                    ? "password-error"
-                                    : undefined
-                            }
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="At least 8 characters"
+                            aria-describedby={showError("password") ? "password-error" : undefined}
+                            className={inputClass}
+                            placeholder="At least 8 characters"
                         />
                         {showError("password") && (
                             <p id="password-error" role="alert" className="text-xs text-rose-300">
@@ -201,9 +199,10 @@ export default function SignupPage() {
                             </p>
                         )}
                     </div>
+
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-slate-200" htmlFor="confirmPassword">
-                            Confirm Password
+                            Confirm password
                         </label>
                         <input
                             id="confirmPassword"
@@ -213,31 +212,46 @@ export default function SignupPage() {
                             value={formData.confirmPassword}
                             onChange={handleChange}
                             onBlur={handleBlur}
+                            disabled={loading}
                             aria-invalid={showError("confirmPassword")}
-                            aria-describedby={
-                                showError("confirmPassword")
-                                    ? "confirmPassword-error"
-                                    : undefined
-                            }
-                            className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30" placeholder="Re-enter password" />
+                            aria-describedby={showError("confirmPassword") ? "confirmPassword-error" : undefined}
+                            className={inputClass}
+                            placeholder="Re-enter password"
+                        />
                         {showError("confirmPassword") && (
                             <p id="confirmPassword-error" role="alert" className="text-xs text-rose-300">
                                 {errors.confirmPassword}
                             </p>
                         )}
                     </div>
-                    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-xs text-slate-400">
-                        By creating an account, you will be enrolled in {"OptiGrid's"} multi-site energy optimization workspace.
-                    </div>
-                    <button type="submit" className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200">
-                        Create account
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {loading ? "Creating account…" : "Create account"}
                     </button>
-                    {status === "success" && !hasAnyErrors && (
-                        <div role="status" className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                            Account created. Check your inbox to verify your workspace access.
+
+                    {apiError && (
+                        <div
+                            role="alert"
+                            className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300"
+                        >
+                            {apiError}
                         </div>
                     )}
                 </form>
+
+                <p className="mt-6 text-center text-sm text-slate-400">
+                    Have an account?{" "}
+                    <Link
+                        href="/login"
+                        className="font-medium text-emerald-400 hover:text-emerald-300"
+                    >
+                        Log in
+                    </Link>
+                </p>
             </div>
         </main>
     );
