@@ -1,12 +1,13 @@
 "use client";
 
 import {
-    useMemo,
     useState,
     type ChangeEvent,
     type FocusEvent,
     type SubmitEvent,
 } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     getSubmitResult,
     hasErrors,
@@ -17,18 +18,17 @@ import {
 import { initialSignupFormData, type SignupFormData } from "./validation";
 
 export default function SignupPage() {
+    const router = useRouter();
     const [formData, setFormData] = useState<SignupFormData>(initialSignupFormData);
     const [errors, setErrors] = useState<SignupErrors>({});
     const [touched, setTouched] = useState<SignupTouched>({});
-    const [status, setStatus] = useState<"idle" | "success">("idle");
-    const hasAnyErrors = useMemo(() => hasErrors(errors), [errors]);
+    const [loading, setLoading] = useState(false);
+    const [apiError, setApiError] = useState("");
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
         setFormData((previous) => ({ ...previous, [name]: value }));
-        if (status === "success") {
-            setStatus("idle");
-        }
+        if (apiError) setApiError("");
     };
 
     const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
@@ -36,16 +36,51 @@ export default function SignupPage() {
         setTouched((previous) => ({ ...previous, [name]: true }));
     };
 
-    const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
+
         const result = getSubmitResult(formData);
         setErrors(result.errors);
         setTouched(result.touched);
-        setStatus(result.status);
-        setFormData(result.nextFormData);
+
+        if (hasErrors(result.errors)) return;
+
+        setLoading(true);
+        setApiError("");
+
+        try {
+            const response = await fetch("/api/auth/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    email: formData.email,
+                    password: formData.password,
+                }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload?.message ?? "Registration failed. Please try again.");
+            }
+
+            router.push("/dashboard");
+        } catch (err) {
+            setApiError(
+                err instanceof Error ? err.message : "Registration failed. Please try again."
+            );
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const showError = (field: keyof SignupFormData) => shouldShowError(field, errors, touched);
+    const showError = (field: keyof SignupFormData) =>
+        shouldShowError(field, errors, touched);
+
+    const inputClass =
+        "w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/30 disabled:opacity-50";
 
     return (
         <main className="min-h-screen bg-slate-950 px-6 py-16 text-slate-100">
