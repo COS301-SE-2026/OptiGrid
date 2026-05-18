@@ -60,7 +60,7 @@ test.describe("Login page", () => {
     await expect(page.getByText("Invalid email or password")).toBeVisible();
   });
 
-  test("shows success message when login succeeds", async ({ page, request }) => {
+  test("routes to dashboard when login succeeds", async ({ page, request }) => {
     const user = buildUniqueUser();
     await createUserInCore(request, user);
 
@@ -69,6 +69,7 @@ test.describe("Login page", () => {
     await page.getByPlaceholder("Password").fill(user.password);
     await page.getByRole("button", { name: "Login" }).click();
 
-    await expect(page.getByText(`Login successful, ${user.firstName}.`)).toBeVisible();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   });
 });
