@@ -45,3 +45,5 @@ export const queryUsage = async (buildingId: string, timeRange: string) => {
     throw new Error('Internal server error, failed to retrieve time-series telemetry from InfluxDB');
   }
 };
+
+export const queryTotalKwh = queryUsage;

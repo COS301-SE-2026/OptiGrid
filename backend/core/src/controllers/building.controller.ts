@@ -44,10 +44,11 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
   try {
     //create these vars and check if the indeed exist, and then validate query
     const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+
     const idempotencyKey = req.headers['idempotency-key'] as string;
     const cachedResponse = await checkIdempotencyKey(idempotencyKey);
 
-    if (!userId) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     if (!idempotencyKey) return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
     if (cachedResponse) return res.status(200).json(cachedResponse);
 
@@ -56,8 +57,8 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
     // 4. Execute Business Logic
     const comparisonData = await compareBuildingsService(
       userId,
-      validatedQuery.buildingID_1,
-      validatedQuery.buildingID_2,
+      validatedQuery.building_id_a,
+      validatedQuery.building_id_b,
       validatedQuery.time_range
     );
     const successResponse = {

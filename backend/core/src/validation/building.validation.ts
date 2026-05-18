@@ -29,12 +29,12 @@ export const createBuildingSchema = z.object({
 //validate respective parameters for compareBuildings
 export const compareBuildingsSchema = z.object({
     //we check if ids valid, then time range has to match
-    buildingID_1: z.string().uuid("buildingID_1 must be a valid UUID"),
-    buildingID_2: z.string().uuid("buildingID_2 must be a valid UUID"),
-    time_range: z.enum(['7_days', '30_days', '90_days', '1_year'], "time_range must be one of '7d', '30d', '90d', or '1y'"),
-}).refine((data) => data.buildingID_1 !== data.buildingID_2, {
+    building_id_a: z.string().regex(/^[0-9a-fA-F-]{36}$/, "building_id_a must be a valid UUID"),
+    building_id_b: z.string().regex(/^[0-9a-fA-F-]{36}$/, "building_id_b must be a valid UUID"),
+    time_range: z.enum(['7d', '30d', '90d', '1y']),
+}).refine((data) => data.building_id_a !== data.building_id_b, {
     message: "buildingID_1 and buildingID_2 cannot be the same",
-    path: ['buildingID_2'],
+    path: ['building_id_b'],
 }).strict();
 
 export type CompareBuildingsQuery = z.infer<typeof compareBuildingsSchema>;

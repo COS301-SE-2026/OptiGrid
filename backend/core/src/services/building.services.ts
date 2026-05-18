@@ -1,6 +1,6 @@
 import prisma from '../lib/prisma';
 import { BuildingType, Building } from '@prisma/client';
-import { queryUsage } from '../lib/influx'; 
+import { queryTotalKwh } from '../lib/influx'; 
 
 
 // handle building creation, updating, deletion, and others here
@@ -55,42 +55,47 @@ export const compareBuildingsService = async (
 ) => {
   //we ensure user has acess to both buildings
   const accessChecks = await Promise.all([
-    prisma.userBuildingAccess.findUnique({
-      where: { user_id_building_id: { user_id: userId, building_id: buildingId_1 } }
+    prisma.userBuildingAccess.findFirst({
+      where: { user_id: userId, building_id: buildingId_1 }
     }),
-    prisma.userBuildingAccess.findUnique({
-      where: { user_id_building_id: { user_id: userId, building_id: buildingId_2 } }
+    prisma.userBuildingAccess.findFirst({
+      where: { user_id: userId, building_id: buildingId_2 }
     })
   ]);
 
-  if (!accessChecks[0] || !accessChecks[1]) throw new Error('You dont have permission to view one of these buildings.');
+  if (!accessChecks[0] || !accessChecks[1]) throw new Error('Access Denied');
 
   // we get data from supabase
   const [buildingA, buildingB] = await Promise.all([
-    prisma.building.findUniqueOrThrow({ where: { building_id: buildingId_1 } }),
-    prisma.building.findUniqueOrThrow({ where: { building_id: buildingId_2 } })
+    prisma.building.findUnique({ where: { building_id: buildingId_1 } }),
+    prisma.building.findUnique({ where: { building_id: buildingId_2 } })
   ]);
+
+  if (!buildingA || !buildingB) throw new Error('Building not found');
 
   // then we get data from influx for both buildings in parallel
   const [influxA, influxB] = await Promise.all([
-    queryUsage(buildingId_1, timeRange),
-    queryUsage(buildingId_2, timeRange)
+    queryTotalKwh(buildingId_1, timeRange),
+    queryTotalKwh(buildingId_2, timeRange)
   ]);
 
   // we calculate metrics such as EUI, cost per sq ft and cost per kwh, ensuring no division by 0
   const calculateMetrics = (building: Building, influxData: any) => {
-    const sqFt = Number(building.square_footage) || 1; 
-    const eui = influxData.total_kwh / sqFt;
+    const totalKwh = typeof influxData === 'number' ? influxData : influxData.total_kwh;
+    const totalCostUsd = typeof influxData === 'number' ? 0 : influxData.total_cost_usd;
+    const sqFt = Number(building.square_footage);
+    const hasSquareFootage = Number.isFinite(sqFt) && sqFt > 0;
+    const eui = hasSquareFootage ? totalKwh / sqFt : null;
     
     return {
-      id: building.building_id,
+      building_id: building.building_id,
       name: building.building_name,
-      total_kwh: influxData.total_kwh,
-      total_cost_usd: influxData.total_cost_usd,
-      square_footage: Number(building.square_footage) || null,
-      eui: Number(eui.toFixed(2)),
-      cost_per_sq_ft: Number((influxData.total_cost_usd / sqFt).toFixed(2)),
-      cost_per_kwh: influxData.total_kwh > 0 ? Number((influxData.total_cost_usd / influxData.total_kwh).toFixed(2)) : 0
+      total_kwh: totalKwh,
+      total_cost_usd: totalCostUsd,
+      square_footage: hasSquareFootage ? sqFt : null,
+      eui: eui === null ? null : Number(eui.toFixed(2)),
+      cost_per_sq_ft: hasSquareFootage ? Number((totalCostUsd / sqFt).toFixed(2)) : null,
+      cost_per_kwh: totalKwh > 0 ? Number((totalCostUsd / totalKwh).toFixed(2)) : 0
     };
   };
 
@@ -98,15 +103,20 @@ export const compareBuildingsService = async (
   const metricsB = calculateMetrics(buildingB, influxB);
 
   //we determine which building is more efficient based on EUI, return null if same
-  let mostEfficient: typeof metricsA | null = metricsA;
-  if (metricsA.eui < metricsB.eui) mostEfficient = metricsA;
-  else if (metricsB.eui < metricsA.eui) mostEfficient = metricsB;
-  else mostEfficient = null;
+  let mostEfficient: string | null = null;
+  if (metricsA.eui !== null && metricsB.eui !== null) {
+    if (metricsA.eui < metricsB.eui) mostEfficient = metricsA.building_id;
+    else if (metricsB.eui < metricsA.eui) mostEfficient = metricsB.building_id;
+  } else if (metricsA.eui !== null) {
+    mostEfficient = metricsA.building_id;
+  } else if (metricsB.eui !== null) {
+    mostEfficient = metricsB.building_id;
+  }
 
   //we return response object with relevant data
   return {
     time_range: timeRange,
-    most_efficient_building: mostEfficient,
+    mostEfficient,
     buildingA: metricsA,
     buildingB: metricsB
   };
