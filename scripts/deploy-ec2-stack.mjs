@@ -4,6 +4,22 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
+/**
+ * Production EC2 deploy script.
+ *
+ * High-level flow:
+ * 1) Ensure/inspect Terraform infrastructure.
+ * 2) Build + package Docker images locally.
+ * 3) Upload compose/env/image artifacts to EC2.
+ * 4) Start or resume the remote compose stack.
+ *
+ * Supported actions:
+ * - deploy: full infra + image + compose rollout
+ * - resume: restart compose on existing infra/artifacts
+ * - down: stop remote compose stack only
+ * - status: show remote compose status
+ * - destroy: tear down Terraform-managed infra
+ */
 const action = (process.argv[2] || "deploy").toLowerCase();
 const skipBuild = process.argv.includes("--skip-build");
 
@@ -64,16 +80,19 @@ const envFileCandidates = [
 
 const resolvedEnvFile = resolveEnvFile(envFileCandidates);
 if (resolvedEnvFile) {
+  // Load local deploy-time environment defaults while preserving explicit shell overrides.
   loadEnvFileIfPresent(resolvedEnvFile);
   console.log(`Loaded deploy env from ${resolvedEnvFile}`);
 }
 
+// Terraform runtime settings.
 const tfDir = "infrastructure/terraform";
 const tfGlobalArgs = ["-chdir=" + tfDir];
 const instanceType = process.env.INSTANCE_TYPE || "t3.micro";
 const tfVarArgs = ["-input=false", "-var", `instance_type=${instanceType}`];
 const tfvarsPath = path.join(tfDir, "terraform.tfvars");
 
+// SSH and readiness probe settings.
 const sshKeyPath = process.env.SSH_KEY_PATH || path.join(os.homedir(), ".ssh", "id_ed25519");
 const sshUser = process.env.SSH_USER || "ubuntu";
 const sshWaitSeconds = Number(process.env.SSH_WAIT_SECONDS || 180);
@@ -81,6 +100,7 @@ const sshRetryMs = Number(process.env.SSH_RETRY_MS || 5000);
 const dockerWaitSeconds = Number(process.env.DOCKER_WAIT_SECONDS || 300);
 const dockerRetryMs = Number(process.env.DOCKER_RETRY_MS || 5000);
 
+// Docker image coordinates used for local build/save and remote load.
 const imageNamespace = process.env.IMAGE_NAMESPACE || "local";
 const imageTags = [
   `ghcr.io/${imageNamespace}/optigrid-frontend:latest`,
@@ -95,11 +115,13 @@ const composeEc2Path = path.join(generatedDir, "docker-compose.ec2.yml");
 const envEc2Path = path.join(generatedDir, ".env.ec2");
 const imagesTarPath = path.join(generatedDir, "optigrid-images.tar");
 
+// Remote deployment paths on the EC2 instance.
 const remoteDir = process.env.REMOTE_DEPLOY_DIR || "/home/ubuntu/optigrid-deploy";
 const remoteCompose = `${remoteDir}/docker-compose.ec2.yml`;
 const remoteEnv = `${remoteDir}/.env.ec2`;
 const remoteImagesTar = `${remoteDir}/optigrid-images.tar`;
 
+// Runtime env values injected into the remote compose env-file.
 const runtimeEnv = {
   nodeEnv: process.env.NODE_ENV || "production",
   frontendPort: process.env.FRONTEND_PORT || "80",
@@ -120,6 +142,7 @@ function phase(name) {
   console.log(`[${now}] ${name}`);
 }
 
+// Execute a command and fail fast with the same exit code semantics.
 function run(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, {
     stdio: "inherit",
@@ -135,6 +158,7 @@ function run(cmd, args, options = {}) {
   }
 }
 
+// Execute a command and return trimmed stdout; intended for deterministic lookups.
 function runCapture(cmd, args) {
   const result = spawnSync(cmd, args, {
     stdio: ["ignore", "pipe", "inherit"],
@@ -148,6 +172,7 @@ function runCapture(cmd, args) {
 }
 
 function assertLocalDockerEngine() {
+  // Deploy requires a healthy local daemon for image build/save.
   const probe = spawnSync("docker", ["info"], {
     stdio: ["ignore", "ignore", "pipe"],
     encoding: "utf8",
@@ -162,6 +187,7 @@ function assertLocalDockerEngine() {
   }
 }
 
+// Execute a multi-line bash script remotely over SSH.
 function runSshScript(host, script, timeoutMs = 300000) {
   run(
     "ssh",
@@ -215,6 +241,7 @@ function isPortOpen(host, port, timeoutMs = 2000) {
 }
 
 async function waitForSsh(host, attempts, delayMs) {
+  // Readiness gate #1: TCP + auth handshake to avoid racing early boot.
   const maxSeconds = Math.floor((attempts * delayMs) / 1000);
   console.log(`Waiting for SSH readiness (max ${maxSeconds}s)...`);
   for (let i = 0; i < attempts; i += 1) {
@@ -265,6 +292,7 @@ async function waitForSsh(host, attempts, delayMs) {
 }
 
 async function waitForDockerReady(host, attempts, delayMs) {
+  // Readiness gate #2: cloud-init finished + docker service active.
   const maxSeconds = Math.floor((attempts * delayMs) / 1000);
   console.log(`Waiting for cloud-init + Docker readiness (max ${maxSeconds}s)...`);
 
@@ -316,6 +344,7 @@ function ensureInfra() {
 }
 
 function destroyInfra() {
+  // Destroy is intentionally separate from compose down: it removes the underlying EC2 resources.
   phase(`Terraform destroy start (${instanceType})`);
   run("terraform", [...tfGlobalArgs, "init", "-input=false"]);
   run("terraform", [...tfGlobalArgs, "destroy", ...tfVarArgs, "-auto-approve"]);
@@ -327,6 +356,7 @@ function getHostIp() {
 }
 
 function tryGetHostIpFromState() {
+  // Down/status operate on the currently tracked instance without forcing a fresh apply.
   const stateList = spawnSync("terraform", [...tfGlobalArgs, "state", "list"], {
     stdio: ["ignore", "pipe", "pipe"],
     encoding: "utf8",
@@ -356,6 +386,7 @@ function tryGetHostIpFromState() {
 function generateComposeAndEnv() {
   mkdirSync(generatedDir, { recursive: true });
 
+  // Resolve image namespace locally before shipping compose/env files to EC2.
   const composeTemplate = readFileSync(composeProdPath, "utf8");
   const composeResolved = composeTemplate.replaceAll("YOUR_GITHUB_USERNAME", imageNamespace);
   writeFileSync(composeEc2Path, composeResolved);
@@ -380,6 +411,7 @@ function generateComposeAndEnv() {
 
 function buildImages() {
   phase("Building Docker images locally");
+  // Build each service image explicitly so we can transfer immutable artifacts to EC2.
   run("docker", ["build", "-f", "frontend/Dockerfile", "-t", imageTags[0], "."]);
   run("docker", ["build", "-f", "backend/core/Dockerfile", "-t", imageTags[1], "."]);
   run("docker", ["build", "-f", "backend/ingestion/Dockerfile", "-t", imageTags[2], "."]);
@@ -388,6 +420,7 @@ function buildImages() {
 
 function packageImages() {
   phase("Packaging Docker images for transfer");
+  // `docker save` creates a portable tar used by remote `docker load`.
   run("docker", ["save", "-o", imagesTarPath, ...imageTags]);
 }
 
@@ -422,6 +455,7 @@ function remoteComposeDeploy(host) {
       "set -euxo pipefail",
       `cd ${remoteDir}`,
       "if ! sudo docker compose version >/dev/null 2>&1; then",
+      // First try distro packages; fallback to official plugin binary if unavailable.
       "  sudo apt-get update -y",
       "  if apt-cache show docker-compose-v2 >/dev/null 2>&1; then",
       "    sudo apt-get install -y docker-compose-v2",
@@ -443,6 +477,7 @@ function remoteComposeDeploy(host) {
       "fi",
       "sudo docker compose version",
       "echo 'Loading container images (can take several minutes)...'",
+      // Load prebuilt images to avoid remote builds and registry auth complexity.
       `sudo docker load -i ${path.posix.basename(remoteImagesTar)}`,
       "echo 'Starting compose stack...'",
       `sudo docker compose -f ${path.posix.basename(remoteCompose)} --env-file ${path.posix.basename(remoteEnv)} up -d --remove-orphans --pull never`,
@@ -521,6 +556,7 @@ if ((action === "deploy" || action === "resume") && !runtimeEnv.databaseUrl) {
 }
 
 if (action === "down") {
+  // Stop containers but keep VM/volumes/state so they can be resumed later.
   const host = tryGetHostIpFromState();
   if (!host) {
     console.log("No active Terraform host found in state. Nothing to stop.");
@@ -532,6 +568,7 @@ if (action === "down") {
 }
 
 if (action === "status") {
+  // Read-only remote compose inspection for quick diagnostics.
   const host = tryGetHostIpFromState();
   if (!host) {
     console.log("No active Terraform host found in state.");
@@ -543,6 +580,7 @@ if (action === "status") {
 }
 
 if (action === "destroy") {
+  // Full teardown of Terraform-managed infrastructure.
   destroyInfra();
   process.exit(0);
 }
@@ -561,6 +599,7 @@ if (action === "resume") {
     host,
     [
       "set -euxo pipefail",
+      // Resume assumes prior artifacts still exist remotely and only restarts the compose workflow.
       `test -f ${remoteCompose}`,
       `test -f ${remoteEnv}`,
       `test -f ${remoteImagesTar}`,
@@ -568,6 +607,7 @@ if (action === "resume") {
     ].join("\n"),
   );
   remoteComposeDeploy(host);
+  // Resume path skips local build/package/upload and reuses remote artifacts.
   console.log("EC2 container deployment resumed and completed.");
   process.exit(0);
 }

@@ -4,6 +4,15 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
+/**
+ * EC2 development deploy/sync script.
+ *
+ * This script is optimized for hot-reload workflows:
+ * - "up": ensure infra, upload source snapshot, boot dev compose
+ * - "sync": refresh remote workspace source snapshot only
+ * - "down": stop remote dev compose stack
+ * - "status": inspect remote dev compose stack
+ */
 const action = (process.argv[2] || "up").toLowerCase();
 
 function stripWrappingQuotes(value) {
@@ -63,10 +72,12 @@ const envFileCandidates = [
 
 const resolvedEnvFile = resolveEnvFile(envFileCandidates);
 if (resolvedEnvFile) {
+  // Load local defaults from env files while preserving explicit shell overrides.
   loadEnvFileIfPresent(resolvedEnvFile);
   console.log(`Loaded dev deploy env from ${resolvedEnvFile}`);
 }
 
+// Terraform runtime settings.
 const tfDir = "infrastructure/terraform";
 const tfGlobalArgs = ["-chdir=" + tfDir];
 const instanceType = process.env.INSTANCE_TYPE || "t3.small";
@@ -80,11 +91,13 @@ const sshRetryMs = Number(process.env.SSH_RETRY_MS || 5000);
 const dockerWaitSeconds = Number(process.env.DOCKER_WAIT_SECONDS || 300);
 const dockerRetryMs = Number(process.env.DOCKER_RETRY_MS || 5000);
 
+// Local generated artifacts used for remote dev rollout.
 const generatedDir = path.join("infrastructure", "docker", ".generated");
 const localDevComposePath = path.join("infrastructure", "docker", "docker-compose.dev.ec2.yml");
 const localDevEnvPath = path.join(generatedDir, ".env.ec2.dev");
 const localSourceTarPath = path.join(generatedDir, "optigrid-dev-source.tar.gz");
 
+// Remote workspace + compose paths on EC2.
 const remoteDir = process.env.REMOTE_DEV_DIR || "/home/ubuntu/optigrid-dev";
 const remoteWorkspace = `${remoteDir}/workspace`;
 const remoteDevCompose = `${remoteDir}/docker-compose.dev.ec2.yml`;
@@ -92,6 +105,7 @@ const remoteDevEnv = `${remoteDir}/.env.ec2.dev`;
 const remoteSourceTar = `${remoteDir}/source.tar.gz`;
 
 const runtimeEnv = {
+  // Dev stack is exposed on alternate ports to avoid clashing with prod defaults.
   frontendPort: process.env.FRONTEND_PORT || "3001",
   corePort: process.env.CORE_PORT || "4001",
   databaseUrl: process.env.DATABASE_URL || "",
@@ -108,6 +122,7 @@ function phase(name) {
   console.log(`[${now}] ${name}`);
 }
 
+// Execute a command and fail fast with the same exit code semantics.
 function run(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, {
     stdio: "inherit",
@@ -123,6 +138,7 @@ function run(cmd, args, options = {}) {
   }
 }
 
+// Execute a command and return trimmed stdout; intended for deterministic lookups.
 function runCapture(cmd, args) {
   const result = spawnSync(cmd, args, {
     stdio: ["ignore", "pipe", "pipe"],
@@ -135,6 +151,7 @@ function runCapture(cmd, args) {
   return result.stdout.trim();
 }
 
+// Execute a multi-line bash script remotely over SSH.
 function runSshScript(host, script, timeoutMs = 300000) {
   run(
     "ssh",
@@ -188,6 +205,7 @@ function isPortOpen(host, port, timeoutMs = 2000) {
 }
 
 async function waitForSsh(host, attempts, delayMs) {
+  // Readiness gate #1: TCP + auth handshake to avoid racing early boot.
   const maxSeconds = Math.floor((attempts * delayMs) / 1000);
   console.log(`Waiting for SSH readiness (max ${maxSeconds}s)...`);
   for (let i = 0; i < attempts; i += 1) {
@@ -238,6 +256,7 @@ async function waitForSsh(host, attempts, delayMs) {
 }
 
 async function waitForDockerReady(host, attempts, delayMs) {
+  // Readiness gate #2: cloud-init finished + docker service active.
   const maxSeconds = Math.floor((attempts * delayMs) / 1000);
   console.log(`Waiting for cloud-init + Docker readiness (max ${maxSeconds}s)...`);
 
@@ -293,6 +312,7 @@ function getHostIp() {
 }
 
 function tryGetHostIpFromState() {
+  // For status/down/sync we read the current Terraform state instead of re-applying infra.
   const stateList = spawnSync("terraform", [...tfGlobalArgs, "state", "list"], {
     stdio: ["ignore", "pipe", "pipe"],
     encoding: "utf8",
@@ -325,6 +345,7 @@ function ensureRemoteComposePlugin(host) {
     [
       "set -euxo pipefail",
       "if ! sudo docker compose version >/dev/null 2>&1; then",
+      // First try distro packages; fallback to official plugin binary if unavailable.
       "  sudo apt-get update -y",
       "  if apt-cache show docker-compose-v2 >/dev/null 2>&1; then",
       "    sudo apt-get install -y docker-compose-v2",
@@ -353,6 +374,7 @@ function ensureRemoteComposePlugin(host) {
 function generateDevEnvFile() {
   mkdirSync(generatedDir, { recursive: true });
 
+  // Generate a dedicated env-file so remote compose is deterministic and reproducible.
   const envText = [
     "NODE_ENV=development",
     `FRONTEND_PORT=${runtimeEnv.frontendPort}`,
@@ -372,6 +394,7 @@ function generateDevEnvFile() {
 function createSourceArchive() {
   phase("Packaging source for EC2 dev sync");
   mkdirSync(generatedDir, { recursive: true });
+  // Bundle source once and exclude build artifacts/secrets to keep dev sync smaller and safer.
   run(
     "tar",
     [
@@ -422,6 +445,7 @@ function uploadDevArtifacts(host) {
     "StrictHostKeyChecking=accept-new",
   ];
 
+  // Upload compose/env/source artifacts used by dev compose and workspace extraction.
   run("scp", [...scpBase, localDevComposePath, `${sshUser}@${host}:${remoteDevCompose}`]);
   run("scp", [...scpBase, localDevEnvPath, `${sshUser}@${host}:${remoteDevEnv}`]);
   run("scp", [...scpBase, localSourceTarPath, `${sshUser}@${host}:${remoteSourceTar}`]);
@@ -433,6 +457,7 @@ function syncRemoteWorkspace(host) {
     host,
     [
       "set -euxo pipefail",
+      // Dev mode does a full extract each sync so containers always read a coherent workspace snapshot.
       `sudo mkdir -p ${remoteWorkspace}`,
       `sudo tar -xzf ${remoteSourceTar} -C ${remoteWorkspace} --strip-components=1`,
       `sudo chown -R ${sshUser}:${sshUser} ${remoteWorkspace}`,
@@ -449,6 +474,7 @@ function remoteComposeUp(host) {
     [
       "set -euxo pipefail",
       `cd ${remoteDir}`,
+      // Dev stack is launched without image transfer; services run from mounted workspace.
       `sudo docker compose -f ${path.posix.basename(remoteDevCompose)} --env-file ${path.posix.basename(remoteDevEnv)} up -d --remove-orphans`,
       `sudo docker compose -f ${path.posix.basename(remoteDevCompose)} --env-file ${path.posix.basename(remoteDevEnv)} ps`,
       "",
@@ -525,6 +551,7 @@ if ((action === "up" || action === "sync") && !runtimeEnv.databaseUrl) {
 }
 
 if (action === "down" || action === "status") {
+  // These actions are read-only/teardown operations and should not mutate Terraform resources.
   const host = tryGetHostIpFromState();
   if (!host) {
     console.log("No active Terraform host found in state.");
@@ -541,9 +568,11 @@ if (action === "down" || action === "status") {
 
 let host;
 if (action === "up") {
+  // "up" is the only dev action that may create/modify infrastructure.
   ensureInfra();
   host = getHostIp();
 } else {
+  // "sync" requires an existing instance in Terraform state.
   host = tryGetHostIpFromState();
   if (!host) {
     console.error("No active Terraform host found. Run `optigrid dev` first.");
@@ -568,6 +597,7 @@ if (action === "up") {
   remoteComposeUp(host);
   console.log(`EC2 dev hot-reload stack is running at http://${host}:${runtimeEnv.frontendPort}`);
 } else {
+  // Sync intentionally avoids container restarts; preserve in-flight dev sessions on EC2.
   console.log("EC2 dev source sync complete.");
   console.log("If file watchers missed changes, run `corepack pnpm run optigrid dev-status` and restart with `corepack pnpm run optigrid dev`.");
 }

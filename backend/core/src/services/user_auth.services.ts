@@ -81,6 +81,7 @@ async function updateUserByUserIdWithRetry(createData: {
     const maxAttempts = 5;
     const retryDelayMs = 250;
 
+    // Supabase can create the public.users row asynchronously after auth user creation.
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
             return await prisma.user.update({
@@ -115,6 +116,7 @@ async function updateUserByUserIdWithRetry(createData: {
 async function provisionAuthUser(email: string, password: string): Promise<ProvisionedAuthUser | null> {
     const supabase = getSupabaseAdminClient();
     if (!supabase) {
+        // Keep local/integration environments working when Supabase admin credentials are not configured.
         return null;
     }
 
@@ -158,6 +160,7 @@ export const signup = async (email: string, password: string, name: string) => {
     const [firstName = '', ...otherNames] = name.trim().split(/\s+/);
     const lastName = otherNames.join(' ');
 
+    // Prefer Supabase auth user id to satisfy schemas where users.user_id references auth.users.id.
     const provisionedAuthUser = await provisionAuthUser(email, password);
     
     const createData = {
@@ -192,6 +195,7 @@ export const signup = async (email: string, password: string, name: string) => {
         return user;
     } catch (error) {
         if (isUserIdUniqueConstraintError(error)) {
+            // If Supabase inserted the row first, switch to update path instead of failing signup.
             return updateUserByUserIdWithRetry(createData);
         }
 

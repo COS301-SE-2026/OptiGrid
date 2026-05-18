@@ -3,10 +3,17 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+/**
+ * Thin command router for the OptiGrid CLI.
+ * It maps user-friendly commands to the underlying deploy scripts/actions.
+ */
 const [, , rawCommand, ...forwardArgs] = process.argv;
 const command = (rawCommand || "help").toLowerCase();
 const wantsHelp = forwardArgs.includes("--help") || forwardArgs.includes("-h");
 
+// Central routing table: each CLI command points to one script + action.
+// - Production lifecycle commands route to deploy-ec2-stack.mjs
+// - Development hot-reload commands route to deploy-ec2-dev-stack.mjs
 const commandMap = {
   start: { script: "deploy-ec2-stack.mjs", action: "deploy" },
   deploy: { script: "deploy-ec2-stack.mjs", action: "deploy" },
@@ -53,6 +60,7 @@ if (["help", "-h", "--help"].includes(command) || wantsHelp) {
 const resolved = commandMap[command];
 
 if (!resolved) {
+  // Fail with usage guidance to keep CLI behavior explicit for contributors.
   console.error(`Unknown command: ${rawCommand}`);
   printUsage();
   process.exit(1);
@@ -61,6 +69,7 @@ if (!resolved) {
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const deployScriptPath = path.join(scriptDir, resolved.script);
 
+// We run the target script in a child process and mirror stdio for transparency.
 const result = spawnSync(
   process.execPath,
   [deployScriptPath, resolved.action, ...forwardArgs],
@@ -75,4 +84,5 @@ if (result.error) {
   process.exit(1);
 }
 
+// Bubble up underlying script exit status so CI/automation can rely on this wrapper.
 process.exit(result.status ?? 1);

@@ -8,7 +8,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	default: {
 		user: {
 			findUnique: jest.fn(),
-			create: jest.fn(),
+			upsert: jest.fn(),
 		},
 	},
 }));
@@ -28,7 +28,7 @@ jest.mock('crypto', () => ({
 const mockedPrisma = prisma as unknown as {
 	user: {
 		findUnique: jest.Mock;
-		create: jest.Mock;
+		upsert: jest.Mock;
 	};
 };
 
@@ -46,7 +46,7 @@ describe('signup service', () => {
 		// Arrange
 		mockedPrisma.user.findUnique.mockResolvedValue(null);
 		mockedHashPassword.mockResolvedValue('hashed-password');
-		mockedPrisma.user.create.mockResolvedValue({
+		mockedPrisma.user.upsert.mockResolvedValue({
 			userId: 'test-user-id',
 			email: 'user@example.com',
 			firstName: 'Jane',
@@ -61,9 +61,18 @@ describe('signup service', () => {
 			where: { email: 'user@example.com' },
 		});
 		expect(mockedHashPassword).toHaveBeenCalledWith('SecurePass123!');
-		expect(mockedPrisma.user.create).toHaveBeenCalledWith({
-			data: {
+		expect(mockedPrisma.user.upsert).toHaveBeenCalledWith({
+			where: {
 				userId: 'test-user-id',
+			},
+			create: {
+				userId: 'test-user-id',
+				email: 'user@example.com',
+				passwordHash: 'hashed-password',
+				firstName: 'Jane',
+				lastName: 'Doe',
+			},
+			update: {
 				email: 'user@example.com',
 				passwordHash: 'hashed-password',
 				firstName: 'Jane',
@@ -95,6 +104,6 @@ describe('signup service', () => {
 
 		// Assert
 		expect(mockedHashPassword).not.toHaveBeenCalled();
-		expect(mockedPrisma.user.create).not.toHaveBeenCalled();
+		expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
 	});
 });
