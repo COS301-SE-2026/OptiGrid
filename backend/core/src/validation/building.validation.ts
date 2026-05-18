@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BuildingType } from '@prisma/client';
+import path from 'path';
 
 export const createBuildingSchema = z.object({
     //validate building name
@@ -24,3 +25,16 @@ export const createBuildingSchema = z.object({
         .optional(),
     
 }).strict();
+
+//validate respective parameters for compareBuildings
+export const compareBuildingsSchema = z.object({
+    //we check if ids valid, then time range has to match
+    buildingID_1: z.string().uuid("buildingID_1 must be a valid UUID"),
+    buildingID_2: z.string().uuid("buildingID_2 must be a valid UUID"),
+    time_range: z.enum(['7_days', '30_days', '90_days', '1_year'], "time_range must be one of '7d', '30d', '90d', or '1y'"),
+}).refine((data) => data.buildingID_1 !== data.buildingID_2, {
+    message: "buildingID_1 and buildingID_2 cannot be the same",
+    path: ['buildingID_2'],
+}).strict();
+
+export type CompareBuildingsQuery = z.infer<typeof compareBuildingsSchema>;
