@@ -1,10 +1,12 @@
-export default function LandingPage() {
-    return (
-        <section className="space-y-4">
-            <h1 className="text-2xl font-semibold text-slate-100">Landing</h1>
-            <p className="text-sm text-slate-300">
-                here we have the public entry to our platform
-            </p>
-        </section>
-    );
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+
+export default async function HomePage() {
+	const cookieStore = await cookies();
+	const session = cookieStore.get("optigrid_session");
+	if (session?.value) {
+		redirect("/dashboard");
+	}
+
+	redirect("/login");
 }

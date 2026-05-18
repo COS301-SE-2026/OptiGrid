@@ -1,13 +1,23 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 const navigation = [
     { label: "Dashboard", href: "/dashboard" },
+    { label: "Buildings", href: "/buildings" },
+    { label: "Add Building", href: "/dashboard/add" },
     { label: "Compare", href: "/compare" },
     { label: "Forecast", href: "/forecast" },
 ];
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+    const cookieStore = await cookies();
+    const session = cookieStore.get("optigrid_session");
+    if (!session?.value) {
+        redirect("/login");
+    }
+
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100">
             <div className="mx-auto flex min-h-screen max-w-6xl">
@@ -26,6 +36,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                             </Link>
                         ))}
                     </nav>
+                    <form action="/api/auth/logout" method="post" className="mt-8">
+                        <button
+                            type="submit"
+                            className="w-full rounded-lg border border-slate-700 px-3 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800"
+                        >
+                            Logout
+                        </button>
+                    </form>
                 </aside>
                 <main className="flex-1 px-8 py-10">{children}</main>
             </div>

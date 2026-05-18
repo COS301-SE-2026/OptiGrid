@@ -7,6 +7,8 @@ import {
     type FocusEvent,
     type SubmitEvent,
 } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     getSubmitResult,
     hasErrors,
@@ -17,15 +19,21 @@ import {
 import { initialSignupFormData, type SignupFormData } from "./validation";
 
 export default function SignupPage() {
+    const router = useRouter();
     const [formData, setFormData] = useState<SignupFormData>(initialSignupFormData);
     const [errors, setErrors] = useState<SignupErrors>({});
     const [touched, setTouched] = useState<SignupTouched>({});
     const [status, setStatus] = useState<"idle" | "success">("idle");
+    const [submitError, setSubmitError] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const hasAnyErrors = useMemo(() => hasErrors(errors), [errors]);
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
         setFormData((previous) => ({ ...previous, [name]: value }));
+        if (submitError) {
+            setSubmitError("");
+        }
         if (status === "success") {
             setStatus("idle");
         }
@@ -36,13 +44,74 @@ export default function SignupPage() {
         setTouched((previous) => ({ ...previous, [name]: true }));
     };
 
-    const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
         const result = getSubmitResult(formData);
         setErrors(result.errors);
         setTouched(result.touched);
-        setStatus(result.status);
-        setFormData(result.nextFormData);
+        if (hasErrors(result.errors)) {
+            setStatus("idle");
+            return;
+        }
+
+        setSubmitError("");
+        setIsSubmitting(true);
+
+        try {
+            const emailValue = formData.email.trim();
+            const passwordValue = formData.password;
+            const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
+            const response = await fetch("/api/auth/signup", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: emailValue,
+                    password: passwordValue,
+                    name: fullName,
+                }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const message =
+                    typeof payload?.message === "string"
+                        ? payload.message
+                        : "Signup failed. Try again.";
+                throw new Error(message);
+            }
+
+            const loginResponse = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: emailValue,
+                    password: passwordValue,
+                }),
+            });
+
+            if (loginResponse.ok) {
+                router.push("/dashboard");
+                router.refresh();
+                return;
+            }
+
+            setStatus("success");
+            setErrors({});
+            setTouched({});
+            setFormData(initialSignupFormData);
+            router.push(`/login?signup=success&email=${encodeURIComponent(emailValue)}`);
+        } catch (error) {
+            const message =
+                error instanceof Error ? error.message : "Signup failed. Try again.";
+            setStatus("idle");
+            setSubmitError(message);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const showError = (field: keyof SignupFormData) => shouldShowError(field, errors, touched);
@@ -71,6 +140,7 @@ export default function SignupPage() {
                                 id="firstName"
                                 name="firstName"
                                 type="text"
+                                suppressHydrationWarning
                                 autoComplete="given-name"
                                 value={formData.firstName}
                                 onChange={handleChange}
@@ -97,6 +167,7 @@ export default function SignupPage() {
                                 id="lastName"
                                 name="lastName"
                                 type="text"
+                                suppressHydrationWarning
                                 autoComplete="family-name"
                                 value={formData.lastName}
                                 onChange={handleChange}
@@ -124,6 +195,7 @@ export default function SignupPage() {
                             id="email"
                             name="email"
                             type="email"
+                            suppressHydrationWarning
                             autoComplete="email"
                             value={formData.email}
                             onChange={handleChange}
@@ -148,6 +220,7 @@ export default function SignupPage() {
                             id="password"
                             name="password"
                             type="password"
+                            suppressHydrationWarning
                             autoComplete="new-password"
                             value={formData.password}
                             onChange={handleChange}
@@ -174,6 +247,7 @@ export default function SignupPage() {
                             id="confirmPassword"
                             name="confirmPassword"
                             type="password"
+                            suppressHydrationWarning
                             autoComplete="new-password"
                             value={formData.confirmPassword}
                             onChange={handleChange}
@@ -194,14 +268,30 @@ export default function SignupPage() {
                     <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-xs text-slate-400">
                         By creating an account, you will be enrolled in {"OptiGrid's"} multi-site energy optimization workspace.
                     </div>
-                    <button type="submit" className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200">
-                        Create account
+                    <button
+                        type="submit"
+                        suppressHydrationWarning
+                        disabled={isSubmitting}
+                        className="w-full rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {isSubmitting ? "Creating account..." : "Create account"}
                     </button>
+                    {submitError && (
+                        <div role="alert" className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                            {submitError}
+                        </div>
+                    )}
                     {status === "success" && !hasAnyErrors && (
                         <div role="status" className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
                             Account created. Check your inbox to verify your workspace access.
                         </div>
                     )}
+                    <p className="text-sm text-slate-300">
+                        Already have an account?{" "}
+                        <Link href="/login" className="text-emerald-300 underline hover:text-emerald-200">
+                            Log in
+                        </Link>
+                    </p>
                 </form>
             </div>
         </main>
