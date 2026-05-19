@@ -1,7 +1,7 @@
 import os
-from dotenv import load_env
+from dotenv import load_dotenv
 
-load_env()
+load_dotenv()
 
 INFLUX_URL = os.getenv("INFLUXDB_URL")
 INFLUX_TOKEN = os.getenv("INFLUXDB_TOKEN")
