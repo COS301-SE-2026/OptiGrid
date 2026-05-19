@@ -2,8 +2,8 @@ import time
 import schedule
 import logging
 from supabase import create_client, Client
-from .config import SUPABASE_URL, SUPABASE_KEY
-from .core_engine import AnalyticsEngine
+from config import SUPABASE_URL, SUPABASE_KEY
+from core_engine import AnalyticsEngine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

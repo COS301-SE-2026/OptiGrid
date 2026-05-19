@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # influxDB Configuration
 INFLUX_URL = os.getenv("INFLUXDB_URL", "http://localhost:8086")

@@ -5,15 +5,8 @@ import os
 from datetime import datetime, timezone
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
-from dotenv import load_dotenv
+from config import *
 
-load_dotenv()
-
-#where to send data
-INFLUX_URL = os.getenv("INFLUXDB_URL")
-INFLUX_TOKEN = os.getenv("INFLUXDB_TOKEN")
-INFLUX_ORG = os.getenv("INFLUXDB_ORG")
-INFLUX_BUCKET = os.getenv("INFLUXDB_BUCKET")
 CSV_PATH = os.path.join(os.path.dirname(__file__), "data.csv")
 
 def emulate_sensor():

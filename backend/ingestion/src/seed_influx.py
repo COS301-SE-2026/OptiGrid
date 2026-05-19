@@ -4,14 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
-from dotenv import load_dotenv
-
-load_dotenv()
-
-INFLUX_URL = os.getenv("INFLUXDB_URL")
-INFLUX_TOKEN = os.getenv("INFLUXDB_TOKEN")
-INFLUX_ORG = os.getenv("INFLUXDB_ORG")
-INFLUX_BUCKET = os.getenv("INFLUXDB_BUCKET")
+from config import *
 
 client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
 write_api = client.write_api(write_options=SYNCHRONOUS)

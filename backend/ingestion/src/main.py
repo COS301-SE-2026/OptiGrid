@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException
 import redis
 import json
 import os
+from config import *
 
 load_dotenv()
 
