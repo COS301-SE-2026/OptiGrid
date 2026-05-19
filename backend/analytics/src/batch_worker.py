@@ -28,3 +28,12 @@ def run_analytics_batch():
     logger.info("Batch Job Complete")
 
 schedule.every().hour.at(":00").do(run_analytics_batch)
+
+if __name__ == "__main__":
+    logger.info("Analytics Worker Booted")
+    #run once immediately on startup
+    run_analytics_batch()
+    #keep script alive and checking clock
+    while True:
+        schedule.run_pending()
+        time.sleep(30)
