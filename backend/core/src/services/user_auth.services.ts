@@ -1,21 +1,38 @@
 import prisma from '../lib/prisma';
-import { comparePass, hashPassword } from '../lib/password';
-import { randomUUID } from 'crypto';
+import { hashPassword } from '../lib/password';
 import { createClient } from '@supabase/supabase-js';
 import { Prisma } from '@prisma/client';
 
 const USER_EXISTS_ERROR = 'User already exists, please login instead.';
+// Reused public shape returned to API callers after signup.
+const SIGNUP_USER_SELECT = {
+    userId: true,
+    email: true,
+    firstName: true,
+    lastName: true,
+} as const;
 
+// Shared payload used to write or update the app-level user profile row.
+type SignupCreateData = {
+    userId: string;
+    email: string;
+    passwordHash: string;
+    firstName: string;
+    lastName: string;
+};
+
+// Captures the Supabase auth user id plus rollback behavior when app profile write fails.
 type ProvisionedAuthUser = {
     userId: string;
     cleanup: () => Promise<void>;
 };
 
+// Service-role Supabase client for privileged auth admin actions (signup provisioning).
 function getSupabaseAdminClient() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !supabaseServiceRoleKey) {
-        return null;
+        throw new Error('Signup requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
     }
 
     return createClient(supabaseUrl, supabaseServiceRoleKey, {
@@ -26,6 +43,23 @@ function getSupabaseAdminClient() {
     });
 }
 
+// Anon-key Supabase client for end-user sign-in operations.
+function getSupabaseAuthClient() {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Login requires SUPABASE_URL and SUPABASE_ANON_KEY.');
+    }
+
+    return createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+        },
+    });
+}
+
+// Detects duplicate-user errors returned by Supabase auth admin signup.
 function isSupabaseDuplicateUserError(error: { message?: string; code?: string } | null): boolean {
     if (!error) {
         return false;
@@ -38,6 +72,17 @@ function isSupabaseDuplicateUserError(error: { message?: string; code?: string }
         message.includes('already registered') ||
         message.includes('already exists')
     );
+}
+
+// Detects invalid credential responses from Supabase sign-in.
+function isSupabaseInvalidCredentialsError(error: { message?: string; code?: string } | null): boolean {
+    if (!error) {
+        return false;
+    }
+
+    const code = typeof error.code === 'string' ? error.code.toLowerCase() : '';
+    const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+    return code === 'invalid_credentials' || message.includes('invalid login credentials');
 }
 
 function isUserIdForeignKeyError(error: unknown): boolean {
@@ -113,12 +158,35 @@ async function updateUserByUserIdWithRetry(createData: {
     throw new Error('Failed to update user after retries.');
 }
 
-async function provisionAuthUser(email: string, password: string): Promise<ProvisionedAuthUser | null> {
-    const supabase = getSupabaseAdminClient();
-    if (!supabase) {
-        // Keep local/integration environments working when Supabase admin credentials are not configured.
-        return null;
+async function createOrUpsertUser(createData: SignupCreateData) {
+    const userDelegate = prisma.user as unknown as {
+        upsert?: (args: Prisma.UserUpsertArgs) => Promise<unknown>;
+    };
+
+    if (typeof userDelegate.upsert !== 'function') {
+        throw new Error('Prisma user delegate is missing upsert method.');
     }
+
+    // Upsert ensures the profile row is created or updated for the same auth user id.
+    return prisma.user.upsert({
+        where: {
+            userId: createData.userId,
+        },
+        create: createData,
+        update: {
+            email: createData.email,
+            passwordHash: createData.passwordHash,
+            firstName: createData.firstName,
+            lastName: createData.lastName,
+        },
+        //we ensure not to show the password hash or return to frontend side
+        select: SIGNUP_USER_SELECT,
+    });
+}
+
+// Creates the Supabase auth identity first so app profile uses the canonical auth user id.
+async function provisionAuthUser(email: string, password: string): Promise<ProvisionedAuthUser> {
+    const supabase = getSupabaseAdminClient();
 
     const { data, error } = await supabase.auth.admin.createUser({
         email,
@@ -164,7 +232,7 @@ export const signup = async (email: string, password: string, name: string) => {
     const provisionedAuthUser = await provisionAuthUser(email, password);
     
     const createData = {
-        userId: provisionedAuthUser?.userId ?? randomUUID(),
+        userId: provisionedAuthUser.userId,
         email,
         passwordHash: hashPass,
         firstName,
@@ -172,25 +240,8 @@ export const signup = async (email: string, password: string, name: string) => {
     };
 
     try {
-        const user = await prisma.user.upsert({
-            where: {
-                userId: createData.userId,
-            },
-            create: createData,
-            update: {
-                email: createData.email,
-                passwordHash: createData.passwordHash,
-                firstName: createData.firstName,
-                lastName: createData.lastName,
-            },
-            //we ensure not to show the password hash or return to frontend side
-            select: {
-                userId: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-            },
-        });
+        // Keep local users table in sync with the newly provisioned auth identity.
+        const user = await createOrUpsertUser(createData);
 
         return user;
     } catch (error) {
@@ -199,9 +250,8 @@ export const signup = async (email: string, password: string, name: string) => {
             return updateUserByUserIdWithRetry(createData);
         }
 
-        if (provisionedAuthUser) {
-            await provisionedAuthUser.cleanup();
-        }
+        // Roll back auth identity when profile persistence fails for non-retryable reasons.
+        await provisionedAuthUser.cleanup();
 
         if (isUserIdForeignKeyError(error)) {
             throw new Error('Signup failed: users.user_id must reference auth.users.id. Configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
@@ -213,26 +263,40 @@ export const signup = async (email: string, password: string, name: string) => {
 
 //this function is used for the login logic
 export const login = async (email: string, password: string) => {
+    const supabase = getSupabaseAuthClient();
+    // Supabase verifies credentials; we no longer compare local password hashes in this service.
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    });
+
+    if (error) {
+        if (isSupabaseInvalidCredentialsError(error)) {
+            throw new Error('Invalid email or password');
+        }
+
+        throw new Error(`Failed to authenticate user: ${error.message}`);
+    }
+
+    const userId = data.user?.id;
+    if (!userId) {
+        throw new Error('Failed to authenticate user: missing user id.');
+    }
+
+    // Resolve app profile by the authenticated Supabase user id.
     const user = await prisma.user.findUnique({
-        where: {email},
+        where: { userId },
         select: {
             userId: true,
             email: true,
             firstName: true,
             lastName: true,
-            passwordHash: true,
-        }
+        },
     });
 
-    if(!user){
-        throw new Error("Invalid email or password");
+    if (!user) {
+        throw new Error('Authenticated user profile not found.');
     }
 
-    const isPasswordValid = await comparePass(password, user.passwordHash);
-    if (!isPasswordValid) {
-        throw new Error("Invalid email or password");
-    }
-
-    const {passwordHash, ...safeUser} = user;
-    return safeUser;
+    return user;
 };
