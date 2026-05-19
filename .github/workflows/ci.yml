@@ -102,7 +102,12 @@ jobs:
           if [ ! -f supabase/config.toml ]; then
             supabase init --yes
           fi
-          supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,supavisor --ignore-health-check
+          # This repository's supabase/seed.sql targets app tables managed by Prisma test harness, not Supabase local migrations.
+          # Move it out of the way for this CI job so Supabase local Auth can start cleanly.
+          if [ -f supabase/seed.sql ]; then
+            mv supabase/seed.sql supabase/seed.sql.ci.bak
+          fi
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
 
       - name: Export Supabase local auth env vars
         run: |
