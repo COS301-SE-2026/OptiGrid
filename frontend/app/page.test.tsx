@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import LandingPage from "./page";
 
 jest.mock("next/link", () => {
@@ -26,15 +26,15 @@ describe("LandingPage", () => {
 
     describe("navbar", () => {
         it("renders the brand name", () => {
-            expect(screen.getByText(/⚡ OptiGrid/)).toBeInTheDocument();
+            expect(screen.getByText("OptiGrid")).toBeInTheDocument();
         });
 
         it("renders the Features nav link", () => {
             expect(screen.getByText("Features")).toBeInTheDocument();
         });
 
-        it("renders the Pricing nav link", () => {
-            expect(screen.getByText("Pricing")).toBeInTheDocument();
+        it("renders the Outcomes nav link", () => {
+            expect(screen.getByText("Outcomes")).toBeInTheDocument();
         });
 
         it("renders the Contact nav link", () => {
@@ -61,16 +61,24 @@ describe("LandingPage", () => {
         });
 
         it("renders a Get started free link pointing to /signup", () => {
-            const signupLink = screen.getByRole("link", {
+            const main = screen.getByRole("main");
+            const signupLink = within(main).getByRole("link", {
                 name: "Get started free",
             });
             expect(signupLink).toHaveAttribute("href", "/signup");
         });
 
         it("renders a Book a demo link", () => {
-            expect(
-                screen.getByRole("link", { name: "Book a demo" })
-            ).toBeInTheDocument();
+            const main = screen.getByRole("main");
+            const heroHeading = within(main).getByRole("heading", {
+                name: "Cut energy costs across every building you operate.",
+            });
+            const heroSection = heroHeading.closest("section");
+            expect(heroSection).not.toBeNull();
+            const demoLink = within(heroSection as HTMLElement).getByRole("link", {
+                name: "Book a demo",
+            });
+            expect(demoLink).toHaveAttribute("href", "/contact");
         });
     });
 
@@ -97,7 +105,7 @@ describe("LandingPage", () => {
 
         it("renders the description for Benchmark performance", () => {
             expect(
-                screen.getByText(/Compare buildings side-by-side/)
+                screen.getByText(/Compare buildings side by side/)
             ).toBeInTheDocument();
         });
 
@@ -111,6 +119,51 @@ describe("LandingPage", () => {
     describe("footer", () => {
         it("renders the copyright notice", () => {
             expect(screen.getByText(/© 2026 OptiGrid/)).toBeInTheDocument();
+        });
+    });
+
+    describe("outcomes section", () => {
+        it("renders the outcomes heading", () => {
+            expect(
+                screen.getByRole("heading", {
+                    name: "Move from raw telemetry to decisions.",
+                })
+            ).toBeInTheDocument();
+        });
+
+        it("renders the outcomes metric cards", () => {
+            const outcomesHeading = screen.getByRole("heading", {
+                name: "Move from raw telemetry to decisions.",
+            });
+            const outcomesSection = outcomesHeading.closest("section");
+            expect(outcomesSection).not.toBeNull();
+            const outcomesScope = within(outcomesSection as HTMLElement);
+            expect(
+                outcomesScope.getByRole("heading", { name: "Peak load reduction" })
+            ).toBeInTheDocument();
+            expect(
+                outcomesScope.getByRole("heading", { name: "Forecast error" })
+            ).toBeInTheDocument();
+            expect(
+                outcomesScope.getByRole("heading", { name: "Buildings online" })
+            ).toBeInTheDocument();
+        });
+    });
+
+    describe("cta section", () => {
+        it("renders the CTA heading", () => {
+            expect(
+                screen.getByRole("heading", {
+                    name: "Build a smarter energy strategy this quarter.",
+                })
+            ).toBeInTheDocument();
+        });
+
+        it("renders the Start your free trial link", () => {
+            const ctaLink = screen.getByRole("link", {
+                name: "Start your free trial",
+            });
+            expect(ctaLink).toHaveAttribute("href", "/signup");
         });
     });
 });
