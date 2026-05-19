@@ -47,26 +47,34 @@ def main() -> None:
                 building_id = payload.get("building_id", "unknown_building")
                 meter_id = payload.get("meter_id", "unknown_meter")
 
-                #conver usage string to float (handles errors)
+                # convert usage string to float (handles errors)
                 try:
-                    metric_value = float(payload.get("usage", 0.0))
+                    usage_kwh = float(payload.get("usage", 0.0))
                 except (ValueError, TypeError):
-                    metric_value = 0.0
+                    usage_kwh = 0.0
+
+                # extract and convert cost string to float
+                try:
+                    raw_cost = str(payload.get("cost", "$0.00"))
+                    cost_usd = float(raw_cost.replace("$", "").replace(",", ""))
+                except (ValueError, TypeError):
+                    cost_usd = 0.0
 
                 # def time series metric name
                 metric_name = "building_energy_usage"
 
-                # constructing InfluxDB Timeseries Point with tags and field
+                # constructing InfluxDB Timeseries Point with tags and multiple fields
                 point = Point(metric_name) \
                     .tag("sensor_id", sensor_id) \
                     .tag("building_id", building_id) \
                     .tag("meter_id", meter_id) \
                     .tag("reading_type", payload.get("type", "Commercial")) \
-                    .field("value", metric_value)
+                    .field("usage_kwh", usage_kwh) \
+                    .field("cost_usd", cost_usd)
                 
                 # write to influx
                 write_api.write(bucket=influx_bucket, org=influx_org, record=point)
-                print(f"[ingestion-worker] Processed telemetry point -> {sensor_id}: {metric_value}")
+                print(f"[ingestion-worker] Processed telemetry point -> {sensor_id}: Usage: {usage_kwh}kWh, Cost: ${cost_usd}")
         except redis.exceptions.ConnectionError:
             print("[ingestion-worker] Lost database connection. Re trying in 5s...")
             time.sleep(5)
