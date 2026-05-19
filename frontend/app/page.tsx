@@ -69,7 +69,7 @@ const features: { icon: ReactNode; title: string; description: string }[] = [
         icon: <BarChartIcon />,
         title: "Benchmark performance",
         description:
-            "Compare buildings side-by-side to surface inefficiencies and best practices.",
+            "Compare buildings side by side to surface inefficiencies and best practices.",
     },
     {
         icon: <TrendingUpIcon />,
@@ -79,106 +79,210 @@ const features: { icon: ReactNode; title: string; description: string }[] = [
     },
 ];
 
+const outcomes = [
+    {
+        metric: "18%",
+        title: "Peak load reduction",
+        description: "Automated curtailment plans keep demand under contract limits.",
+    },
+    {
+        metric: "4.8%",
+        title: "Forecast error",
+        description: "Short term load forecasts reduce procurement guesswork.",
+    },
+    {
+        metric: "120+",
+        title: "Buildings online",
+        description: "Connect meters, BMS, and IoT gateways in days, not months.",
+    },
+];
+
 export default function LandingPage() {
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100">
-            {/* Navbar */}
-            <header className="border-b border-slate-800">
-                <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-                    <span className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-100">
-                        ⚡ OptiGrid
-                    </span>
-                    <div className="flex items-center gap-6">
-                        <div className="hidden items-center gap-6 text-sm text-slate-400 sm:flex">
-                            <a
-                                href="#"
-                                className="transition-colors hover:text-slate-100"
-                            >
-                                Features
-                            </a>
-                            <a
-                                href="#"
-                                className="transition-colors hover:text-slate-100"
-                            >
-                                Pricing
-                            </a>
-                            <a
-                                href="#"
-                                className="transition-colors hover:text-slate-100"
-                            >
-                                Contact
-                            </a>
-                        </div>
-                        <Link
-                            href="/login"
-                            className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:text-slate-100"
-                        >
+        <div className="landing-page">
+            <header className="navbar landing-nav">
+                <div className="landing-shell landing-nav-inner">
+                    <Link href="/" className="landing-wordmark">
+                        OptiGrid
+                    </Link>
+                    <nav className="landing-links" aria-label="Primary">
+                        <a href="#features">Features</a>
+                        <a href="#outcomes">Outcomes</a>
+                        <a href="#contact">Contact</a>
+                    </nav>
+                    <div className="landing-nav-actions">
+                        <Link href="/login" className="btn btn-secondary">
                             Log in
                         </Link>
+                        <Link href="/signup" className="btn btn-primary">
+                            Get started free
+                        </Link>
                     </div>
-                </nav>
+                </div>
             </header>
 
-            {/* Hero */}
-            <section className="mx-auto max-w-3xl px-6 py-24 text-center">
-                <p className="mb-4 text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
-                    Energy intelligence platform
-                </p>
-                <h1 className="mb-6 text-4xl font-semibold leading-tight text-slate-100 sm:text-5xl">
-                    Cut energy costs across
-                    <br className="hidden sm:block" /> every building you operate.
-                </h1>
-                <p className="mx-auto mb-10 max-w-xl text-base leading-relaxed text-slate-300">
-                    OptiGrid unifies IoT telemetry, anomaly detection, and demand
-                    forecasting into one dashboard — so facility teams act on data
-                    instead of guessing.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-4">
-                    <Link
-                        href="/signup"
-                        className="rounded-xl bg-emerald-400 px-6 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
-                    >
-                        Get started free
-                    </Link>
-                    <a
-                        href="#"
-                        className="rounded-xl border border-slate-700 px-6 py-3 text-sm font-medium text-slate-300 transition-colors hover:border-slate-500 hover:text-slate-100"
-                    >
-                        Book a demo
-                    </a>
-                </div>
-            </section>
-
-            {/* Features */}
-            <section className="mx-auto max-w-6xl px-6 pb-24">
-                <p className="mb-10 text-center text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
-                    What you can do
-                </p>
-                <div className="grid gap-6 sm:grid-cols-3">
-                    {features.map((feature) => (
-                        <div
-                            key={feature.title}
-                            className="rounded-2xl border border-slate-800 bg-slate-900/60 p-7"
-                        >
-                            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-400">
-                                {feature.icon}
+            <main>
+                <section className="landing-hero">
+                    <div className="landing-shell landing-hero-grid">
+                        <div className="landing-hero-content">
+                            <p className="landing-kicker">Energy intelligence platform</p>
+                            <h1>Cut energy costs across every building you operate.</h1>
+                            <p className="landing-lede text-muted">
+                                OptiGrid unifies IoT telemetry, anomaly detection, and
+                                demand forecasting so facility teams act on data instead
+                                of guessing.
+                            </p>
+                            <div className="landing-actions">
+                                <Link href="/signup" className="btn btn-primary">
+                                    Get started free
+                                </Link>
+                                <Link href="/contact" className="btn btn-secondary">
+                                    Book a demo
+                                </Link>
                             </div>
-                            <h3 className="mb-2 text-sm font-semibold text-slate-100">
-                                {feature.title}
-                            </h3>
-                            <p className="text-sm leading-relaxed text-slate-400">
-                                {feature.description}
+                            <div className="landing-metrics">
+                                <div className="metric-card">
+                                    <span className="metric">4.8%</span>
+                                    <span className="text-muted">MAPE forecast error</span>
+                                </div>
+                                <div className="metric-card">
+                                    <span className="metric">18%</span>
+                                    <span className="text-muted">Peak load reduction</span>
+                                </div>
+                                <div className="metric-card">
+                                    <span className="metric">R 9.4M</span>
+                                    <span className="text-muted">Annual savings tracked</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="card landing-hero-card">
+                            <div className="landing-panel-header">
+                                <div>
+                                    <p className="landing-panel-title">Live portfolio</p>
+                                    <p className="landing-panel-subtitle text-muted">
+                                        Synced 2 min ago
+                                    </p>
+                                </div>
+                                <span className="badge badge-success">Normal</span>
+                            </div>
+                            <div className="landing-panel-list">
+                                <div className="landing-panel-row">
+                                    <div>
+                                        <p className="landing-panel-name">Sandton HQ</p>
+                                        <p className="landing-panel-meta">Office, Johannesburg</p>
+                                    </div>
+                                    <div className="landing-panel-metric">
+                                        <span className="metric">1,847 kWh</span>
+                                        <span className="text-muted">Today</span>
+                                    </div>
+                                </div>
+                                <div className="landing-panel-row">
+                                    <div>
+                                        <p className="landing-panel-name">Rosebank Tower</p>
+                                        <p className="landing-panel-meta">Office, Gauteng</p>
+                                    </div>
+                                    <div className="landing-panel-metric">
+                                        <span className="metric">1,512 kWh</span>
+                                        <span className="text-muted">Today</span>
+                                    </div>
+                                </div>
+                                <div className="landing-panel-row">
+                                    <div>
+                                        <p className="landing-panel-name">Cape Town Campus</p>
+                                        <p className="landing-panel-meta">Mixed use, Western Cape</p>
+                                    </div>
+                                    <div className="landing-panel-metric">
+                                        <span className="metric">1,268 kWh</span>
+                                        <span className="text-muted">Today</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="landing-panel-footer">
+                                <div>
+                                    <p className="text-muted">Next peak window</p>
+                                    <p className="metric">18:00 - 20:00</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted">Projected cost</p>
+                                    <p className="metric">R 42,800</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="features" className="landing-section landing-section-alt">
+                    <div className="landing-shell">
+                        <div className="landing-section-header">
+                            <p className="landing-kicker">What you can do</p>
+                            <h2>One view for every building.</h2>
+                            <p className="text-muted">
+                                Surface anomalies, compare portfolios, and track every
+                                tariff shift in a single operational workspace.
                             </p>
                         </div>
-                    ))}
-                </div>
-            </section>
+                        <div className="landing-feature-grid">
+                            {features.map((feature) => (
+                                <div key={feature.title} className="card landing-feature-card">
+                                    <div className="icon-chip">{feature.icon}</div>
+                                    <h3>{feature.title}</h3>
+                                    <p className="text-muted">{feature.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
 
-            {/* Footer */}
-            <footer className="border-t border-slate-800 py-8">
-                <p className="text-center text-xs text-slate-500">
-                    © 2026 OptiGrid
-                </p>
+                <section id="outcomes" className="landing-section">
+                    <div className="landing-shell">
+                        <div className="landing-section-header">
+                            <p className="landing-kicker">Operational impact</p>
+                            <h2>Move from raw telemetry to decisions.</h2>
+                            <p className="text-muted">
+                                OptiGrid blends real time monitoring with predictive
+                                analytics to keep teams ahead of tariffs and downtime.
+                            </p>
+                        </div>
+                        <div className="landing-outcomes-grid">
+                            {outcomes.map((outcome) => (
+                                <div key={outcome.title} className="card landing-outcome-card">
+                                    <span className="metric">{outcome.metric}</span>
+                                    <h3>{outcome.title}</h3>
+                                    <p className="text-muted">{outcome.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section id="contact" className="landing-cta">
+                    <div className="landing-shell">
+                        <div className="landing-cta-inner">
+                            <div>
+                                <p className="landing-kicker">Ready to optimize</p>
+                                <h2>Build a smarter energy strategy this quarter.</h2>
+                                <p className="text-muted">
+                                    Meet the OptiGrid team for a tailored walkthrough of
+                                    your portfolio data and savings potential.
+                                </p>
+                            </div>
+                            <div className="landing-actions">
+                                <Link href="/contact" className="btn btn-primary">
+                                    Book a demo
+                                </Link>
+                                <Link href="/signup" className="btn btn-secondary">
+                                    Start your free trial
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <footer className="landing-footer">
+                <div className="landing-shell">
+                    <span>© 2026 OptiGrid. All rights reserved.</span>
+                </div>
             </footer>
         </div>
     );
