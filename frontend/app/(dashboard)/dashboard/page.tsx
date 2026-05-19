@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, } from "recharts";
@@ -134,45 +135,41 @@ function TrashIcon() {
 }
 
 const STATUS_CLASSES: Record<BuildingStatus, string> = {
-    Normal: "bg-emerald-900/40 text-emerald-400",
-    "Peak alert": "bg-amber-900/40 text-amber-400",
-    Offline: "bg-rose-900/40 text-rose-400",
+    Normal: "badge-success",
+    "Peak alert": "badge-warning",
+    Offline: "badge-danger",
 };
 
 function StatusBadge({ status }: { status: BuildingStatus }) {
     return (
-        <span
-            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[status]}`}
-        >
-            {status}
-        </span>
+        <span className={`badge ${STATUS_CLASSES[status]}`}>{status}</span>
     );
 }
 
-function Skeleton({ className = "" }: { className?: string }) {
-    return <div className={`animate-pulse rounded-lg bg-slate-800 ${className}`} />;
+function Skeleton({ className = "", style }: { className?: string; style?: CSSProperties }) {
+    return <div className={`skeleton ${className}`} style={style} />;
 }
 
 function KpiCard({
     label,
     value,
-    valueClassName = "text-slate-100",
+    valueTone = "default",
     loading,
 }: {
     label: string;
     value: string;
-    valueClassName?: string;
+    valueTone?: "default" | "warning";
     loading: boolean;
 }) {
+    const valueStyle =
+        valueTone === "warning" ? { color: "var(--brand-warning)" } : undefined;
     return (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                {label}
-            </p>
+        <div className="card dashboard-card-tight">
+            <p className="dashboard-kpi-label">{label}</p>
             {loading ? (
-                <Skeleton className="mt-3 h-8 w-24" />
+                <Skeleton style={{ height: "28px", width: "96px", marginTop: "12px" }} />
             ) : (
-                <p className={`mt-2 text-2xl font-semibold ${valueClassName}`}>
+                <p className="dashboard-kpi-value metric" style={valueStyle}>
                     {value}
                 </p>
             )}
@@ -215,42 +212,38 @@ export default function DashboardPage() {
     return (
         <div>
             {/* User info bar */}
-            <div className="mb-8 flex items-center justify-end gap-4 border-b border-slate-800 pb-5">
+            <div className="dashboard-topbar">
                 {/* must wire up theme toggle once a theming system is in place */}
                 <button
-                    className="text-slate-400 transition-colors hover:text-slate-100"
+                    className="icon-button"
                     aria-label="Notifications"
                 >
                     <BellIcon />
                 </button>
-                <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400/10 text-xs font-semibold text-emerald-400">
-                        {initials}
-                    </div>
-                    <span className="text-sm text-slate-300">{fullName}</span>
+                <div className="dashboard-user">
+                    <div className="dashboard-avatar">{initials}</div>
+                    <span>{fullName}</span>
                 </div>
             </div>
 
             {/* Page header */}
-            <div className="mb-8 flex items-start justify-between">
+            <div className="dashboard-header">
                 <div>
-                    <h1 className="text-xl font-semibold text-slate-100">
-                        Welcome back, {firstName}
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-400">
+                    <h1 className="dashboard-title">Welcome back, {firstName}</h1>
+                    <p className="dashboard-subtitle">
                         Portfolio overview · last updated {lastUpdatedLabel}
                     </p>
                 </div>
                 <Link
                     href="/dashboard/add"
-                    className="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300"
+                    className="btn btn-primary"
                 >
                     + Add building
                 </Link>
             </div>
 
             {/* KPI cards */}
-            <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="dashboard-kpi-grid">
                 <KpiCard
                     label="Buildings"
                     value={summary ? String(summary.buildings) : "--"}
@@ -277,25 +270,23 @@ export default function DashboardPage() {
                 <KpiCard
                     label="Active alerts"
                     value={summary ? String(summary.activeAlerts) : "--"}
-                    valueClassName={
-                        summary && summary.activeAlerts > 0
-                            ? "text-amber-400"
-                            : "text-slate-100"
+                    valueTone={
+                        summary && summary.activeAlerts > 0 ? "warning" : "default"
                     }
                     loading={summaryLoading}
                 />
             </div>
 
             {/* Consumption chart */}
-            <div className="mb-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-                <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-slate-100">
+            <div className="card dashboard-section">
+                <div className="dashboard-section-header">
+                    <h2 className="dashboard-section-title">
                         Portfolio consumption, last 7 days
                     </h2>
-                    <span className="text-xs text-slate-500">kWh</span>
+                    <span className="dashboard-section-meta">kWh</span>
                 </div>
                 {consumptionLoading ? (
-                    <Skeleton className="h-48 w-full" />
+                    <Skeleton style={{ height: 200, width: "100%" }} />
                 ) : (
                     <ResponsiveContainer width="100%" height={200}>
                         <LineChart
@@ -304,35 +295,35 @@ export default function DashboardPage() {
                         >
                             <CartesianGrid
                                 strokeDasharray="3 3"
-                                stroke="#1e293b"
+                                stroke="var(--brand-border)"
                             />
                             <XAxis
                                 dataKey="day"
-                                tick={{ fill: "#94a3b8", fontSize: 11 }}
+                                tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
                                 axisLine={false}
                                 tickLine={false}
                             />
                             <YAxis
-                                tick={{ fill: "#94a3b8", fontSize: 11 }}
+                                tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
                                 axisLine={false}
                                 tickLine={false}
                             />
                             <Tooltip
                                 contentStyle={{
-                                    backgroundColor: "#0f172a",
-                                    border: "1px solid #1e293b",
-                                    borderRadius: "8px",
-                                    color: "#f1f5f9",
+                                    backgroundColor: "var(--brand-surface)",
+                                    border: "1px solid var(--brand-border)",
+                                    borderRadius: "12px",
+                                    color: "var(--brand-ink)",
                                     fontSize: "12px",
                                 }}
-                                cursor={{ stroke: "#334155" }}
+                                cursor={{ stroke: "var(--brand-border)" }}
                             />
                             <Line
                                 type="monotone"
                                 dataKey="kwh"
-                                stroke="#34d399"
+                                stroke="var(--brand-primary)"
                                 strokeWidth={2}
-                                dot={{ fill: "#34d399", r: 3 }}
+                                dot={{ fill: "var(--brand-primary)", r: 3 }}
                                 activeDot={{ r: 5 }}
                             />
                         </LineChart>
@@ -341,46 +332,55 @@ export default function DashboardPage() {
             </div>
 
             {/* Buildings table */}
-            <div>
-                <h2 className="mb-4 text-sm font-semibold text-slate-100">
+            <div className="dashboard-section">
+                <h2
+                    className="dashboard-section-title"
+                    style={{ marginBottom: "16px" }}
+                >
                     Your buildings
                 </h2>
                 {buildingsLoading ? (
-                    <div className="space-y-3">
-                        <Skeleton className="h-14 w-full" />
-                        <Skeleton className="h-14 w-full" />
-                        <Skeleton className="h-14 w-full" />
+                    <div style={{ display: "grid", gap: "12px" }}>
+                        <Skeleton style={{ height: 56, width: "100%" }} />
+                        <Skeleton style={{ height: 56, width: "100%" }} />
+                        <Skeleton style={{ height: 56, width: "100%" }} />
                     </div>
                 ) : !buildings || buildings.length === 0 ? (
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 py-16 text-center">
-                        <p className="text-sm text-slate-400">
-                            No buildings yet.
-                        </p>
+                    <div className="card dashboard-empty">
+                        <p className="text-muted">No buildings yet.</p>
                         <Link
                             href="/dashboard/add"
-                            className="mt-2 inline-block text-sm text-emerald-400 transition-colors hover:text-emerald-300"
+                            style={{
+                                marginTop: "8px",
+                                display: "inline-block",
+                                color: "var(--brand-primary)",
+                                fontWeight: 600,
+                            }}
                         >
                             Add your first building
                         </Link>
                     </div>
                 ) : (
-                    <div className="overflow-hidden rounded-2xl border border-slate-800">
-                        <table className="w-full text-sm">
+                    <div
+                        className="card"
+                        style={{ padding: 0, overflow: "hidden" }}
+                    >
+                        <table className="dashboard-table">
                             <thead>
-                                <tr className="border-b border-slate-800 bg-slate-900/80">
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                <tr>
+                                    <th>
                                         Name
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                    <th>
                                         Type
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                    <th>
                                         Today (kWh)
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                    <th>
                                         Status
                                     </th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                    <th style={{ textAlign: "right" }}>
                                         Actions
                                     </th>
                                 </tr>
@@ -389,40 +389,37 @@ export default function DashboardPage() {
                                 {buildings.map((building) => (
                                     <tr
                                         key={building.id}
-                                        className="border-b border-slate-800 last:border-0 hover:bg-slate-800/30"
                                     >
-                                        <td className="px-4 py-4">
-                                            <p className="font-medium text-slate-100">
+                                        <td>
+                                            <p style={{ fontWeight: 600 }}>
                                                 {building.name}
                                             </p>
-                                            <p className="text-xs text-slate-400">
+                                            <p className="text-muted" style={{ fontSize: "0.75rem" }}>
                                                 {building.location}
                                             </p>
                                         </td>
-                                        <td className="px-4 py-4 text-slate-300">
-                                            {building.type}
+                                        <td>{building.type}</td>
+                                        <td>
+                                            <span className="metric">
+                                                {building.todayKwh.toLocaleString()}
+                                            </span>
                                         </td>
-                                        <td className="px-4 py-4 text-slate-300">
-                                            {building.todayKwh.toLocaleString()}
+                                        <td>
+                                            <StatusBadge status={building.status} />
                                         </td>
-                                        <td className="px-4 py-4">
-                                            <StatusBadge
-                                                status={building.status}
-                                            />
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <div className="flex items-center justify-end gap-3">
+                                        <td>
+                                            <div className="dashboard-actions">
                                                 <Link
                                                     href={`/buildings/${building.id}/edit`}
-                                                    className="text-slate-400 transition-colors hover:text-emerald-400"
+                                                    className="icon-button"
                                                     aria-label={`Edit ${building.name}`}
                                                 >
                                                     <PencilIcon />
                                                 </Link>
                                                 <button
-                                                    className="text-slate-400 transition-colors hover:text-rose-400"
+                                                    className="icon-button icon-danger"
                                                     aria-label={`Delete ${building.name}`}
-                                                    // must connect delete modal
+                                                // must connect delete modal
                                                 >
                                                     <TrashIcon />
                                                 </button>
