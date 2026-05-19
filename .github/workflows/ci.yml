@@ -112,9 +112,12 @@ jobs:
       - name: Export Supabase local auth env vars
         run: |
           supabase status -o env > supabase.status.env
-          echo "SUPABASE_URL=$(grep '^API_URL=' supabase.status.env | cut -d= -f2-)" >> "$GITHUB_ENV"
-          echo "SUPABASE_SERVICE_ROLE_KEY=$(grep '^SERVICE_ROLE_KEY=' supabase.status.env | cut -d= -f2-)" >> "$GITHUB_ENV"
-          echo "SUPABASE_ANON_KEY=$(grep '^ANON_KEY=' supabase.status.env | cut -d= -f2-)" >> "$GITHUB_ENV"
+          set -a
+          . ./supabase.status.env
+          set +a
+          echo "SUPABASE_URL=${API_URL}" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=${ANON_KEY}" >> "$GITHUB_ENV"
 
       - name: Run bottom-up local suite
         run: pnpm run test:bottom-up:local
