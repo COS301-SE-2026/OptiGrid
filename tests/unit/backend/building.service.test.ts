@@ -1,6 +1,7 @@
 import prisma from '../../../backend/core/src/lib/prisma';
 import { createBuilding, buildingPayload } from '../../../backend/core/src/services/building.services';
 import { BuildingType } from '@prisma/client';
+import { compareBuildingsService } from '../../../backend/core/src/services/building.services';
 
 // Mock Prisma with 
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -12,6 +13,16 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 
 const mockedPrisma = prisma as unknown as {
 	$transaction: jest.Mock;
+};
+
+// we have to mocj the influx db 
+jest.mock('../../../backend/core/src/lib/influx', () => ({
+	__esModule: true,
+	queryTotalKwh: jest.fn(),
+}));
+
+const mockedInflux = require('../../../backend/core/src/lib/influx') as {
+	queryTotalKwh: jest.Mock;
 };
 
 describe('Building Services, happy path', () => {
@@ -426,4 +437,85 @@ describe('Building Services, happy path', () => {
 			});
 		});
     });
+});
+
+describe('compareBuildingsService', () => {
+	const mockUserId = 'user-abc';
+	const buildingA = '11111111-1111-1111-1111-111111111111';
+	const buildingB = '22222222-2222-2222-2222-222222222222';
+
+	afterEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it('calculates_eui_and_identifies_most_efficient', async () => {
+		// arrange
+		(mockedPrisma as any).userBuildingAccess = {findFirst: jest.fn().mockResolvedValue({ user_id: mockUserId, building_id: buildingA }),};
+		(mockedPrisma as any).userBuildingAccess.findFirst.mockResolvedValueOnce({ user_id: mockUserId, building_id: buildingA });
+		(mockedPrisma as any).userBuildingAccess.findFirst.mockResolvedValueOnce({ user_id: mockUserId, building_id: buildingB });
+		(mockedPrisma as any).building = {
+			findUnique: jest.fn()
+				.mockResolvedValueOnce({ building_id: buildingA, square_footage: 1000, building_name: 'A Tower' })
+				.mockResolvedValueOnce({ building_id: buildingB, square_footage: 2000, building_name: 'B Plaza' }),
+		};
+		mockedInflux.queryTotalKwh.mockResolvedValueOnce(5000);
+		mockedInflux.queryTotalKwh.mockResolvedValueOnce(4000);
+
+		//act
+		const result = await compareBuildingsService(mockUserId, buildingA, buildingB, '30d');
+
+		// assert
+		expect(mockedInflux.queryTotalKwh).toHaveBeenCalledTimes(2);
+		expect((mockedPrisma as any).building.findUnique).toHaveBeenCalledTimes(2);
+		expect(result.buildingA.eui).toBeCloseTo(5);
+		expect(result.buildingB.eui).toBeCloseTo(2);
+		expect(result.mostEfficient).toBe(buildingB);
+	});
+
+	it('authorization_error_when_user_has_no_access_and_influx_not_called', async () => {
+		// arrange
+		(mockedPrisma as any).userBuildingAccess = {
+			findFirst: jest.fn().mockResolvedValueOnce(null),
+		};
+
+		//act and assert
+		await expect(compareBuildingsService(mockUserId, buildingA, buildingB, '7d')).rejects.toThrow('Access Denied');
+
+		// assert
+		expect(mockedInflux.queryTotalKwh).not.toHaveBeenCalled();
+	});
+
+	it('_influx_errors_and_prisma_missing_building', async () => {
+		// arrange
+		(mockedPrisma as any).userBuildingAccess = { findFirst: jest.fn().mockResolvedValue({ user_id: mockUserId, building_id: buildingA }) };
+		(mockedPrisma as any).building = { findUnique: jest.fn().mockResolvedValueOnce({ building_id: buildingA, square_footage: 1000, building_name: 'A' }).mockResolvedValueOnce(null) };
+
+		mockedInflux.queryTotalKwh.mockRejectedValue(new Error('Influx query failed'));
+
+		//act and assert
+		await expect(compareBuildingsService(mockUserId, buildingA, buildingB, '30d')).rejects.toThrow();
+	});
+
+	it('handles_zero_or_missing_square_area_without_division_error', async () => {
+		// arrange
+		(mockedPrisma as any).userBuildingAccess = { findFirst: jest.fn().mockResolvedValue({ user_id: mockUserId, building_id: buildingA }) };
+		(mockedPrisma as any).userBuildingAccess.findFirst.mockResolvedValueOnce({ user_id: mockUserId, building_id: buildingA });
+		(mockedPrisma as any).userBuildingAccess.findFirst.mockResolvedValueOnce({ user_id: mockUserId, building_id: buildingB });
+
+		(mockedPrisma as any).building = {
+			findUnique: jest.fn()
+				.mockResolvedValueOnce({ building_id: buildingA, square_footage: 0, building_name: 'A Zero' })
+				.mockResolvedValueOnce({ building_id: buildingB, square_footage: null, building_name: 'B Null' }),
+		};
+
+		mockedInflux.queryTotalKwh.mockResolvedValueOnce(1000);
+		mockedInflux.queryTotalKwh.mockResolvedValueOnce(2000);
+
+		// act
+		const result = await compareBuildingsService(mockUserId, buildingA, buildingB, '7d');
+
+		// assert
+		expect(result.buildingA.eui).toBeNull();
+		expect(result.buildingB.eui).toBeNull();
+	});
 });

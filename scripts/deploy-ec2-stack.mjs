@@ -7,6 +7,67 @@ import path from "node:path";
 const action = (process.argv[2] || "deploy").toLowerCase();
 const skipBuild = process.argv.includes("--skip-build");
 
+function stripWrappingQuotes(value) {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function loadEnvFileIfPresent(filePath) {
+  if (!filePath || !existsSync(filePath)) {
+    return false;
+  }
+
+  const content = readFileSync(filePath, "utf8");
+  const lines = content.split(/\r?\n/);
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    const match = line.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (!match) {
+      continue;
+    }
+
+    const key = match[1];
+    const value = stripWrappingQuotes(match[2].trim());
+
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+
+  return true;
+}
+
+function resolveEnvFile(candidates) {
+  for (const candidate of candidates) {
+    if (candidate && existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
+const envFileCandidates = [
+  process.env.DEPLOY_ENV_FILE,
+  ".env.local",
+  ".env",
+];
+
+const resolvedEnvFile = resolveEnvFile(envFileCandidates);
+if (resolvedEnvFile) {
+  loadEnvFileIfPresent(resolvedEnvFile);
+  console.log(`Loaded deploy env from ${resolvedEnvFile}`);
+}
+
 const tfDir = "infrastructure/terraform";
 const tfGlobalArgs = ["-chdir=" + tfDir];
 const instanceType = process.env.INSTANCE_TYPE || "t3.micro";
@@ -45,6 +106,7 @@ const runtimeEnv = {
   corePort: process.env.CORE_PORT || "4000",
   ingestionPort: process.env.INGESTION_PORT || "8000",
   analyticsPort: process.env.ANALYTICS_PORT || "8001",
+  databaseUrl: process.env.DATABASE_URL || "",
   supabaseUrl: process.env.SUPABASE_URL || "https://example.supabase.co",
   supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy",
   influxUrl: process.env.INFLUXDB_URL || "http://example-influx:8086",
@@ -297,6 +359,7 @@ function generateComposeAndEnv() {
     `CORE_PORT=${runtimeEnv.corePort}`,
     `INGESTION_PORT=${runtimeEnv.ingestionPort}`,
     `ANALYTICS_PORT=${runtimeEnv.analyticsPort}`,
+    `DATABASE_URL=${runtimeEnv.databaseUrl}`,
     `SUPABASE_URL=${runtimeEnv.supabaseUrl}`,
     `SUPABASE_SERVICE_ROLE_KEY=${runtimeEnv.supabaseKey}`,
     `INFLUXDB_URL=${runtimeEnv.influxUrl}`,
@@ -426,6 +489,13 @@ if (!existsSync(sshKeyPath)) {
 
 if (!["deploy", "resume", "down", "status"].includes(action)) {
   console.error("Usage: node scripts/deploy-ec2-stack.mjs <deploy|resume|down|status> [--skip-build]");
+  process.exit(1);
+}
+
+if ((action === "deploy" || action === "resume") && !runtimeEnv.databaseUrl) {
+  console.error(
+    "Missing DATABASE_URL. Set it in your shell or in .env.local/.env.",
+  );
   process.exit(1);
 }
 
