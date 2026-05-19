@@ -159,36 +159,6 @@ router.post('/signup', validateSignUp(signupSchema), signup);
  *                     token:
  *                       type: string
  *                       description: JWT authentication token for subsequent requests
- *     responses:
- *       200:
- *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Login successful
- *                 user:
- *                   type: object
- *                   properties:
- *                     userId:
- *                       type: string
- *                       format: uuid
- *                       description: Unique user identifier
- *                     email:
- *                       type: string
- *                       description: User's email address
- *                     firstName:
- *                       type: string
- *                       description: User's first name
- *                     lastName:
- *                       type: string
- *                       description: User's last name
- *                     token:
- *                       type: string
- *                       description: JWT authentication token for subsequent requests
  *       400:
  *         description: Invalid credentials or missing email/password
  *         content:

@@ -150,6 +150,7 @@ router.post('/compare', compareBuildingsController);
  *   post:
  *     summary: Compare two buildings
  *     description: Compares energy consumption and performance metrics between the two chosen buildings for a given time range
+ *     tags:
  *       - Buildings
  *     parameters:
  *       - name: idempotency-key
