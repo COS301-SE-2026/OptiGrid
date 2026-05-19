@@ -12,6 +12,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
 		<html lang="en">
 			<body>
+				{/* eslint-disable-next-line react/jsx-no-undef */}
 				<Providers>{children}</Providers>
 			</body>
 		</html>
