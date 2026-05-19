@@ -1,7 +1,10 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 import redis
 import json
 import os
+
+load_dotenv()
 
 app = FastAPI()
 #connect to Redis
