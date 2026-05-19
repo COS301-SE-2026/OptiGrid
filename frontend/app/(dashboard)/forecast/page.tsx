@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import {
     Area,
     CartesianGrid,
@@ -140,7 +140,7 @@ function formatPeakTimestamp(ts: string): string {
 function Spinner() {
     return (
         <svg
-            className="animate-spin"
+            className="spin"
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -173,10 +173,8 @@ function ChevronDown() {
     );
 }
 
-function Skeleton({ className = "" }: { className?: string }) {
-    return (
-        <div className={`animate-pulse rounded-lg bg-slate-800 ${className}`} />
-    );
+function Skeleton({ style }: { style?: CSSProperties }) {
+    return <div className="skeleton" style={style} />;
 }
 
 export default function ForecastPage() {
@@ -223,121 +221,190 @@ export default function ForecastPage() {
 
     const canRun = buildingId !== "" && !isPending;
 
+    const selectStyle: CSSProperties = {
+        appearance: "none",
+        WebkitAppearance: "none",
+        MozAppearance: "none",
+        paddingRight: "32px",
+    };
+
     return (
         <div>
             {/* Page header */}
-            <div className="mb-8 border-b border-slate-800 pb-5">
-                <h1 className="text-xl font-semibold text-slate-100">
-                    Demand Forecast
-                </h1>
-                <p className="mt-1 text-sm text-slate-400">
+            <div
+                className="dashboard-section"
+                style={{
+                    borderBottom: "1px solid var(--brand-border)",
+                    paddingBottom: "var(--space-4)",
+                }}
+            >
+                <h1 className="dashboard-title">Demand Forecast</h1>
+                <p className="dashboard-subtitle">
                     Select a building and run a forecast to see predictions.
                 </p>
             </div>
 
             {/* Controls */}
-            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
-                <div className="space-y-1.5">
-                    <label className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                        Building
-                    </label>
-                    <div className="relative">
-                        <select
-                            value={buildingId}
-                            onChange={(e) => setBuildingId(e.target.value)}
-                            className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 pr-8 text-sm text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30"
+            <div className="card dashboard-section">
+                <div
+                    style={{
+                        display: "grid",
+                        gap: "16px",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        alignItems: "end",
+                    }}
+                >
+                    <div style={{ display: "grid", gap: "6px" }}>
+                        <label
+                            className="label"
+                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
                         >
-                            <option value="">Select building</option>
-                            {(buildings ?? MOCK_BUILDINGS).map((b) => (
-                                <option key={b.id} value={b.id}>
-                                    {b.name}
-                                </option>
-                            ))}
-                        </select>
-                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">
-                            <ChevronDown />
-                        </span>
+                            Building
+                        </label>
+                        <div style={{ position: "relative" }}>
+                            <select
+                                value={buildingId}
+                                onChange={(e) => setBuildingId(e.target.value)}
+                                className="select"
+                                style={selectStyle}
+                            >
+                                <option value="">Select building</option>
+                                {(buildings ?? MOCK_BUILDINGS).map((b) => (
+                                    <option key={b.id} value={b.id}>
+                                        {b.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <span
+                                style={{
+                                    position: "absolute",
+                                    right: "12px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "var(--brand-ink-muted)",
+                                    pointerEvents: "none",
+                                }}
+                            >
+                                <ChevronDown />
+                            </span>
+                        </div>
                     </div>
-                </div>
 
-                <div className="space-y-1.5">
-                    <label className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                        Horizon
-                    </label>
-                    <div className="relative">
-                        <select
-                            value={horizon}
-                            onChange={(e) =>
-                                setHorizon(Number(e.target.value) as Horizon)
+                    <div style={{ display: "grid", gap: "6px" }}>
+                        <label
+                            className="label"
+                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
+                        >
+                            Horizon
+                        </label>
+                        <div style={{ position: "relative" }}>
+                            <select
+                                value={horizon}
+                                onChange={(e) =>
+                                    setHorizon(Number(e.target.value) as Horizon)
+                                }
+                                className="select"
+                                style={selectStyle}
+                            >
+                                <option value={7}>7 days</option>
+                                <option value={14}>14 days</option>
+                                <option value={30}>30 days</option>
+                            </select>
+                            <span
+                                style={{
+                                    position: "absolute",
+                                    right: "12px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "var(--brand-ink-muted)",
+                                    pointerEvents: "none",
+                                }}
+                            >
+                                <ChevronDown />
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "grid", gap: "6px" }}>
+                        <label
+                            className="label"
+                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
+                        >
+                            Granularity
+                        </label>
+                        <div style={{ position: "relative" }}>
+                            <select
+                                value={granularity}
+                                onChange={(e) =>
+                                    setGranularity(e.target.value as Granularity)
+                                }
+                                className="select"
+                                style={selectStyle}
+                            >
+                                <option value="hourly">Hourly</option>
+                                <option value="daily">Daily</option>
+                            </select>
+                            <span
+                                style={{
+                                    position: "absolute",
+                                    right: "12px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "var(--brand-ink-muted)",
+                                    pointerEvents: "none",
+                                }}
+                            >
+                                <ChevronDown />
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "grid", gap: "6px" }}>
+                        <span className="label" style={{ opacity: 0 }}>
+                            Run
+                        </span>
+                        <button
+                            disabled={!canRun}
+                            onClick={() =>
+                                runForecast({
+                                    building_id: buildingId,
+                                    horizon_days: horizon,
+                                    granularity,
+                                })
                             }
-                            className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 pr-8 text-sm text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30"
+                            className="btn btn-primary"
+                            style={{ width: "100%" }}
                         >
-                            <option value={7}>7 days</option>
-                            <option value={14}>14 days</option>
-                            <option value={30}>30 days</option>
-                        </select>
-                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">
-                            <ChevronDown />
-                        </span>
+                            {isPending && <Spinner />}
+                            Run forecast
+                        </button>
                     </div>
-                </div>
-
-                <div className="space-y-1.5">
-                    <label className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                        Granularity
-                    </label>
-                    <div className="relative">
-                        <select
-                            value={granularity}
-                            onChange={(e) =>
-                                setGranularity(e.target.value as Granularity)
-                            }
-                            className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 pr-8 text-sm text-slate-100 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400/30"
-                        >
-                            <option value="hourly">Hourly</option>
-                            <option value="daily">Daily</option>
-                        </select>
-                        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">
-                            <ChevronDown />
-                        </span>
-                    </div>
-                </div>
-
-                <div className="space-y-1.5">
-                    <span className="invisible block text-xs">run</span>
-                    <button
-                        disabled={!canRun}
-                        onClick={() =>
-                            runForecast({
-                                building_id: buildingId,
-                                horizon_days: horizon,
-                                granularity,
-                            })
-                        }
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                        {isPending && <Spinner />}
-                        Run forecast
-                    </button>
                 </div>
             </div>
 
             {/* Chart */}
-            <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-6">
-                <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-slate-100">
-                        Historical + forecast
-                    </h2>
-                    <span className="text-xs text-slate-500">kWh</span>
+            <div className="card dashboard-section">
+                <div className="dashboard-section-header">
+                    <h2 className="dashboard-section-title">Historical + forecast</h2>
+                    <span className="dashboard-section-meta">kWh</span>
                 </div>
 
                 {isPending ? (
-                    <Skeleton className="h-56 w-full" />
+                    <Skeleton style={{ height: 224, width: "100%" }} />
                 ) : !result ? (
-                    <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-slate-700">
-                        <p className="text-sm text-slate-500">
-                            Configure the controls above and run a forecast.
-                        </p>
+                    <div
+                        style={{
+                            height: 224,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "var(--radius-md)",
+                            border: "1px dashed var(--brand-border)",
+                            color: "var(--brand-ink-muted)",
+                            fontSize: "0.9rem",
+                        }}
+                    >
+                        Configure the controls above and run a forecast.
                     </div>
                 ) : (
                     <>
@@ -348,7 +415,7 @@ export default function ForecastPage() {
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 3"
-                                    stroke="#1e293b"
+                                    stroke="var(--brand-border)"
                                 />
                                 <XAxis
                                     dataKey="timestamp"
@@ -356,24 +423,30 @@ export default function ForecastPage() {
                                         formatXTick(ts, granularity)
                                     }
                                     interval={tickInterval}
-                                    tick={{ fill: "#94a3b8", fontSize: 10 }}
+                                    tick={{
+                                        fill: "var(--brand-ink-muted)",
+                                        fontSize: 10,
+                                    }}
                                     axisLine={false}
                                     tickLine={false}
                                 />
                                 <YAxis
-                                    tick={{ fill: "#94a3b8", fontSize: 10 }}
+                                    tick={{
+                                        fill: "var(--brand-ink-muted)",
+                                        fontSize: 10,
+                                    }}
                                     axisLine={false}
                                     tickLine={false}
                                 />
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: "#0f172a",
-                                        border: "1px solid #1e293b",
-                                        borderRadius: "8px",
-                                        color: "#f1f5f9",
+                                        backgroundColor: "var(--brand-surface)",
+                                        border: "1px solid var(--brand-border)",
+                                        borderRadius: "12px",
+                                        color: "var(--brand-ink)",
                                         fontSize: "12px",
                                     }}
-                                    cursor={{ stroke: "#334155" }}
+                                    cursor={{ stroke: "var(--brand-border)" }}
                                     labelFormatter={(ts) =>
                                         formatXTick(ts as string, granularity)
                                     }
@@ -382,15 +455,15 @@ export default function ForecastPage() {
                                 <Area
                                     type="monotone"
                                     dataKey="yhat_upper"
-                                    fill="#34d399"
-                                    fillOpacity={0.15}
+                                    fill="var(--brand-primary)"
+                                    fillOpacity={0.16}
                                     stroke="none"
                                     connectNulls={false}
                                 />
                                 <Area
                                     type="monotone"
                                     dataKey="yhat_lower"
-                                    fill="#0f172a"
+                                    fill="var(--brand-bg)"
                                     fillOpacity={1}
                                     stroke="none"
                                     connectNulls={false}
@@ -398,12 +471,12 @@ export default function ForecastPage() {
                                 {nowTs && (
                                     <ReferenceLine
                                         x={nowTs}
-                                        stroke="#475569"
+                                        stroke="var(--brand-ink-muted)"
                                         strokeDasharray="4 3"
                                         label={{
                                             value: "now",
                                             position: "top",
-                                            fill: "#94a3b8",
+                                            fill: "var(--brand-ink-muted)",
                                             fontSize: 11,
                                         }}
                                     />
@@ -411,7 +484,7 @@ export default function ForecastPage() {
                                 <Line
                                     type="monotone"
                                     dataKey="kwh"
-                                    stroke="#34d399"
+                                    stroke="var(--brand-primary)"
                                     strokeWidth={2}
                                     dot={false}
                                     connectNulls={false}
@@ -419,7 +492,7 @@ export default function ForecastPage() {
                                 <Line
                                     type="monotone"
                                     dataKey="yhat"
-                                    stroke="#34d399"
+                                    stroke="var(--brand-primary)"
                                     strokeWidth={2}
                                     strokeDasharray="4 2"
                                     dot={false}
@@ -429,22 +502,48 @@ export default function ForecastPage() {
                         </ResponsiveContainer>
 
                         {/* Legend */}
-                        <div className="mt-3 flex items-center gap-5 text-xs text-slate-400">
-                            <span className="flex items-center gap-1.5">
-                                <span className="inline-block h-0.5 w-4 bg-emerald-400" />
+                        <div
+                            className="text-muted"
+                            style={{
+                                marginTop: "12px",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "20px",
+                                fontSize: "0.75rem",
+                            }}
+                        >
+                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span
+                                    style={{
+                                        width: 16,
+                                        height: 2,
+                                        background: "var(--brand-primary)",
+                                        display: "inline-block",
+                                    }}
+                                />
                                 Actual
                             </span>
-                            <span className="flex items-center gap-1.5">
+                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                                 <span
-                                    className="inline-block w-4"
                                     style={{
-                                        borderTop: "2px dashed #34d399",
+                                        width: 16,
+                                        borderTop: "2px dashed var(--brand-primary)",
+                                        display: "inline-block",
                                     }}
                                 />
                                 Predicted
                             </span>
-                            <span className="flex items-center gap-1.5">
-                                <span className="inline-block h-3 w-4 rounded-sm bg-emerald-400 opacity-20" />
+                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span
+                                    style={{
+                                        width: 16,
+                                        height: 10,
+                                        borderRadius: 4,
+                                        background:
+                                            "color-mix(in srgb, var(--brand-primary) 18%, transparent)",
+                                        display: "inline-block",
+                                    }}
+                                />
                                 95% interval
                             </span>
                         </div>
@@ -453,56 +552,44 @@ export default function ForecastPage() {
             </div>
 
             {/* KPI cards */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                        Peak demand
-                    </p>
+            <div className="dashboard-kpi-grid">
+                <div className="card dashboard-card-tight">
+                    <p className="dashboard-kpi-label">Peak demand</p>
                     {isPending ? (
-                        <Skeleton className="mt-3 h-7 w-40" />
+                        <Skeleton style={{ height: 28, width: 180, marginTop: 12 }} />
                     ) : result ? (
-                        <p className="mt-2 text-lg font-semibold text-slate-100">
-                            {result.summary.peak_kwh} kWh &middot;{" "}
+                        <p className="dashboard-kpi-value metric">
+                            {result.summary.peak_kwh} kWh ·{" "}
                             {formatPeakTimestamp(result.summary.peak_timestamp)}
                         </p>
                     ) : (
-                        <p className="mt-2 text-lg font-semibold text-slate-500">
-                            --
-                        </p>
+                        <p className="dashboard-kpi-value text-muted">--</p>
                     )}
                 </div>
 
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                        Avg / day
-                    </p>
+                <div className="card dashboard-card-tight">
+                    <p className="dashboard-kpi-label">Avg / day</p>
                     {isPending ? (
-                        <Skeleton className="mt-3 h-7 w-32" />
+                        <Skeleton style={{ height: 28, width: 150, marginTop: 12 }} />
                     ) : result ? (
-                        <p className="mt-2 text-lg font-semibold text-slate-100">
+                        <p className="dashboard-kpi-value metric">
                             {result.summary.avg_daily_kwh.toLocaleString()} kWh
                         </p>
                     ) : (
-                        <p className="mt-2 text-lg font-semibold text-slate-500">
-                            --
-                        </p>
+                        <p className="dashboard-kpi-value text-muted">--</p>
                     )}
                 </div>
 
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-                        Model accuracy
-                    </p>
+                <div className="card dashboard-card-tight">
+                    <p className="dashboard-kpi-label">Model accuracy</p>
                     {isPending ? (
-                        <Skeleton className="mt-3 h-7 w-24" />
+                        <Skeleton style={{ height: 28, width: 120, marginTop: 12 }} />
                     ) : result ? (
-                        <p className="mt-2 text-lg font-semibold text-slate-100">
+                        <p className="dashboard-kpi-value metric">
                             MAPE {result.summary.mape}%
                         </p>
                     ) : (
-                        <p className="mt-2 text-lg font-semibold text-slate-500">
-                            --
-                        </p>
+                        <p className="dashboard-kpi-value text-muted">--</p>
                     )}
                 </div>
             </div>
