@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-
+import { Providers } from "./providers";
 import "../styles/optigrid-theme.css";
 
 export const metadata = {
@@ -12,8 +12,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
 		<html lang="en">
 			<body>
-				{/* eslint-disable-next-line react/jsx-no-undef */}
-				<Providers>{children}</Providers>
+					<Providers>{children}</Providers>
 			</body>
 		</html>
 	);
