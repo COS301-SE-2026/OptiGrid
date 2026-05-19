@@ -1,8 +1,9 @@
 import prisma from '../../../backend/core/src/lib/prisma';
 import { hashPassword } from '../../../backend/core/src/lib/password';
 import { signup } from '../../../backend/core/src/services/user_auth.services';
+import { createClient } from '@supabase/supabase-js';
 
-//so this jest.mock is used to mock prisma client
+// Mock Prisma user delegate used by signup profile persistence.
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	__esModule: true,
 	default: {
@@ -13,18 +14,19 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	},
 }));
 
-//this one is used to mock hpassword hashing 
+// Mock password hashing so tests remain deterministic.
 jest.mock('../../../backend/core/src/lib/password', () => ({
 	__esModule: true,
 	hashPassword: jest.fn(),
 }));
 
-//this one is used to mock crypto.randomUUID to return a consistent user ID for testing
-jest.mock('crypto', () => ({
-	randomUUID: jest.fn(() => 'test-user-id'),
+// Mock Supabase admin client used to provision auth users.
+jest.mock('@supabase/supabase-js', () => ({
+	__esModule: true,
+	createClient: jest.fn(),
 }));
 
-//so this is to get mocked Prisma 
+// Typed handles for easier test setup and expectations.
 const mockedPrisma = prisma as unknown as {
 	user: {
 		findUnique: jest.Mock;
@@ -32,14 +34,46 @@ const mockedPrisma = prisma as unknown as {
 	};
 };
 
-//this is mocked password 
 const mockedHashPassword = hashPassword as jest.MockedFunction<typeof hashPassword>;
+const mockedCreateClient = createClient as jest.MockedFunction<typeof createClient>;
 
-/**this test suite is for signup/rgister logic, we test that when a user is created, it is succesful,
-and when a user with the same email already exists, it throws an error**/
+// Supabase admin methods exercised by signup service.
+const mockCreateUser = jest.fn();
+const mockDeleteUser = jest.fn();
+
+// Signup tests validate both auth provisioning and profile persistence behavior.
 describe('signup service', () => {
+	const originalEnv = process.env;
+
+	beforeEach(() => {
+		// Service expects admin credentials to build the Supabase admin client.
+		process.env = {
+			...originalEnv,
+			SUPABASE_URL: 'https://example.supabase.co',
+			SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+		};
+
+		mockCreateUser.mockResolvedValue({
+			data: { user: { id: 'supabase-user-id' } },
+			error: null,
+		});
+		// Cleanup is invoked on certain failure paths; keep a default success response here.
+		mockDeleteUser.mockResolvedValue({ error: null });
+
+		// Return a minimal Supabase client surface used by signup.
+		mockedCreateClient.mockReturnValue({
+			auth: {
+				admin: {
+					createUser: mockCreateUser,
+					deleteUser: mockDeleteUser,
+				},
+			},
+		} as unknown as ReturnType<typeof createClient>);
+	});
+
 	afterEach(() => {
 		jest.clearAllMocks();
+		process.env = originalEnv;
 	});
 
 	it('creates a user when the email is new and not sused', async () => {
@@ -47,7 +81,7 @@ describe('signup service', () => {
 		mockedPrisma.user.findUnique.mockResolvedValue(null);
 		mockedHashPassword.mockResolvedValue('hashed-password');
 		mockedPrisma.user.upsert.mockResolvedValue({
-			userId: 'test-user-id',
+			userId: 'supabase-user-id',
 			email: 'user@example.com',
 			firstName: 'Jane',
 			lastName: 'Doe',
@@ -56,17 +90,22 @@ describe('signup service', () => {
 		// Act
 		const user = await signup('user@example.com', 'SecurePass123!', 'Jane Doe');
 
-		// Assert
+		// Assert: auth user is provisioned first, then app profile is upserted with same user id.
 		expect(mockedPrisma.user.findUnique).toHaveBeenCalledWith({
 			where: { email: 'user@example.com' },
 		});
 		expect(mockedHashPassword).toHaveBeenCalledWith('SecurePass123!');
+		expect(mockCreateUser).toHaveBeenCalledWith({
+			email: 'user@example.com',
+			password: 'SecurePass123!',
+			email_confirm: true,
+		});
 		expect(mockedPrisma.user.upsert).toHaveBeenCalledWith({
 			where: {
-				userId: 'test-user-id',
+				userId: 'supabase-user-id',
 			},
 			create: {
-				userId: 'test-user-id',
+				userId: 'supabase-user-id',
 				email: 'user@example.com',
 				passwordHash: 'hashed-password',
 				firstName: 'Jane',
@@ -86,7 +125,7 @@ describe('signup service', () => {
 			},
 		});
 		expect(user).toEqual({
-			userId: 'test-user-id',
+			userId: 'supabase-user-id',
 			email: 'user@example.com',
 			firstName: 'Jane',
 			lastName: 'Doe',
@@ -102,7 +141,7 @@ describe('signup service', () => {
 			signup('user@example.com', 'SecurePass123!', 'Jane Doe'),
 		).rejects.toThrow('User already exists, please login instead.');
 
-		// Assert
+		// Assert: no auth provisioning or profile writes occur for duplicate email.
 		expect(mockedHashPassword).not.toHaveBeenCalled();
 		expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
 	});
