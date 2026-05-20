@@ -111,6 +111,7 @@ const runtimeEnv = {
   databaseUrl: process.env.DATABASE_URL || "",
   supabaseUrl: process.env.SUPABASE_URL || "https://example.supabase.co",
   supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy",
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "dummy",
   influxUrl: process.env.INFLUXDB_URL || "http://example-influx:8086",
   influxToken: process.env.INFLUXDB_TOKEN || "dummy",
   influxOrg: process.env.INFLUXDB_ORG || "optigrid",
@@ -382,6 +383,7 @@ function generateDevEnvFile() {
     `DATABASE_URL=${runtimeEnv.databaseUrl}`,
     `SUPABASE_URL=${runtimeEnv.supabaseUrl}`,
     `SUPABASE_SERVICE_ROLE_KEY=${runtimeEnv.supabaseKey}`,
+    `SUPABASE_ANON_KEY=${runtimeEnv.supabaseAnonKey}`,
     `INFLUXDB_URL=${runtimeEnv.influxUrl}`,
     `INFLUXDB_TOKEN=${runtimeEnv.influxToken}`,
     `INFLUXDB_ORG=${runtimeEnv.influxOrg}`,
@@ -546,6 +548,13 @@ if (!["up", "sync", "down", "status"].includes(action)) {
 if ((action === "up" || action === "sync") && !runtimeEnv.databaseUrl) {
   console.error(
     "Missing DATABASE_URL. Set it in your shell or in .env.local/.env.",
+  );
+  process.exit(1);
+}
+
+if ((action === "up" || action === "sync") && !process.env.SUPABASE_ANON_KEY) {
+  console.error(
+    "Missing SUPABASE_ANON_KEY. Set it in your shell or in .env.local/.env.",
   );
   process.exit(1);
 }
