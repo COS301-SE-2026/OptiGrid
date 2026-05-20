@@ -28,29 +28,31 @@ export default function AddBuildingPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const formData = new FormData(e.target);
+    const formData = new FormData(e.currentTarget);
 
-    const iotRaw = formData.get("iotDeviceIds");
+    
 
     const data = {
-      buildingName: formData.get("buildingName"),
-      address: formData.get("address"),
-      buildingType: formData.get("buildingType"),
+      building_name: formData.get("building_name"),
+      physical_address: formData.get("physical_address"),
+      building_type: formData.get("building_type"),
       operatingHours: {
         start: startTime,
         end: endTime,
       },
-      floorArea: formData.get("floorArea"),
-      utilityTariff: formData.get("utilityTariff"),
-      occupants: formData.get("occupants"),
-    iotDeviceIds: formData.get("iotDeviceIds") || "",
+      square_footage: formData.get("square_footage"),
+      max_occupancy: formData.get("max_occupancy"),
+    
     };
 
     console.log("Building Data:", data);
 
-    alert("Building created successfully");
+    window.alert("Building created successfully");
 
     e.target.reset();
+    setStartTime("08:00");     
+    setEndTime("18:00");
+
 }
 
 const headingFont = { fontFamily: "Space Grotesk, sans-serif" };
@@ -68,14 +70,14 @@ return (
           </p>
         </div>
 
-        <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2 md:col-span-2">
             <label style={bodyFont} className="text-sm text-[#4D869C]">
               Building Name
             </label>
             <input
               type="text"
-              name="buildingName"
+              name="building_name"
               required
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
@@ -86,7 +88,7 @@ return (
               Address
             </label>
             <textarea
-              name="address"
+              name="physical_address"
               rows={3}
               required
               style={bodyFont}
@@ -99,7 +101,7 @@ return (
               Building Type
             </label>
             <select
-              name="buildingType"
+              name="building_type"
               required
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
@@ -143,53 +145,31 @@ return (
 
 <div className="flex flex-col gap-2">
             <label style={bodyFont} className="text-sm text-[#4D869C]">
-              Floor Area (m²)
+              Square Footage
             </label>
             <input
               type="text"
-              name="floorArea"
-              required
-              style={bodyFont}
-              className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
-            />
-          </div>
-<div className="flex flex-col gap-2">
-            <label style={bodyFont} className="text-sm text-[#4D869C]">
-              Utility Tariff (R/kWh)
-            </label>
-            <input
-              type="text"
-              name="utilityTariff"
-              required
-              style={bodyFont}
-              className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
-            />
-          </div>
-<div className="flex flex-col gap-2">
-            <label style={bodyFont} className="text-sm text-[#4D869C]">
-              Number of Occupants
-            </label>
-            <input
-              type="text"
-              name="occupants"
+              name="square_footage"
               required
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
             />
           </div>
 
-<div className="flex flex-col gap-2 md:col-span-2">
+<div className="flex flex-col gap-2">
             <label style={bodyFont} className="text-sm text-[#4D869C]">
-              IoT Device IDs (Optional)
+              Number of Occupants
             </label>
             <input
               type="text"
-              name="iotDeviceIds"
-              placeholder="device-001, device-002"
+              name="max_occupancy"
+              required
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
             />
           </div>
+
+
 <div className="md:col-span-2 flex justify-end pt-4">
             <button
               type="submit"
