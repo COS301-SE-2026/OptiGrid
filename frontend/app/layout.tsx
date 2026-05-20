@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 import { Providers } from "./providers";
-
 import "../styles/optigrid-theme.css";
 
 export const metadata = {
