@@ -5,9 +5,24 @@
 ---
 
 ## 1. Introduction 
-Project Overview
-BUsiness Need
-Project Scope
+* **Project Owner:** Durandt Uys
+* **Project Mentor:** Bryan Janse van Vuuren
+* **Owner Email:** durandt.uys@epiuse.com
+* **Mentor Email:** bryan.janse.van.vuuren@epiuse.com
+
+
+## 2. Project Vision and Objectives
+
+### Background and Vision
+The vision of OptiGrid is to design and implement a scalable, intelligent energy optimisation platform. The system addresses the critical need for effective resource management by providing a centralized, dashboard-first environment for monitoring real-time and historical energy consumption across multiple buildings. 
+
+### Core Objectives
+To achieve this vision and solve the problem of undetected energy waste, the system aims to:
+* **Monitor Consumption:** Track real-time and historical energy usage across multiple buildings to establish an accurate baseline.
+* **Detect Inefficiencies:** Identify abnormal usage patterns and energy spikes to mitigate unnecessary utility costs and equipment strain.
+* **Predict Demand:** Forecast future energy demand using intelligent modeling to help facility managers prepare for peak loads.
+* **Recommend Optimisations:** Provide actionable load-shifting and cost-saving strategies based on utility tariff rates.
+* **Support Decision-Making:** Enable data-driven energy management decisions through robust reporting and role-based insights.
 
 ***
 
