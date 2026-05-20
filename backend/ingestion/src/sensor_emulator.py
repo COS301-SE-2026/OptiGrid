@@ -48,13 +48,6 @@ def emulate_sensor():
             points_batch.append(point)
         write_api.write(bucket=INFLUX_BUCKET, record=points_batch)
             
-            # #send POST request to core API
-            # try:
-            #     response = requests.post(CORE_API_URL, json=payload, timeout=5)
-            #     print(f"[{payload['sensor_id']}] Sent data for {payload['building_id']}. Core API status: {response.status_code}")
-            # except Exception as e:
-            #     print(f"Connection error reaching Core API Gateway for {profile['s_id']}: {e}")
-        
         print("Batch transmission complete. Waiting 2 seconds...")
         time.sleep(2) #waiting before next batch
 
