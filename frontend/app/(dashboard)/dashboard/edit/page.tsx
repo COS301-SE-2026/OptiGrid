@@ -17,10 +17,16 @@ export default function EditBuildingPage() {
     space.href =
       "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap";
     document.head.appendChild(space);
+
+    const jetbrains = document.createElement("link");
+    jetbrains.rel = "stylesheet";
+    jetbrains.href =
+      "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap";
+    document.head.appendChild(jetbrains);
   }, []);
 
   const [formData, setFormData] = useState({
-    building_name: "building A",
+    building_name: "Building A",
     building_type: "Office",
     physical_address: "123 Street, Pretoria",
     square_footage: "2500",
@@ -28,15 +34,6 @@ export default function EditBuildingPage() {
     operating_start: "08:00",
     operating_end: "18:00",
   });
-
-
-   const headingFont = {
-    fontFamily: "Space Grotesk, sans-serif",
-  };
-
-  const bodyFont = {
-    fontFamily: "Inter, sans-serif",
-  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -65,196 +62,173 @@ export default function EditBuildingPage() {
     };
 
     console.log("Updated Building:", data);
-
     alert("Building updated successfully!");
   };
 
-
   return (
-    <div className="min-h-screen bg-[#EEF7FF] flex items-center justify-center p-6">
-      <div className="w-full max-w-3xl bg-[#CDE8E5] rounded-3xl shadow-xl border border-[#7AB2B2] p-8">
-
-     
-        <div className="mb-8">
-          <h1
-            style={headingFont}
-            className="text-4xl font-bold text-[#4D869C]"
-          >
-            Edit Building
-          </h1>
-
-          <p
-            style={bodyFont}
-            className="text-[#4D869C] text-sm mt-2"
-          >
-            Update building information
-          </p>
-        </div>
-
-        
-        <form
-          onSubmit={handleSubmit}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6"
-        >
-
+    <div className="dashboard-page">
+      <div className="dashboard-shell" style={{ alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <div className="dashboard-main" style={{ maxWidth: "800px", margin: "0 auto", width: "100%" }}>
           
-          <div className="md:col-span-2">
-            <label
-              style={bodyFont}
-              className="block mb-2 text-[#4D869C]"
-            >
-              Building Name
-            </label>
-
-            <input
-              type="text"
-              name="building_name"
-              value={formData.building_name}
-              onChange={handleChange}
-              style={bodyFont}
-              className="w-full p-3 rounded-2xl bg-[#EEF7FF] border border-[#7AB2B2] outline-none"
-            />
-          </div>
-
           
-          <div className="md:col-span-2">
-            <label
-              style={bodyFont}
-              className="block mb-2 text-[#4D869C]"
-            >
-              Physical Address
-            </label>
-
-            <textarea
-              name="physical_address"
-              value={formData.physical_address}
-              onChange={handleChange}
-              rows={3}
-              style={bodyFont}
-              className="w-full p-3 rounded-2xl bg-[#EEF7FF] border border-[#7AB2B2] outline-none resize-none"
-            />
-          </div>
-
-          
-          <div>
-            <label
-              style={bodyFont}
-              className="block mb-2 text-[#4D869C]"
-            >
-              Building Type
-            </label>
-
-            <select
-              name="building_type"
-              value={formData.building_type}
-              onChange={handleChange}
-              style={bodyFont}
-              className="w-full p-3 rounded-2xl bg-[#EEF7FF] border border-[#7AB2B2] outline-none"
-            >
-              {buildingTypes.map((type) => (
-                <option
-                  key={type}
-                  value={type}
-                >
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
-
-
-
-          
-          <div>
-            <label
-              style={bodyFont}
-              className="block mb-2 text-[#4D869C]"
-            >
-              Square Footage
-            </label>
-
-            <input
-              type="text"
-              name="square_footage"
-              value={formData.square_footage}
-              onChange={handleChange}
-              style={bodyFont}
-              className="w-full p-3 rounded-2xl bg-[#EEF7FF] border border-[#7AB2B2] outline-none"
-            />
-          </div>
-
-
-          <div>
-            <label
-              style={bodyFont}
-              className="block mb-2 text-[#4D869C]"
-            >
-              Max Occupancy
-            </label>
-
-            <input
-              type="text"
-              name="max_occupancy"
-              value={formData.max_occupancy}
-              onChange={handleChange}
-              style={bodyFont}
-              className="w-full p-3 rounded-2xl bg-[#EEF7FF] border border-[#7AB2B2] outline-none"
-            />
-          </div>
-
-
-          <div className="md:col-span-2">
-            <label
-              style={bodyFont}
-              className="block mb-2 text-[#4D869C]"
-            >
-              Operating Hours
-            </label>
-
-            <div className="flex gap-4">
-              <input
-                type="text"
-                name="operating_start"
-                value={formData.operating_start}
-                onChange={handleChange}
-                style={bodyFont}
-                className="w-full p-3 rounded-2xl bg-[#EEF7FF] border border-[#7AB2B2] outline-none"
-              />
-
-              <input
-                type="text"
-                name="operating_end"
-                value={formData.operating_end}
-                onChange={handleChange}
-                style={bodyFont}
-                className="w-full p-3 rounded-2xl bg-[#EEF7FF] border border-[#7AB2B2] outline-none"
-              />
+          <div className="card" style={{ padding: "var(--space-6)" }}>
+            
+            
+            <div style={{ marginBottom: "var(--space-6)" }}>
+              <h1>Edit Building</h1>
+              <div className="text-muted" style={{ marginTop: "var(--space-2)" }}>
+                Update building information and operational details
+              </div>
             </div>
+
+            
+            <form onSubmit={handleSubmit}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
+                
+                
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label className="label">
+                    Building Name <span style={{ color: "var(--brand-danger)" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="building_name"
+                    value={formData.building_name}
+                    onChange={handleChange}
+                    className="input"
+                    required
+                  />
+                </div>
+
+                
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label className="label">
+                    Physical Address <span style={{ color: "var(--brand-danger)" }}>*</span>
+                  </label>
+                  <textarea
+                    name="physical_address"
+                    value={formData.physical_address}
+                    onChange={handleChange}
+                    rows={3}
+                    className="input"
+                    style={{ resize: "vertical" }}
+                    required
+                  />
+                </div>
+
+                
+                <div>
+                  <label className="label">
+                    Building Type <span style={{ color: "var(--brand-danger)" }}>*</span>
+                  </label>
+                  <select
+                    name="building_type"
+                    value={formData.building_type}
+                    onChange={handleChange}
+                    className="select"
+                    required
+                  >
+                    {buildingTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                
+                <div>
+                  <label className="label">
+                    Square Footage (m²) <span style={{ color: "var(--brand-danger)" }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="square_footage"
+                    value={formData.square_footage}
+                    onChange={handleChange}
+                    className="input"
+                    required
+                  />
+                </div>
+
+                
+                <div>
+                  <label className="label">
+                    Max Occupancy <span style={{ color: "var(--brand-danger)" }}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="max_occupancy"
+                    value={formData.max_occupancy}
+                    onChange={handleChange}
+                    className="input"
+                    required
+                  />
+                </div>
+
+               
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label className="label">
+                    Operating Hours <span style={{ color: "var(--brand-danger)" }}>*</span>
+                  </label>
+                </div>
+
+                
+                <div>
+                  <label className="label" style={{ fontSize: "var(--fs-small)" }}>
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    name="operating_start"
+                    value={formData.operating_start}
+                    onChange={handleChange}
+                    className="input"
+                    required
+                  />
+                </div>
+
+                
+                <div>
+                  <label className="label" style={{ fontSize: "var(--fs-small)" }}>
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    name="operating_end"
+                    value={formData.operating_end}
+                    onChange={handleChange}
+                    className="input"
+                    required
+                  />
+                </div>
+
+                <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => window.history.back()}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+
+              </div>
+            </form>
           </div>
-<div className="md:col-span-2 flex justify-end gap-4 pt-4">
 
-  <button
-    type="button"
-    style={bodyFont}
-    className="bg-[#7AB2B2] hover:bg-[#699d9d] text-white px-6 py-3 rounded-2xl transition-all duration-300"
-  >
-    Cancel
-  </button>
+          
+          
 
-  <button
-    type="submit"
-    style={headingFont}
-    className="bg-[#3A6B7C] hover:bg-[#2F5F70] text-white px-8 py-3 rounded-2xl transition-all duration-300"
-  >
-    Save Changes
-  </button>
-
-          </div>
-
-        </form>
+        </div>
       </div>
     </div>
   );
-
-
 }
