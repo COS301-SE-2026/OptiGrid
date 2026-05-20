@@ -28,6 +28,9 @@ const submitForm = () =>
 
 
 describe("EditBuildingPage", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
  
   describe("Initial render", () => {
@@ -99,9 +102,9 @@ describe("EditBuildingPage", () => {
 
   
   describe("Pre-filled default values", () => {
-    it("pre-fills building name with 'building A'", () => {
+    it("pre-fills building name with 'Building A'", () => {
       render(<EditBuildingPage />);
-      expect((getField("building_name") as HTMLInputElement).value).toBe("building A");
+      expect((getField("building_name") as HTMLInputElement).value).toBe("Building A");
     });
 
     it("pre-fills physical address", () => {
@@ -218,7 +221,7 @@ describe("EditBuildingPage", () => {
       expect(console.log).toHaveBeenCalledWith(
         "Updated Building:",
         expect.objectContaining({
-          building_name: "building A",
+          building_name: "Building A",
           building_type: "Office",
           physical_address: "123 Street, Pretoria",
           square_footage: "2500",
