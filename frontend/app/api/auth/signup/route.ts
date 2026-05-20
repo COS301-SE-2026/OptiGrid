@@ -5,6 +5,7 @@ const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
 type SignupBody = {
     email?: unknown;
     password?: unknown;
+    name?: unknown;
     firstName?: unknown;
     lastName?: unknown;
 };
@@ -20,14 +21,18 @@ export async function POST(request: Request) {
 
     const email = typeof body.email === "string" ? body.email.trim() : "";
     const password = typeof body.password === "string" ? body.password : "";
+    const providedName = typeof body.name === "string" ? body.name.trim() : "";
     const firstName = typeof body.firstName === "string" ? body.firstName.trim() : "";
     const lastName = typeof body.lastName === "string" ? body.lastName.trim() : "";
+    const computedName = [firstName, lastName].filter(Boolean).join(" ");
+    const name = providedName || computedName;
 
-    if (!email || !password || !firstName) {
-        return NextResponse.json({ message: "All required fields must be provided." }, { status: 400 });
+    if (!email || !password || !name) {
+        return NextResponse.json(
+            { message: "Email, password, and name are required fields." },
+            { status: 400 }
+        );
     }
-
-    const name = [firstName, lastName].filter(Boolean).join(" ");
 
     try {
         const coreResponse = await fetch(`${CORE_URL}/auth/signup`, {

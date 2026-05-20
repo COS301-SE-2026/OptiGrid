@@ -3,9 +3,9 @@
 	"private": true,
 	"version": "0.1.0",
 	"scripts": {
-		"postinstall": "DATABASE_URL=\"postgresql://dummy:dummy@localhost:5432/dummy\" prisma generate --schema=./prisma/schema.prisma",
+		"postinstall": "node ./scripts/prisma-generate-dummy.mjs --schema=./prisma/schema.prisma",
 		"dev": "tsx watch src/server.ts",
-		"build": "DATABASE_URL=\"postgresql://dummy:dummy@localhost:5432/dummy\" prisma generate && tsc -p tsconfig.json",
+		"build": "node ./scripts/prisma-generate-dummy.mjs && tsc -p tsconfig.json",
 		"start": "node dist/src/server.js",
 		"test": "jest",
 		"lint": "eslint .",
@@ -15,7 +15,7 @@
 		"db:generate": "prisma generate",
 		"db:migrate": "prisma migrate dev",
 		"db:deploy": "prisma migrate deploy",
-		"pretest": "DATABASE_URL=\"postgresql://dummy:dummy@localhost:5432/dummy\" prisma generate --schema=./prisma/schema.prisma"
+		"pretest": "node ./scripts/prisma-generate-dummy.mjs --schema=./prisma/schema.prisma"
 	},
 	"dependencies": {
 		"@prisma/adapter-pg": "^7.8.0",

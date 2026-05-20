@@ -5,23 +5,15 @@ import os from "node:os";
 import path from "node:path";
 
 /**
- * Production EC2 deploy script.
+ * EC2 development deploy/sync script.
  *
- * High-level flow:
- * 1) Ensure/inspect Terraform infrastructure.
- * 2) Build + package Docker images locally.
- * 3) Upload compose/env/image artifacts to EC2.
- * 4) Start or resume the remote compose stack.
- *
- * Supported actions:
- * - deploy: full infra + image + compose rollout
- * - resume: restart compose on existing infra/artifacts
- * - down: stop remote compose stack only
- * - status: show remote compose status
- * - destroy: tear down Terraform-managed infra
+ * This script is optimized for hot-reload workflows:
+ * - "up": ensure infra, upload source snapshot, boot dev compose
+ * - "sync": refresh remote workspace source snapshot only
+ * - "down": stop remote dev compose stack
+ * - "status": inspect remote dev compose stack
  */
-const action = (process.argv[2] || "deploy").toLowerCase();
-const skipBuild = process.argv.includes("--skip-build");
+const action = (process.argv[2] || "up").toLowerCase();
 
 function stripWrappingQuotes(value) {
   if (
@@ -80,19 +72,18 @@ const envFileCandidates = [
 
 const resolvedEnvFile = resolveEnvFile(envFileCandidates);
 if (resolvedEnvFile) {
-  // Load local deploy-time environment defaults while preserving explicit shell overrides.
+  // Load local defaults from env files while preserving explicit shell overrides.
   loadEnvFileIfPresent(resolvedEnvFile);
-  console.log(`Loaded deploy env from ${resolvedEnvFile}`);
+  console.log(`Loaded dev deploy env from ${resolvedEnvFile}`);
 }
 
 // Terraform runtime settings.
 const tfDir = "infrastructure/terraform";
 const tfGlobalArgs = ["-chdir=" + tfDir];
-const instanceType = process.env.INSTANCE_TYPE || "t3.micro";
+const instanceType = process.env.INSTANCE_TYPE || "t3.small";
 const tfVarArgs = ["-input=false", "-var", `instance_type=${instanceType}`];
 const tfvarsPath = path.join(tfDir, "terraform.tfvars");
 
-// SSH and readiness probe settings.
 const sshKeyPath = process.env.SSH_KEY_PATH || path.join(os.homedir(), ".ssh", "id_ed25519");
 const sshUser = process.env.SSH_USER || "ubuntu";
 const sshWaitSeconds = Number(process.env.SSH_WAIT_SECONDS || 180);
@@ -100,34 +91,23 @@ const sshRetryMs = Number(process.env.SSH_RETRY_MS || 5000);
 const dockerWaitSeconds = Number(process.env.DOCKER_WAIT_SECONDS || 300);
 const dockerRetryMs = Number(process.env.DOCKER_RETRY_MS || 5000);
 
-// Docker image coordinates used for local build/save and remote load.
-const imageNamespace = process.env.IMAGE_NAMESPACE || "local";
-const imageTags = [
-  `ghcr.io/${imageNamespace}/optigrid-frontend:latest`,
-  `ghcr.io/${imageNamespace}/optigrid-core:latest`,
-  `ghcr.io/${imageNamespace}/optigrid-ingestion:latest`,
-  `ghcr.io/${imageNamespace}/optigrid-analytics:latest`,
-];
-
+// Local generated artifacts used for remote dev rollout.
 const generatedDir = path.join("infrastructure", "docker", ".generated");
-const composeProdPath = path.join("infrastructure", "docker", "docker-compose.prod.yml");
-const composeEc2Path = path.join(generatedDir, "docker-compose.ec2.yml");
-const envEc2Path = path.join(generatedDir, ".env.ec2");
-const imagesTarPath = path.join(generatedDir, "optigrid-images.tar");
+const localDevComposePath = path.join("infrastructure", "docker", "docker-compose.dev.ec2.yml");
+const localDevEnvPath = path.join(generatedDir, ".env.ec2.dev");
+const localSourceTarPath = path.join(generatedDir, "optigrid-dev-source.tar.gz");
 
-// Remote deployment paths on the EC2 instance.
-const remoteDir = process.env.REMOTE_DEPLOY_DIR || "/home/ubuntu/optigrid-deploy";
-const remoteCompose = `${remoteDir}/docker-compose.ec2.yml`;
-const remoteEnv = `${remoteDir}/.env.ec2`;
-const remoteImagesTar = `${remoteDir}/optigrid-images.tar`;
+// Remote workspace + compose paths on EC2.
+const remoteDir = process.env.REMOTE_DEV_DIR || "/home/ubuntu/optigrid-dev";
+const remoteWorkspace = `${remoteDir}/workspace`;
+const remoteDevCompose = `${remoteDir}/docker-compose.dev.ec2.yml`;
+const remoteDevEnv = `${remoteDir}/.env.ec2.dev`;
+const remoteSourceTar = `${remoteDir}/source.tar.gz`;
 
-// Runtime env values injected into the remote compose env-file.
 const runtimeEnv = {
-  nodeEnv: process.env.NODE_ENV || "production",
-  frontendPort: process.env.FRONTEND_PORT || "80",
-  corePort: process.env.CORE_PORT || "4000",
-  ingestionPort: process.env.INGESTION_PORT || "8000",
-  analyticsPort: process.env.ANALYTICS_PORT || "8001",
+  // Dev stack is exposed on alternate ports to avoid clashing with prod defaults.
+  frontendPort: process.env.FRONTEND_PORT || "3001",
+  corePort: process.env.CORE_PORT || "4001",
   databaseUrl: process.env.DATABASE_URL || "",
   supabaseUrl: process.env.SUPABASE_URL || "https://example.supabase.co",
   supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy",
@@ -162,7 +142,7 @@ function run(cmd, args, options = {}) {
 // Execute a command and return trimmed stdout; intended for deterministic lookups.
 function runCapture(cmd, args) {
   const result = spawnSync(cmd, args, {
-    stdio: ["ignore", "pipe", "inherit"],
+    stdio: ["ignore", "pipe", "pipe"],
     encoding: "utf8",
     shell: false,
   });
@@ -170,22 +150,6 @@ function runCapture(cmd, args) {
     process.exit(result.status || 1);
   }
   return result.stdout.trim();
-}
-
-function assertLocalDockerEngine() {
-  // Deploy requires a healthy local daemon for image build/save.
-  const probe = spawnSync("docker", ["info"], {
-    stdio: ["ignore", "ignore", "pipe"],
-    encoding: "utf8",
-    shell: false,
-    timeout: 15000,
-  });
-  if (probe.status !== 0) {
-    const hint = (probe.stderr || "").trim().split("\n").slice(-1)[0] || "Docker engine unavailable";
-    console.error(`Local Docker engine is not ready: ${hint}`);
-    console.error("Start Docker Desktop/Engine, then retry.");
-    process.exit(1);
-  }
 }
 
 // Execute a multi-line bash script remotely over SSH.
@@ -344,20 +308,12 @@ function ensureInfra() {
   phase("Terraform apply complete");
 }
 
-function destroyInfra() {
-  // Destroy is intentionally separate from compose down: it removes the underlying EC2 resources.
-  phase(`Terraform destroy start (${instanceType})`);
-  run("terraform", [...tfGlobalArgs, "init", "-input=false"]);
-  run("terraform", [...tfGlobalArgs, "destroy", ...tfVarArgs, "-auto-approve"]);
-  phase("Terraform destroy complete");
-}
-
 function getHostIp() {
   return runCapture("terraform", [...tfGlobalArgs, "output", "-raw", "server_public_ip"]);
 }
 
 function tryGetHostIpFromState() {
-  // Down/status operate on the currently tracked instance without forcing a fresh apply.
+  // For status/down/sync we read the current Terraform state instead of re-applying infra.
   const stateList = spawnSync("terraform", [...tfGlobalArgs, "state", "list"], {
     stdio: ["ignore", "pipe", "pipe"],
     encoding: "utf8",
@@ -384,78 +340,11 @@ function tryGetHostIpFromState() {
   return match ? match[0] : null;
 }
 
-function generateComposeAndEnv() {
-  mkdirSync(generatedDir, { recursive: true });
-
-  // Resolve image namespace locally before shipping compose/env files to EC2.
-  const composeTemplate = readFileSync(composeProdPath, "utf8");
-  const composeResolved = composeTemplate.replaceAll("YOUR_GITHUB_USERNAME", imageNamespace);
-  writeFileSync(composeEc2Path, composeResolved);
-
-  const envText = [
-    `NODE_ENV=${runtimeEnv.nodeEnv}`,
-    `FRONTEND_PORT=${runtimeEnv.frontendPort}`,
-    `CORE_PORT=${runtimeEnv.corePort}`,
-    `INGESTION_PORT=${runtimeEnv.ingestionPort}`,
-    `ANALYTICS_PORT=${runtimeEnv.analyticsPort}`,
-    `DATABASE_URL=${runtimeEnv.databaseUrl}`,
-    `SUPABASE_URL=${runtimeEnv.supabaseUrl}`,
-    `SUPABASE_SERVICE_ROLE_KEY=${runtimeEnv.supabaseKey}`,
-    `SUPABASE_ANON_KEY=${runtimeEnv.supabaseAnonKey}`,
-    `INFLUXDB_URL=${runtimeEnv.influxUrl}`,
-    `INFLUXDB_TOKEN=${runtimeEnv.influxToken}`,
-    `INFLUXDB_ORG=${runtimeEnv.influxOrg}`,
-    `INFLUXDB_BUCKET=${runtimeEnv.influxBucket}`,
-    "",
-  ].join("\n");
-  writeFileSync(envEc2Path, envText);
-}
-
-function buildImages() {
-  phase("Building Docker images locally");
-  // Build each service image explicitly so we can transfer immutable artifacts to EC2.
-  run("docker", ["build", "-f", "frontend/Dockerfile", "-t", imageTags[0], "."]);
-  run("docker", ["build", "-f", "backend/core/Dockerfile", "-t", imageTags[1], "."]);
-  run("docker", ["build", "-f", "backend/ingestion/Dockerfile", "-t", imageTags[2], "."]);
-  run("docker", ["build", "-f", "backend/analytics/Dockerfile", "-t", imageTags[3], "."]);
-}
-
-function packageImages() {
-  phase("Packaging Docker images for transfer");
-  // `docker save` creates a portable tar used by remote `docker load`.
-  run("docker", ["save", "-o", imagesTarPath, ...imageTags]);
-}
-
-function uploadArtifacts(host) {
-  phase("Uploading compose assets to EC2");
+function ensureRemoteComposePlugin(host) {
   runSshScript(
     host,
     [
       "set -euxo pipefail",
-      `mkdir -p ${remoteDir}`,
-      "",
-    ].join("\n"),
-  );
-
-  const scpBase = [
-    "-i",
-    sshKeyPath,
-    "-o",
-    "StrictHostKeyChecking=accept-new",
-  ];
-
-  run("scp", [...scpBase, composeEc2Path, `${sshUser}@${host}:${remoteCompose}`]);
-  run("scp", [...scpBase, envEc2Path, `${sshUser}@${host}:${remoteEnv}`]);
-  run("scp", [...scpBase, imagesTarPath, `${sshUser}@${host}:${remoteImagesTar}`]);
-}
-
-function remoteComposeDeploy(host) {
-  phase("Starting containers on EC2");
-  runSshScript(
-    host,
-    [
-      "set -euxo pipefail",
-      `cd ${remoteDir}`,
       "if ! sudo docker compose version >/dev/null 2>&1; then",
       // First try distro packages; fallback to official plugin binary if unavailable.
       "  sudo apt-get update -y",
@@ -478,12 +367,118 @@ function remoteComposeDeploy(host) {
       "  sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose",
       "fi",
       "sudo docker compose version",
-      "echo 'Loading container images (can take several minutes)...'",
-      // Load prebuilt images to avoid remote builds and registry auth complexity.
-      `sudo docker load -i ${path.posix.basename(remoteImagesTar)}`,
-      "echo 'Starting compose stack...'",
-      `sudo docker compose -f ${path.posix.basename(remoteCompose)} --env-file ${path.posix.basename(remoteEnv)} up -d --remove-orphans --pull never`,
-      `sudo docker compose -f ${path.posix.basename(remoteCompose)} --env-file ${path.posix.basename(remoteEnv)} ps`,
+      "",
+    ].join("\n"),
+  );
+}
+
+function generateDevEnvFile() {
+  mkdirSync(generatedDir, { recursive: true });
+
+  // Generate a dedicated env-file so remote compose is deterministic and reproducible.
+  const envText = [
+    "NODE_ENV=development",
+    `FRONTEND_PORT=${runtimeEnv.frontendPort}`,
+    `CORE_PORT=${runtimeEnv.corePort}`,
+    `DATABASE_URL=${runtimeEnv.databaseUrl}`,
+    `SUPABASE_URL=${runtimeEnv.supabaseUrl}`,
+    `SUPABASE_SERVICE_ROLE_KEY=${runtimeEnv.supabaseKey}`,
+    `SUPABASE_ANON_KEY=${runtimeEnv.supabaseAnonKey}`,
+    `INFLUXDB_URL=${runtimeEnv.influxUrl}`,
+    `INFLUXDB_TOKEN=${runtimeEnv.influxToken}`,
+    `INFLUXDB_ORG=${runtimeEnv.influxOrg}`,
+    `INFLUXDB_BUCKET=${runtimeEnv.influxBucket}`,
+    "",
+  ].join("\n");
+  writeFileSync(localDevEnvPath, envText);
+}
+
+function createSourceArchive() {
+  phase("Packaging source for EC2 dev sync");
+  mkdirSync(generatedDir, { recursive: true });
+  // Bundle source once and exclude build artifacts/secrets to keep dev sync smaller and safer.
+  run(
+    "tar",
+    [
+      "-czf",
+      localSourceTarPath,
+      "--exclude=.git",
+      "--exclude=node_modules",
+      "--exclude=frontend/node_modules",
+      "--exclude=backend/core/node_modules",
+      "--exclude=backend/ingestion/node_modules",
+      "--exclude=backend/analytics/node_modules",
+      "--exclude=.next",
+      "--exclude=frontend/.next",
+      "--exclude=dist",
+      "--exclude=backend/core/dist",
+      "--exclude=.codex-runtime",
+      "--exclude=playwright-report",
+      "--exclude=test-results",
+      "--exclude=coverage",
+      "--exclude=htmlcov",
+      "--exclude=backend/ingestion/src/__pycache__",
+      "--exclude=backend/analytics/src/__pycache__",
+      "--exclude=infrastructure/docker/.generated",
+      "--exclude=.env",
+      "--exclude=.env.local",
+      ".",
+    ],
+    { cwd: process.cwd() },
+  );
+}
+
+function uploadDevArtifacts(host) {
+  phase("Uploading dev stack assets to EC2");
+  runSshScript(
+    host,
+    [
+      "set -euxo pipefail",
+      `mkdir -p ${remoteDir}`,
+      `mkdir -p ${remoteWorkspace}`,
+      "",
+    ].join("\n"),
+  );
+
+  const scpBase = [
+    "-i",
+    sshKeyPath,
+    "-o",
+    "StrictHostKeyChecking=accept-new",
+  ];
+
+  // Upload compose/env/source artifacts used by dev compose and workspace extraction.
+  run("scp", [...scpBase, localDevComposePath, `${sshUser}@${host}:${remoteDevCompose}`]);
+  run("scp", [...scpBase, localDevEnvPath, `${sshUser}@${host}:${remoteDevEnv}`]);
+  run("scp", [...scpBase, localSourceTarPath, `${sshUser}@${host}:${remoteSourceTar}`]);
+}
+
+function syncRemoteWorkspace(host) {
+  phase("Syncing source into EC2 dev workspace");
+  runSshScript(
+    host,
+    [
+      "set -euxo pipefail",
+      // Dev mode does a full extract each sync so containers always read a coherent workspace snapshot.
+      `sudo mkdir -p ${remoteWorkspace}`,
+      `sudo tar -xzf ${remoteSourceTar} -C ${remoteWorkspace} --strip-components=1`,
+      `sudo chown -R ${sshUser}:${sshUser} ${remoteWorkspace}`,
+      "",
+    ].join("\n"),
+    600000,
+  );
+}
+
+function remoteComposeUp(host) {
+  phase("Starting EC2 dev hot-reload stack");
+  runSshScript(
+    host,
+    [
+      "set -euxo pipefail",
+      `cd ${remoteDir}`,
+      // Dev stack is launched without image transfer; services run from mounted workspace.
+      `sudo docker compose -f ${path.posix.basename(remoteDevCompose)} --env-file ${path.posix.basename(remoteDevEnv)} up -d --remove-orphans`,
+      `sudo docker compose -f ${path.posix.basename(remoteDevCompose)} --env-file ${path.posix.basename(remoteDevEnv)} ps`,
       "",
     ].join("\n"),
     600000,
@@ -491,20 +486,20 @@ function remoteComposeDeploy(host) {
 }
 
 function remoteComposeDown(host) {
-  phase("Stopping EC2 compose stack");
+  phase("Stopping EC2 dev hot-reload stack");
   runSshScript(
     host,
     [
       "set -euxo pipefail",
       `if [ ! -d ${remoteDir} ]; then`,
-      `  echo "Remote deploy directory not found at ${remoteDir}. Nothing to stop."`,
+      `  echo "Remote dev directory not found at ${remoteDir}. Nothing to stop."`,
       "  exit 0",
       "fi",
       `cd ${remoteDir}`,
-      `if [ -f ${path.posix.basename(remoteCompose)} ]; then`,
-      `  sudo docker compose -f ${path.posix.basename(remoteCompose)} --env-file ${path.posix.basename(remoteEnv)} down --remove-orphans`,
+      `if [ -f ${path.posix.basename(remoteDevCompose)} ]; then`,
+      `  sudo docker compose -f ${path.posix.basename(remoteDevCompose)} --env-file ${path.posix.basename(remoteDevEnv)} down --remove-orphans`,
       "else",
-      `  echo "Compose file not found at ${remoteCompose}. Nothing to stop."`,
+      `  echo "Dev compose file not found at ${remoteDevCompose}. Nothing to stop."`,
       "fi",
       "",
     ].join("\n"),
@@ -513,21 +508,21 @@ function remoteComposeDown(host) {
 }
 
 function remoteComposeStatus(host) {
-  phase("EC2 compose status");
+  phase("EC2 dev compose status");
   runSshScript(
     host,
     [
       "set -euxo pipefail",
       `if [ ! -d ${remoteDir} ]; then`,
-      `  echo "Remote deploy directory not found at ${remoteDir}. Stack is not bootstrapped on this host."`,
+      `  echo "Remote dev directory not found at ${remoteDir}. Run 'corepack pnpm run optigrid dev' first."`,
       "  exit 0",
       "fi",
       `cd ${remoteDir}`,
-      `if [ ! -f ${path.posix.basename(remoteCompose)} ]; then`,
-      `  echo "Compose file not found at ${remoteCompose}. Stack is not bootstrapped on this host."`,
+      `if [ ! -f ${path.posix.basename(remoteDevCompose)} ]; then`,
+      `  echo "Dev compose file not found at ${remoteDevCompose}. Run 'corepack pnpm run optigrid dev' first."`,
       "  exit 0",
       "fi",
-      `sudo docker compose -f ${path.posix.basename(remoteCompose)} --env-file ${path.posix.basename(remoteEnv)} ps`,
+      `sudo docker compose -f ${path.posix.basename(remoteDevCompose)} --env-file ${path.posix.basename(remoteDevEnv)} ps`,
       "",
     ].join("\n"),
   );
@@ -540,100 +535,78 @@ if (!existsSync(tfvarsPath)) {
   process.exit(1);
 }
 
-if (action !== "destroy" && !existsSync(sshKeyPath)) {
+if (!existsSync(sshKeyPath)) {
   console.error(`Missing SSH private key at ${sshKeyPath}. Set SSH_KEY_PATH if different.`);
   process.exit(1);
 }
 
-if (!["deploy", "resume", "down", "status", "destroy"].includes(action)) {
-  console.error("Usage: node scripts/deploy-ec2-stack.mjs <deploy|resume|down|status|destroy> [--skip-build]");
+if (!["up", "sync", "down", "status"].includes(action)) {
+  console.error("Usage: node scripts/deploy-ec2-dev-stack.mjs <up|sync|down|status>");
   process.exit(1);
 }
 
-if ((action === "deploy" || action === "resume") && !runtimeEnv.databaseUrl) {
+if ((action === "up" || action === "sync") && !runtimeEnv.databaseUrl) {
   console.error(
     "Missing DATABASE_URL. Set it in your shell or in .env.local/.env.",
   );
   process.exit(1);
 }
 
-if ((action === "deploy" || action === "resume") && !process.env.SUPABASE_ANON_KEY) {
+if ((action === "up" || action === "sync") && !process.env.SUPABASE_ANON_KEY) {
   console.error(
     "Missing SUPABASE_ANON_KEY. Set it in your shell or in .env.local/.env.",
   );
   process.exit(1);
 }
 
-if (action === "down") {
-  // Stop containers but keep VM/volumes/state so they can be resumed later.
-  const host = tryGetHostIpFromState();
-  if (!host) {
-    console.log("No active Terraform host found in state. Nothing to stop.");
-    process.exit(0);
-  }
-  console.log(`Target host: ${host}`);
-  remoteComposeDown(host);
-  process.exit(0);
-}
-
-if (action === "status") {
-  // Read-only remote compose inspection for quick diagnostics.
+if (action === "down" || action === "status") {
+  // These actions are read-only/teardown operations and should not mutate Terraform resources.
   const host = tryGetHostIpFromState();
   if (!host) {
     console.log("No active Terraform host found in state.");
     process.exit(0);
   }
   console.log(`Target host: ${host}`);
-  remoteComposeStatus(host);
+  if (action === "down") {
+    remoteComposeDown(host);
+  } else {
+    remoteComposeStatus(host);
+  }
   process.exit(0);
 }
 
-if (action === "destroy") {
-  // Full teardown of Terraform-managed infrastructure.
-  destroyInfra();
-  process.exit(0);
+let host;
+if (action === "up") {
+  // "up" is the only dev action that may create/modify infrastructure.
+  ensureInfra();
+  host = getHostIp();
+} else {
+  // "sync" requires an existing instance in Terraform state.
+  host = tryGetHostIpFromState();
+  if (!host) {
+    console.error("No active Terraform host found. Run `optigrid dev` first.");
+    process.exit(1);
+  }
 }
 
-assertLocalDockerEngine();
-ensureInfra();
-const host = getHostIp();
 console.log(`Target host: ${host}`);
-
-if (action === "resume") {
-  const sshAttemptsResume = Math.max(1, Math.ceil((sshWaitSeconds * 1000) / sshRetryMs));
-  await waitForSsh(host, sshAttemptsResume, sshRetryMs);
-  const dockerAttemptsResume = Math.max(1, Math.ceil((dockerWaitSeconds * 1000) / dockerRetryMs));
-  await waitForDockerReady(host, dockerAttemptsResume, dockerRetryMs);
-  runSshScript(
-    host,
-    [
-      "set -euxo pipefail",
-      // Resume assumes prior artifacts still exist remotely and only restarts the compose workflow.
-      `test -f ${remoteCompose}`,
-      `test -f ${remoteEnv}`,
-      `test -f ${remoteImagesTar}`,
-      "",
-    ].join("\n"),
-  );
-  remoteComposeDeploy(host);
-  // Resume path skips local build/package/upload and reuses remote artifacts.
-  console.log("EC2 container deployment resumed and completed.");
-  process.exit(0);
-}
 
 const sshAttempts = Math.max(1, Math.ceil((sshWaitSeconds * 1000) / sshRetryMs));
 await waitForSsh(host, sshAttempts, sshRetryMs);
 const dockerAttempts = Math.max(1, Math.ceil((dockerWaitSeconds * 1000) / dockerRetryMs));
 await waitForDockerReady(host, dockerAttempts, dockerRetryMs);
 
-generateComposeAndEnv();
-if (!skipBuild) {
-  buildImages();
-}
-packageImages();
-uploadArtifacts(host);
-remoteComposeDeploy(host);
+ensureRemoteComposePlugin(host);
+generateDevEnvFile();
+createSourceArchive();
+uploadDevArtifacts(host);
+syncRemoteWorkspace(host);
 
-console.log("EC2 container deployment complete.");
-console.log(`Host: ${host}`);
-console.log(`Frontend: http://${host}:${runtimeEnv.frontendPort}`);
+if (action === "up") {
+  remoteComposeUp(host);
+  console.log(`EC2 dev hot-reload stack is running at http://${host}:${runtimeEnv.frontendPort}`);
+} else {
+  // Sync intentionally avoids container restarts; preserve in-flight dev sessions on EC2.
+  console.log("EC2 dev source sync complete.");
+  console.log("If file watchers missed changes, run `corepack pnpm run optigrid dev-status` and restart with `corepack pnpm run optigrid dev`.");
+}
