@@ -41,7 +41,6 @@ export default function LoginPage() {
       
       await new Promise((res) => setTimeout(res, 1500));
 
-      console.log("Login data:", formData);
     } catch (err) {
       setError("Login failed. Try again.");
     } finally {
