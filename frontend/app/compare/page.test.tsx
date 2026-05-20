@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import CompareBuildingPage from "./page"; // Adjust path as needed
+import CompareBuildingPage from "./page"; 
 
 
 jest.mock("recharts", () => {

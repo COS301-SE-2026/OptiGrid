@@ -103,7 +103,7 @@ export default function CompareBuildingPage() {
             </div>
           </div>
 
-          {/* Controls Grid */}
+          
           <div className="dashboard-kpi-grid" style={{ marginBottom: "var(--space-5)" }}>
             <div className="card dashboard-card-tight">
               <label className="label">Building 1</label>
@@ -157,7 +157,7 @@ export default function CompareBuildingPage() {
             </div>
           </div>
 
-          {/* Building Cards */}
+          
           <div className="dashboard-kpi-grid" style={{ marginBottom: "var(--space-6)" }}>
             <div className="card">
               <h3>{buildingA}</h3>
@@ -192,7 +192,7 @@ export default function CompareBuildingPage() {
             </div>
           </div>
 
-          {/* Chart Section */}
+         
           <div className="dashboard-section">
             <div className="dashboard-section-header">
               <div>
@@ -260,7 +260,7 @@ export default function CompareBuildingPage() {
             </div>
           </div>
 
-          {/* Additional Insights Section */}
+          
           <div className="dashboard-section">
             <div className="dashboard-section-header">
               <div className="dashboard-section-title">Key Insights</div>
