@@ -41,21 +41,22 @@ describe("CompareBuildingPage Component", () => {
     render(<CompareBuildingPage />);
 
     const links = document.head.querySelectorAll("link");
-    expect(links).toHaveLength(2);
+    expect(links).toHaveLength(3);
     expect(links[0]).toHaveAttribute("href", expect.stringContaining("family=Inter"));
     expect(links[1]).toHaveAttribute("href", expect.stringContaining("family=Space+Grotesk"));
+    expect(links[2]).toHaveAttribute("href", expect.stringContaining("family=JetBrains+Mono"));
   });
 
   test("displays correct base building calculation values initially", () => {
     render(<CompareBuildingPage />);
 
     
-    expect(screen.getByText("12500")).toBeInTheDocument();
-    expect(screen.getByText("2500 m²")).toBeInTheDocument();
+    expect(screen.getByText(/12,500/)).toBeInTheDocument();
+    expect(screen.getByText(/2,500\s*m²/)).toBeInTheDocument();
 
     
-    expect(screen.getByText("9800")).toBeInTheDocument();
-    expect(screen.getByText("1800 m²")).toBeInTheDocument();
+    expect(screen.getByText(/9,800/)).toBeInTheDocument();
+    expect(screen.getByText(/1,800\s*m²/)).toBeInTheDocument();
   });
 
   test("updates calculations and headers when changing building selectors", () => {
@@ -67,13 +68,13 @@ describe("CompareBuildingPage Component", () => {
     fireEvent.change(buildingASelect, { target: { value: "Sandton HQ" } });
     expect(screen.getByRole("heading", { name: "Sandton HQ" })).toBeInTheDocument();
    
-    expect(screen.getByText("14200")).toBeInTheDocument();
+    expect(screen.getByText(/14,200/)).toBeInTheDocument();
 
     
     fireEvent.change(buildingBSelect, { target: { value: "Greenwood Tower" } });
     expect(screen.getByRole("heading", { name: "Greenwood Tower" })).toBeInTheDocument();
     
-    expect(screen.getByText("7600")).toBeInTheDocument();
+    expect(screen.getByText(/7,600/)).toBeInTheDocument();
   });
 
   test("calculates multiplier alterations accurately when metric or date range shifts", () => {
@@ -85,15 +86,14 @@ describe("CompareBuildingPage Component", () => {
 
    
     fireEvent.change(dateRangeSelect, { target: { value: "7" } });
-    expect(screen.getByText("3125")).toBeInTheDocument();
+    expect(screen.getByText(/3,125/)).toBeInTheDocument();
 
     
     fireEvent.change(metricSelect, { target: { value: "kWh" } });
-    expect(screen.getByText("2050")).toBeInTheDocument();
+    expect(screen.getByText(/2,050/)).toBeInTheDocument();
     
    
-    expect(
-      screen.getByText("Energy Consumption Comparison (kWh) - 7 days")
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Energy Consumption Comparison \(kWh\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/7 days • Weekly breakdown/i)).toBeInTheDocument();
   });
 });

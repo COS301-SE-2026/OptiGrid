@@ -11,6 +11,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
  
+//put it outside to avoid re-creating it over and over again
+const energyData: Record<string, { R: number; kWh: number; spaceFootage: number }> = {
+  "Building A": { R: 12500, kWh: 8200, spaceFootage: 2500 },
+  "Building B": { R: 9800, kWh: 6400, spaceFootage: 1800 },
+  "Sandton HQ": { R: 14200, kWh: 9100, spaceFootage: 3200 },
+  "Greenwood Tower": { R: 7600, kWh: 5000, spaceFootage: 1500 },
+};
 
 export default function CompareBuildingPage() {
   const buildings = ["Building A", "Building B", "Sandton HQ", "Greenwood Tower"];
@@ -39,13 +46,6 @@ export default function CompareBuildingPage() {
       "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap";
     document.head.appendChild(jetbrains);
   }, []);
-
-  const energyData: Record<string, { R: number; kWh: number; spaceFootage: number }> = {
-    "Building A": { R: 12500, kWh: 8200, spaceFootage: 2500 },
-    "Building B": { R: 9800, kWh: 6400, spaceFootage: 1800 },
-    "Sandton HQ": { R: 14200, kWh: 9100, spaceFootage: 3200 },
-    "Greenwood Tower": { R: 7600, kWh: 5000, spaceFootage: 1500 },
-  };
 
   const rangeMultiplier = useMemo(() => {
     switch (dateRange) {
@@ -81,7 +81,7 @@ export default function CompareBuildingPage() {
       { day: "Week 3", A: Math.round(baseA * scale * 0.9), B: Math.round(baseB * scale * 0.8) },
       { day: "Week 4", A: Math.round(baseA * scale), B: Math.round(baseB * scale * 0.9) },
     ];
-  }, [buildingA, buildingB, metric, dateRange]);
+  }, [buildingA, buildingB, metric, rangeMultiplier]);
 
   return (
     <div className="dashboard-page">
