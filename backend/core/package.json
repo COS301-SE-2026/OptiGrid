@@ -51,7 +51,6 @@
 		"testcontainers": "^10.21.0",
 		"ts-jest": "^29.4.9",
 		"tsx": "^4.19.3",
-		"typescript": "^5.8.3",
-		"zod": "^4.3.6"
+		"typescript": "^5.8.3"
 	}
 }
