@@ -61,3 +61,5 @@ package-lock.json
 # Playwright artifacts
 playwright-report/
 test-results/
+
+mlruns/
