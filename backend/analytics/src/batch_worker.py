@@ -2,8 +2,8 @@ import time
 import schedule
 import logging
 from supabase import create_client, Client
-from config import SUPABASE_URL, SUPABASE_KEY
-from core_engine import AnalyticsEngine
+from backend.analytics.src.config import SUPABASE_URL, SUPABASE_KEY
+from backend.analytics.src.core_engine import AnalyticsEngine
 from datetime import datetime
 
 #configuring logging

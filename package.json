@@ -7,7 +7,7 @@
 		"dev": "corepack pnpm --parallel --filter ./frontend --filter ./backend/core run dev",
 		"build": "corepack pnpm --filter @optigrid/frontend --filter @optigrid/core -r run build",
 		"test:node": "corepack pnpm --filter @optigrid/frontend run test && corepack pnpm --filter @optigrid/core run test",
-		"test:python": "PYTHONPATH=. pytest tests/unit/ingestion/ -v",
+		"test:python": "PYTHONPATH=. pytest tests/unit/ingestion/ -v && PYTHONPATH=. pytest tests/unit/analytics/ -v",
 		"test:all": "pnpm test:node && pnpm test:python",
 		"test:e2e": "playwright test --config playwright.config.ts",
 		"storybook": "corepack pnpm --filter ./frontend run storybook",

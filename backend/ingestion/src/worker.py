@@ -5,7 +5,7 @@ import json
 import redis
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
-from config import *
+from backend.ingestion.src.config import *
 
 running = True
 

@@ -1,8 +1,8 @@
 import logging
 import time
 import schedule
-from core_engine import AnalyticsEngine
-from batch_worker import run_analytics_batch
+from backend.analytics.src.core_engine import AnalyticsEngine
+from backend.analytics.src.batch_worker import run_analytics_batch
 
 logger = logging.getLogger("AnalyticsMain")
 

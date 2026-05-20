@@ -3,13 +3,13 @@ import numpy as np
 import logging
 import optuna
 import mlflow
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from influxdb_client import InfluxDBClient
 from supabase import create_client, Client
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import mean_absolute_percentage_error
-from config import *
+from backend.analytics.src.config import *
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,8 +18,11 @@ logger = logging.getLogger(__name__)
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 #mlops tracking initialisation
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
+try:
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
+except Exception as e:
+    logger.warning(f"Could not connect to MLflow server at initialisation: {e}")
 
 class AnalyticsEngine:
     def __init__(self):
@@ -232,6 +235,7 @@ class AnalyticsEngine:
             
             upsert_payloads.append({
                 "building_id": building_id,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
                 **metrics, #unpacks todays_usage and todays_cost
                 **ml_metrics
             })

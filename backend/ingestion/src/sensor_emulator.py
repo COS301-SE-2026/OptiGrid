@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timezone
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
-from config import *
+from backend.ingestion.src.config import *
 
 CSV_PATH = os.path.join(os.path.dirname(__file__), "data.csv")
 
