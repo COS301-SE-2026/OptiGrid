@@ -35,7 +35,15 @@ export const createBuildingController = async (req: Request, res: Response) => {
     await saveIdempotencyKey(idempotencyKey, successResponse);
     res.status(201).json(successResponse);
 
-  } catch (error) {
+  } catch (error: any) {
+    //added this to esnure we return 400 if validation error occurs(figured after integration tets)
+    if(error.name === 'ZodError') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid request payload',
+        details: error.errors
+      })
+    }
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
