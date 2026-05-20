@@ -30,6 +30,7 @@ export function createApp(port = Number(process.env.PORT ?? 3001)): Express {
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", userAuthRoutes);
 	app.use("/api/sensors", sensorRoutes)
+	app.use("/api/buildings", buildingRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });

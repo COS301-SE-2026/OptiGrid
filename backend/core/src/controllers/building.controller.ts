@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import { createBuilding, compareBuildingsService } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { createBuildingSchema, compareBuildingsSchema } from '../validation/building.validation';
-
+import { deleteBuildingService } from '../services/building.services';
+import { deleteBuildingSchema } from '../validation/building.validation';
 
 // creates buildings with payload validation, idempotency handling, and error management
 export const createBuildingController = async (req: Request, res: Response) => {
@@ -85,5 +86,52 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
     //this handles any unexpected errors
     console.error('[compareBuildingsController] Error:', error);
     return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+export const deleteBuildingController = async (req: Request, res: Response) => {
+  try {
+    // enforce strict authentication check
+    if (!req.user) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+    const userId = req.user.id || "11d32fe0-2a19-42fd-833c-d920f0df0b52";
+
+    // enforce strict idempotency processing
+    const idempotencyKey = req.headers['idempotency-key'] as string;
+    if (!idempotencyKey) {
+      return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
+    }
+
+    const cachedResponse = await checkIdempotencyKey(idempotencyKey);
+    if (cachedResponse) {
+      return res.status(200).json(cachedResponse);
+    }
+
+    // validate parameter format string
+    const { building_id } = deleteBuildingSchema.parse(req.params);
+
+    // delegate to the service layer
+    await deleteBuildingService(userId, building_id);
+
+    const successResponse = {
+      status: 'success',
+      message: 'Building successfully deleted'
+    };
+
+    //store in redis cache cache before responding
+    await saveIdempotencyKey(idempotencyKey, successResponse);
+    return res.status(200).json(successResponse);
+
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      return res.status(400).json({ status: "error", message: "Invalid request parameters", details: error.errors });
+    }
+    if (error.message.includes("Access Denied")) {
+      return res.status(403).json({ status: "error", message: error.message });
+    }
+    
+    console.error("Delete Building Error: ", error);
+    return res.status(500).json({ status: "error", message: "Internal server error" });
   }
 };

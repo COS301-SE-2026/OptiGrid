@@ -121,3 +121,28 @@ export const compareBuildingsService = async (
     buildingB: metricsB
   };
 };
+
+export const deleteBuildingService = async (userId: string, buildingId: string) => {
+  //verify user has access to this building
+  const accessRecord = await prisma.userBuildingAccess.findUnique({
+    where: {
+      user_id_building_id: {
+        user_id: userId,
+        building_id: buildingId,
+      },
+    },
+  });
+
+  if(!accessRecord){
+    throw new Error("Access Denied: You do not have permission to delete the buidling.")
+  }
+
+  //deleting building
+  //prisma will cascade to related UserBuildingAccess an Sensor records
+  const deletedBuidling = await prisma.building.delete({
+    where: {
+      building_id: buildingId,
+    },
+  });
+  return deletedBuidling;
+};

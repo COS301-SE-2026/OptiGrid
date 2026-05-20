@@ -38,3 +38,7 @@ export const compareBuildingsSchema = z.object({
 }).strict();
 
 export type CompareBuildingsQuery = z.infer<typeof compareBuildingsSchema>;
+
+export const deleteBuildingSchema = z.object({
+    building_id: z.string().min(1, "Building ID is required")
+});
