@@ -18,7 +18,7 @@ export const createBuildingSchema = z.object({
         .positive("Max occupancy must be greater than 0")
         .optional(),
 
-    //validate physical adress, 
+    //validate physical address, 
     physical_address: z.string().trim()
         .min(5, "Address must be at least 5 characters")
         .max(500, "Address is too long")
