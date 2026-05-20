@@ -45,7 +45,8 @@ export default function AddBuildingPage() {
       return;
     }
 
-    const formData = new FormData(e.currentTarget);
+    const formElement = (e.currentTarget || e.target) as HTMLFormElement;
+    const formData = new FormData(formElement);
 
     
 
@@ -58,6 +59,8 @@ export default function AddBuildingPage() {
       operatingHours: { start: startTime, end: endTime },
     
     };
+
+    console.log("Building Data:", data);
 
     // integration with backend api, we send the correct data and then handle it properly
     const buildingPayload: Record<string, unknown> = {
@@ -89,7 +92,7 @@ export default function AddBuildingPage() {
           //success case
           if (resp.ok) {
             window.alert('Building created successfully');
-            e.currentTarget.reset();
+            formElement.reset();
             setStartTime('08:00');
             setEndTime('18:00');
           } 
