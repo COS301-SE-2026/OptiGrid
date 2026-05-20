@@ -53,6 +53,22 @@ resource "aws_security_group" "optigrid_server" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Dev frontend"
+    from_port   = 3001
+    to_port     = 3001
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Dev core health/api"
+    from_port   = 4001
+    to_port     = 4001
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
