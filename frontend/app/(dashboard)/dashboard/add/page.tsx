@@ -1,12 +1,12 @@
 
 "use client"
 
-
-import { useState, useEffect } from "react";
+import { createBrowserClient } from "@supabase/ssr";
+import { useEffect, useState, type FormEvent } from "react";
 
 
 export default function AddBuildingPage() {
-   const buildingTypes = ["Office", "Residential", "Industrial"];
+  const buildingTypes = ["Office", "Residential", "Industrial"];
 
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("18:00");
@@ -25,8 +25,25 @@ export default function AddBuildingPage() {
     document.head.appendChild(spaceGrotesk);
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    //we authenticate user before making any reqs to backend
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      window.alert("Authentication is not configured properly. Please contact support.");
+      return;
+    }
+
+    const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+    const { data: authData } = await supabase.auth.getSession();
+    const userToken = authData.session?.access_token;
+
+    if (!userToken) {
+      window.alert("You must be logged in to create a building.");
+      return;
+    }
 
     const formData = new FormData(e.currentTarget);
 
@@ -36,22 +53,60 @@ export default function AddBuildingPage() {
       building_name: formData.get("building_name"),
       physical_address: formData.get("physical_address"),
       building_type: formData.get("building_type"),
-      operatingHours: {
-        start: startTime,
-        end: endTime,
-      },
       square_footage: formData.get("square_footage"),
       max_occupancy: formData.get("max_occupancy"),
+      operatingHours: { start: startTime, end: endTime },
     
     };
 
-    console.log("Building Data:", data);
+    // integration with backend api, we send the correct data and then handle it properly
+    const buildingPayload: Record<string, unknown> = {
+      building_name: String(data.building_name || "").trim(),
+      physical_address: String(data.physical_address || "").trim() || undefined,
+      building_type: String(data.building_type || "") || undefined,
+      square_footage: formData.get("square_footage") ? Number(formData.get("square_footage")) : undefined,
+      max_occupancy: formData.get("max_occupancy") ? Number(formData.get("max_occupancy")) : undefined,
+      timezone: "UTC",
+    };
+    //we delete values that are undefined and then we can also create a key to ensure we dont create multiple same buildings
+    Object.keys(buildingPayload).forEach((k) => buildingPayload[k] === undefined && delete buildingPayload[k]);
+    const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
-    window.alert("Building created successfully");
-
-    e.target.reset();
-    setStartTime("08:00");     
-    setEndTime("18:00");
+    //we chek if we can fetchthe api,  send a req and then handle success and failure cases
+    //if it fails, we log it in console to fix the error
+    if (typeof fetch === 'function') {
+      fetch('/api/buildings', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Idempotency-Key': idempotencyKey ,
+          'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify(buildingPayload),
+        credentials: 'include',
+      })
+        .then(async (resp) => {
+          //success case
+          if (resp.ok) {
+            window.alert('Building created successfully');
+            e.currentTarget.reset();
+            setStartTime('08:00');
+            setEndTime('18:00');
+          } 
+          //error case
+          else {
+            const body = await resp.json().catch(() => ({}));
+            window.alert(`Error: ${body?.message || 'Failed to create building'}`);
+          }
+        })
+        .catch(() => window.alert('Network error while creating building'));
+    } 
+    else {
+      //log an error to show to user that building was not created
+      console.error("Fetch Api did not work, may be unsupported in this browser");
+      window.alert("System Error: Unable to create building");
+      return; 
+    }
 
 }
 

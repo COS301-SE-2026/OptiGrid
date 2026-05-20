@@ -21,20 +21,19 @@ export async function POST(request: Request) {
 	const idempotencyKey = request.headers.get("idempotency-key");
 
 	//we ensure all headers are present else return an error if even one is missing
-	if (contentType && authorization && cookie && idempotencyKey) {
+	if (contentType && authorization) {
 		headers.set("Content-Type", contentType);
 		headers.set("Authorization", authorization);
-		headers.set("Cookie", cookie);
-		headers.set("Idempotency-Key", idempotencyKey);
 	}
 	else {
 		return NextResponse.json({ 
 			message: "Missing required headers." 
 		}, 
-		{ status: 400 
-
-		});
+		{ status: 400 });
 	}
+	//not necessary headers but we have to pass them if they are there
+	if (cookie) headers.set("Cookie", cookie);
+	if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
 
 	//here we request for the api in backendto create th ebuilding
 	try {
