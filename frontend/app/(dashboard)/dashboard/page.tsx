@@ -28,6 +28,21 @@ type ConsumptionPoint = {
     kwh: number;
 };
 
+function formatNumberMetric(value: unknown): string {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value.toLocaleString();
+    }
+
+    if (typeof value === "string" && value.trim().length > 0) {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+            return parsed.toLocaleString();
+        }
+    }
+
+    return "--";
+}
+
 // must replace with real API call GET /api/portfolio/summary
 const MOCK_SUMMARY: PortfolioSummary = {
     buildings: 3,
@@ -253,7 +268,7 @@ export default function DashboardPage() {
                     label="Today's usage"
                     value={
                         summary
-                            ? `${summary.todayUsageKwh.toLocaleString()} kWh`
+                            ? `${formatNumberMetric(summary.todayUsageKwh)} kWh`
                             : "--"
                     }
                     loading={summaryLoading}
@@ -262,7 +277,7 @@ export default function DashboardPage() {
                     label="Est. cost"
                     value={
                         summary
-                            ? `R ${summary.estimatedCostRands.toLocaleString()}`
+                            ? `R ${formatNumberMetric(summary.estimatedCostRands)}`
                             : "--"
                     }
                     loading={summaryLoading}
@@ -401,7 +416,7 @@ export default function DashboardPage() {
                                         <td>{building.type}</td>
                                         <td>
                                             <span className="metric">
-                                                {building.todayKwh.toLocaleString()}
+                                                {formatNumberMetric(building.todayKwh)}
                                             </span>
                                         </td>
                                         <td>
