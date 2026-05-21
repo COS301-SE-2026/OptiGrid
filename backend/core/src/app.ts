@@ -4,6 +4,7 @@ import swaggerUi from "swagger-ui-express";
 import userAuthRoutes from "./routes/user_auth.routes";
 import sensorRoutes from "./routes/sensor.routes"
 import buildingRoutes from "./routes/building.routes"
+import { authenticateRequest } from "./middleware/auth.middleware";
 
 //express app setup with 
 export interface CreateAppOptions {
@@ -36,7 +37,7 @@ export function createApp(port = Number(process.env.PORT ?? 3001), options: Crea
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", userAuthRoutes);
 	app.use("/api/sensors", sensorRoutes)
-	app.use("/api/buildings", buildingRoutes)
+	app.use("/api/buildings", authenticateRequest, buildingRoutes)
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });

@@ -282,6 +282,10 @@ export const login = async (email: string, password: string) => {
     if (!userId) {
         throw new Error('Failed to authenticate user: missing user id.');
     }
+    const accessToken = data.session?.access_token;
+    if (!accessToken) {
+        throw new Error('Failed to authenticate user: missing access token.');
+    }
 
     // Resolve app profile by the authenticated Supabase user id.
     const user = await prisma.user.findUnique({
@@ -298,5 +302,8 @@ export const login = async (email: string, password: string) => {
         throw new Error('Authenticated user profile not found.');
     }
 
-    return user;
+    return {
+        user,
+        accessToken,
+    };
 };

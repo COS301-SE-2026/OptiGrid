@@ -1,8 +1,26 @@
  import { NextResponse } from "next/server";
 
 const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
+const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 
 type Building = Record<string, unknown>;
+
+function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
+	if (!cookieHeader) {
+		return null;
+	}
+
+	const segments = cookieHeader.split(";");
+	for (const segment of segments) {
+		const [name, ...valueParts] = segment.trim().split("=");
+		if (name === cookieName) {
+			const rawValue = valueParts.join("=").trim();
+			return rawValue ? decodeURIComponent(rawValue) : null;
+		}
+	}
+
+	return null;
+}
 
 export async function POST(request: Request) {
 	//here we just parse req body n check if its validJson
@@ -19,18 +37,26 @@ export async function POST(request: Request) {
 	const authorization = request.headers.get("authorization");
 	const cookie = request.headers.get("cookie");
 	const idempotencyKey = request.headers.get("idempotency-key");
+	const accessTokenFromCookie = readCookieValue(cookie, ACCESS_TOKEN_COOKIE_NAME);
+	const resolvedAuthorizationHeader =
+		authorization || (accessTokenFromCookie ? `Bearer ${accessTokenFromCookie}` : null);
 
-	//we ensure all headers are present else return an error if even one is missing
-	if (contentType && authorization) {
-		headers.set("Content-Type", contentType);
-		headers.set("Authorization", authorization);
+	if (!contentType) {
+		return NextResponse.json(
+			{ message: "Content-Type header is required." },
+			{ status: 400 },
+		);
 	}
-	else {
-		return NextResponse.json({ 
-			message: "Missing required headers." 
-		}, 
-		{ status: 400 });
+
+	if (!resolvedAuthorizationHeader) {
+		return NextResponse.json(
+			{ message: "Authentication required." },
+			{ status: 401 },
+		);
 	}
+
+	headers.set("Content-Type", contentType);
+	headers.set("Authorization", resolvedAuthorizationHeader);
 	//not necessary headers but we have to pass them if they are there
 	if (cookie) headers.set("Cookie", cookie);
 	if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
