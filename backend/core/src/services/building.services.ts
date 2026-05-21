@@ -14,6 +14,14 @@ export interface buildingPayload {
   max_occupancy?: number;
 }
 
+export interface updateBuildingPayload {
+  building_name?: string;
+  square_footage?: number;
+  physical_address?: string;
+  timezone?: string;
+  max_occupancy?: number;
+}
+
 export const createBuilding = async (
   userId: string, 
   payload: buildingPayload
@@ -44,6 +52,54 @@ export const createBuilding = async (
     return newBuilding;
   });
 };
+
+export const listBuildingsForUser = async (userId: string) => {
+  return prisma.building.findMany({
+    where: {
+      authorized_users: {
+        some: {
+          user_id: userId,
+        },
+      },
+    },
+    orderBy: {
+      created_at: 'desc',
+    },
+  });
+};
+
+export const updateBuildingService = async (
+  userId: string,
+  buildingId: string,
+  payload: updateBuildingPayload,
+) => {
+  const accessRecord = await prisma.userBuildingAccess.findUnique({
+    where: {
+      user_id_building_id: {
+        user_id: userId,
+        building_id: buildingId,
+      },
+    },
+  });
+
+  if (!accessRecord) {
+    throw new Error('Access Denied: You do not have permission to update this building.');
+  }
+
+  return prisma.building.update({
+    where: {
+      building_id: buildingId,
+    },
+    data: {
+      ...(payload.building_name !== undefined ? { building_name: payload.building_name } : {}),
+      ...(payload.square_footage !== undefined ? { square_footage: payload.square_footage } : {}),
+      ...(payload.physical_address !== undefined ? { physical_address: payload.physical_address } : {}),
+      ...(payload.timezone !== undefined ? { timezone: payload.timezone } : {}),
+      ...(payload.max_occupancy !== undefined ? { max_occupancy: payload.max_occupancy } : {}),
+    },
+  });
+};
+
 //handles logic to comapre buildings
 export const compareBuildingsService = async (
   userId: string, 
