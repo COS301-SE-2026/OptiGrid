@@ -15,105 +15,113 @@ export default function DeleteBuildingPage() {
     space.href =
       "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap";
     document.head.appendChild(space);
+
+    const jetbrains = document.createElement("link");
+    jetbrains.rel = "stylesheet";
+    jetbrains.href =
+      "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap";
+    document.head.appendChild(jetbrains);
   }, []);
 
   const building_name = "Sandton HQ";
 
   const [confirmation, setConfirmation] = useState("");
 
-  const headingFont = {
-    fontFamily: "Space Grotesk, sans-serif",
-  };
-
-  const bodyFont = {
-    fontFamily: "Inter, sans-serif",
-  };
-
   const isMatch = confirmation === building_name;
 
   const handleDelete = () => {
     if (!isMatch) return;
-
     alert("Building permanently deleted");
   };
 
   return (
-    <div className="min-h-screen bg-[#EEF7FF] flex items-center justify-center p-6">
+    <div className="dashboard-page">
+      <div className="dashboard-shell" style={{ alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <div className="dashboard-main" style={{ maxWidth: "600px", margin: "0 auto", width: "100%" }}>
+          
+          
+          <div className="card" style={{ padding: "var(--space-6)" }}>
+            
+           
+            <div style={{ marginBottom: "var(--space-5)" }}>
+              <h1 style={{ color: "var(--brand-danger)" }}>
+                Delete Building
+              </h1>
+              
+              <div style={{ marginTop: "var(--space-3)" }}>
+                <p className="text-muted" style={{ marginBottom: "var(--space-2)" }}>
+                  This permanently removes the building and all of its historical energy data.
+                </p>
+                <p className="text-muted">
+                  This action <strong>cannot be undone</strong>.
+                </p>
+              </div>
+            </div>
 
-      <div className="w-full max-w-xl bg-[#CDE8E5] border border-[#7AB2B2] rounded-3xl shadow-xl p-8">
+            
+            <div style={{ marginBottom: "var(--space-6)" }}>
+              <label className="label">
+                Type <strong>{building_name}</strong> to confirm
+              </label>
+              
+              <input
+                type="text"
+                value={confirmation}
+                onChange={(e) => setConfirmation(e.target.value)}
+                className="input"
+                placeholder={`Enter "${building_name}" to confirm deletion`}
+                style={{ fontSize: "var(--fs-body)" }}
+              />
+              
+              {confirmation && !isMatch && (
+                <div 
+                  className="badge badge-danger" 
+                  style={{ marginTop: "var(--space-2)", display: "inline-flex" }}
+                >
+                  Building name does not match
+                </div>
+              )}
+              
+              {isMatch && (
+                <div 
+                  className="badge badge-warning" 
+                  style={{ marginTop: "var(--space-2)", display: "inline-flex" }}
+                >
+                   Ready to delete
+                </div>
+              )}
+            </div>
 
-        {/* Header */}
-        <div className="mb-6">
-          <h1
-            style={headingFont}
-            className="text-3xl font-bold text-[#3A6B7C]"
-          >
-            Delete Building
-          </h1>
+      
+            <div className="dashboard-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
 
-          <p
-            style={bodyFont}
-            className="text-[#4D869C] mt-3 leading-7"
-          >
-            This permanently removes the building and all of its
-            historical energy data.
-          </p>
+              <button
+                type="button"
+                disabled={!isMatch}
+                onClick={handleDelete}
+                className={`btn ${isMatch ? "btn-danger" : "btn-secondary"}`}
+                style={!isMatch ? { opacity: 0.5, cursor: "not-allowed" } : {}}
+              >
+                Delete Permanently
+              </button>
+            </div>
 
-          <p
-            style={bodyFont}
-            className="text-[#4D869C] mt-1"
-          >
-            This action cannot be undone.
-          </p>
+          </div>
+
+       
+          <div style={{ marginTop: "var(--space-4)", textAlign: "center" }}>
+            <div className="badge badge-warning" style={{ display: "inline-flex" }}>
+             This action is irreversible
+            </div>
+          </div>
+
         </div>
-
-        {/* Confirmation */}
-        <div className="mb-8">
-
-          <label
-            style={bodyFont}
-            className="block mb-3 text-[#4D869C]"
-          >
-            Type <span className="font-semibold">{building_name}</span> to confirm
-          </label>
-
-          <input
-            type="text"
-            value={confirmation}
-            onChange={(e) => setConfirmation(e.target.value)}
-            style={bodyFont}
-            className="w-full p-4 rounded-2xl bg-[#EEF7FF] border border-[#7AB2B2] outline-none text-[#3A6B7C]"
-          />
-
-        </div>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-4">
-
-          <button
-            type="button"
-            style={bodyFont}
-            className="bg-[#7AB2B2] hover:bg-[#699d9d] text-white px-6 py-3 rounded-2xl transition-all duration-300"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            disabled={!isMatch}
-            onClick={handleDelete}
-            style={headingFont}
-            className={`px-8 py-3 rounded-2xl text-white transition-all duration-300 ${
-              isMatch
-                ? "bg-[#8B1E3F] hover:bg-[#741933]"
-                : "bg-[#bfa7af] cursor-not-allowed"
-            }`}
-          >
-            Delete Permanently
-          </button>
-
-        </div>
-
       </div>
     </div>
   );
