@@ -1,13 +1,13 @@
 import prisma from '../lib/prisma';
-import { BuildingType, Building } from '@prisma/client';
+import { Building } from '@prisma/client';
 import { queryTotalKwh } from '../lib/influx'; 
 
 
 // handle building creation, updating, deletion, and others here
 export interface buildingPayload {
-  tenant_id: string; 
+  tenant_id?: string; 
   building_name: string;
-  building_type?: BuildingType; 
+  building_type?: string; 
   square_footage?: number;
   physical_address?: string;
   timezone?: string;
@@ -26,7 +26,6 @@ export const createBuilding = async (
       data: {
         tenant_id: payload.tenant_id,
         building_name: payload.building_name,
-        building_type: payload.building_type || 'Residential', 
         square_footage: payload.square_footage,
         physical_address: payload.physical_address,
         timezone: payload.timezone || 'UTC',
@@ -45,7 +44,6 @@ export const createBuilding = async (
     return newBuilding;
   });
 };
-
 //handles logic to comapre buildings
 export const compareBuildingsService = async (
   userId: string, 

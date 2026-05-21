@@ -5,6 +5,17 @@ import { createBuildingSchema, compareBuildingsSchema } from '../validation/buil
 import { deleteBuildingService } from '../services/building.services';
 import { deleteBuildingSchema } from '../validation/building.validation';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function toUuidOrUndefined(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return UUID_PATTERN.test(trimmed) ? trimmed : undefined;
+}
+
 // creates buildings with payload validation, idempotency handling, and error management
 export const createBuildingController = async (req: Request, res: Response) => {
   try {
@@ -13,7 +24,7 @@ export const createBuildingController = async (req: Request, res: Response) => {
         return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
     const userId = req.user.id;
-    const tenantId = req.user.user_metadata.tenant_id;
+    const tenantId = toUuidOrUndefined(req.user.user_metadata?.tenant_id);
     const idempotencyKey = req.headers['idempotency-key'] as string;
     const cachedResponse = await checkIdempotencyKey(idempotencyKey);
 
@@ -27,7 +38,7 @@ export const createBuildingController = async (req: Request, res: Response) => {
     const validatedLoad = createBuildingSchema.parse(req.body);
     const building = await createBuilding(userId, {
       ...validatedLoad,
-      tenant_id: tenantId 
+      ...(tenantId ? { tenant_id: tenantId } : {}),
     });
     const successResponse = {
       status: 'success',
@@ -45,6 +56,7 @@ export const createBuildingController = async (req: Request, res: Response) => {
         details: error.errors
       })
     }
+    console.error('createBuildingController error:', error);
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };

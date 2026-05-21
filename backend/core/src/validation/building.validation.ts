@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { BuildingType } from '@prisma/client';
 import path from 'path';
 
 export const createBuildingSchema = z.object({
@@ -10,7 +9,7 @@ export const createBuildingSchema = z.object({
   
     // validate building type, has to be same as one of the enums in schema and 
     // then size of building, timezone, and max occupancy
-    building_type: z.nativeEnum(BuildingType).optional(),
+    building_type: z.string().trim().max(50).optional(),
     square_footage: z.number().positive("Square footage must be a positive number").optional(),
     timezone: z.string().max(50).optional(),
     max_occupancy: z.number()
