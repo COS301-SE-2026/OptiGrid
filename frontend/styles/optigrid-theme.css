@@ -252,6 +252,12 @@ h3 {
 }
 
 .modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
     background: color-mix(in srgb, var(--brand-ink) 45%, transparent);
 }
 
@@ -261,6 +267,7 @@ h3 {
     border-radius: var(--radius-lg);
     box-shadow: 0 12px 32px rgba(11, 17, 32, 0.18);
     padding: var(--space-5);
+    width: min(480px, 90vw);
 }
 
 .skeleton {
@@ -523,7 +530,7 @@ h3 {
     background: var(--brand-bg);
     color: var(--brand-ink);
     position: relative;
-    overflow: hidden;
+    overflow: clip;
 }
 
 .landing-page::before,
