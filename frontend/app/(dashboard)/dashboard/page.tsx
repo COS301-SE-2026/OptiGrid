@@ -1,19 +1,9 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ThemeToggle } from "../../../theme-toggle";
-
-type RawBuilding = {
-    building_id: string;
-    building_name: string;
-    building_type: string | null;
-    physical_address: string | null;
-    square_footage: string | null;
-import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ThemeToggle } from "../../theme-toggle";
 import {
     CartesianGrid,
     Line,
@@ -46,13 +36,6 @@ type PortfolioSummary = {
     activeAlerts: number;
 };
 
-type Me = {
-    userId: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-};
-
 type SessionResponse = {
     user?: SessionUser;
     message?: string;
@@ -73,6 +56,11 @@ type RawBuilding = {
     building_type?: unknown;
     today_kwh?: unknown;
     status?: unknown;
+};
+
+type ConsumptionPoint = {
+    day: string;
+    kwh: number;
 };
 
 function formatNumberMetric(value: unknown): string {
@@ -243,6 +231,27 @@ function StatusBadge({ status }: { status: BuildingStatus }) {
 
 function Skeleton({ className = "", style }: { className?: string; style?: CSSProperties }) {
     return <div className={`skeleton ${className}`} style={style} />;
+}
+
+function KpiCard({
+    label,
+    value,
+    valueTone = "default",
+    loading = false,
+}: {
+    label: string;
+    value: string;
+    valueTone?: "default" | "warning";
+    loading?: boolean;
+}) {
+    return (
+        <div className="card dashboard-card-tight">
+            <div className="dashboard-kpi-label">{label}</div>
+            <div className={`dashboard-kpi-value${valueTone === "warning" ? " dashboard-kpi-value-warning" : ""}`}>
+                {loading ? "--" : value}
+            </div>
+        </div>
+    );
 }
 
 function DeleteModal({
@@ -541,7 +550,7 @@ export default function DashboardPage() {
                                                 <Link
                                                     href={`/dashboard/edit/${building.id}`}
                                                     className="icon-button"
-                                                    aria-label={`Edit ${b.building_name}`}
+                                                    aria-label={`Edit ${building.name}`}
                                                 >
                                                     <PencilIcon />
                                                 </Link>
@@ -562,15 +571,6 @@ export default function DashboardPage() {
                     </div>
                 )}
             </div>
-
-            {deleteTarget && (
-                <DeleteModal
-                    buildingName={deleteTarget.building_name}
-                    onConfirm={() => deleteMutation.mutate(deleteTarget.building_id)}
-                    onCancel={() => setDeleteTarget(null)}
-                    deleting={deleteMutation.isPending}
-                />
-            )}
         </div>
     );
 }
