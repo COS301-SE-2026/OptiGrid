@@ -97,6 +97,17 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/ingestion/requirements.txt
+          pip install -r backend/analytics/requirements.txt
+
       - name: Start Supabase local emulator
         run: |
           if [ ! -f supabase/config.toml ]; then
