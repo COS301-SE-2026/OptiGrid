@@ -374,6 +374,8 @@ Swagger docs basically
 ## 6. Domain Model
 Domain Model of system
 
+![domain model](./images/domain_model.png)
+
 ## 7. Architectural Requirements
 ### 7.1 Quality Requirements
 non-functional requirements essentially
