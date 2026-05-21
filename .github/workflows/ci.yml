@@ -29,17 +29,94 @@ jobs:
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
-      - name: Build
-        run: pnpm --filter @optigrid/frontend run build
-
       - name: Lint
         run: pnpm --filter @optigrid/frontend run lint
 
-      - name: Test
+      - name: Unit Test
         run: pnpm --filter @optigrid/frontend run test
+
+      - name: Build
+        run: pnpm --filter @optigrid/frontend run build
 
   backend-core:
     name: Backend(Core)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: optigrid_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
+
+      - name: Run Prisma schema push
+        run: cd backend/core && pnpm exec prisma db push --accept-data-loss --schema=./prisma/schema.prisma
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
+
+      - name: Start Supabase local emulator
+        run: |
+          if [ ! -f supabase/config.toml ]; then
+            supabase init --yes
+          fi
+          if [ -f supabase/seed.sql ]; then
+            mv supabase/seed.sql supabase/seed.sql.ci.bak
+          fi
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+
+      - name: Export Supabase local auth env vars
+        run: |
+          supabase status -o env > supabase.status.env
+          set -a
+          . ./supabase.status.env
+          set +a
+          echo "SUPABASE_URL=${API_URL}" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=${ANON_KEY}" >> "$GITHUB_ENV"
+
+      - name: lint
+        run: pnpm --filter @optigrid/core run lint
+
+      - name: Unit Test
+        run: pnpm --filter @optigrid/core run test
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
+          SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
+
+      - name: Build
+        run: pnpm --filter @optigrid/core run build
+
+  integration-foundation:
+    name: Integration (Terraform + Auth)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -55,16 +132,49 @@ jobs:
         with:
           version: 10.0.0
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
-      - name: build
-        run: pnpm --filter @optigrid/core run build
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-      - name: lint
-        run: pnpm --filter @optigrid/core run lint
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/ingestion/requirements.txt
+          pip install -r backend/analytics/requirements.txt
 
-      - name: test
-        run: pnpm --filter @optigrid/core run test
+      - name: Start Supabase local emulator
+        run: |
+          if [ ! -f supabase/config.toml ]; then
+            supabase init --yes
+          fi
+          # This repository's supabase/seed.sql targets app tables managed by Prisma test harness, not Supabase local migrations.
+          # Move it out of the way for this CI job so Supabase local Auth can start cleanly.
+          if [ -f supabase/seed.sql ]; then
+            mv supabase/seed.sql supabase/seed.sql.ci.bak
+          fi
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+
+      - name: Export Supabase local auth env vars
+        run: |
+          supabase status -o env > supabase.status.env
+          set -a
+          . ./supabase.status.env
+          set +a
+          echo "SUPABASE_URL=${API_URL}" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=${ANON_KEY}" >> "$GITHUB_ENV"
+
+      - name: Run bottom-up local suite
+        run: pnpm run test:bottom-up:local
