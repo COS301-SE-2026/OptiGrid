@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
 
 const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
 const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
