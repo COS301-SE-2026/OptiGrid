@@ -1,12 +1,15 @@
 
 "use client"
 
-import { createBrowserClient } from "@supabase/ssr";
 import { useEffect, useState, type FormEvent } from "react";
 
 
 export default function AddBuildingPage() {
-  const buildingTypes = ["Office", "Residential", "Industrial"];
+  const buildingTypes = [
+    { label: "Office", value: "Commercial" },
+    { label: "Residential", value: "Residential" },
+    { label: "Industrial", value: "Industrial" },
+  ];
 
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("18:00");
@@ -27,23 +30,6 @@ export default function AddBuildingPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    //we authenticate user before making any reqs to backend
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      window.alert("Authentication is not configured properly. Please contact support.");
-      return;
-    }
-
-    const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
-    const { data: authData } = await supabase.auth.getSession();
-    const userToken = authData.session?.access_token;
-
-    if (!userToken) {
-      window.alert("You must be logged in to create a building.");
-      return;
-    }
 
     const formElement = (e.currentTarget || e.target) as HTMLFormElement;
     const formData = new FormData(formElement);
@@ -82,8 +68,7 @@ export default function AddBuildingPage() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json', 
-          'Idempotency-Key': idempotencyKey ,
-          'Authorization': `Bearer ${userToken}`
+          'Idempotency-Key': idempotencyKey
         },
         body: JSON.stringify(buildingPayload),
         credentials: 'include',
@@ -166,8 +151,8 @@ return (
             >
               <option value="">Select type</option>
               {buildingTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
+                <option key={type.value} value={type.value}>
+                  {type.label}
                 </option>
               ))}
             </select>
