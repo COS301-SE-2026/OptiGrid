@@ -1,21 +1,15 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-// Ensure component sees supabase env and use a mocked client during tests
-process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.local";
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
-
-// Mock the supabase browser client before importing the component
-jest.mock("@supabase/ssr", () => ({
-  createBrowserClient: () => ({
-    auth: {
-      getSession: async () => ({ data: { session: { access_token: "test-token" } } }),
-    },
-  }),
-}));
 
 import AddBuildingPage from "./page";
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    refresh: jest.fn(),
+  }),
+}));
 
 // Use the native FormData implementation provided by JSDOM in tests
 
@@ -25,8 +19,6 @@ beforeAll(() => {
   jest.spyOn(console, "log").mockImplementation(() => {});
 
   (global as any).fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.local";
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
 });
 
 afterAll(() => {
@@ -95,13 +87,18 @@ describe("AddBuildingPage", () => {
   });
 
   describe("Building Type dropdown", () => {
-    it("renders all three building type options", () => {
+    it("renders all building type values", () => {
       render(<AddBuildingPage />);
       const select = getField("building_type") as HTMLSelectElement;
       const options = Array.from(select.options).map((o) => o.value);
-      expect(options).toContain("Office");
       expect(options).toContain("Residential");
+      expect(options).toContain("Commercial");
       expect(options).toContain("Industrial");
+      expect(options).toContain("Healthcare");
+      expect(options).toContain("Construction");
+      expect(options).toContain("Mixed_Use");
+      expect(options).toContain("ShoppingCentre");
+      expect(options).toContain("Other");
     });
 
     it("has a default empty 'Select type' placeholder option", () => {
@@ -113,8 +110,8 @@ describe("AddBuildingPage", () => {
 
     it("updates value when a type is selected", () => {
       render(<AddBuildingPage />);
-      fireEvent.change(getField("building_type"), { target: { value: "Office" } });
-      expect((getField("building_type") as HTMLSelectElement).value).toBe("Office");
+      fireEvent.change(getField("building_type"), { target: { value: "Commercial" } });
+      expect((getField("building_type") as HTMLSelectElement).value).toBe("Commercial");
     });
   });
 
@@ -179,7 +176,7 @@ describe("AddBuildingPage", () => {
       render(<AddBuildingPage />);
       fillField("building_name", "building A");
       fillField("physical_address", "123 build");
-      fireEvent.change(getField("building_type"), { target: { value: "Office" } });
+      fireEvent.change(getField("building_type"), { target: { value: "Commercial" } });
       fillField("square_footage", "5000");
       fillField("max_occupancy", "200");
 
@@ -192,7 +189,7 @@ describe("AddBuildingPage", () => {
       render(<AddBuildingPage />);
       fillField("building_name", "building A");
       fillField("physical_address", "123 build");
-      fireEvent.change(getField("building_type"), { target: { value: "Office" } });
+      fireEvent.change(getField("building_type"), { target: { value: "Commercial" } });
       fillField("square_footage", "5000");
       fillField("max_occupancy", "200");
       submitForm();
@@ -202,7 +199,7 @@ describe("AddBuildingPage", () => {
         expect.objectContaining({
           building_name: "building A",
           physical_address: "123 build",
-          building_type: "Office",
+          building_type: "Commercial",
           square_footage: "5000",
           max_occupancy: "200",
           operatingHours: { start: "08:00", end: "18:00" },

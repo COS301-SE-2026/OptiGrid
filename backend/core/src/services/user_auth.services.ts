@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import { hashPassword } from '../lib/password';
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 import { Prisma } from '@prisma/client';
 
 const USER_EXISTS_ERROR = 'User already exists, please login instead.';
@@ -40,6 +41,9 @@ function getSupabaseAdminClient() {
             autoRefreshToken: false,
             persistSession: false,
         },
+        realtime: {
+            transport: ws,
+        },
     });
 }
 
@@ -55,6 +59,9 @@ function getSupabaseAuthClient() {
         auth: {
             autoRefreshToken: false,
             persistSession: false,
+        },
+        realtime: {
+            transport: ws,
         },
     });
 }
@@ -282,6 +289,10 @@ export const login = async (email: string, password: string) => {
     if (!userId) {
         throw new Error('Failed to authenticate user: missing user id.');
     }
+    const accessToken = data.session?.access_token;
+    if (!accessToken) {
+        throw new Error('Failed to authenticate user: missing access token.');
+    }
 
     // Resolve app profile by the authenticated Supabase user id.
     const user = await prisma.user.findUnique({
@@ -298,5 +309,8 @@ export const login = async (email: string, password: string) => {
         throw new Error('Authenticated user profile not found.');
     }
 
-    return user;
+    return {
+        user,
+        accessToken,
+    };
 };

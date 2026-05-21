@@ -1,21 +1,22 @@
 import time
 import schedule
 import logging
-from supabase import create_client, Client
-from backend.analytics.src.config import SUPABASE_URL, SUPABASE_KEY
+from typing import Optional
 from backend.analytics.src.core_engine import AnalyticsEngine
-from datetime import datetime
 
 #configuring logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-engine = AnalyticsEngine()
+engine: Optional[AnalyticsEngine] = None
 
 #run analytics engine for each building periodically (in this case hourly)
 def run_analytics_batch():
+    global engine
     logger.info("Starting Analytics Batch Job")
     try:
+        if engine is None:
+            engine = AnalyticsEngine()
         #process all buildings, fetches data, calcs metrics, stores it
         engine.process_all_buildings()
     except Exception as e:

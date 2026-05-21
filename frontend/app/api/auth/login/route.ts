@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 const CORE_URL = process.env.CORE_URL ?? "http://localhost:4000";
 const SESSION_COOKIE_NAME = "optigrid_session";
+const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
 type LoginBody = {
@@ -51,6 +52,17 @@ export async function POST(request: Request) {
 				JSON.stringify({ userId, email: emailValue, firstName, lastName })
 			);
 			response.cookies.set(SESSION_COOKIE_NAME, sessionPayload, {
+				httpOnly: true,
+				secure: process.env.NODE_ENV === "production",
+				sameSite: "lax",
+				path: "/",
+				maxAge: SESSION_MAX_AGE_SECONDS,
+			});
+		}
+
+		const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
+		if (coreResponse.ok && accessToken) {
+			response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, accessToken, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === "production",
 				sameSite: "lax",

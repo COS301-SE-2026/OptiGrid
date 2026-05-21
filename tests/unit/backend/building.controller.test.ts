@@ -46,7 +46,7 @@ const compareBuildingsController = (buildingControllerModule as any).compareBuil
 
 describe('Building Controller', () => {
 	const mockUserId = 'user-123';
-	const mockTenantId = 'tenant-123';
+	const mockTenantId = '11111111-1111-4111-8111-111111111111';
 	const mockIdempotencyKey = 'idempotency-key-123';
 	const mockBuildingId = 'building-123';
 

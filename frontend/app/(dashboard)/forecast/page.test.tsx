@@ -133,4 +133,30 @@ describe("ForecastPage", () => {
         expect(screen.getByText(/MAPE 4.8%/)).toBeInTheDocument();
         expect(screen.getByText("95% interval")).toBeInTheDocument();
     });
+
+    it("renders real KPI values after fetching from the API", async () => {
+    const mockApiResponse = {
+        historical: [{ timestamp: "2026-05-20T23:16:06.839Z", kwh: 120.2 }],
+        forecast: [{ timestamp: "2026-05-21T12:00:00Z", yhat: 300, yhat_lower: 290, yhat_upper: 310 }],
+        summary: {
+            peak_kwh: 350.5,
+            peak_timestamp: "2026-05-20T23:16:06.839Z",
+            avg_daily_kwh: 120.2,
+            mape: 2.1
+        }
+    };
+
+    setupQueries();
+    setupMutation({ data: mockApiResponse });
+    render(<ForecastPage />);
+
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText(/building/i), "1");
+    await user.click(screen.getByRole("button", { name: /run forecast/i }));
+
+    //assert
+    expect(await screen.findByText(/350\.5 kWh/)).toBeInTheDocument();
+    expect(await screen.findByText(/120\.2 kWh/)).toBeInTheDocument();
+    expect(await screen.findByText(/MAPE 2\.1%/)).toBeInTheDocument();
+});
 });

@@ -1,16 +1,41 @@
 
 "use client"
 
-import { createBrowserClient } from "@supabase/ssr";
 import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AddBuildingPage() {
-  const buildingTypes = ["Office", "Residential", "Industrial"];
+  const router = useRouter();
+  const buildingTypes = [
+    { label: "Residential", value: "Residential" },
+    { label: "Commercial", value: "Commercial" },
+    { label: "Industrial", value: "Industrial" },
+    { label: "Healthcare", value: "Healthcare" },
+    { label: "Construction", value: "Construction" },
+    { label: "Mixed Use", value: "Mixed_Use" },
+    { label: "Shopping Centre", value: "ShoppingCentre" },
+    { label: "Other", value: "Other" },
+  ];
 
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("18:00");
 
-  useEffect(() => {
+  const toPositiveNumberOrUndefined = (value: FormDataEntryValue | null) => {
+    if (value === null) {
+      return undefined;
+    }
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      return undefined;
+    }
+
+    return numericValue;
+  };
+
+
+
+   useEffect(() => {
     const inter = document.createElement("link");
     inter.rel = "stylesheet";
     inter.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap";
@@ -60,8 +85,8 @@ export default function AddBuildingPage() {
       building_name: String(data.building_name || "").trim(),
       physical_address: String(data.physical_address || "").trim() || undefined,
       building_type: String(data.building_type || "") || undefined,
-      square_footage: formData.get("square_footage") ? Number(formData.get("square_footage")) : undefined,
-      max_occupancy: formData.get("max_occupancy") ? Number(formData.get("max_occupancy")) : undefined,
+      square_footage: toPositiveNumberOrUndefined(formData.get("square_footage")),
+      max_occupancy: toPositiveNumberOrUndefined(formData.get("max_occupancy")),
       timezone: "UTC",
     };
     Object.keys(buildingPayload).forEach((k) => buildingPayload[k] === undefined && delete buildingPayload[k]);
@@ -82,11 +107,19 @@ export default function AddBuildingPage() {
           if (resp.ok) {
             window.alert("Building created successfully");
             formElement.reset();
-            setStartTime("08:00");
-            setEndTime("18:00");
-          } else {
+            setStartTime('08:00');
+            setEndTime('18:00');
+            router.push('/dashboard');
+            router.refresh();
+          } 
+          //error case
+          else {
             const body = await resp.json().catch(() => ({}));
-            window.alert(`Error: ${body?.message || "Failed to create building"}`);
+            const detailMessage =
+              Array.isArray(body?.details) && body.details[0]?.message
+                ? body.details[0].message
+                : undefined;
+            window.alert(`Error: ${detailMessage || body?.message || 'Failed to create building'}`);
           }
         })
         .catch(() => window.alert("Network error while creating building"));
@@ -133,6 +166,7 @@ export default function AddBuildingPage() {
               name="physical_address"
               rows={3}
               required
+              minLength={5}
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C] resize-none"
             />
@@ -151,8 +185,8 @@ export default function AddBuildingPage() {
             >
               <option value="" disabled>Select building type</option>
               {buildingTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
+                <option key={type.value} value={type.value}>
+                  {type.label}
                 </option>
               ))}
             </select>
@@ -210,7 +244,38 @@ export default function AddBuildingPage() {
             </div>
           </div>
 
-          <div className="md:col-span-2 flex justify-end pt-4">
+<div className="flex flex-col gap-2">
+            <label style={bodyFont} className="text-sm text-[#4D869C]">
+              Square Footage
+            </label>
+            <input
+              type="number"
+              name="square_footage"
+              required
+              min={1}
+              step={1}
+              style={bodyFont}
+              className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
+            />
+          </div>
+
+<div className="flex flex-col gap-2">
+            <label style={bodyFont} className="text-sm text-[#4D869C]">
+              Number of Occupants
+            </label>
+            <input
+              type="number"
+              name="max_occupancy"
+              required
+              min={1}
+              step={1}
+              style={bodyFont}
+              className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
+            />
+          </div>
+
+
+<div className="md:col-span-2 flex justify-end pt-4">
             <button
               type="submit"
               style={headingFont}
