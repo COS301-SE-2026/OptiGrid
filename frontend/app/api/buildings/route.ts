@@ -41,9 +41,6 @@ function getForwardHeaders(request: Request, includeContentType = false): Header
 	}
 	if (cookie) headers.set("Cookie", cookie);
 
-	const idempotencyKey = request.headers.get("idempotency-key");
-	if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
-
 	if (includeContentType) {
 		headers.set("Content-Type", "application/json");
 	}
@@ -91,6 +88,13 @@ export async function POST(request: Request) {
 			{ status: 401 },
 		);
 	}
+
+	const incomingKey = request.headers.get("idempotency-key");
+	const idempotencyKey = incomingKey?.trim() ||
+		(typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+			? `create-building-${crypto.randomUUID()}`
+			: `create-building-${Date.now()}-${Math.random()}`);
+	headers.set("Idempotency-Key", idempotencyKey);
 
 	try {
 		const coreResponse = await fetch(`${CORE_URL}/api/buildings`, {
