@@ -95,6 +95,91 @@ const router = Router();
  *                   example: Internal server error
  */
 router.post('/signup', validateSignUp(signupSchema), signup);
+
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Login a user
+ *     description: Authenticates a user with email and password, returns user information
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *                 description: User's email address
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: SecurePass123!
+ *                 description: User's password
+ *             required:
+ *               - email
+ *               - password
+ *           examples:
+ *             valid:
+ *               value:
+ *                 email: "user@example.com"
+ *                 password: "SecurePass123!"
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Login successful
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                       format: uuid
+ *                       description: Unique user identifier
+ *                     email:
+ *                       type: string
+ *                       description: User's email address
+ *                     firstName:
+ *                       type: string
+ *                       description: User's first name
+ *                     lastName:
+ *                       type: string
+ *                       description: User's last name
+ *                     token:
+ *                       type: string
+ *                       description: JWT authentication token for subsequent requests
+ *       400:
+ *         description: Invalid credentials or missing email/password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invalid email or password
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ */
 router.post('/login', login)
 
 export default router;
