@@ -3,8 +3,8 @@ import { Request, Response } from 'express';
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	__esModule: true,
 	default: {
-		userBuildingAccess: {
-			findFirst: jest.fn(),
+		building: {
+			findMany: jest.fn(),
 		},
 		$queryRaw: jest.fn(),
 	},
@@ -14,8 +14,8 @@ import prisma from '../../../backend/core/src/lib/prisma';
 import { getForecastController } from '../../../backend/core/src/controllers/analytics.controller';
 
 const mockedPrisma = prisma as unknown as {
-	userBuildingAccess: {
-		findFirst: jest.Mock;
+	building: {
+		findMany: jest.Mock;
 	};
 	$queryRaw: jest.Mock;
 };
@@ -42,7 +42,7 @@ describe('Analytics Controller', () => {
 			json: jest.fn(),
 		} as unknown as Response;
 
-		mockedPrisma.userBuildingAccess.findFirst.mockResolvedValue(null);
+		mockedPrisma.building.findMany.mockResolvedValue([]);
 
 		await getForecastController(req, res);
 
@@ -70,20 +70,21 @@ describe('Analytics Controller', () => {
 			json: jest.fn(),
 		} as unknown as Response;
 
-		mockedPrisma.userBuildingAccess.findFirst.mockResolvedValue({
-			user_id: 'user-123',
-			building_id: '11111111-1111-4111-8111-111111111111',
-		});
-		mockedPrisma.$queryRaw.mockResolvedValue([
-			{
-				todays_usage: 150.5,
-				forecast_peak: 350.5,
-				forecast_avg_day: 120.2,
-				model_mape: 2.1,
-				forecast_series: [{ timestamp: '2026-05-21T12:00:00Z', predicted_usage: 300 }],
-				updated_at: '2026-05-20T23:16:06.839Z',
-			},
+		mockedPrisma.building.findMany.mockResolvedValue([
+			{ building_id: '11111111-1111-4111-8111-111111111111' },
 		]);
+		mockedPrisma.$queryRaw
+			.mockResolvedValueOnce([])
+			.mockResolvedValueOnce([
+				{
+					todays_usage: 150.5,
+					forecast_peak: 350.5,
+					forecast_avg_day: 120.2,
+					model_mape: 2.1,
+					forecast_series: [{ timestamp: '2026-05-21T12:00:00Z', predicted_usage: 300 }],
+					updated_at: '2026-05-20T23:16:06.839Z',
+				},
+			]);
 
 		await getForecastController(req, res);
 
@@ -126,11 +127,11 @@ describe('Analytics Controller', () => {
 
 		await getForecastController(req, res);
 
-		expect(mockedPrisma.userBuildingAccess.findFirst).not.toHaveBeenCalled();
+		expect(mockedPrisma.building.findMany).not.toHaveBeenCalled();
 		expect(res.status).toHaveBeenCalledWith(400);
 		expect(res.json).toHaveBeenCalledWith({
 			status: 'error',
-			message: 'Building ID must be a valid UUID.',
+			message: 'Building ID must be a valid UUID or legacy building id.',
 		});
 	});
 });
