@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
 const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
+const SESSION_COOKIE_NAME = "optigrid_session";
 
 type BuildingPayload = Record<string, unknown>;
 
@@ -27,14 +28,17 @@ function getForwardHeaders(request: Request, includeContentType = false): Header
 	const authorization = request.headers.get("authorization");
 	const cookie = request.headers.get("cookie");
 	const accessTokenFromCookie = readCookieValue(cookie, ACCESS_TOKEN_COOKIE_NAME);
+	const sessionCookie = readCookieValue(cookie, SESSION_COOKIE_NAME);
 	const resolvedAuthorizationHeader =
 		authorization || (accessTokenFromCookie ? `Bearer ${accessTokenFromCookie}` : null);
 
-	if (!resolvedAuthorizationHeader) {
+	if (!resolvedAuthorizationHeader && !sessionCookie) {
 		return null;
 	}
 
-	headers.set("Authorization", resolvedAuthorizationHeader);
+	if (resolvedAuthorizationHeader) {
+		headers.set("Authorization", resolvedAuthorizationHeader);
+	}
 	if (cookie) headers.set("Cookie", cookie);
 
 	const idempotencyKey = request.headers.get("idempotency-key");
