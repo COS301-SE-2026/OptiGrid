@@ -473,7 +473,13 @@ These requirements define the system's performance, security, and operational st
 ![System Architecture Diagram](images/Architecture_Diagram.png)
 
 ### 8.3 Design Patterns
-design patterns used in the project
+
+* **Chain of Responsibility:** * Used within the Express `app.ts` to manage request flow.
+    * Requests pass through a sequential chain of middleware (e.g., `express.json()`, `auth middleware`) where each component processes the request and calls `next()` to pass control to the subsequent handler.
+
+* **Singleton:** * Implemented in `lib/prisma.ts` and `lib/redis.ts` to manage shared resources.
+    * Ensures that only one instance of the database client or Redis connection exists throughout the application's lifecycle.
+    * In development environments, the instance is attached to the `global` object to prevent the creation of multiple connections during hot-reloads, ensuring resource efficiency and stability.
 
 ### 8.4 Constraints
 Constraints for the project
