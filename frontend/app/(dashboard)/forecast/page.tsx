@@ -485,35 +485,11 @@ export default function ForecastPage() {
                                 <span
                                     style={{
                                         width: 16,
-                                        height: 2,
-                                        background: "var(--brand-primary)",
-                                        display: "inline-block",
-                                    }}
-                                />
-                                Actual
-                            </span>
-                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span
-                                    style={{
-                                        width: 16,
                                         borderTop: "2px dashed var(--brand-primary)",
                                         display: "inline-block",
                                     }}
                                 />
                                 Predicted
-                            </span>
-                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span
-                                    style={{
-                                        width: 16,
-                                        height: 10,
-                                        borderRadius: 4,
-                                        background:
-                                            "color-mix(in srgb, var(--brand-primary) 18%, transparent)",
-                                        display: "inline-block",
-                                    }}
-                                />
-                                95% interval
                             </span>
                         </div>
 
