@@ -22,11 +22,27 @@ import { createBuildingController } from '../../../backend/core/src/controllers/
 import { createBuilding } from '../../../backend/core/src/services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
 import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
+import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
+import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
+import { deleteBuildingController } from '../../../backend/core/src/controllers/building.controller';
+import { deleteBuildingService } from '../../../backend/core/src/services/building.services'
+import { deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
 
 const mockedCreateBuilding = createBuilding as jest.MockedFunction<typeof createBuilding>;
 const mockedCheckIdempotencyKey = checkIdempotencyKey as jest.MockedFunction<typeof checkIdempotencyKey>;
 const mockedSaveIdempotencyKey = saveIdempotencyKey as jest.MockedFunction<typeof saveIdempotencyKey>;
 const mockedCreateBuildingSchema = createBuildingSchema as jest.Mocked<typeof createBuildingSchema>;
+const mockedCompareBuildingsService = (buildingServicesModule as any).compareBuildingsService as jest.Mock;
+const mockedDeleteBuildingService = deleteBuildingService as jest.MockedFunction<typeof deleteBuildingService>;
+const mockedDeleteBuildingSchema = deleteBuildingSchema as any;
+const mockedCompareBuildingsSchema = (buildingValidationModule as any).compareBuildingsSchema as {
+	parse: jest.Mock;
+};
+const compareBuildingsController = (buildingControllerModule as any).compareBuildingsController as (
+	req: Request,
+	res: Response,
+) => Promise<void>;
 
 describe('Building Controller', () => {
 	const mockUserId = 'user-123';
@@ -392,6 +408,313 @@ describe('Building Controller', () => {
 						status: 'success',
 					}),
 				);
+			});
+		});
+
+		describe('compareBuildingsController', () => {
+			it('should_return_200_with_comparison_payload_and_save_idempotent_response', async () => {
+				//arrange
+				const validatedQuery = {
+					building_id_a: '11111111-1111-1111-1111-111111111111',
+					building_id_b: '22222222-2222-2222-2222-222222222222',
+					time_range: '30d',
+				};
+				const comparisonPayload = {
+					buildingA: {
+						building_id: validatedQuery.building_id_a,
+						eui: 5,
+					},
+					buildingB: {
+						building_id: validatedQuery.building_id_b,
+						eui: 2,
+					},
+					mostEfficient: validatedQuery.building_id_b,
+				};
+				const req = {
+					user: {
+						id: mockUserId,
+						user_metadata: {
+							tenant_id: mockTenantId,
+						},
+					},
+					headers: {
+						'idempotency-key': mockIdempotencyKey,
+					},
+					query: validatedQuery,
+				} as any;
+				const res = {
+					status: jest.fn().mockReturnThis(),
+					json: jest.fn(),
+				} as any;
+				mockedCompareBuildingsSchema.parse = jest.fn().mockReturnValue(validatedQuery);
+				mockedCheckIdempotencyKey.mockResolvedValue(null);
+				mockedCompareBuildingsService.mockResolvedValue(comparisonPayload);
+				mockedSaveIdempotencyKey.mockResolvedValue(undefined);
+
+				//act
+				await compareBuildingsController(req, res);
+
+				//assert
+				expect(res.status).toHaveBeenCalledWith(200);
+				expect(res.json).toHaveBeenCalledWith({
+					status: 'success',
+					data: comparisonPayload,
+				});
+				expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(
+					mockIdempotencyKey,
+					expect.objectContaining({
+						status: 'success',
+						data: comparisonPayload,
+					}),
+				);
+			});
+
+			it('should_return_200_with_cached_response_and_not_call_service', async () => {
+				//arrange
+				const cachedResponse = {
+					status: 'success',
+					data: {
+						buildingA: { building_id: '11111111-1111-1111-1111-111111111111', eui: 4 },
+						buildingB: { building_id: '22222222-2222-2222-2222-222222222222', eui: 3 },
+						mostEfficient: '22222222-2222-2222-2222-222222222222',
+					},
+				};
+				const req = {
+					user: {
+						id: mockUserId,
+						user_metadata: {
+							tenant_id: mockTenantId,
+						},
+					},
+					headers: {
+						'idempotency-key': mockIdempotencyKey,
+					},
+					query: {
+						building_id_a: '11111111-1111-1111-1111-111111111111',
+						building_id_b: '22222222-2222-2222-2222-222222222222',
+						time_range: '7d',
+					},
+				} as any;
+				const res = {
+					status: jest.fn().mockReturnThis(),
+					json: jest.fn(),
+				} as any;
+				mockedCheckIdempotencyKey.mockResolvedValue(cachedResponse as any);
+
+				//act
+				await compareBuildingsController(req, res);
+
+				//assert
+				expect(res.status).toHaveBeenCalledWith(200);
+				expect(res.json).toHaveBeenCalledWith(cachedResponse);
+				expect(mockedCompareBuildingsService).not.toHaveBeenCalled();
+				expect(mockedSaveIdempotencyKey).not.toHaveBeenCalled();
+			});
+
+			it('should_return_400_when_idempotency_key_header_is_missing', async () => {
+				//arrange
+				const req = {
+					user: {
+						id: mockUserId,
+						user_metadata: {
+							tenant_id: mockTenantId,
+						},
+					},
+					headers: {},
+					query: {
+						building_id_a: '11111111-1111-1111-1111-111111111111',
+						building_id_b: '22222222-2222-2222-2222-222222222222',
+						time_range: '30d',
+					},
+				} as any;
+
+				const res = {
+					status: jest.fn().mockReturnThis(),
+					json: jest.fn(),
+				} as any;
+
+				mockedCheckIdempotencyKey.mockResolvedValue(null);
+
+				//act
+				await compareBuildingsController(req, res);
+
+				//assert
+				expect(res.status).toHaveBeenCalledWith(400);
+				expect(res.json).toHaveBeenCalledWith({
+					status: 'error',
+					message: 'Idempotency-Key header is required',
+				});
+				expect(mockedCompareBuildingsService).not.toHaveBeenCalled();
+			});
+
+			it('should_return_401_when_user_is_missing', async () => {
+				//arrange
+				const req = {
+					user: null,
+					headers: {
+						'idempotency-key': mockIdempotencyKey,
+					},
+					query: {
+						building_id_a: '11111111-1111-1111-1111-111111111111',
+						building_id_b: '22222222-2222-2222-2222-222222222222',
+						time_range: '30d',
+					},
+				} as any;
+				const res = {
+					status: jest.fn().mockReturnThis(),
+					json: jest.fn(),
+				} as any;
+
+				//act
+				await compareBuildingsController(req, res);
+
+				//assert
+				expect(res.status).toHaveBeenCalledWith(401);
+				expect(res.json).toHaveBeenCalledWith({
+					status: 'error',
+					message: 'Unauthorized',
+				});
+				expect(mockedCheckIdempotencyKey).not.toHaveBeenCalled();
+				expect(mockedCompareBuildingsService).not.toHaveBeenCalled();
+			});
+
+			it('should_return_500_when_compare_service_throws_unexpected_error', async () => {
+				//arrange
+				const validatedQuery = {
+					building_id_a: '11111111-1111-1111-1111-111111111111',
+					building_id_b: '22222222-2222-2222-2222-222222222222',
+					time_range: '30d',
+				};
+
+				const req = {
+					user: {
+						id: mockUserId,
+						user_metadata: {
+							tenant_id: mockTenantId,
+						},
+					},
+					headers: {
+						'idempotency-key': mockIdempotencyKey,
+					},
+					query: validatedQuery,
+				} as any;
+				const res = {
+					status: jest.fn().mockReturnThis(),
+					json: jest.fn(),
+				} as any;
+				mockedCompareBuildingsSchema.parse = jest.fn().mockReturnValue(validatedQuery);
+				mockedCheckIdempotencyKey.mockResolvedValue(null);
+				mockedCompareBuildingsService.mockRejectedValue(new Error('Unexpected failure'));
+
+				//act
+				await compareBuildingsController(req, res);
+
+				//assert
+				expect(res.status).toHaveBeenCalledWith(500);
+				expect(res.json).toHaveBeenCalledWith({
+					status: 'error',
+					message: 'Internal server error',
+				});
+				expect(mockedSaveIdempotencyKey).not.toHaveBeenCalled();
+			});
+		});
+	});
+	describe('deleteBuildingController', () => {
+		const mockUserId = 'user-123';
+		const mockIdempotencyKey = 'test-idempotency-key';
+		let req: any;
+		let res: any;
+
+		beforeEach(() => {
+			res = {
+				status: jest.fn().mockReturnThis(),
+				json: jest.fn(),
+			};
+			// Reset jest modules
+			jest.clearAllMocks();
+		});
+
+		it('should return 401 Unauthorized if request contains no user session data', async () => {
+			req = {
+				user: null, // No user session
+				headers: { 'idempotency-key': mockIdempotencyKey },
+				params: { building_id: 'building-003' },
+			};
+
+			await deleteBuildingController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(401);
+			expect(res.json).toHaveBeenCalledWith({ status: 'error', message: 'Unauthorized' });
+		});
+
+		it('should return 400 if Idempotency-Key header is completely missing', async () => {
+			req = {
+				user: { id: mockUserId },
+				headers: {}, // Missing key header
+				params: { building_id: 'building-003' },
+			};
+
+			await deleteBuildingController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(400);
+			expect(res.json).toHaveBeenCalledWith({ status: 'error', message: 'Idempotency-Key header is required' });
+		});
+
+		it('should return 200 and cached response if Idempotency Key is found in Redis cache', async () => {
+			req = {
+				user: { id: mockUserId },
+				headers: { 'idempotency-key': mockIdempotencyKey },
+				params: { building_id: 'building-003' },
+			};
+			
+			const cachedResponse = { status: 'success', message: 'Building successfully deleted (cached)' };
+			mockedCheckIdempotencyKey.mockResolvedValue(cachedResponse);
+
+			await deleteBuildingController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(res.json).toHaveBeenCalledWith(cachedResponse);
+			expect(mockedDeleteBuildingService).not.toHaveBeenCalled();
+		});
+
+		it('should successfully call service layer and return 200 on successful deletion pass', async () => {
+			req = {
+				user: { id: mockUserId },
+				headers: { 'idempotency-key': mockIdempotencyKey },
+				params: { building_id: 'building-003' },
+			};
+
+			mockedCheckIdempotencyKey.mockResolvedValue(null); // Not in cache
+			mockedDeleteBuildingSchema.parse.mockReturnValue({ building_id: 'building-003' });
+			mockedDeleteBuildingService.mockResolvedValue(undefined); // Deletion matches
+
+			await deleteBuildingController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'success',
+				message: 'Building successfully deleted',
+			});
+			expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(mockIdempotencyKey, expect.any(Object));
+		});
+
+		it('should return 403 if the service layer throws an Access Denied violation error', async () => {
+			req = {
+				user: { id: mockUserId },
+				headers: { 'idempotency-key': mockIdempotencyKey },
+				params: { building_id: 'building-003' },
+			};
+
+			mockedCheckIdempotencyKey.mockResolvedValue(null);
+			mockedDeleteBuildingSchema.parse.mockReturnValue({ building_id: 'building-003' });
+			mockedDeleteBuildingService.mockRejectedValue(new Error('Access Denied: User has no permission'));
+
+			await deleteBuildingController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(403);
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'error',
+				message: 'Access Denied: User has no permission',
 			});
 		});
 	});

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/user_auth.services';
-import { comparePass } from '../lib/password';
 
 export const signup = async (req: Request, res: Response) => {
     try {

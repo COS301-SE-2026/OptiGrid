@@ -1,10 +1,17 @@
 import Redis from 'ioredis';
 
+const testRedisStore = new Map<string, string>();
+
 const createRedisClient = () => ({
-    get: async () => null,
-    set: async () => 'OK',
+    get: async (key: string) => testRedisStore.get(key) ?? null,
+    set: async (key: string, value: string) => {
+        testRedisStore.set(key, value);
+        return 'OK';
+    },
     on: () => undefined,
-    quit: async () => undefined,
+    quit: async () => {
+        testRedisStore.clear();
+    },
 });
 
 export const redis = process.env.NODE_ENV === 'test'

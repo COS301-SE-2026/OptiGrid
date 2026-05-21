@@ -1,0 +1,61 @@
+services:
+  core:
+    image: node:20-alpine
+    restart: unless-stopped
+    working_dir: /workspace
+    ports:
+      - "${CORE_PORT:-4000}:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      INFLUXDB_URL: ${INFLUXDB_URL}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+    volumes:
+      - ./workspace:/workspace
+    command: >-
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@10.0.0 --activate &&
+      pnpm install --no-frozen-lockfile --ignore-scripts &&
+      pnpm --filter @optigrid/core run db:generate &&
+      pnpm --filter @optigrid/core run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:4000/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 240s
+
+  frontend:
+    image: node:20-alpine
+    restart: unless-stopped
+    working_dir: /workspace
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: development
+      CORE_URL: http://core:4000
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "1"
+    volumes:
+      - ./workspace:/workspace
+    command: >-
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@10.0.0 --activate &&
+      pnpm install --no-frozen-lockfile --ignore-scripts &&
+      pnpm --filter @optigrid/frontend run dev -p 3000 -H 0.0.0.0"
+    depends_on:
+      core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+

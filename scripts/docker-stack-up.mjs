@@ -10,6 +10,7 @@ const env = {
   databaseUrl: process.env.DATABASE_URL,
   supabaseUrl: process.env.SUPABASE_URL ?? "https://example.supabase.co",
   supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "dummy",
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "dummy",
   influxUrl: process.env.INFLUXDB_URL ?? "http://example-influx:8086",
   influxToken: process.env.INFLUXDB_TOKEN ?? "dummy",
   influxOrg: process.env.INFLUXDB_ORG ?? "optigrid",
@@ -96,6 +97,11 @@ if (!env.databaseUrl) {
   process.exit(1);
 }
 
+if (!process.env.SUPABASE_ANON_KEY) {
+  console.error("Missing SUPABASE_ANON_KEY. Set it in your shell or env file before running the stack.");
+  process.exit(1);
+}
+
 const compose = readFileSync(composeProd, "utf8").replaceAll("YOUR_GITHUB_USERNAME", "local");
 mkdirSync(generatedDir, { recursive: true });
 writeFileSync(composeLocal, compose);
@@ -111,6 +117,7 @@ writeFileSync(
     `DATABASE_URL=${env.databaseUrl}`,
     `SUPABASE_URL=${env.supabaseUrl}`,
     `SUPABASE_SERVICE_ROLE_KEY=${env.supabaseKey}`,
+    `SUPABASE_ANON_KEY=${env.supabaseAnonKey}`,
     `INFLUXDB_URL=${env.influxUrl}`,
     `INFLUXDB_TOKEN=${env.influxToken}`,
     `INFLUXDB_ORG=${env.influxOrg}`,

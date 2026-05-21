@@ -33,6 +33,12 @@ enum BuildingType {
   Other
 }
 
+enum SensorStatus {
+  Active
+  Offline
+  Maintenance
+}
+
 // All the models for db tables are made here
 model User {
   userId         String          @id @map("user_id") @db.Uuid
@@ -83,6 +89,7 @@ model Building {
   // Relations with other tables
   tenant           Tenant?               @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
   authorized_users UserBuildingAccess[]
+  sensors          Sensor[]
 
   @@index([tenant_id])
   @@map("buildings")
@@ -99,4 +106,38 @@ model UserBuildingAccess {
 
   @@unique([user_id, building_id])
   @@map("user_building_access")
+}
+
+model Sensor {
+  sensor_id      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  building_id    String?       @db.Uuid
+  mac_address    String        @unique @db.VarChar(50)
+  sensor_type    String?       @db.VarChar(100)
+  unit           String?       @default("kWh") @db.VarChar(50)
+  location_zone  String?       @db.VarChar(100)
+  status         SensorStatus? @default(Active)
+  installed_date DateTime?     @default(now()) @db.Date
+  created_at     DateTime?     @default(now()) @db.Timestamptz
+  updated_at     DateTime?     @default(now()) @db.Timestamptz
+
+  // Relations
+  building       Building?     @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@index([building_id])
+  @@map("sensors")
+}
+
+model BuildingAnalytics {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  building_id      String   @db.VarChar(255)
+  todays_usage     Float?
+  forecast_peak    Float?
+  forecast_avg_day Float?
+  model_mape       Float?
+  forecast_series  Json?    @db.JsonB
+  updated_at       DateTime @default(now()) @db.Timestamptz
+
+  @@unique([building_id])
+  @@index([building_id])
+  @@map("building_analytics")
 }

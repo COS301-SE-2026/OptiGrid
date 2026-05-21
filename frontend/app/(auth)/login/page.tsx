@@ -1,5 +1,9 @@
 "use client";
 
+import { useEffect, useState, type ChangeEvent, type SyntheticEvent } from "react";
+import { Card, Title, TextInput, Button } from "@tremor/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     useEffect,
     useState,
@@ -12,18 +16,47 @@ import { getLoginError, initialLoginFormData, type LoginFormData } from "./valid
 
 export default function LoginPage() {
     const router = useRouter();
-    const [formData, setFormData] = useState<LoginFormData>(initialLoginFormData);
+    const [isClientReady, setIsClientReady] = useState(false);
+    const [formData, setFormData] = useState<LoginFormData>(
+        initialLoginFormData
+    );
+
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("loggedOut") === "1") setNotice("You have been logged out.");
-        else if (params.get("signup") === "success") setNotice("Account created. Please log in.");
-        const emailParam = params.get("email");
-        if (emailParam) setFormData((p) => ({ ...p, email: p.email || emailParam }));
+        setIsClientReady(true);
+
+        const query = new URLSearchParams(window.location.search);
+        const signupState = query.get("signup");
+        const loggedOut = query.get("loggedOut");
+        const emailFromQuery = query.get("email");
+
+        if (signupState === "success") {
+            setSuccess("Account created successfully. Please log in.");
+        } else if (loggedOut === "1") {
+            setSuccess("You have been logged out.");
+        }
+
+        if (emailFromQuery) {
+            setFormData((previous) => ({
+                ...previous,
+                email: previous.email || emailFromQuery,
+            }));
+        }
     }, []);
+
+    if (!isClientReady) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+                <Card className="w-full max-w-md space-y-6 p-6">
+                    <Title>Login</Title>
+                    <p className="text-sm text-gray-600">Preparing sign-in form...</p>
+                </Card>
+            </div>
+        );
+    }
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -43,9 +76,18 @@ export default function LoginPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
             });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(payload?.message ?? "Login failed. Please try again.");
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(payload?.message || "Login failed. Try again.");
+            }
+
+            const firstName = payload?.user?.firstName as string | undefined;
+            setSuccess(`Login successful${firstName ? `, ${firstName}` : ""}.`);
+            setFormData(initialLoginFormData);
             router.push("/dashboard");
+            router.refresh();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed. Please try again.");
         } finally {
