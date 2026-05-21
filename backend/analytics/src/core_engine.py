@@ -6,6 +6,7 @@ import mlflow
 from datetime import datetime, timedelta, timezone
 from influxdb_client import InfluxDBClient
 from supabase import create_client, Client
+from typing import Optional
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import mean_absolute_percentage_error
@@ -28,7 +29,11 @@ class AnalyticsEngine:
     def __init__(self):
         #initialising dbs
         self.influx = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
-        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        self.supabase: Optional[Client] = None
+        try:
+            self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        except Exception as e:
+            logger.warning(f"Supabase client initialisation failed; analytics writes disabled: {e}")
         
     def fetch_telemetry(self, building_id: str) -> pd.DataFrame:
         #fetching raw data from influx for the last 30 days
@@ -40,6 +45,12 @@ class AnalyticsEngine:
         '''
         df = self.influx.query_api().query_data_frame(query)
         if(df.empty):
+            return pd.DataFrame()
+
+        if "usage" not in df.columns and "usage_kwh" in df.columns:
+            df = df.rename(columns={"usage_kwh": "usage"})
+        if "usage" not in df.columns:
+            logger.warning("Telemetry query returned no usage field.")
             return pd.DataFrame()
         
         df = df.rename(columns={"_time":"timestamp"}) #just renaming column
@@ -187,7 +198,7 @@ class AnalyticsEngine:
         query = f'''
         from(bucket: "{INFLUX_BUCKET}") 
             |> range(start: -7d) 
-            |> filter(fn: (r) => r["_field"] == "usage")
+            |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> group()
         '''
@@ -209,6 +220,11 @@ class AnalyticsEngine:
 
         #fixing column naming
         df = df.rename(columns={"_time": "timestamp"})
+        if "usage" not in df.columns and "usage_kwh" in df.columns:
+            df = df.rename(columns={"usage_kwh": "usage"})
+        if "usage" not in df.columns:
+            logger.warning("No usage/usage_kwh field found in analytics source data.")
+            return
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         df['usage'] = pd.to_numeric(df['usage'], errors='coerce').fillna(0.0)
 
@@ -241,7 +257,9 @@ class AnalyticsEngine:
             })
         
         #bulk upsert command
-        if upsert_payloads:
+        if upsert_payloads and self.supabase is not None:
             self.supabase.table("building_analytics").upsert(upsert_payloads).execute()
             logger.info(f"Successfully processed {len(upsert_payloads)} buildings in batch.")
+        elif upsert_payloads:
+            logger.warning("Skipping analytics upsert because Supabase client is unavailable.")
         

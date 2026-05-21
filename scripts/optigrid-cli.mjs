@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
  */
 const [, , rawCommand, ...forwardArgs] = process.argv;
 const command = (rawCommand || "help").toLowerCase();
+let remainingArgs = [...forwardArgs];
 const wantsHelp = forwardArgs.includes("--help") || forwardArgs.includes("-h");
 
 // Central routing table: each CLI command points to one script + action.
@@ -28,13 +29,17 @@ const commandMap = {
   "dev-sync": { script: "deploy-ec2-dev-stack.mjs", action: "sync" },
   "dev-down": { script: "deploy-ec2-dev-stack.mjs", action: "down" },
   "dev-status": { script: "deploy-ec2-dev-stack.mjs", action: "status" },
+  local: { script: "optigrid-local.mjs", action: "start" },
+  "local-up": { script: "optigrid-local.mjs", action: "up" },
+  "local-down": { script: "optigrid-local.mjs", action: "down" },
+  "local-stop": { script: "optigrid-local.mjs", action: "stop" },
 };
 
 function printUsage() {
   console.log(
     [
       "Usage:",
-      "  corepack pnpm run optigrid <start|resume|down|destroy|destory|status|dev|dev-sync|dev-down|dev-status> [--skip-build]",
+      "  corepack pnpm run optigrid <start|resume|down|destroy|destory|status|dev|dev-sync|dev-down|dev-status|local|local-down> [--skip-build]",
       "",
       "Examples:",
       "  corepack pnpm run optigrid start",
@@ -48,6 +53,9 @@ function printUsage() {
       "  corepack pnpm run optigrid dev-sync",
       "  corepack pnpm run optigrid dev-down",
       "  corepack pnpm run optigrid dev-status",
+      "  corepack pnpm run optigrid local",
+      "  corepack pnpm run optigrid local down",
+      "  corepack pnpm run optigrid local-down",
     ].join("\n"),
   );
 }
@@ -57,7 +65,16 @@ if (["help", "-h", "--help"].includes(command) || wantsHelp) {
   process.exit(0);
 }
 
-const resolved = commandMap[command];
+let resolvedCommand = command;
+if (command === "local" && remainingArgs.length > 0) {
+  const localSubcommand = remainingArgs[0].toLowerCase();
+  if (["start", "up", "down", "stop"].includes(localSubcommand)) {
+    resolvedCommand = `local-${localSubcommand === "start" ? "up" : localSubcommand}`;
+    remainingArgs = remainingArgs.slice(1);
+  }
+}
+
+const resolved = commandMap[resolvedCommand];
 
 if (!resolved) {
   // Fail with usage guidance to keep CLI behavior explicit for contributors.
@@ -72,7 +89,7 @@ const deployScriptPath = path.join(scriptDir, resolved.script);
 // We run the target script in a child process and mirror stdio for transparency.
 const result = spawnSync(
   process.execPath,
-  [deployScriptPath, resolved.action, ...forwardArgs],
+  [deployScriptPath, resolved.action, ...remainingArgs],
   {
     stdio: "inherit",
     shell: false,

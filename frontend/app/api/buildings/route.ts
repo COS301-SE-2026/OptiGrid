@@ -1,41 +1,97 @@
- import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
+const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
+const SESSION_COOKIE_NAME = "optigrid_session";
 
-type Building = Record<string, unknown>;
+type BuildingPayload = Record<string, unknown>;
+
+function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
+	if (!cookieHeader) {
+		return null;
+	}
+
+	const segments = cookieHeader.split(";");
+	for (const segment of segments) {
+		const [name, ...valueParts] = segment.trim().split("=");
+		if (name === cookieName) {
+			const rawValue = valueParts.join("=").trim();
+			return rawValue ? decodeURIComponent(rawValue) : null;
+		}
+	}
+
+	return null;
+}
+
+function getForwardHeaders(request: Request, includeContentType = false): Headers | null {
+	const headers = new Headers();
+	const authorization = request.headers.get("authorization");
+	const cookie = request.headers.get("cookie");
+	const accessTokenFromCookie = readCookieValue(cookie, ACCESS_TOKEN_COOKIE_NAME);
+	const sessionCookie = readCookieValue(cookie, SESSION_COOKIE_NAME);
+	const resolvedAuthorizationHeader =
+		authorization || (accessTokenFromCookie ? `Bearer ${accessTokenFromCookie}` : null);
+
+	if (!resolvedAuthorizationHeader && !sessionCookie) {
+		return null;
+	}
+
+	if (resolvedAuthorizationHeader) {
+		headers.set("Authorization", resolvedAuthorizationHeader);
+	}
+	if (cookie) headers.set("Cookie", cookie);
+
+	const idempotencyKey = request.headers.get("idempotency-key");
+	if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
+
+	if (includeContentType) {
+		headers.set("Content-Type", "application/json");
+	}
+
+	return headers;
+}
+
+export async function GET(request: Request) {
+	const headers = getForwardHeaders(request);
+	if (!headers) {
+		return NextResponse.json(
+			{ message: "Authentication required." },
+			{ status: 401 },
+		);
+	}
+
+	try {
+		const coreResponse = await fetch(`${CORE_URL}/api/buildings`, {
+			method: "GET",
+			headers,
+			cache: "no-store",
+		});
+
+		const payload = await coreResponse.json().catch(() => ({
+			message: coreResponse.ok ? "Buildings fetched successfully." : "Building fetch failed.",
+		}));
+		return NextResponse.json(payload, { status: coreResponse.status });
+	} catch {
+		return NextResponse.json({ message: "Unable to reach building service." }, { status: 502 });
+	}
+}
 
 export async function POST(request: Request) {
-	//here we just parse req body n check if its validJson
-	let body: Building;
+	let body: BuildingPayload;
 	try {
-		body = (await request.json()) as Building;
-	} 
-	catch {
+		body = (await request.json()) as BuildingPayload;
+	} catch {
 		return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
 	}
 
-	const headers = new Headers();
-	const contentType = request.headers.get("content-type");
-	const authorization = request.headers.get("authorization");
-	const cookie = request.headers.get("cookie");
-	const idempotencyKey = request.headers.get("idempotency-key");
-
-	//we ensure all headers are present else return an error if even one is missing
-	if (contentType && authorization) {
-		headers.set("Content-Type", contentType);
-		headers.set("Authorization", authorization);
+	const headers = getForwardHeaders(request, true);
+	if (!headers) {
+		return NextResponse.json(
+			{ message: "Authentication required." },
+			{ status: 401 },
+		);
 	}
-	else {
-		return NextResponse.json({ 
-			message: "Missing required headers." 
-		}, 
-		{ status: 400 });
-	}
-	//not necessary headers but we have to pass them if they are there
-	if (cookie) headers.set("Cookie", cookie);
-	if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
 
-	//here we request for the api in backendto create th ebuilding
 	try {
 		const coreResponse = await fetch(`${CORE_URL}/api/buildings`, {
 			method: "POST",
@@ -44,15 +100,11 @@ export async function POST(request: Request) {
 			cache: "no-store",
 		});
 
-		//checks if succesful and returns respective messages
 		const payload = await coreResponse.json().catch(() => ({
 			message: coreResponse.ok ? "Building created successfully." : "Building creation failed.",
 		}));
-
 		return NextResponse.json(payload, { status: coreResponse.status });
-	} 
-	catch {
-		// if anything unexpected does happen, we return 502
+	} catch {
 		return NextResponse.json({ message: "Unable to reach building service." }, { status: 502 });
 	}
 }

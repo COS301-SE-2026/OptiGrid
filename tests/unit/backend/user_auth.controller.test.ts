@@ -56,12 +56,13 @@ describe("User Authentication Controller - Login", () => {
     // Test Case 2: Successful login flow
     it("should return 200 and user data on successful login", async () => {
         const mockSafeUser = { userId: '1', email: 'test@test.com', firstName: 'John', lastName: 'Doe' };
+        const mockAccessToken = "test-access-token";
         mockRequest = { body: { email: "test@test.com", password: "password123" } };
         //mocking the service to return a successful user
-        (authServices.login as jest.Mock).mockResolvedValue(mockSafeUser);
+        (authServices.login as jest.Mock).mockResolvedValue({ user: mockSafeUser, accessToken: mockAccessToken });
         await login(mockRequest as Request, mockResponse as Response);
         expect(statusMock).toHaveBeenCalledWith(200);
-        expect(jsonMock).toHaveBeenCalledWith({ message: "Login successful", user: mockSafeUser });
+        expect(jsonMock).toHaveBeenCalledWith({ message: "Login successful", user: mockSafeUser, accessToken: mockAccessToken });
     });
 
     // Test Case 3: Handle invalid credentials
