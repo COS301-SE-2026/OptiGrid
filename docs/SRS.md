@@ -259,7 +259,7 @@ Based on the role-based access control requirements and use cases, the system ac
 
 **Use Case 25: Edit Building Details**
 * **Actor:** Admin
-* **TUCBW:** The Admin selects an existing building and updates its square footage or operating hours.
+* **TUCBW:** The Admin selects an existing building and updates it i.e. square footage or operating hours.
 * **TUCEW:** The system saves the updated building configuration.
 
 **Use Case 26: Delete Building**
@@ -489,44 +489,5 @@ Constraints for the project
 * No access to proprietary smart grid systems
 * Must rely on open APIs or simulated IoT feeds
 
-### 8.5 Technology Requirements
-
-The following technology stack has been selected to ensure a scalable, maintainable, and robust architecture for the project.
-
-#### Frontend
-* **Framework:** React + Next.js
-* **Styling:** Tailwind CSS + Tremor
-* **Data Fetching:** TanStack Query + Recharts
-
-#### Backend
-* **Runtime:** Node.js
-* **Task Queues/Caching:** BullMQ + Redis
-
-#### Database
-* **Relational:** PostgreSQL (Supabase)
-* **Time-Series:** Time-Series (InfluxDB)
-* **ORM:** Prisma ORM
-
-#### Analytics
-* **Language:** Python
-* **Modeling:** Prophet + Scikit-Learn
-* **Lifecycle Management:** MLFlow + Optuna
-
-#### Infrastructure
-* **Containerization:** Docker
-* **Cloud Hosting:** AWS
-
-#### DevOps
-* **CI/CD:** Github Actions
-* **Workflow:** Gitflow
-
-#### Security & Authentication
-* **Auth Provider:** Supabase Auth
-* **Vulnerability Scanning:** Snyk
-
-#### Testing
-* **Unit/Integration:** Jest + Pytest + Supertest
-* **Testing Infrastructure:** Testcontainers
-* **E2E Testing:** Playwright
 
 ***
