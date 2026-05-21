@@ -87,13 +87,18 @@ describe("AddBuildingPage", () => {
   });
 
   describe("Building Type dropdown", () => {
-    it("renders all three building type values", () => {
+    it("renders all building type values", () => {
       render(<AddBuildingPage />);
       const select = getField("building_type") as HTMLSelectElement;
       const options = Array.from(select.options).map((o) => o.value);
-      expect(options).toContain("Commercial");
       expect(options).toContain("Residential");
+      expect(options).toContain("Commercial");
       expect(options).toContain("Industrial");
+      expect(options).toContain("Healthcare");
+      expect(options).toContain("Construction");
+      expect(options).toContain("Mixed_Use");
+      expect(options).toContain("ShoppingCentre");
+      expect(options).toContain("Other");
     });
 
     it("has a default empty 'Select type' placeholder option", () => {

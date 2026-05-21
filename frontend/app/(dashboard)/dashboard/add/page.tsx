@@ -8,13 +8,31 @@ import { useRouter } from "next/navigation";
 export default function AddBuildingPage() {
   const router = useRouter();
   const buildingTypes = [
-    { label: "Office", value: "Commercial" },
     { label: "Residential", value: "Residential" },
+    { label: "Commercial", value: "Commercial" },
     { label: "Industrial", value: "Industrial" },
+    { label: "Healthcare", value: "Healthcare" },
+    { label: "Construction", value: "Construction" },
+    { label: "Mixed Use", value: "Mixed_Use" },
+    { label: "Shopping Centre", value: "ShoppingCentre" },
+    { label: "Other", value: "Other" },
   ];
 
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("18:00");
+
+  const toPositiveNumberOrUndefined = (value: FormDataEntryValue | null) => {
+    if (value === null) {
+      return undefined;
+    }
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      return undefined;
+    }
+
+    return numericValue;
+  };
 
 
 
@@ -55,8 +73,8 @@ export default function AddBuildingPage() {
       building_name: String(data.building_name || "").trim(),
       physical_address: String(data.physical_address || "").trim() || undefined,
       building_type: String(data.building_type || "") || undefined,
-      square_footage: formData.get("square_footage") ? Number(formData.get("square_footage")) : undefined,
-      max_occupancy: formData.get("max_occupancy") ? Number(formData.get("max_occupancy")) : undefined,
+      square_footage: toPositiveNumberOrUndefined(formData.get("square_footage")),
+      max_occupancy: toPositiveNumberOrUndefined(formData.get("max_occupancy")),
       timezone: "UTC",
     };
     //we delete values that are undefined and then we can also create a key to ensure we dont create multiple same buildings
@@ -88,7 +106,11 @@ export default function AddBuildingPage() {
           //error case
           else {
             const body = await resp.json().catch(() => ({}));
-            window.alert(`Error: ${body?.message || 'Failed to create building'}`);
+            const detailMessage =
+              Array.isArray(body?.details) && body.details[0]?.message
+                ? body.details[0].message
+                : undefined;
+            window.alert(`Error: ${detailMessage || body?.message || 'Failed to create building'}`);
           }
         })
         .catch(() => window.alert('Network error while creating building'));
@@ -138,6 +160,7 @@ return (
               name="physical_address"
               rows={3}
               required
+              minLength={5}
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C] resize-none"
             />
@@ -195,9 +218,11 @@ return (
               Square Footage
             </label>
             <input
-              type="text"
+              type="number"
               name="square_footage"
               required
+              min={1}
+              step={1}
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
             />
@@ -208,9 +233,11 @@ return (
               Number of Occupants
             </label>
             <input
-              type="text"
+              type="number"
               name="max_occupancy"
               required
+              min={1}
+              step={1}
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
             />
