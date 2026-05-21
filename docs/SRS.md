@@ -385,8 +385,25 @@ high level system with design
 design patterns used in the project
 ### 7.4 Constraints
 Constraints for the project
+
+Limited access to real building infrastructure (simulated data may be used)
+ Budget constraints for hosting
+ No access to proprietary smart grid systems
+ Must rely on open APIs or simulated IoT feeds
+
+
+
 ### 7.5 Technology Requirements
 Tech Stack
+
+Frontend:react 
+Backend:Node.js
+Database: PostgreSQL
+Analytics: Python
+Infrastructure: Docker 
+DevOps: GitHub
+
+
 
 ## 8. Architecture Diagram
 ![System Architecture Diagram](images/Architecture_Diagram.png)
