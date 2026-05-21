@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type RequestHandler } from "express";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import userAuthRoutes from "./routes/user_auth.routes";
@@ -27,6 +27,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000)): Express {
 	});
 
 	app.use(express.json());
+	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", userAuthRoutes);
 	app.use("/api/sensors", sensorRoutes);
