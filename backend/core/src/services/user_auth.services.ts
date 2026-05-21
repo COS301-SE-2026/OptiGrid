@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import { hashPassword } from '../lib/password';
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 import { Prisma } from '@prisma/client';
 
 const USER_EXISTS_ERROR = 'User already exists, please login instead.';
@@ -40,6 +41,9 @@ function getSupabaseAdminClient() {
             autoRefreshToken: false,
             persistSession: false,
         },
+        realtime: {
+            transport: ws,
+        },
     });
 }
 
@@ -55,6 +59,9 @@ function getSupabaseAuthClient() {
         auth: {
             autoRefreshToken: false,
             persistSession: false,
+        },
+        realtime: {
+            transport: ws,
         },
     });
 }

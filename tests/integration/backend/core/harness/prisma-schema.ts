@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Client } from 'pg';
+const { Client } = require('pg');
 
 const repoRoot = path.resolve(__dirname, '../../../../../');
 const coreWorkspace = path.resolve(repoRoot, 'backend/core');
@@ -27,7 +27,7 @@ function getSchemaSqlFromPrismaSchema(): string {
 		execSync(`pnpm exec prisma migrate diff --from-empty --to-schema "./prisma/schema.prisma" --script --output "${outputPath}"`, {
 			cwd: coreWorkspace,
 			stdio: 'inherit',
-			shell: true,
+			shell: '/bin/bash',
 			env: { ...process.env },
 		});
 		cachedSchemaSql = readFileSync(outputPath, 'utf8');
