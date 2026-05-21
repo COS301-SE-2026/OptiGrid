@@ -1,6 +1,7 @@
 import { BuildingType } from '@prisma/client';
 import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
 import { compareBuildingsSchema } from '../../../backend/core/src/validation/building.validation';
+import { deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
 
 describe('building validation', () => {
 	it('accepts_a_valid_building_payload', () => {
@@ -146,4 +147,38 @@ describe('compareBuildings validation', () => {
 		// act and assert
 		expect(() => compareBuildingsSchema.parse(payload)).toThrow();
 	});
+});
+
+describe('Building Deletion Validation Schema', () => {
+    it('should accept a valid string building id like building-003', () => {
+		//arrange
+		const payload = { building_id: 'building-003' };
+        //act
+		const result = deleteBuildingSchema.parse(payload);
+        //assert
+		expect(result).toEqual(payload);
+    });
+
+    it('should accept a standard UUID string format', () => {
+        //arrange
+		const payload = { building_id: '550e8400-e29b-41d4-a716-446655440000' };
+        //act
+		const result = deleteBuildingSchema.parse(payload);
+        //assert
+		expect(result).toEqual(payload);
+    });
+
+    it('should reject an empty building_id string', () => {
+		// arrange
+        const payload = { building_id: '' };
+        //act and assert
+		expect(() => deleteBuildingSchema.parse(payload)).toThrow();
+    });
+
+    it('should reject a missing building_id field entirely', () => {
+        // arrange
+		const payload = {};
+		//act and assert
+        expect(() => deleteBuildingSchema.parse(payload)).toThrow();
+    });
 });
