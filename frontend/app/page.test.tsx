@@ -37,10 +37,6 @@ describe("LandingPage", () => {
             expect(screen.getByText("Outcomes")).toBeInTheDocument();
         });
 
-        it("renders the Contact nav link", () => {
-            expect(screen.getByText("Contact")).toBeInTheDocument();
-        });
-
         it("renders a Log in link pointing to /login", () => {
             const loginLink = screen.getByRole("link", { name: "Log in" });
             expect(loginLink).toHaveAttribute("href", "/login");
@@ -68,17 +64,17 @@ describe("LandingPage", () => {
             expect(signupLink).toHaveAttribute("href", "/signup");
         });
 
-        it("renders a Book a demo link", () => {
+        it("renders a Get started free link in the hero", () => {
             const main = screen.getByRole("main");
             const heroHeading = within(main).getByRole("heading", {
                 name: "Cut energy costs across every building you operate.",
             });
             const heroSection = heroHeading.closest("section");
             expect(heroSection).not.toBeNull();
-            const demoLink = within(heroSection as HTMLElement).getByRole("link", {
-                name: "Book a demo",
+            const signupLink = within(heroSection as HTMLElement).getByRole("link", {
+                name: "Get started free",
             });
-            expect(demoLink).toHaveAttribute("href", "/contact");
+            expect(signupLink).toHaveAttribute("href", "/signup");
         });
     });
 

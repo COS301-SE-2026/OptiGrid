@@ -108,7 +108,6 @@ export default function LandingPage() {
                     <nav className="landing-links" aria-label="Primary">
                         <a href="#features">Features</a>
                         <a href="#outcomes">Outcomes</a>
-                        <a href="#contact">Contact</a>
                     </nav>
                     <div className="landing-nav-actions">
                         <Link href="/login" className="btn btn-secondary">
@@ -135,9 +134,6 @@ export default function LandingPage() {
                             <div className="landing-actions">
                                 <Link href="/signup" className="btn btn-primary">
                                     Get started free
-                                </Link>
-                                <Link href="/contact" className="btn btn-secondary">
-                                    Book a demo
                                 </Link>
                             </div>
                             <div className="landing-metrics">
@@ -211,7 +207,7 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="features" className="landing-section landing-section-alt">
+                <section id="features" className="landing-section landing-section-alt" style={{ scrollMarginTop: "72px" }}>
                     <div className="landing-shell">
                         <div className="landing-section-header">
                             <p className="landing-kicker">What you can do</p>
@@ -233,7 +229,7 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="outcomes" className="landing-section">
+                <section id="outcomes" className="landing-section" style={{ scrollMarginTop: "72px" }}>
                     <div className="landing-shell">
                         <div className="landing-section-header">
                             <p className="landing-kicker">Operational impact</p>
@@ -261,16 +257,9 @@ export default function LandingPage() {
                             <div>
                                 <p className="landing-kicker">Ready to optimize</p>
                                 <h2>Build a smarter energy strategy this quarter.</h2>
-                                <p className="text-muted">
-                                    Meet the OptiGrid team for a tailored walkthrough of
-                                    your portfolio data and savings potential.
-                                </p>
                             </div>
                             <div className="landing-actions">
-                                <Link href="/contact" className="btn btn-primary">
-                                    Book a demo
-                                </Link>
-                                <Link href="/signup" className="btn btn-secondary">
+                                <Link href="/signup" className="btn btn-primary">
                                     Start your free trial
                                 </Link>
                             </div>
