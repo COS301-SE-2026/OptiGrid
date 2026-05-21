@@ -1,6 +1,10 @@
 import request from "supertest";
 import { createCoreApiHarness, type CoreApiHarness } from "./harness/core-api-harness";
 
+function uniqueEmail(prefix: string) {
+	return `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2)}@optigrid.test`;
+}
+
 describe("Signup integration", () => {
 	let harness: CoreApiHarness;
 
@@ -22,7 +26,7 @@ describe("Signup integration", () => {
 
 	it("creates a user with valid payload", async () => {
 		const signupPayload = {
-			email: "signup.int@optigrid.test",
+			email: uniqueEmail("signup.int"),
 			password: "StrongPass123!",
 			name: "Signup Integration",
 		};
@@ -43,7 +47,7 @@ describe("Signup integration", () => {
 
 	it("rejects duplicate signup attempts for the same email", async () => {
 		const signupPayload = {
-			email: "duplicate.int@optigrid.test",
+			email: uniqueEmail("duplicate.int"),
 			password: "StrongPass123!",
 			name: "Duplicate User",
 		};

@@ -1,11 +1,15 @@
-import express, { type Express } from "express";
+import express, { type Express, type RequestHandler } from "express";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import userAuthRoutes from "./routes/user_auth.routes";
 import sensorRoutes from "./routes/sensor.routes"
 import buildingRoutes from "./routes/building.routes"
 
-export function createApp(port = Number(process.env.PORT ?? 3001)): Express {
+export interface CreateAppOptions {
+	routeMiddleware?: RequestHandler[];
+}
+
+export function createApp(port = Number(process.env.PORT ?? 4000), options: CreateAppOptions = {}): Express {
 	const app = express();
 
 	const swaggerSpec = swaggerJsdoc({
@@ -27,9 +31,10 @@ export function createApp(port = Number(process.env.PORT ?? 3001)): Express {
 	});
 
 	app.use(express.json());
+	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", userAuthRoutes);
-	app.use("/api/sensors", sensorRoutes)
+	app.use("/api/sensors", sensorRoutes);
 	app.use("/api/buildings", buildingRoutes);
 
 	app.get("/health", (_req, res) => {

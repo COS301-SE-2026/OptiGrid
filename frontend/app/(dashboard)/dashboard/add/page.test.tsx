@@ -1,33 +1,32 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+// Ensure component sees supabase env and use a mocked client during tests
+process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.local";
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+
+// Mock the supabase browser client before importing the component
+jest.mock("@supabase/ssr", () => ({
+  createBrowserClient: () => ({
+    auth: {
+      getSession: async () => ({ data: { session: { access_token: "test-token" } } }),
+    },
+  }),
+}));
+
 import AddBuildingPage from "./page";
 
 
-global.FormData = class MockFormData {
-  private map: Record<string, string> = {};
-
-  constructor(form?: HTMLFormElement) {
-    if (form) {
-      form
-        .querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
-          "input[name], select[name], textarea[name]"
-        )
-        .forEach((el) => {
-          this.map[el.name] = el.value;
-        });
-    }
-  }
-
-  get(key: string): string | null {
-    return this.map[key] ?? null;
-  }
-} as unknown as typeof FormData;
+// Use the native FormData implementation provided by JSDOM in tests
 
 
 beforeAll(() => {
   jest.spyOn(window, "alert").mockImplementation(() => {});
   jest.spyOn(console, "log").mockImplementation(() => {});
+
+  (global as any).fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.local";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
 });
 
 afterAll(() => {
@@ -176,7 +175,7 @@ describe("AddBuildingPage", () => {
   });
 
   describe("Form submission", () => {
-    it("calls alert with success message on submit", () => {
+    it("calls alert with success message on submit", async () => {
       render(<AddBuildingPage />);
       fillField("building_name", "building A");
       fillField("physical_address", "123 build");
@@ -186,20 +185,19 @@ describe("AddBuildingPage", () => {
 
       submitForm();
 
-      expect(window.alert).toHaveBeenCalledWith("Building created successfully");
+      await waitFor(() => expect(window.alert).toHaveBeenCalledWith("Building created successfully"));
     });
 
-    it("logs building data to console on submit", () => {
+    it("logs building data to console on submit", async () => {
       render(<AddBuildingPage />);
       fillField("building_name", "building A");
       fillField("physical_address", "123 build");
       fireEvent.change(getField("building_type"), { target: { value: "Office" } });
       fillField("square_footage", "5000");
       fillField("max_occupancy", "200");
-
       submitForm();
 
-      expect(console.log).toHaveBeenCalledWith(
+      await waitFor(() => expect(console.log).toHaveBeenCalledWith(
         "Building Data:",
         expect.objectContaining({
           building_name: "building A",
@@ -209,18 +207,18 @@ describe("AddBuildingPage", () => {
           max_occupancy: "200",
           operatingHours: { start: "08:00", end: "18:00" },
         })
-      );
+      ));
     });
 
-    it("resets the form after successful submission", () => {
+    it("resets the form after successful submission", async () => {
       render(<AddBuildingPage />);
       fillField("building_name", "building A");
       fillField("physical_address", "123 build");
 
       submitForm();
 
-      expect((getField("building_name") as HTMLInputElement).value).toBe("");
-      expect((getField("physical_address") as HTMLTextAreaElement).value).toBe("");
+      await waitFor(() => expect((getField("building_name") as HTMLInputElement).value).toBe(""));
+      await waitFor(() => expect((getField("physical_address") as HTMLTextAreaElement).value).toBe(""));
     });
   });
 

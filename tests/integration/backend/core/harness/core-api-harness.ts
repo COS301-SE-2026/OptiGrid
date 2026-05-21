@@ -1,4 +1,5 @@
 import type { Express } from 'express';
+import type { CreateAppOptions } from '../../../../../backend/core/src/app';
 import { bootstrapCoreSchema, resetCoreSchema } from './prisma-schema';
 import { startPostgresHarness, stopPostgresHarness, type StartedPostgresHarness } from './postgres-container';
 
@@ -12,6 +13,7 @@ export interface CoreApiHarness {
 export interface CoreApiHarnessOptions {
 	prepareDatabase?: (connectionString: string) => Promise<void>;
 	resetDatabase?: (connectionString: string) => Promise<void>;
+	appOptions?: CreateAppOptions;
 }
 
 async function disconnectPrismaClient(): Promise<void> {
@@ -30,7 +32,7 @@ export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}):
 	await prepareDatabase(postgresHarness.connectionString);
 
 	const { createApp } = await import('../../../../../backend/core/src/app');
-	const app = createApp(0);
+	const app = createApp(0, options.appOptions);
 
 	return {
 		app,
