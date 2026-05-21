@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/user_auth.services';
-import { comparePass } from '../lib/password';
 
 export const signup = async (req: Request, res: Response) => {
     try {
@@ -37,10 +36,11 @@ export const login = async (req: Request, res: Response) => {
         if(!email || !password){
             return res.status(400).json({message: "Email and password are required fields."});
         }
-        const user = await authService.login(email, password);
+        const loginResult = await authService.login(email, password);
         return res.status(200).json({
             message: 'Login successful',
-            user,
+            user: loginResult.user,
+            accessToken: loginResult.accessToken,
         });
     }
     catch(error: any){

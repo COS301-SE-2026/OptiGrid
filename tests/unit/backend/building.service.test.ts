@@ -2,6 +2,7 @@ import prisma from '../../../backend/core/src/lib/prisma';
 import { createBuilding, buildingPayload } from '../../../backend/core/src/services/building.services';
 import { BuildingType } from '@prisma/client';
 import { compareBuildingsService } from '../../../backend/core/src/services/building.services';
+import { deleteBuildingService } from '../../../backend/core/src/services/building.services';
 
 // Mock Prisma with 
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -12,7 +13,13 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 }));
 
 const mockedPrisma = prisma as unknown as {
-	$transaction: jest.Mock;
+    $transaction: jest.Mock;
+    userBuildingAccess: {
+        findUnique: jest.Mock;
+    };
+    building: {
+        delete: jest.Mock;
+    };
 };
 
 // we have to mocj the influx db 
@@ -518,4 +525,49 @@ describe('compareBuildingsService', () => {
 		expect(result.buildingA.eui).toBeNull();
 		expect(result.buildingB.eui).toBeNull();
 	});
+});
+
+describe('deleteBuildingService', () => {
+    const mockUserId = 'user-123';
+    const mockBuildingId = 'building-003';
+
+    beforeEach(() => {
+        // prepare mock chains for your prisma service properties
+        (mockedPrisma as any).userBuildingAccess = { findUnique: jest.fn() };
+        (mockedPrisma as any).building = { delete: jest.fn() };
+    });
+
+    it('should successfully delete a building if user has valid access', async () => {
+        // arrange
+        mockedPrisma.userBuildingAccess.findUnique.mockResolvedValue({
+            user_id: mockUserId,
+            building_id: mockBuildingId,
+        });
+        mockedPrisma.building.delete.mockResolvedValue({ building_id: mockBuildingId });
+
+        // act
+        await expect(deleteBuildingService(mockUserId, mockBuildingId)).resolves.not.toThrow();
+
+        // assert
+        expect(mockedPrisma.userBuildingAccess.findUnique).toHaveBeenCalledWith({
+            where: {
+                user_id_building_id: {
+                    user_id: mockUserId,
+                    building_id: mockBuildingId,
+                },
+            },
+        });
+        expect(mockedPrisma.building.delete).toHaveBeenCalledWith({
+            where: { building_id: mockBuildingId },
+        });
+    });
+
+    it('should throw an Access Denied error if user does not own or have access to the building', async () => {
+        // arrange
+        mockedPrisma.userBuildingAccess.findUnique.mockResolvedValue(null);
+
+        // act and assert
+        await expect(deleteBuildingService(mockUserId, mockBuildingId)).rejects.toThrow('Access Denied');
+        expect(mockedPrisma.building.delete).not.toHaveBeenCalled();
+    });
 });

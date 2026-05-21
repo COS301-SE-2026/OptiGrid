@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createBuildingController, compareBuildingsController } from '../controllers/building.controller';
+import { compareBuildingsController, createBuildingController, deleteBuildingController, listBuildingsController, updateBuildingController } from '../controllers/building.controller';
 
 const router = Router();
 
@@ -141,8 +141,11 @@ const router = Router();
  *                   type: string
  *                   example: "Internal server error"
  */
+router.get('/', listBuildingsController);
 router.post('/', createBuildingController);
 router.post('/compare', compareBuildingsController);
+router.delete('/:building_id', deleteBuildingController);
+router.patch('/:building_id', updateBuildingController);
 
 /**
  * @swagger
@@ -292,5 +295,5 @@ router.post('/compare', compareBuildingsController);
  *                   example: "Internal server error"
  */
 router.post('/compare', compareBuildingsController);
-
-export default router;  
+  
+export default router;
