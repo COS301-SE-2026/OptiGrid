@@ -55,7 +55,7 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
 
     const validatedQuery = compareBuildingsSchema.parse(req.query);
 
-    // 4. Execute Business Logic
+    // we give the data to the service layer to handle
     const comparisonData = await compareBuildingsService(
       userId,
       validatedQuery.building_id_a,

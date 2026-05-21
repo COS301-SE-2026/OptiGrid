@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
+const CORE_URL = process.env.CORE_URL ?? "http://localhost:4000";
 
 type SignupBody = {
     email?: unknown;
