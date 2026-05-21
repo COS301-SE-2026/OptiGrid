@@ -1,32 +1,25 @@
 const { Client } = require('pg');
 const request = require('supertest');
-import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
+import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
 const { v4: uuidv4 } = require('uuid');
-import prisma from '../../../../backend/core/src/lib/prisma';
 
 describe('Building integration - Create Building', () => {
 	let harness: CoreApiHarness;
 	let injectAuthenticatedUser = true;
 	const tenantId = '8680c655-bfa3-433b-81aa-084fc76882d9';
 	const userId = 'bbe48b78-438f-4ed7-9fe7-a8fc9addc187';
-	const authMiddleware = (req: any, res: any, next: any) => {
-		if (!injectAuthenticatedUser) {
-			return res.status(401).json({ message: 'Unauthorized' });
-		}
-		req.user = { id: userId, tenant_id: tenantId }; 
-		next();
-	};
+	let authHeaders: { Cookie: string };
+	// const authMiddleware = (req: any, res: any, next: any) => {
+	// 	if (!injectAuthenticatedUser) {
+	// 		return res.status(401).json({ message: 'Unauthorized' });
+	// 	}
+	// 	req.user = { id: userId, tenant_id: tenantId }; 
+	// 	next();
+	// };
 	//
 	beforeAll(async () => {
 		harness = await createCoreApiHarness();
-		await prisma.tenant.upsert({
-			where: { tenant_id: '8680c655-bfa3-433b-81aa-084fc76882d9' },
-			update: {},
-			create: {
-				tenant_id: '8680c655-bfa3-433b-81aa-084fc76882d9',
-				company_name: 'Integration Test Company'
-			}
-		});
+		authHeaders = await getAuthHeaders(userId);
 	});
 
 	beforeEach(async () => {
@@ -72,6 +65,7 @@ describe('Building integration - Create Building', () => {
 		const response = await request(harness.app)
 			.post('/api/buildings')
 			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders)
 			.send(payload);
 
 		expect(response.status).toBe(201);
@@ -91,6 +85,7 @@ describe('Building integration - Create Building', () => {
 		const response1 = await request(harness.app)
 			.post('/api/buildings')
 			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders)
 			.send(payload);
 
 		expect(response1.status).toBe(201);
@@ -98,6 +93,7 @@ describe('Building integration - Create Building', () => {
 		const response2 = await request(harness.app)
 			.post('/api/buildings')
 			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders)
 			.send(payload);
 
 		expect(response2.status).toBe(200);
@@ -111,6 +107,7 @@ describe('Building integration - Create Building', () => {
 
 		const response = await request(harness.app)
 			.post('/api/buildings')
+			.set(authHeaders)
 			.send(payload);
 
 		expect(response.status).toBe(400);
@@ -143,6 +140,7 @@ describe('Building integration - Create Building', () => {
 		const response = await request(harness.app)
 			.post('/api/buildings')
 			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders)
 			.send(payload);
 
 		expect(response.status).toBe(400);

@@ -2,9 +2,7 @@ import type { Express } from 'express';
 import type { CreateAppOptions } from '../../../../../backend/core/src/app';
 import { bootstrapCoreSchema, resetCoreSchema } from './prisma-schema';
 import { startPostgresHarness, stopPostgresHarness, type StartedPostgresHarness } from './postgres-container';
-import prisma from '../../../../../backend/core/src/lib/prisma';
 import { applySupabaseMigrationAndSeed } from './integration-seed-fixtures';
-import jwt from 'jsonwebtoken';
 
 export interface CoreApiHarness {
 	app: Express;
@@ -26,6 +24,7 @@ async function disconnectPrismaClient(): Promise<void> {
 
 export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}): Promise<CoreApiHarness> {
 	const postgresHarness = await startPostgresHarness();
+	process.env.DATABASE_URL = postgresHarness.connectionString;
 
 	
 	const prepareDatabase = options.prepareDatabase ?? applySupabaseMigrationAndSeed; 
@@ -43,19 +42,13 @@ export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}):
 	};
 }
 
-export async function getAuthHeaders(userId: string = '33333333-3333-3333-3333-333333333333'): Promise<{ Authorization: string }> {
-    const token = jwt.sign(
-        { 
-            sub: userId, 
-            role: 'authenticated', 
-            email: 'ops-admin@optigrid.test' 
-        }, 
-        process.env.JWT_SECRET || 'your-test-jwt-secret'
-    );
-
-    return { Authorization: `Bearer ${token}` };
+export async function getAuthHeaders(
+	userId: string = '33333333-3333-3333-3333-333333333333',
+	email: string = 'ops-admin@optigrid.test',
+): Promise<{ Cookie: string }> {
+	const sessionPayload = encodeURIComponent(JSON.stringify({ userId, email }));
+	return { Cookie: `optigrid_session=${sessionPayload}` };
 }
-
 async function stopCoreApiHarness(harness: StartedPostgresHarness): Promise<void> {
 	await disconnectPrismaClient();
 	await stopPostgresHarness(harness);

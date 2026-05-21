@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { createCoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
-import prisma from '../../../../backend/core/src/lib/prisma';
+const { Client } = require('pg');
 
 describe('Preferences API Integration', () => {
     let harness: any;
@@ -8,15 +8,18 @@ describe('Preferences API Integration', () => {
     beforeAll(async () => {
         harness = await createCoreApiHarness();
 
-        // Seed the tenant context cleanly
-        await prisma.tenant.upsert({
-            where: { tenant_id: '555e4567-e89b-12d3-a456-426614174000' },
-            update: {},
-            create: {
-                tenant_id: '555e4567-e89b-12d3-a456-426614174000',
-                company_name: 'Test Company'
-            }
-        });
+        const client = new Client({ connectionString: harness.databaseUrl });
+        await client.connect();
+        try {
+            await client.query(
+                `insert into tenants (tenant_id, company_name)
+                 values ($1, $2)
+                 on conflict (tenant_id) do nothing`,
+                ['555e4567-e89b-12d3-a456-426614174000', 'Test Company'],
+            );
+        } finally {
+            await client.end();
+        }
     });
 
     afterAll(async () => {
