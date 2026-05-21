@@ -55,16 +55,44 @@ jobs:
         with:
           version: 10.0.0
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+
+      - name: Start Supabase local emulator
+        run: |
+          if [ ! -f supabase/config.toml ]; then
+            supabase init --yes
+          fi
+          if [ -f supabase/seed.sql ]; then
+            mv supabase/seed.sql supabase/seed.sql.ci.bak
+          fi
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+
+      - name: Export Supabase local auth env vars
+        run: |
+          supabase status -o env > supabase.status.env
+          set -a
+          . ./supabase.status.env
+          set +a
+          echo "SUPABASE_URL=${API_URL}" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=${ANON_KEY}" >> "$GITHUB_ENV"
 
       - name: lint
         run: pnpm --filter @optigrid/core run lint
 
       - name: Unit Test
         run: pnpm --filter @optigrid/core run test
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
 
       - name: Build
         run: pnpm --filter @optigrid/core run build
