@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { ThemeToggle } from "../../theme-toggle";
@@ -180,25 +180,6 @@ const MOCK_CONSUMPTION: ConsumptionPoint[] = [
     { day: "Sun", kwh: 2600 },
 ];
 
-function BellIcon() {
-    return (
-        <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-    );
-}
-
 function PencilIcon() {
     return (
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -289,6 +270,7 @@ function DeleteModal({
 
 export default function DashboardPage() {
     const queryClient = useQueryClient();
+    const [deleteTarget, setDeleteTarget] = useState<Building | null>(null);
 
     const { data: user } = useQuery({
         queryKey: ["auth-session"],
@@ -335,6 +317,7 @@ export default function DashboardPage() {
             }
         },
         onSuccess: () => {
+            setDeleteTarget(null);
             queryClient.invalidateQueries({ queryKey: ["buildings"] });
         },
     });
@@ -365,30 +348,13 @@ export default function DashboardPage() {
         minutesAgo === 0 ? "just now" : `${minutesAgo} min ago`;
 
     const handleDelete = (building: Building) => {
-        const confirmed = window.confirm(
-            `Delete "${building.name}" permanently? This action cannot be undone.`,
-        );
-        if (!confirmed) {
-            return;
-        }
-
-        deleteBuildingMutation.mutate(building.id, {
-            onError: (error) => {
-                window.alert(error.message || "Unable to delete building.");
-            },
-        });
+        setDeleteTarget(building);
     };
 
     return (
         <div>
             <div className="dashboard-topbar">
                 <ThemeToggle />
-                <button
-                    className="icon-button"
-                    aria-label="Notifications"
-                >
-                    <BellIcon />
-                </button>
                 <div className="dashboard-user">
                     <div className="dashboard-avatar">{initials}</div>
                     <span>{fullName}</span>
@@ -571,6 +537,15 @@ export default function DashboardPage() {
                     </div>
                 )}
             </div>
+
+            {deleteTarget && (
+                <DeleteModal
+                    buildingName={deleteTarget.name}
+                    onConfirm={() => deleteBuildingMutation.mutate(deleteTarget.id)}
+                    onCancel={() => setDeleteTarget(null)}
+                    deleting={deleteBuildingMutation.isPending}
+                />
+            )}
         </div>
     );
 }
