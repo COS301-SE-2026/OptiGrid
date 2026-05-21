@@ -377,6 +377,16 @@ Domain Model of system
 ![domain model](./images/domain_model.png)
 
 ## 7. Architectural Requirements
+
+• Microservice-based architecture
+• Separation of ingestion, analytics, and presentation layers
+• Horizontal scalability for multi-building environments
+• RESTful API-first design
+• Containerised deployment (Docker)Secure authentication & RBAC
+• High availability design (minimum 95% uptime)
+
+
+
 ### 7.1 Quality Requirements
 non-functional requirements essentially
 ### 7.2 Architectural Patterns
@@ -386,22 +396,22 @@ design patterns used in the project
 ### 7.4 Constraints
 Constraints for the project
 
-Limited access to real building infrastructure (simulated data may be used)
- Budget constraints for hosting
- No access to proprietary smart grid systems
- Must rely on open APIs or simulated IoT feeds
+* Limited access to real building infrastructure (simulated data may be used)
+* Budget constraints for hosting
+* No access to proprietary smart grid systems
+* Must rely on open APIs or simulated IoT feeds
 
 
 
 ### 7.5 Technology Requirements
 Tech Stack
 
-Frontend:react 
-Backend:Node.js
-Database: PostgreSQL
-Analytics: Python
-Infrastructure: Docker 
-DevOps: GitHub
+* **Frontend**:react 
+* **Backend**:Node.js
+* **Database**: PostgreSQL
+* **Analytics**: Python
+* **Infrastructure**: Docker 
+* **DevOps**: GitHub
 
 
 
