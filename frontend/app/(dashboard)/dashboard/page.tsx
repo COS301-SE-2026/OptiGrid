@@ -1,8 +1,9 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ThemeToggle } from "../../theme-toggle";
 import {
     CartesianGrid,
     Line,
@@ -35,11 +36,6 @@ type PortfolioSummary = {
     activeAlerts: number;
 };
 
-type ConsumptionPoint = {
-    day: string;
-    kwh: number;
-};
-
 type SessionResponse = {
     user?: SessionUser;
     message?: string;
@@ -60,6 +56,11 @@ type RawBuilding = {
     building_type?: unknown;
     today_kwh?: unknown;
     status?: unknown;
+};
+
+type ConsumptionPoint = {
+    day: string;
+    kwh: number;
 };
 
 function formatNumberMetric(value: unknown): string {
@@ -200,17 +201,7 @@ function BellIcon() {
 
 function PencilIcon() {
     return (
-        <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
@@ -219,17 +210,7 @@ function PencilIcon() {
 
 function TrashIcon() {
     return (
-        <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
             <path d="M10 11v6M14 11v6" />
@@ -256,25 +237,52 @@ function KpiCard({
     label,
     value,
     valueTone = "default",
-    loading,
+    loading = false,
 }: {
     label: string;
     value: string;
     valueTone?: "default" | "warning";
-    loading: boolean;
+    loading?: boolean;
 }) {
-    const valueStyle =
-        valueTone === "warning" ? { color: "var(--brand-warning)" } : undefined;
     return (
         <div className="card dashboard-card-tight">
-            <p className="dashboard-kpi-label">{label}</p>
-            {loading ? (
-                <Skeleton style={{ height: "28px", width: "96px", marginTop: "12px" }} />
-            ) : (
-                <p className="dashboard-kpi-value metric" style={valueStyle}>
-                    {value}
+            <div className="dashboard-kpi-label">{label}</div>
+            <div className={`dashboard-kpi-value${valueTone === "warning" ? " dashboard-kpi-value-warning" : ""}`}>
+                {loading ? "--" : value}
+            </div>
+        </div>
+    );
+}
+
+function DeleteModal({
+    buildingName,
+    onConfirm,
+    onCancel,
+    deleting,
+}: {
+    buildingName: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+    deleting: boolean;
+}) {
+    return (
+        <div className="modal-overlay" onClick={onCancel}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <h2 style={{ marginBottom: "8px", fontSize: "1.1rem", fontWeight: 600 }}>Delete building</h2>
+                <p style={{ color: "var(--brand-ink-muted)", fontSize: "0.9rem", marginBottom: "24px" }}>
+                    Are you sure you want to delete <strong>{buildingName}</strong>? This cannot be undone.
                 </p>
-            )}
+                <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                    <button className="btn" onClick={onCancel} disabled={deleting}>Cancel</button>
+                    <button
+                        className="btn btn-danger"
+                        onClick={onConfirm}
+                        disabled={deleting}
+                    >
+                        {deleting ? "Deleting..." : "Delete"}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
@@ -374,6 +382,7 @@ export default function DashboardPage() {
     return (
         <div>
             <div className="dashboard-topbar">
+                <ThemeToggle />
                 <button
                     className="icon-button"
                     aria-label="Notifications"
@@ -393,10 +402,7 @@ export default function DashboardPage() {
                         Portfolio overview - last updated {lastUpdatedLabel}
                     </p>
                 </div>
-                <Link
-                    href="/dashboard/add"
-                    className="btn btn-primary"
-                >
+                <Link href="/buildings/add" className="btn btn-primary">
                     + Add building
                 </Link>
             </div>
@@ -487,12 +493,6 @@ export default function DashboardPage() {
             </div>
 
             <div className="dashboard-section">
-                <h2
-                    className="dashboard-section-title"
-                    style={{ marginBottom: "16px" }}
-                >
-                    Your buildings
-                </h2>
                 {buildingsLoading ? (
                     <div style={{ display: "grid", gap: "12px" }}>
                         <Skeleton style={{ height: 56, width: "100%" }} />
@@ -509,22 +509,14 @@ export default function DashboardPage() {
                     <div className="card dashboard-empty">
                         <p className="text-muted">No buildings yet.</p>
                         <Link
-                            href="/dashboard/add"
-                            style={{
-                                marginTop: "8px",
-                                display: "inline-block",
-                                color: "var(--brand-primary)",
-                                fontWeight: 600,
-                            }}
+                            href="/buildings/add"
+                            style={{ marginTop: "8px", display: "inline-block", color: "var(--brand-primary)", fontWeight: 600 }}
                         >
                             Add your first building
                         </Link>
                     </div>
                 ) : (
-                    <div
-                        className="card"
-                        style={{ padding: 0, overflow: "hidden" }}
-                    >
+                    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
                         <table className="dashboard-table">
                             <thead>
                                 <tr>

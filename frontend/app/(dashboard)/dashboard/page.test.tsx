@@ -131,7 +131,7 @@ describe("DashboardPage", () => {
         render(<DashboardPage />);
 
         const link = screen.getByRole("link", { name: "+ Add building" });
-        expect(link).toHaveAttribute("href", "/dashboard/add");
+        expect(link).toHaveAttribute("href", "/buildings/add");
     });
 
     it("renders building rows when data exists", () => {
@@ -152,6 +152,6 @@ describe("DashboardPage", () => {
         const addLink = screen.getByRole("link", {
             name: "Add your first building",
         });
-        expect(addLink).toHaveAttribute("href", "/dashboard/add");
+        expect(addLink).toHaveAttribute("href", "/buildings/add");
     });
 });
