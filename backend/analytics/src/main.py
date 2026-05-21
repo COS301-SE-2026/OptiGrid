@@ -24,7 +24,7 @@ if __name__ == "__main__":
         run_override()
     else:
         logger.info("Analytics worker booting in schedule mode")
-        schedule.every.hour.at(":00").do(run_analytics_batch)
+        schedule.every().hour.at(":00").do(run_analytics_batch)
         #run initial pass on startup
         run_analytics_batch()
         
