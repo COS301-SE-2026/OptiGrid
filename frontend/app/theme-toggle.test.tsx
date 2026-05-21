@@ -68,3 +68,29 @@ describe("ThemeToggle", () => {
         expect(screen.getByRole("button")).toHaveAttribute("aria-label", "Switch to light mode");
     });
 });
+
+describe("ThemeToggle API Sync", () => {
+    beforeEach(() => {
+        global.fetch = jest.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ status: "success" }),
+            })
+        ) as jest.Mock;
+    });
+
+    it("calls the backend API when toggled", async () => {
+        renderWithProvider(false);
+        const button = screen.getByRole("button");
+        
+        await userEvent.click(button);
+        
+        expect(global.fetch).toHaveBeenCalledWith(
+            "/api/preferences/theme",
+            expect.objectContaining({
+                method: "PUT",
+                body: JSON.stringify({ theme: "dark" })
+            })
+        );
+    });
+});

@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import type { CreateAppOptions } from '../../../../../backend/core/src/app';
 import { bootstrapCoreSchema, resetCoreSchema } from './prisma-schema';
 import { startPostgresHarness, stopPostgresHarness, type StartedPostgresHarness } from './postgres-container';
+import { applySupabaseMigrationAndSeed } from './integration-seed-fixtures';
 
 export interface CoreApiHarness {
 	app: Express;
@@ -23,13 +24,12 @@ async function disconnectPrismaClient(): Promise<void> {
 
 export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}): Promise<CoreApiHarness> {
 	const postgresHarness = await startPostgresHarness();
-
-	// Point the runtime Prisma client to this test's isolated database.
 	process.env.DATABASE_URL = postgresHarness.connectionString;
 
-	const prepareDatabase = options.prepareDatabase ?? bootstrapCoreSchema;
-	const resetDatabase = options.resetDatabase ?? resetCoreSchema;
-	await prepareDatabase(postgresHarness.connectionString);
+	
+	const prepareDatabase = options.prepareDatabase ?? applySupabaseMigrationAndSeed; 
+    const resetDatabase = options.resetDatabase ?? resetCoreSchema;
+    await prepareDatabase(postgresHarness.connectionString);
 
 	const { createApp } = await import('../../../../../backend/core/src/app');
 	const app = createApp(0, options.appOptions);
@@ -42,6 +42,13 @@ export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}):
 	};
 }
 
+export async function getAuthHeaders(
+	userId: string = '33333333-3333-3333-3333-333333333333',
+	email: string = 'ops-admin@optigrid.test',
+): Promise<{ Cookie: string }> {
+	const sessionPayload = encodeURIComponent(JSON.stringify({ userId, email }));
+	return { Cookie: `optigrid_session=${sessionPayload}` };
+}
 async function stopCoreApiHarness(harness: StartedPostgresHarness): Promise<void> {
 	await disconnectPrismaClient();
 	await stopPostgresHarness(harness);

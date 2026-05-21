@@ -1,6 +1,6 @@
 const { Client } = require('pg');
 const request = require('supertest');
-import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
+import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
 const { v4: uuidv4 } = require('uuid');
 
 // we need to mock influx because it isnt spun up in harness
@@ -20,6 +20,7 @@ describe('Building integration - Compare Buildings', () => {
 	const buildingIdA = '11111111-1111-1111-1111-111111111111';
 	const buildingIdB = '22222222-2222-2222-2222-222222222222';
 	const buildingIdNoAccess = '33333333-3333-3333-3333-333333333333';
+    let authHeaders: { Cookie: string };
 
 	const authMiddleware = (req: any, _res: any, next: any) => {
 		if (injectAuthenticatedUser) {
@@ -39,6 +40,7 @@ describe('Building integration - Compare Buildings', () => {
 				routeMiddleware: [authMiddleware],
 			},
 		} as any);
+		authHeaders = await getAuthHeaders(userId);
 	}, 180000);
 
 	beforeEach(async () => {
@@ -98,7 +100,8 @@ describe('Building integration - Compare Buildings', () => {
 
 		const response = await request(harness.app)
 			.post(`/api/buildings/compare?building_id_a=${buildingIdA}&building_id_b=${buildingIdB}&time_range=30d`)
-			.set('Idempotency-Key', idempotencyKey);
+			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders);
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('success');
@@ -129,14 +132,16 @@ describe('Building integration - Compare Buildings', () => {
 		// first req should hit db
 		const response1 = await request(harness.app)
 			.post(endpoint)
-			.set('Idempotency-Key', idempotencyKey);
+			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders);
 
 		expect(response1.status).toBe(200);
 
 		// second should hit cache and shouldnt call influx
 		const response2 = await request(harness.app)
 			.post(endpoint)
-			.set('Idempotency-Key', idempotencyKey);
+			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders);
 
 		expect(response2.status).toBe(200);
 		expect(response2.body).toEqual(response1.body);
@@ -146,7 +151,8 @@ describe('Building integration - Compare Buildings', () => {
 
 	it('returns 400 Bad Request if Idempotency-Key is missing', async () => {
 		const response = await request(harness.app)
-			.post(`/api/buildings/compare?building_id_a=${buildingIdA}&building_id_b=${buildingIdB}&time_range=30d`);
+			.post(`/api/buildings/compare?building_id_a=${buildingIdA}&building_id_b=${buildingIdB}&time_range=30d`)
+			.set(authHeaders);
 
 		expect(response.status).toBe(400);
 		expect(response.body.message).toBe('Idempotency-Key header is required');
@@ -169,7 +175,8 @@ describe('Building integration - Compare Buildings', () => {
 
 		const response = await request(harness.app)
 			.post(`/api/buildings/compare?building_id_a=${buildingIdA}&building_id_b=${buildingIdB}`)
-			.set('Idempotency-Key', idempotencyKey);
+			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders);
 
 		expect(response.status).toBe(400);
 		expect(response.body.message).toBe('Invalid request parameters');
@@ -180,7 +187,8 @@ describe('Building integration - Compare Buildings', () => {
 
 		const response = await request(harness.app)
 			.post(`/api/buildings/compare?building_id_a=${buildingIdA}&building_id_b=${buildingIdNoAccess}&time_range=30d`)
-			.set('Idempotency-Key', idempotencyKey);
+			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders);
 
 		expect(response.status).toBe(403);
 		expect(response.body.message).toContain('Access Denied');
