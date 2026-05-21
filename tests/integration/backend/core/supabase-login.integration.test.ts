@@ -3,6 +3,10 @@ import request from 'supertest';
 import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
 import { applySupabaseMigrationAndSeed, resetSupabaseFixtureData } from './harness/integration-seed-fixtures';
 
+function uniqueEmail(prefix: string) {
+	return `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2)}@optigrid.test`;
+}
+
 describe('Supabase-backed login integration', () => {
 	let harness: CoreApiHarness;
 
@@ -42,7 +46,7 @@ describe('Supabase-backed login integration', () => {
 		}
 
 		const signupPayload = {
-			email: 'supabase.int@optigrid.test',
+			email: uniqueEmail('supabase.int'),
 			password: 'StrongPass123!',
 			name: 'Supabase Integration',
 		};
