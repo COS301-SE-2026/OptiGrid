@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { Card, Title, TextInput, Button } from "@tremor/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getLoginError, initialLoginFormData, type LoginFormData } from "./validation";
 
 export default function LoginPage() {
     const router = useRouter();
-    const [isClientReady, setIsClientReady] = useState(false);
     const [formData, setFormData] = useState<LoginFormData>(
         initialLoginFormData
     );
@@ -18,8 +16,6 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        setIsClientReady(true);
-
         const query = new URLSearchParams(window.location.search);
         const signupState = query.get("signup");
         const loggedOut = query.get("loggedOut");
@@ -38,17 +34,6 @@ export default function LoginPage() {
             }));
         }
     }, []);
-
-    if (!isClientReady) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-                <Card className="w-full max-w-md space-y-6 p-6">
-                    <Title>Login</Title>
-                    <p className="text-sm text-gray-600">Preparing sign-in form...</p>
-                </Card>
-            </div>
-        );
-    }
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
