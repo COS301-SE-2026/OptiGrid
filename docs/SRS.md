@@ -240,7 +240,133 @@ Intended Users and how they  will use system
 ***
 
 ## 4. Functional Requirements
-Requirements to satisfy use cases
+
+### R1: Multi-Building Data Ingestion
+
+#### R1.1: Protocol & Format Support
+* **R1.1.1:** The system shall natively ingest telemetry data via API push endpoints.
+* **R1.1.2:** The system shall support manual and automated batch ingestion of CSV and JSON file formats.
+* **R1.1.3:** The system shall standardize all incoming data payloads into a unified JSON schema before storage.
+* **R1.1.4:** The system shall normalize all timestamps to UTC and convert regional units (e.g., BTUs, Joules) to standard Kilowatt-hours (kWh).
+
+#### R1.2: Processing Modes & Resiliency
+* **R1.2.1:** The system shall process real-time incoming telemetry with a latency of no more than 2 seconds.
+* **R1.2.2:** The system shall utilize a message broker to queue incoming data during database unavailability to prevent data loss.
+* **R1.2.3:** The system shall reject malformed payloads and log the specific validation error in an error log for admin review.
+
+#### R1.3: Multi-Building Support
+* **R1.3.1:** The system shall enforce the inclusion of a valid, unique Building_ID and Meter_ID on every ingested data point.
+
+#### R1.4: Data Validation & Quality Control
+* **R1.4.1:** The system shall validate all incoming telemetry for required fields.
+* **R1.4.2:** The system shall detect and flag duplicate data points.
+* **R1.4.3:** The system shall handle missing values using configurable strategies.
+
+
+### R2: Energy Data Storage Layer
+
+#### R2.1: Centralised Time-Series Storage
+* **R2.1.1:** The system shall store all valid telemetry data in a time-series database which is InfluxDB.
+* **R2.1.2:** The system shall partition database records to optimize multi-tenant query speeds.
+
+#### R2.2: Historical Analytics Capability
+* **R2.2.1:** The system shall execute background tasks to automatically pre-aggregate high-frequency data into 15-minute, 1-hour, and 24-hour roll-ups.
+
+#### R2.3: Efficient Querying & Lifecycle
+* **R2.3.1:** The system shall execute automated scripts to archive raw data older than 24 months into cold object storage to maintain database performance.
+* **R2.3.2:** The system shall respond to dashboard data queries for the last 30 days of aggregated data in under 2 seconds.
+
+
+### R3: Energy Monitoring Dashboard
+
+#### R3.1: Building Energy Visualization
+* **R3.1.1:** The system shall render charts detailing energy usage per building.
+* **R3.1.2:** The system shall allow users to interact with charts via zoom, pan.
+
+#### R3.2: Building Comparison
+* **R3.2.1:** The system shall provide a multi-select interface allowing users to overlay up to five different buildings on a single chart axis.
+* **R3.2.2:** The system shall mathematically normalize comparison data by square footage, Energy Use Intensity when buildings are of different sizes.
+
+#### R3.3: Export & Reporting
+* **R3.3.1:** The system shall allow users to export the raw data of any currently viewed chart into a CSV format.
+* **R3.3.2:** The system shall allow users to download a formatted PDF snapshot of the current dashboard layout.
+
+
+### R4: Anomaly Detection System
+
+#### R4.1: Pattern & Spike Detection
+* **R4.1.1:** The system shall continuously calculate a rolling historical baseline for expected energy consumption.
+* **R4.1.2:** The system shall trigger an anomaly event when real-time consumption deviates from the baseline by a user-chosen percentage (e.g., > 20% spike).
+* **R4.1.3:** The system shall trigger a "Meter Offline" anomaly if zero telemetry is received from a known meter for 15 minutes.
+
+#### R4.2: Automated Alerts & Management
+* **R4.2.1:** The system shall dispatch tiered notifications via Email or SMS immediately upon detecting an anomaly.
+* **R4.2.2:** The system shall allow administrators to configure "Maintenance Windows" during which all anomaly alerts for a specific building are suppressed.
+
+#### R4.3: Alert Configuration
+* **R4.3.1:** The system shall allow users to configure anomaly thresholds per building or meter.
+* **R4.3.2:** The system shall allow users to configure notification preferences (Email/SMS).
+
+
+### R5: Energy Demand Forecasting
+
+#### R5.1: Prediction Models
+* **R5.1.1:** The system shall utilize historical consumption data to generate localized short-term demand forecasts (up to 7 days in advance).
+
+#### R5.2: Contextual Inputs
+* **R5.2.1:** The system shall automatically query external third-party APIs to ingest local weather forecasts (temperature, humidity) into the prediction model.
+* **R5.2.2:** The system shall allow administrators to input building occupancy schedules and public holidays to adjust the forecast algorithms downwards during low-use periods.
+
+#### R5.3: Forecast Model Management
+* **R5.3.1:** The system shall allow periodic retraining of forecasting models using updated historical data.
+* **R5.3.2:** The system shall allow administrators or system processes to update, delete or edit forecasting models without downtime.
+* **R5.3.3:** The system shall log model versioning information for traceability of predictions.
+
+
+### R6: Optimisation Recommendation Engine
+
+#### R6.1: Load Shifting & Adjustments
+* **R6.1.1:** The system shall analyze forecasted peak demand times against active utility tariff schedules.
+* **R6.1.2:** The system shall generate text-based recommendations for off-peak usage adjustments (e.g., "Pre-cool building at 05:00 AM").
+
+#### R6.2: Financial Insights
+* **R6.2.1:** The system shall mathematically calculate and display an estimated monthly cost savings metric for each generated recommendation.
+
+
+### R7: Administrative & Role-Based Access (RBAC)
+
+#### R7.1: Multi-Tenant Isolation
+* **R7.1.1:** The system shall enforce strict row-level security on all database queries, ensuring users can only access telemetry linked to their assigned tenant organization.
+
+#### R7.2: Access Control
+* **R7.2.1:** The system shall enforce secure login procedures including password complexity rules and optional Multi-Factor Authentication (MFA).
+* **R7.2.2:** The system shall support a minimum of three distinct roles: Global Admin (full access), Facility Manager (building-specific edit access), and Tenant Viewer (building-specific read-only access).
+
+#### R7.3: Building Configuration
+* **R7.3.1:** The system shall provide a CRUD (Create, Read, Update, Delete) UI for managing building metadata, including physical address, square footage, and timezone.
+
+#### R7.4: User Management Lifecycle
+* **R7.4.1:** The system shall allow users to create new accounts.
+* **R7.4.2:** The system shall allow administrators to update user roles.
+* **R7.4.3:** The system shall allow users to deactivate or delete their accounts.
+* **R7.4.4:** The system shall allow users to edit details on their accounts.
+* **R7.4.5:** The system shall enforce that deactivated users cannot access the system.
+
+
+### R8: Device / Sensor Management
+
+#### R8.1: Device & Meter Management
+* **R8.1.1:** The system shall allow administrators to register, update, and deactivate meters.
+* **R8.1.2:** The system shall associate each meter with a specific building.
+* **R8.1.3:** The system shall store metadata for each meter.
+
+
+### R9: Audit Logging & Compliance
+
+#### R9.1: Audit & Activity Logging
+* **R9.1.1:** The system shall log all user actions (login, data changes, configuration updates).
+* **R9.1.2:** The system shall allow administrators to view audit logs.
+
 
 ## 5. API Service Contracts
 Swagger docs basically
