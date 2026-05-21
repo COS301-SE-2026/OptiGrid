@@ -76,8 +76,8 @@ jobs:
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
 
-      - name: Run Prisma migrations
-        run: pnpm --filter @optigrid/core exec prisma migrate deploy
+      - name: Run Prisma schema push
+        run: cd backend/core && pnpm exec prisma db push --accept-data-loss --schema=./prisma/schema.prisma
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
 
