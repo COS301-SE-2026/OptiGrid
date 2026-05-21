@@ -143,7 +143,97 @@ const router = Router();
  */
 router.get('/', listBuildingsController);
 router.post('/', createBuildingController);
-router.post('/compare', compareBuildingsController);
+/**
+ * @swagger
+ * /api/buildings/{building_id}:
+ *   delete:
+ *     summary: Delete a building
+ *     tags:
+ *       - Buildings
+ *     parameters:
+ *       - name: building_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Building identifier to delete
+ *     requestBody: {}
+ *     responses:
+ *       200:
+ *         description: Building deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Building successfully deleted
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied
+ *       400:
+ *         description: Invalid request parameters
+ *       500:
+ *         description: Internal server error
+ *   patch:
+ *     summary: Update a building
+ *     tags:
+ *       - Buildings
+ *     parameters:
+ *       - name: building_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Building identifier to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               building_name:
+ *                 type: string
+ *               building_type:
+ *                 type: string
+ *               square_footage:
+ *                 type: number
+ *               timezone:
+ *                 type: string
+ *               max_occupancy:
+ *                 type: integer
+ *               physical_address:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Building updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Invalid request payload
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied
+ *       500:
+ *         description: Internal server error
+ */
 router.delete('/:building_id', deleteBuildingController);
 router.patch('/:building_id', updateBuildingController);
 
