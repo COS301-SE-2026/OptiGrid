@@ -110,13 +110,6 @@ export async function POST(request: Request) {
 		);
 	}
 
-	const incomingKey = request.headers.get("idempotency-key");
-	const idempotencyKey = incomingKey?.trim() ||
-		(typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-			? `create-building-${crypto.randomUUID()}`
-			: `create-building-${Date.now()}-${Math.random()}`);
-	headers.set("Idempotency-Key", idempotencyKey);
-
 	try {
 		const coreResponse = await fetch(`${CORE_URL}/api/buildings`, {
 			method: "POST",
