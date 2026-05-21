@@ -187,15 +187,27 @@ export default function ForecastPage() {
         queryFn: () => Promise.resolve(MOCK_BUILDINGS),
     });
 
-    const {
-        mutate: runForecast,
-        isPending,
-        data: result,
-    } = useMutation<ForecastResult, Error, ForecastParams>({
-        mutationFn: (params) =>
-            new Promise((resolve) =>
-                setTimeout(() => resolve(generateMockForecast(params)), 800)
-            ),
+    const { mutate, isPending, data: result } = useMutation({
+        mutationFn: async (params: ForecastParams) => {
+            const response = await fetch(`http://localhost:3001/api/analytics/forecast/${params.building_id}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    // "Authorization": `Bearer ${localStorage.getItem('token')}` //if we using
+                },
+                body: JSON.stringify({
+                    horizon_days: params.horizon_days,
+                    granularity: params.granularity
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Failed to fetch forecast");
+            }
+            
+            return response.json() as Promise<ForecastResult>;
+        }
     });
 
     const chartData: ChartPoint[] = result
@@ -213,9 +225,9 @@ export default function ForecastPage() {
         ]
         : [];
 
-    const nowTs = result
-        ? result.historical[result.historical.length - 1].timestamp
-        : null;
+    const nowTs = result && result.historical.length > 0
+            ? result.historical[result.historical.length - 1].timestamp
+            : null;
 
     const tickInterval = granularity === "hourly" ? 23 : 0;
 
@@ -256,6 +268,7 @@ export default function ForecastPage() {
                 >
                     <div style={{ display: "grid", gap: "6px" }}>
                         <label
+                            htmlFor="building-select"
                             className="label"
                             style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
                         >
@@ -263,10 +276,11 @@ export default function ForecastPage() {
                         </label>
                         <div style={{ position: "relative" }}>
                             <select
-                                value={buildingId}
-                                onChange={(e) => setBuildingId(e.target.value)}
+                                id="building-select"
                                 className="select"
                                 style={selectStyle}
+                                value={buildingId}
+                                onChange={(e) => setBuildingId(e.target.value)}
                             >
                                 <option value="">Select building</option>
                                 {(buildings ?? MOCK_BUILDINGS).map((b) => (
@@ -366,7 +380,7 @@ export default function ForecastPage() {
                         <button
                             disabled={!canRun}
                             onClick={() =>
-                                runForecast({
+                                mutate({
                                     building_id: buildingId,
                                     horizon_days: horizon,
                                     granularity,
