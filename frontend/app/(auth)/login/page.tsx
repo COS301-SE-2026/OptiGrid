@@ -1,15 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent, type SyntheticEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Card, Title, TextInput, Button } from "@tremor/react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-    useEffect,
-    useState,
-    type ChangeEvent,
-    type FormEvent,
-} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getLoginError, initialLoginFormData, type LoginFormData } from "./validation";
@@ -34,9 +26,9 @@ export default function LoginPage() {
         const emailFromQuery = query.get("email");
 
         if (signupState === "success") {
-            setSuccess("Account created successfully. Please log in.");
+            setNotice("Account created successfully. Please log in.");
         } else if (loggedOut === "1") {
-            setSuccess("You have been logged out.");
+            setNotice("You have been logged out.");
         }
 
         if (emailFromQuery) {
@@ -77,14 +69,14 @@ export default function LoginPage() {
                 body: JSON.stringify(formData),
             });
 
-            const payload = await response.json().catch(() => ({}));
+            const payload = await res.json().catch(() => ({}));
 
-            if (!response.ok) {
+            if (!res.ok) {
                 throw new Error(payload?.message || "Login failed. Try again.");
             }
 
             const firstName = payload?.user?.firstName as string | undefined;
-            setSuccess(`Login successful${firstName ? `, ${firstName}` : ""}.`);
+            setNotice(`Login successful${firstName ? `, ${firstName}` : ""}.`);
             setFormData(initialLoginFormData);
             router.push("/dashboard");
             router.refresh();
