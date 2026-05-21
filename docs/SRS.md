@@ -386,5 +386,8 @@ Constraints for the project
 ### 7.5 Technology Requirements
 Tech Stack
 
-## 8. Traceability Matrix
+## 8. Architecture Diagram
+![System Architecture Diagram](images/Architecture_Diagram.png)
+
+## 9. Traceability Matrix
 mapping use cases and requirements
