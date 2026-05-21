@@ -128,7 +128,8 @@ describe("ForecastPage", () => {
         expect(screen.getByText(/250 kWh/)).toBeInTheDocument();
         expect(screen.getByText(/1,?200 kWh/)).toBeInTheDocument();
         expect(screen.getByText(/MAPE 4.8%/)).toBeInTheDocument();
-        expect(screen.getByText("95% interval")).toBeInTheDocument();
+        expect(screen.getByText("Predicted")).toBeInTheDocument();
+        expect(screen.queryByText("95% interval")).toBeNull();
     });
 
     it("renders real KPI values after fetching from the API", async () => {
