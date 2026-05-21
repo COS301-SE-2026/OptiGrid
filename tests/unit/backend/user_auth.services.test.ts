@@ -66,6 +66,9 @@ describe('User Authentication Service - Login', () => {
                 user: {
                     id: 'uuid-1234',
                 },
+                session: {
+                    access_token: 'token-123',
+                },
             },
             error: null,
         });
@@ -87,7 +90,10 @@ describe('User Authentication Service - Login', () => {
                 lastName: true,
             },
         });
-        expect(result).toEqual(mockUser);
+        expect(result).toEqual({
+            user: mockUser,
+            accessToken: 'token-123',
+        });
     });
 
     it('should throw an error if credentials are invalid', async () => {
@@ -112,6 +118,9 @@ describe('User Authentication Service - Login', () => {
             data: {
                 user: {
                     id: 'uuid-1234',
+                },
+                session: {
+                    access_token: 'token-123',
                 },
             },
             error: null,
