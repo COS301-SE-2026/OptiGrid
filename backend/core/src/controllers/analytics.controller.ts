@@ -40,6 +40,14 @@ function extractLegacyBuildingIndex(value: string): number | null {
     return Number.isFinite(parsed) && parsed > 0 ? parsed - 1 : null;
 }
 
+function hashString(value: string): number {
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+        hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+    }
+    return hash;
+}
+
 export const getForecastController = async (req: Request, res: Response) => {
     try{
         if (!req.user?.id) {
@@ -68,31 +76,24 @@ export const getForecastController = async (req: Request, res: Response) => {
                     },
                 },
             },
-            orderBy: {
-                created_at: 'desc',
-            },
             select: {
                 building_id: true,
             },
         });
 
         let analyticsLookupId = building_id;
-        let analyticsLookupIndex: number | null = null;
 
         if (isUuidBuildingId) {
-            const authorizedIndex = authorizedBuildings.findIndex(
+            const isAuthorized = authorizedBuildings.some(
                 (building) => building.building_id === building_id,
             );
 
-            if (authorizedIndex === -1) {
+            if (!isAuthorized) {
                 return res.status(403).json({
                     status: 'error',
                     message: 'Access Denied: You do not have permission to view this forecast.',
                 });
             }
-
-            analyticsLookupIndex = authorizedIndex;
-            analyticsLookupId = toLegacyAnalyticsBuildingId(authorizedIndex);
         } else {
             const legacyIndex = extractLegacyBuildingIndex(building_id) ?? -1;
             if (legacyIndex < 0 || legacyIndex >= authorizedBuildings.length) {
@@ -101,22 +102,16 @@ export const getForecastController = async (req: Request, res: Response) => {
                     message: 'Access Denied: You do not have permission to view this forecast.',
                 });
             }
-
-            analyticsLookupIndex = legacyIndex;
         }
-
-        const candidateIds =
-            analyticsLookupId !== building_id ? [building_id, analyticsLookupId] : [building_id];
 
         const directAnalyticsRows = await prisma.$queryRaw<any[]>(
             Prisma.sql`
                 SELECT *
                 FROM public.building_analytics
-                WHERE building_id IN (${Prisma.join(candidateIds)})
+                WHERE building_id = ${building_id}
                 ORDER BY CASE
                     WHEN building_id = ${building_id} THEN 0
-                    WHEN building_id = ${analyticsLookupId} THEN 1
-                    ELSE 2
+                    ELSE 1
                 END
                 LIMIT 1
             `,
@@ -124,7 +119,7 @@ export const getForecastController = async (req: Request, res: Response) => {
 
         let analytics = directAnalyticsRows[0] ?? null;
 
-        if (!analytics && analyticsLookupIndex !== null) {
+        if (!analytics) {
             const legacyAnalyticsRows = await prisma.$queryRaw<any[]>(
                 Prisma.sql`
                     SELECT *
@@ -135,10 +130,17 @@ export const getForecastController = async (req: Request, res: Response) => {
             );
 
             if (legacyAnalyticsRows.length > 0) {
-                analytics =
-                    legacyAnalyticsRows[analyticsLookupIndex] ??
-                    legacyAnalyticsRows[Math.min(analyticsLookupIndex, legacyAnalyticsRows.length - 1)] ??
-                    null;
+                if (legacyBuildingMatch) {
+                    const legacyIndex = extractLegacyBuildingIndex(building_id) ?? 0;
+                    analytics =
+                        legacyAnalyticsRows[legacyIndex] ??
+                        legacyAnalyticsRows[Math.min(legacyIndex, legacyAnalyticsRows.length - 1)] ??
+                        null;
+                } else {
+                    const hashedIndex = hashString(building_id) % legacyAnalyticsRows.length;
+                    analytics = legacyAnalyticsRows[hashedIndex] ?? null;
+                    analyticsLookupId = toLegacyAnalyticsBuildingId(hashedIndex);
+                }
             }
         }
 
