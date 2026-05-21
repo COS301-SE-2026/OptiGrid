@@ -28,8 +28,6 @@ export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}):
 	const postgresHarness = await startPostgresHarness();
 
 	
-	process.env.DATABASE_URL = postgresHarness.connectionString;
-
 	const prepareDatabase = options.prepareDatabase ?? applySupabaseMigrationAndSeed; 
     const resetDatabase = options.resetDatabase ?? resetCoreSchema;
     await prepareDatabase(postgresHarness.connectionString);

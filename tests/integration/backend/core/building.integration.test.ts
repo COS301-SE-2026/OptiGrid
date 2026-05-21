@@ -9,7 +9,13 @@ describe('Building integration - Create Building', () => {
 	let injectAuthenticatedUser = true;
 	const tenantId = '8680c655-bfa3-433b-81aa-084fc76882d9';
 	const userId = 'bbe48b78-438f-4ed7-9fe7-a8fc9addc187';
-	const authMiddleware = (req: any, _res: any, next: any) => { ... }
+	const authMiddleware = (req: any, res: any, next: any) => {
+		if (!injectAuthenticatedUser) {
+			return res.status(401).json({ message: 'Unauthorized' });
+		}
+		req.user = { id: userId, tenant_id: tenantId }; 
+		next();
+	};
 	//
 	beforeAll(async () => {
 		harness = await createCoreApiHarness();

@@ -7,7 +7,7 @@
 		"dev": "tsx watch src/server.ts",
 		"build": "node ./scripts/prisma-generate-dummy.mjs && tsc -p tsconfig.json",
 		"start": "node dist/src/server.js",
-		"test": "jest",
+		"test": "jest --config ./jest.config.cjs",
 		"lint": "eslint .",
 		"test:unit": "jest",
 		"test:integration": "jest --config ./jest.integration.json --runInBand",
