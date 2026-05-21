@@ -108,7 +108,7 @@ describe("AddBuildingPage", () => {
     it("has a default empty 'Select type' placeholder option", () => {
       render(<AddBuildingPage />);
       const select = getField("building_type") as HTMLSelectElement;
-      expect(select.options[0].text).toMatch(/select type/i);
+      expect(select.options[0].text).toMatch(/select building type/i);
       expect(select.options[0].value).toBe("");
     });
 
