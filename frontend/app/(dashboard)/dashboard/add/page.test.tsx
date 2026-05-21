@@ -4,6 +4,12 @@ import "@testing-library/jest-dom";
 
 import AddBuildingPage from "./page";
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    refresh: jest.fn(),
+  }),
+}));
 
 // Use the native FormData implementation provided by JSDOM in tests
 
