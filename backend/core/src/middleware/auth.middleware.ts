@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { createClient } from "@supabase/supabase-js";
+import WebSocket from "ws";
 import prisma from "../lib/prisma";
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -13,6 +14,9 @@ const supabaseClient =
 				auth: {
 					autoRefreshToken: false,
 					persistSession: false,
+				},
+				realtime: {
+					transport: WebSocket,
 				},
 		  })
 		: null;
