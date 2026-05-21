@@ -20,16 +20,10 @@ export default function AddBuildingPage() {
     spaceGrotesk.rel = "stylesheet";
     spaceGrotesk.href = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap";
     document.head.appendChild(spaceGrotesk);
-
-    const jetbrains = document.createElement("link");
-    jetbrains.rel = "stylesheet";
-    jetbrains.href = "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap";
-    document.head.appendChild(jetbrains);
   }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    //we authenticate user before making any reqs to backend
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -57,13 +51,11 @@ export default function AddBuildingPage() {
       square_footage: formData.get("square_footage"),
       max_occupancy: formData.get("max_occupancy"),
       operatingHours: { start: startTime, end: endTime },
-    
     };
 
     console.log("Building Data:", data);
     alert("Building created successfully");
 
-    // integration with backend api, we send the correct data and then handle it properly
     const buildingPayload: Record<string, unknown> = {
       building_name: String(data.building_name || "").trim(),
       physical_address: String(data.physical_address || "").trim() || undefined,
@@ -72,52 +64,42 @@ export default function AddBuildingPage() {
       max_occupancy: formData.get("max_occupancy") ? Number(formData.get("max_occupancy")) : undefined,
       timezone: "UTC",
     };
-    //we delete values that are undefined and then we can also create a key to ensure we dont create multiple same buildings
     Object.keys(buildingPayload).forEach((k) => buildingPayload[k] === undefined && delete buildingPayload[k]);
-    const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    const idempotencyKey = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
-    //we chek if we can fetchthe api,  send a req and then handle success and failure cases
-    //if it fails, we log it in console to fix the error
-    if (typeof fetch === 'function') {
-      fetch('/api/buildings', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Idempotency-Key': idempotencyKey ,
-          'Authorization': `Bearer ${userToken}`
+    if (typeof fetch === "function") {
+      fetch("/api/buildings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+          "Authorization": `Bearer ${userToken}`,
         },
         body: JSON.stringify(buildingPayload),
-        credentials: 'include',
+        credentials: "include",
       })
         .then(async (resp) => {
-          //success case
           if (resp.ok) {
-            window.alert('Building created successfully');
+            window.alert("Building created successfully");
             formElement.reset();
-            setStartTime('08:00');
-            setEndTime('18:00');
-          } 
-          //error case
-          else {
+            setStartTime("08:00");
+            setEndTime("18:00");
+          } else {
             const body = await resp.json().catch(() => ({}));
-            window.alert(`Error: ${body?.message || 'Failed to create building'}`);
+            window.alert(`Error: ${body?.message || "Failed to create building"}`);
           }
         })
-        .catch(() => window.alert('Network error while creating building'));
-    } 
-    else {
-      //log an error to show to user that building was not created
+        .catch(() => window.alert("Network error while creating building"));
+    } else {
       console.error("Fetch Api did not work, may be unsupported in this browser");
       window.alert("System Error: Unable to create building");
-      return; 
     }
+  };
 
-}
-
-const headingFont = { fontFamily: "Space Grotesk, sans-serif" };
+  const headingFont = { fontFamily: "Space Grotesk, sans-serif" };
   const bodyFont = { fontFamily: "Inter, sans-serif" };
 
-return (
+  return (
     <div className="min-h-screen bg-[#EEF7FF] flex items-center justify-center p-6">
       <div className="w-full max-w-3xl bg-[#CDE8E5] rounded-3xl shadow-2xl border border-[#7AB2B2] p-8">
         <div className="mb-8">
@@ -142,7 +124,8 @@ return (
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
             />
           </div>
-<div className="flex flex-col gap-2 md:col-span-2">
+
+          <div className="flex flex-col gap-2 md:col-span-2">
             <label style={bodyFont} className="text-sm text-[#4D869C]">
               Address
             </label>
@@ -155,7 +138,7 @@ return (
             />
           </div>
 
-<div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2">
             <label style={bodyFont} className="text-sm text-[#4D869C]">
               Building Type
             </label>
@@ -164,8 +147,9 @@ return (
               required
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
+              defaultValue=""
             >
-              <option value="">Select type</option>
+              <option value="" disabled>Select building type</option>
               {buildingTypes.map((type) => (
                 <option key={type} value={type}>
                   {type}
@@ -173,11 +157,35 @@ return (
               ))}
             </select>
           </div>
- <div className="flex flex-col gap-3">
+
+          <div className="flex flex-col gap-2">
+            <label style={bodyFont} className="text-sm text-[#4D869C]">
+              Square Footage
+            </label>
+            <input
+              type="text"
+              name="square_footage"
+              style={bodyFont}
+              className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label style={bodyFont} className="text-sm text-[#4D869C]">
+              Number of Occupants
+            </label>
+            <input
+              type="text"
+              name="max_occupancy"
+              style={bodyFont}
+              className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 md:col-span-2">
             <label style={bodyFont} className="text-sm text-[#4D869C]">
               Operating Hours
             </label>
-
             <div className="flex gap-3 items-center">
               <div className="flex-1 bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 flex items-center justify-between">
                 <input
@@ -200,149 +208,18 @@ return (
                 />
               </div>
             </div>
-
-            
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
-                
-                
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label className="label">
-                    Building Name <span style={{ color: "var(--brand-danger)" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="building_name"
-                    required
-                    className="input"
-                    placeholder="e.g., building A"
-                  />
-                </div>
-
-                
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label className="label">
-                    Physical Address <span style={{ color: "var(--brand-danger)" }}>*</span>
-                  </label>
-                  <textarea
-                    name="physical_address"
-                    rows={3}
-                    required
-                    className="input"
-                    style={{ resize: "vertical" }}
-                    placeholder="Enter the address"
-                  />
-                </div>
-
-         
-                <div>
-                  <label className="label">
-                    Building Type <span style={{ color: "var(--brand-danger)" }}>*</span>
-                  </label>
-                  <select
-                    name="building_type"
-                    required
-                    className="select"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>Select building type</option>
-                    {buildingTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-         
-                <div>
-                  <label className="label">
-                    Square Footage  <span style={{ color: "var(--brand-danger)" }}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="square_footage"
-                    required
-                    className="input"
-                    placeholder="e.g., 2500"
-                  />
-                </div>
-
-         
-                <div>
-                  <label className="label">
-                    Max Occupancy <span style={{ color: "var(--brand-danger)" }}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="max_occupancy"
-                    required
-                    className="input"
-                    placeholder="e.g., 120"
-                  />
-                </div>
-
-         
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label className="label">
-                    Operating Hours <span style={{ color: "var(--brand-danger)" }}>*</span>
-                  </label>
-                </div>
-
-         
-                <div>
-                  <label className="label" style={{ fontSize: "var(--fs-small)" }}>
-                    Start Time
-                  </label>
-                  <input
-                    type="text"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="input"
-                    placeholder="08:00"
-                    required
-                  />
-                </div>
-
-         
-                <div>
-                  <label className="label" style={{ fontSize: "var(--fs-small)" }}>
-                    End Time
-                  </label>
-                  <input
-                    type="text"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="input"
-                    placeholder="18:00"
-                    required
-                  />
-                </div>
-
-         
-                <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => window.history.back()}
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                  >
-                    Create Building
-                  </button>
-                </div>
-
-              </div>
-            </form>
           </div>
 
-         
-        </div>
+          <div className="md:col-span-2 flex justify-end pt-4">
+            <button
+              type="submit"
+              style={headingFont}
+              className="bg-[#3A6B7C] hover:bg-[#2F5F70] text-white font-semibold px-8 py-3 rounded-2xl transition-all duration-300"
+            >
+              Create Building
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
