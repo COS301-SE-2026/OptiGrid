@@ -64,7 +64,7 @@ describe('Building integration - Compare Buildings', () => {
 			);
             //added buildings
 			await client.query(
-				`insert into building (building_id, tenant_id, building_name, square_footage)
+				`insert into "Building" (building_id, tenant_id, building_name, square_footage)
 				 values ($1, $2, $3, $4), ($5, $2, $6, $7), ($8, $2, $9, $10)
 				 on conflict (building_id) do nothing`,
 				[
@@ -75,7 +75,7 @@ describe('Building integration - Compare Buildings', () => {
 			);
             //ade access for user 
 			await client.query(
-				`insert into user_building_access (user_id, building_id)
+				`insert into "UserBuildingAccess" (user_id, building_id)
 				 values ($1, $2), ($1, $3)
 				 on conflict do nothing`,
 				[userId, buildingIdA, buildingIdB]

@@ -5,7 +5,11 @@ import userAuthRoutes from "./routes/user_auth.routes";
 import sensorRoutes from "./routes/sensor.routes"
 import buildingRoutes from "./routes/building.routes"
 
-export function createApp(port = Number(process.env.PORT ?? 4000)): Express {
+export interface CreateAppOptions {
+	routeMiddleware?: RequestHandler[];
+}
+
+export function createApp(port = Number(process.env.PORT ?? 4000), options: CreateAppOptions = {}): Express {
 	const app = express();
 
 	const swaggerSpec = swaggerJsdoc({
@@ -27,6 +31,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000)): Express {
 	});
 
 	app.use(express.json());
+	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", userAuthRoutes);
 	app.use("/api/sensors", sensorRoutes);
