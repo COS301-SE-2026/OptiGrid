@@ -45,6 +45,7 @@ export default function EditBuildingPage({
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    const [success, setSuccess] = useState(false);
     const [form, setForm] = useState({
         building_name: "",
         physical_address: "",
@@ -151,9 +152,11 @@ export default function EditBuildingPage({
                 throw new Error(responsePayload.message || "Failed to update building.");
             }
 
-            window.alert("Building updated successfully.");
-            router.push("/dashboard");
-            router.refresh();
+            setSuccess(true);
+            setTimeout(() => {
+                router.push("/dashboard");
+                router.refresh();
+            }, 1200);
         } catch (submitError) {
             setError(
                 submitError instanceof Error
@@ -253,7 +256,13 @@ export default function EditBuildingPage({
                     />
                 </div>
 
-                {error ? <p className="text-muted">{error}</p> : null}
+                {success ? (
+                    <p style={{ color: "var(--brand-success)", fontWeight: 500, fontSize: "0.9rem" }}>
+                        Building updated successfully. Redirecting...
+                    </p>
+                ) : error ? (
+                    <p style={{ color: "var(--brand-danger)", fontSize: "0.9rem" }}>{error}</p>
+                ) : null}
 
                 <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
                     <button
