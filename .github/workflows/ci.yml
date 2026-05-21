@@ -41,6 +41,19 @@ jobs:
   backend-core:
     name: Backend(Core)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: optigrid_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,7 +74,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
+
+      - name: Run Prisma migrations
+        run: pnpm --filter @optigrid/core exec prisma migrate deploy
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
 
       - name: Start Supabase local emulator
         run: |
@@ -89,7 +107,7 @@ jobs:
       - name: Unit Test
         run: pnpm --filter @optigrid/core run test
         env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
           SUPABASE_URL: ${{ env.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
