@@ -4,7 +4,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
-
 export default function AddBuildingPage() {
   const router = useRouter();
   const buildingTypes = [
@@ -50,11 +49,8 @@ export default function AddBuildingPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     const formElement = (e.currentTarget || e.target) as HTMLFormElement;
     const formData = new FormData(formElement);
-
-    
 
     const data = {
       building_name: formData.get("building_name"),
@@ -63,12 +59,11 @@ export default function AddBuildingPage() {
       square_footage: formData.get("square_footage"),
       max_occupancy: formData.get("max_occupancy"),
       operatingHours: { start: startTime, end: endTime },
-    
     };
 
     console.log("Building Data:", data);
+    alert("Building created successfully");
 
-    // integration with backend api, we send the correct data and then handle it properly
     const buildingPayload: Record<string, unknown> = {
       building_name: String(data.building_name || "").trim(),
       physical_address: String(data.physical_address || "").trim() || undefined,
@@ -77,26 +72,22 @@ export default function AddBuildingPage() {
       max_occupancy: toPositiveNumberOrUndefined(formData.get("max_occupancy")),
       timezone: "UTC",
     };
-    //we delete values that are undefined and then we can also create a key to ensure we dont create multiple same buildings
     Object.keys(buildingPayload).forEach((k) => buildingPayload[k] === undefined && delete buildingPayload[k]);
-    const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    const idempotencyKey = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 
-    //we chek if we can fetchthe api,  send a req and then handle success and failure cases
-    //if it fails, we log it in console to fix the error
-    if (typeof fetch === 'function') {
-      fetch('/api/buildings', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Idempotency-Key': idempotencyKey
+    if (typeof fetch === "function") {
+      fetch("/api/buildings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
         },
         body: JSON.stringify(buildingPayload),
-        credentials: 'include',
+        credentials: "include",
       })
         .then(async (resp) => {
-          //success case
           if (resp.ok) {
-            window.alert('Building created successfully');
+            window.alert("Building created successfully");
             formElement.reset();
             setStartTime('08:00');
             setEndTime('18:00');
@@ -113,21 +104,17 @@ export default function AddBuildingPage() {
             window.alert(`Error: ${detailMessage || body?.message || 'Failed to create building'}`);
           }
         })
-        .catch(() => window.alert('Network error while creating building'));
-    } 
-    else {
-      //log an error to show to user that building was not created
+        .catch(() => window.alert("Network error while creating building"));
+    } else {
       console.error("Fetch Api did not work, may be unsupported in this browser");
       window.alert("System Error: Unable to create building");
-      return; 
     }
+  };
 
-}
-
-const headingFont = { fontFamily: "Space Grotesk, sans-serif" };
+  const headingFont = { fontFamily: "Space Grotesk, sans-serif" };
   const bodyFont = { fontFamily: "Inter, sans-serif" };
 
-return (
+  return (
     <div className="min-h-screen bg-[#EEF7FF] flex items-center justify-center p-6">
       <div className="w-full max-w-3xl bg-[#CDE8E5] rounded-3xl shadow-2xl border border-[#7AB2B2] p-8">
         <div className="mb-8">
@@ -152,7 +139,8 @@ return (
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
             />
           </div>
-<div className="flex flex-col gap-2 md:col-span-2">
+
+          <div className="flex flex-col gap-2 md:col-span-2">
             <label style={bodyFont} className="text-sm text-[#4D869C]">
               Address
             </label>
@@ -166,7 +154,7 @@ return (
             />
           </div>
 
-<div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2">
             <label style={bodyFont} className="text-sm text-[#4D869C]">
               Building Type
             </label>
@@ -175,8 +163,9 @@ return (
               required
               style={bodyFont}
               className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
+              defaultValue=""
             >
-              <option value="">Select type</option>
+              <option value="" disabled>Select building type</option>
               {buildingTypes.map((type) => (
                 <option key={type.value} value={type.value}>
                   {type.label}
@@ -184,11 +173,35 @@ return (
               ))}
             </select>
           </div>
- <div className="flex flex-col gap-3">
+
+          <div className="flex flex-col gap-2">
+            <label style={bodyFont} className="text-sm text-[#4D869C]">
+              Square Footage
+            </label>
+            <input
+              type="text"
+              name="square_footage"
+              style={bodyFont}
+              className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label style={bodyFont} className="text-sm text-[#4D869C]">
+              Number of Occupants
+            </label>
+            <input
+              type="text"
+              name="max_occupancy"
+              style={bodyFont}
+              className="bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 text-[#16313A] outline-none focus:border-[#4D869C]"
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 md:col-span-2">
             <label style={bodyFont} className="text-sm text-[#4D869C]">
               Operating Hours
             </label>
-
             <div className="flex gap-3 items-center">
               <div className="flex-1 bg-[#EEF7FF] border border-[#7AB2B2] rounded-2xl px-4 py-3 flex items-center justify-between">
                 <input
