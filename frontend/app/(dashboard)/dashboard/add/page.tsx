@@ -49,23 +49,6 @@ export default function AddBuildingPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      window.alert("Authentication is not configured properly. Please contact support.");
-      return;
-    }
-
-    const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
-    const { data: authData } = await supabase.auth.getSession();
-    const userToken = authData.session?.access_token;
-
-    if (!userToken) {
-      window.alert("You must be logged in to create a building.");
-      return;
-    }
-
     const formElement = (e.currentTarget || e.target) as HTMLFormElement;
     const formData = new FormData(formElement);
 
@@ -98,7 +81,6 @@ export default function AddBuildingPage() {
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
-          "Authorization": `Bearer ${userToken}`,
         },
         body: JSON.stringify(buildingPayload),
         credentials: "include",
