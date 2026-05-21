@@ -4,6 +4,18 @@
 
 ---
 
+## Table of Contents
+* [1. Introduction](#1-introduction)
+* [2. Project Vision and Objectives](#2-project-vision-and-objectives)
+* [3. User Stories & User Characteristics](#3-user-stories--user-characteristics)
+* [4. Use Cases](#4-use-cases)
+* [5. Functional Requirements](#5-functional-requirements)
+* [6. API Service Contracts](#6-api-service-contracts)
+* [7. Domain Model](#7-domain-model)
+* [8. Architectural Requirements](#8-architectural-requirements)
+
+***
+
 ## 1. Introduction 
 * **Project Owner:** Durandt Uys
 * **Project Mentor:** Bryan Janse van Vuuren
@@ -26,14 +38,55 @@ To achieve this vision and solve the problem of undetected energy waste, the sys
 
 ***
 
-## 2. User Stories & User Characteristics 
-Intended Users and how they  will use system
+## 3. User Stories & User Characteristics 
+### 3.1 User Characteristics
+Based on the role-based access control requirements and use cases, the system accommodates three primary users:
+
+* **Admin:** A highly technical user, like a system admin, responsible for all the configuration of the project. They manage building profiles, provision IoT sensor connections, handle data models, and dictate role-based access for all other users.
+* **Facility Manager:** An operational and tactical user responsible for one or more buildings. They rely on the platform to monitor daily consumption, investigate anomaly alerts, and implement the system’s load-shifting recommendations to reduce utility costs. 
+* **Viewer:** A general, non-technical user requiring read-only access. They use the platform purely for visibility into the energy consumption of their specific assigned building or zone, without any authority to alter configurations or view cross-tenant data.
+
+### 3.2 User Stories
+#### 3.2.1 Create Building
+**As a** Admin, 
+**I want to** register a new building profile in the system, 
+**so that** I can begin linking IoT meters and monitoring its specific energy consumption.
+
+#### 3.2.2 Edit Building
+**As a** Admin, 
+**I want to** update an existing building's metadata (such as square footage or operating hours), 
+**so that** the energy use intensity calculations and forecasting models remain accurate.
+
+#### 3.2.3 Delete Building
+**As a** Global Admin, 
+**I want to** delete a building from the platform, 
+**so that** the system portfolio only reflects currently managed properties and avoids processing stale data.
+
+#### 3.2.4 Compare Building Energy Usage
+**As a** Facility Manager, 
+**I want to** compare the energy usage of multiple buildings on a single chart, 
+**so that** I can identify which facilities are underperforming or drawing excess power.
+
+#### 3.2.5 View Forecast
+**As a** Manager, 
+**I want to** view a energy demand forecast for my assigned building, 
+**so that** I can proactively adjust operations to prepare for peak load times.
+
+#### 3.2.6 Signup
+**As a** new User, 
+**I want to** self-register for an account via the portal, 
+**so that** I can request access to my organization's energy dashboards.
+
+#### 3.2.7 Login
+**As a** registered User, 
+**I want to** securely authenticate into the platform using my credentials, 
+**so that** I can access my role-specific dashboard and tools.
 
 ***
 
-## 3. Use Cases
+## 4. Use Cases
 ***
-## 1. Data Ingestion
+## 4.1 Data Ingestion
 ### Use Cases
 
 **Use Case 1: Configure API Data Feed**
@@ -56,12 +109,12 @@ Intended Users and how they  will use system
 * **TUCBW:** The Admin selects a sensor and modifies its metadata (e.g., location name, calibration threshold).
 * **TUCEW:** The system saves the updated details and applies them to the dashboard views.
 
-### Use Case Diagram
+### Use Cases Diagram
 ![Data Ingestion Diagram](./images/Data_Ingestion.png)
 
 ***
 
-## 2. Data Storage
+## 4.2 Data Storage
 ### Use Cases
 
 **Use Case 5: Upload Historical Batch Data**
@@ -79,12 +132,12 @@ Intended Users and how they  will use system
 * **TUCBW:** The Admin selects a legacy batch data file or timeframe and clicks "Delete Data."
 * **TUCEW:** The system permanently purges the selected records to free up storage space.
 
-### Use Case Diagram
+### Use Cases Diagram
 ![Data Storage Use Case Diagram](./images/Data_Storage.png)
 
 ***
 
-## 3. Monitoring Dashboard
+## 4.3 Monitoring Dashboard
 ### Use Cases
 
 **Use Case 8: View Real-Time Energy Dashboard**
@@ -107,7 +160,7 @@ Intended Users and how they  will use system
 
 ***
 
-## 4. Demand Forecasting
+## 4.4 Demand Forecasting
 ### Use Cases
 
 **Use Case 11: View Energy Demand Forecast**
@@ -125,12 +178,12 @@ Intended Users and how they  will use system
 * **TUCBW:** The Admin selects a deprecated forecast model from the system repository and clicks "Delete."
 * **TUCEW:** The system removes the model from the repository.
 
-### Use Case Diagram
+### Use Cases Diagram
 ![Demand Forecasting Use Case Diagram](./images/Demand_Forecasting.png)
 
 ***
 
-## 5. Optimisation Recommendations
+## 4.5 Optimisation Recommendations
 ### Use Cases
 
 **Use Case 14: View Optimisation Recommendations**
@@ -148,12 +201,12 @@ Intended Users and how they  will use system
 * **TUCBW:** The Admin navigates to the billing settings and inputs the new seasonal Time-of-Use rates.
 * **TUCEW:** The system recalculates all future optimisation cost-saving insights based on the newly entered rates.
 
-### Use Case Diagram
+### Use Cases Diagram
 ![Optimisation Recommendations Use Case Diagram](./images/Optimisation_Recommendations.png)
 
 ***
 
-## 6. Anomaly Detection
+## 4.6 Anomaly Detection
 ### Use Cases
 
 **Use Case 17: Configure Alert Thresholds**
@@ -171,12 +224,12 @@ Intended Users and how they  will use system
 * **TUCBW:** The Manager clicks the link provided in an automated anomaly SMS alert.
 * **TUCEW:** The Manager marks the alert as "Investigating" and closes the ticket.
 
-### Use Case Diagram
+### Use Cases Diagram
 ![Anomaly Detection Use Case Diagram](./images/Anamoly_Detection.png)
 
 ***
 
-## 7. Administration
+## 4.7 Administration
 ### Use Cases
 
 **Use Case 20: Register**
@@ -234,12 +287,12 @@ Intended Users and how they  will use system
 * **TUCBW:** The Admin accesses the Security & Audit tab and filters the system logs.
 * **TUCEW:** The system displays a chronological ledger of user logins and configuration modifications.
 
-### Use Case Diagram
+### Use Cases Diagram
 ![Administration Use Case Diagram](./images/Administration.png)
 
 ***
 
-## 4. Functional Requirements
+## 5. Functional Requirements
 
 ### R1: Multi-Building Data Ingestion
 
@@ -367,16 +420,21 @@ Intended Users and how they  will use system
 * **R9.1.1:** The system shall log all user actions (login, data changes, configuration updates).
 * **R9.1.2:** The system shall allow administrators to view audit logs.
 
+***
 
-## 5. API Service Contracts
-Swagger docs basically
+## 6. API Service Contracts
 
-## 6. Domain Model
-Domain Model of system
+The system utilizes Swagger as the API service contract layer, ensuring seamless communication between the frontend and backend services. This approach establishes a "single source of truth," allowing for parallel development and reducing integration errors.
+
+***
+
+## 7. Domain Model
 
 ![domain model](./images/domain_model.png)
 
-## 7. Architectural Requirements
+***
+
+## 8. Architectural Requirements
 
 • Microservice-based architecture
 • Separation of ingestion, analytics, and presentation layers
@@ -386,14 +444,38 @@ Domain Model of system
 • High availability design (minimum 95% uptime)
 
 
+### 8.1 Quality Requirements
 
-### 7.1 Quality Requirements
-non-functional requirements essentially
-### 7.2 Architectural Patterns
-high level system with design
-### 7.3 Design Patterns
+These requirements define the system's performance, security, and operational standards.
+
+* **R10: System Monitoring**
+    * **R10.1.1:** The system shall monitor ingestion rate, processing failures, and latency, providing real-time visibility into the ingestion pipeline.
+    * **R10.1.2:** The system shall trigger automated alerts to administrators upon detection of critical system-level failures.
+* **R11: Data Access & API Security**
+    * **R11.1.1:** The system shall provide secure, authenticated APIs for authorized third-party systems to query energy data.
+    * **R11.1.2:** The system shall enforce strict rate-limiting and authentication (OAuth/JWT) on all exposed API endpoints to prevent abuse.
+* **R12: Backup & Recovery**
+    * **R12.1.1:** The system shall perform automated daily backups of the PostgreSQL metadata database and InfluxDB telemetry data.
+    * **R12.1.2:** The system shall provide defined procedures for data restoration to ensure minimal downtime in the event of hardware or system failure.
+* **Scalability & Performance:**
+    * **R13.1:** The architecture shall support horizontal scaling of the ingestion and processing services to accommodate increased concurrent building data streams.
+    * **R13.2:** The system shall maintain an uptime of at least 95% (High Availability).
+* **Maintainability:**
+    * **R14.1:** The system shall adhere to standardized code quality gates (e.g., automated linting and 80% test coverage) to ensure long-term maintainability.
+
+### 8.2 Architectural Patterns
+
+* **Microservices Architecture:** The system is decomposed into independent services (Ingestion, Analytics, Dashboard, Auth) to allow for isolated deployment, scaling, and failure management.
+* **Layered Architecture:** The system uses a strict separation between the **Data Ingestion Layer**, the **Configuration Layer**, **Analytics Layer**, and the **Presentation Layer**.
+* **Event-Driven Ingestion:** To ensure high resiliency, incoming telemetry is placed on a message broker (queue) before being processed, preventing data loss if the database is temporarily unreachable.
+
+#### High-Level Architecuture Diagram
+![System Architecture Diagram](images/Architecture_Diagram.png)
+
+### 8.3 Design Patterns
 design patterns used in the project
-### 7.4 Constraints
+
+### 8.4 Constraints
 Constraints for the project
 
 * Limited access to real building infrastructure (simulated data may be used)
@@ -401,22 +483,44 @@ Constraints for the project
 * No access to proprietary smart grid systems
 * Must rely on open APIs or simulated IoT feeds
 
+### 8.5 Technology Requirements
 
+The following technology stack has been selected to ensure a scalable, maintainable, and robust architecture for the project.
 
-### 7.5 Technology Requirements
-Tech Stack
+#### Frontend
+* **Framework:** React + Next.js
+* **Styling:** Tailwind CSS + Tremor
+* **Data Fetching:** TanStack Query + Recharts
 
-* **Frontend**:react 
-* **Backend**:Node.js
-* **Database**: PostgreSQL
-* **Analytics**: Python
-* **Infrastructure**: Docker 
-* **DevOps**: GitHub
+#### Backend
+* **Runtime:** Node.js
+* **Task Queues/Caching:** BullMQ + Redis
 
+#### Database
+* **Relational:** PostgreSQL (Supabase)
+* **Time-Series:** Time-Series (InfluxDB)
+* **ORM:** Prisma ORM
 
+#### Analytics
+* **Language:** Python
+* **Modeling:** Prophet + Scikit-Learn
+* **Lifecycle Management:** MLFlow + Optuna
 
-## 8. Architecture Diagram
-![System Architecture Diagram](images/Architecture_Diagram.png)
+#### Infrastructure
+* **Containerization:** Docker
+* **Cloud Hosting:** AWS
 
-## 9. Traceability Matrix
-mapping use cases and requirements
+#### DevOps
+* **CI/CD:** Github Actions
+* **Workflow:** Gitflow
+
+#### Security & Authentication
+* **Auth Provider:** Supabase Auth
+* **Vulnerability Scanning:** Snyk
+
+#### Testing
+* **Unit/Integration:** Jest + Pytest + Supertest
+* **Testing Infrastructure:** Testcontainers
+* **E2E Testing:** Playwright
+
+***
