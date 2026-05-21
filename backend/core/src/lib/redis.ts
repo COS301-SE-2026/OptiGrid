@@ -16,7 +16,11 @@ const createRedisClient = () => ({
 
 export const redis = process.env.NODE_ENV === 'test'
     ? (createRedisClient() as unknown as Redis)
-    : new Redis(process.env.Redis_URL || 'redis://localhost:6379');
+    : new Redis(
+        process.env.REDIS_URL
+        || process.env.Redis_URL
+        || `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`,
+    );
 
 if (process.env.NODE_ENV !== 'test') {
     redis.on('connect', () => {
