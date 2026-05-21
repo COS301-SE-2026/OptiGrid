@@ -2,34 +2,27 @@ const { Client } = require('pg');
 const request = require('supertest');
 import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
 const { v4: uuidv4 } = require('uuid');
+import prisma from '../../../../backend/core/src/lib/prisma';
 
-//this test suite is for createBuilding endpoint
 describe('Building integration - Create Building', () => {
-    //here we just create the harness and variables to help us
 	let harness: CoreApiHarness;
 	let injectAuthenticatedUser = true;
 	const tenantId = '8680c655-bfa3-433b-81aa-084fc76882d9';
 	const userId = 'bbe48b78-438f-4ed7-9fe7-a8fc9addc187';
-	const authMiddleware = (req: any, _res: any, next: any) => {
-		if (injectAuthenticatedUser) {
-			req.user = {
-				id: userId,
-				user_metadata: {
-					tenant_id: tenantId,
-				},
-			};
-		}
-		next();
-	};
-    //
+	const authMiddleware = (req: any, _res: any, next: any) => { ... }
+	//
 	beforeAll(async () => {
-		harness = await createCoreApiHarness({
-			appOptions: {
-				routeMiddleware: [authMiddleware],
-			},
+		harness = await createCoreApiHarness();
+		await prisma.tenant.upsert({
+			where: { tenant_id: '8680c655-bfa3-433b-81aa-084fc76882d9' },
+			update: {},
+			create: {
+				tenant_id: '8680c655-bfa3-433b-81aa-084fc76882d9',
+				company_name: 'Integration Test Company'
+			}
 		});
-	}, 180000);
-    //we add a user n tenat before each test to ensure we have correct data
+	});
+
 	beforeEach(async () => {
 		injectAuthenticatedUser = true;
 
@@ -56,7 +49,6 @@ describe('Building integration - Create Building', () => {
 	afterAll(async () => {
 		if (harness) await harness.stop();
 	});
-    //after all tests we have to reset db
 	afterEach(async () => {
 		injectAuthenticatedUser = true;
 		if (harness) await harness.resetDatabase();
@@ -90,7 +82,6 @@ describe('Building integration - Create Building', () => {
 			max_occupancy: 200,
 		};
 
-		// First request - should create
 		const response1 = await request(harness.app)
 			.post('/api/buildings')
 			.set('Idempotency-Key', idempotencyKey)
@@ -98,7 +89,6 @@ describe('Building integration - Create Building', () => {
 
 		expect(response1.status).toBe(201);
 
-		// Second request - should hit cache
 		const response2 = await request(harness.app)
 			.post('/api/buildings')
 			.set('Idempotency-Key', idempotencyKey)

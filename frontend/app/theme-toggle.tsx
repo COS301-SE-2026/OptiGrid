@@ -29,13 +29,24 @@ function MoonIcon() {
 export function ThemeToggle() {
     const { theme, toggle } = useTheme();
     return (
-        <button
-            onClick={toggle}
-            className="icon-button"
+    <button
+            onClick={async () => {
+                toggle();
+                const newTheme = theme === "light" ? "dark" : "light";
+                try {
+                    await fetch("/api/preferences/theme", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ theme: newTheme }),
+                    });
+                } catch (e) {
+                    console.error("Failed to sync theme to backend", e);
+                }
+            }}
             aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
             title={theme === "light" ? "Dark mode" : "Light mode"}
-        >
-            {theme === "light" ? <MoonIcon /> : <SunIcon />}
+            >
+            {theme === "light" ? <SunIcon /> : <MoonIcon />}
         </button>
     );
 }
