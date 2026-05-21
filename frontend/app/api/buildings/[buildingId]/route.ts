@@ -75,6 +75,36 @@ function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {})
 	return headers;
 }
 
+export async function GET(
+	request: Request,
+	{ params }: { params: Promise<{ buildingId: string }> },
+) {
+	const { buildingId } = await params;
+	if (!buildingId) {
+		return NextResponse.json({ message: "Building id is required." }, { status: 400 });
+	}
+
+	const headers = getForwardHeaders(request);
+	if (!headers) {
+		return NextResponse.json({ message: "Authentication required." }, { status: 401 });
+	}
+
+	try {
+		const coreResponse = await fetch(`${CORE_URL}/api/buildings/${buildingId}`, {
+			method: "GET",
+			headers,
+			cache: "no-store",
+		});
+
+		const payload = await coreResponse.json().catch(() => ({
+			message: coreResponse.ok ? "Building fetched successfully." : "Building fetch failed.",
+		}));
+		return NextResponse.json(payload, { status: coreResponse.status });
+	} catch {
+		return NextResponse.json({ message: "Unable to reach building service." }, { status: 502 });
+	}
+}
+
 export async function DELETE(
 	request: Request,
 	{ params }: { params: Promise<{ buildingId: string }> },
