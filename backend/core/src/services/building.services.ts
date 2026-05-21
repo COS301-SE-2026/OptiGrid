@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { Building } from '@prisma/client';
+import { Building, BuildingType } from '@prisma/client';
 import { queryTotalKwh } from '../lib/influx'; 
 
 
@@ -7,7 +7,7 @@ import { queryTotalKwh } from '../lib/influx';
 export interface buildingPayload {
   tenant_id?: string; 
   building_name: string;
-  building_type?: string; 
+  building_type?: BuildingType; 
   square_footage?: number;
   physical_address?: string;
   timezone?: string;
@@ -16,6 +16,7 @@ export interface buildingPayload {
 
 export interface updateBuildingPayload {
   building_name?: string;
+  building_type?: BuildingType;
   square_footage?: number;
   physical_address?: string;
   timezone?: string;
@@ -34,6 +35,7 @@ export const createBuilding = async (
       data: {
         tenant_id: payload.tenant_id,
         building_name: payload.building_name,
+        building_type: payload.building_type,
         square_footage: payload.square_footage,
         physical_address: payload.physical_address,
         timezone: payload.timezone || 'UTC',
@@ -92,6 +94,7 @@ export const updateBuildingService = async (
     },
     data: {
       ...(payload.building_name !== undefined ? { building_name: payload.building_name } : {}),
+      ...(payload.building_type !== undefined ? { building_type: payload.building_type } : {}),
       ...(payload.square_footage !== undefined ? { square_footage: payload.square_footage } : {}),
       ...(payload.physical_address !== undefined ? { physical_address: payload.physical_address } : {}),
       ...(payload.timezone !== undefined ? { timezone: payload.timezone } : {}),

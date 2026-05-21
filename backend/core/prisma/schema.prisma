@@ -22,6 +22,17 @@ enum ThemePreference {
   @@map("theme_preference")
 }
 
+enum BuildingType {
+  Residential
+  Commercial
+  Industrial
+  Healthcare
+  Construction
+  Mixed_Use
+  ShoppingCentre
+  Other
+}
+
 enum SensorStatus {
   Active
   Offline
@@ -67,6 +78,7 @@ model Building {
   building_id      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenant_id        String?       @db.Uuid
   building_name    String        @db.VarChar(255)
+  building_type    BuildingType? @default(Residential) @map("building_type")
   square_footage   Decimal?      @db.Decimal
   physical_address String?
   timezone         String?       @default("UTC") @db.VarChar(50)

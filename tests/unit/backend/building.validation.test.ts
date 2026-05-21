@@ -1,3 +1,4 @@
+import { BuildingType } from '@prisma/client';
 import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
 import { compareBuildingsSchema } from '../../../backend/core/src/validation/building.validation';
 import { deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
@@ -7,7 +8,7 @@ describe('building validation', () => {
 		// arrange
 		const payload = {
 			building_name: 'Main Office',
-			building_type: 'Commercial',
+			building_type: BuildingType.Commercial,
 			square_footage: 12000,
 			timezone: 'UTC',
 			max_occupancy: 250,
