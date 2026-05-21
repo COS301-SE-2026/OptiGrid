@@ -15,6 +15,7 @@ const customJestConfig = {
     "^react$": path.resolve(__dirname, "node_modules/react"),
     "^react-dom$": path.resolve(__dirname, "node_modules/react-dom"),
     "^react-dom/client$": path.resolve(__dirname, "node_modules/react-dom/client"),
+    "^@prisma/client$": "<rootDir>/__mocks__/@prisma/client.ts",
   },
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
 };
