@@ -8,6 +8,7 @@
 		"start": "next start",
 		"lint": "eslint .",
 		"test": "node ../node_modules/jest/bin/jest.js --config ./jest.config.cjs --runInBand",
+		"test:coverage": "node ../node_modules/jest/bin/jest.js --config ./jest.config.cjs --coverage --runInBand",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},
