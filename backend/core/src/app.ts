@@ -27,7 +27,6 @@ export function createApp(port = Number(process.env.PORT ?? 4000)): Express {
 	});
 
 	app.use(express.json());
-	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", userAuthRoutes);
 	app.use("/api/sensors", sensorRoutes);
