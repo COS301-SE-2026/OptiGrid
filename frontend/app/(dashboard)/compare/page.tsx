@@ -11,21 +11,43 @@ import {
   ResponsiveContainer,
 } from "recharts";
  
-//put it outside to avoid re-creating it over and over again
-const energyData: Record<string, { R: number; kWh: number; spaceFootage: number }> = {
-  "Building A": { R: 12500, kWh: 8200, spaceFootage: 2500 },
-  "Building B": { R: 9800, kWh: 6400, spaceFootage: 1800 },
-  "Sandton HQ": { R: 14200, kWh: 9100, spaceFootage: 3200 },
-  "Greenwood Tower": { R: 7600, kWh: 5000, spaceFootage: 1500 },
-};
 
 export default function CompareBuildingPage() {
-  const buildings = ["Building A", "Building B", "Sandton HQ", "Greenwood Tower"];
+  //need to replace with uuid in db
+  const buildings = useMemo(() => [
+    { id: "uuid-1", name: "Building A" },
+    { id: "uuid-2", name: "Building B" },
+    { id: "uuid-3", name: "Sandton HQ" },
+    { id: "uuid-4", name: "Greenwood Tower" },
+  ], []);
 
-  const [buildingA, setBuildingA] = useState("Building A");
-  const [buildingB, setBuildingB] = useState("Building B");
+  // initialised state with the IDs and added state for API data
+  const [buildingA, setBuildingA] = useState(buildings[0].id);
+  const [buildingB, setBuildingB] = useState(buildings[1].id);
   const [dateRange, setDateRange] = useState<"7" | "30" | "90">("30");
-  const [metric, setMetric] = useState<"R" | "kWh">("R");
+  const [metric, setMetric] = useState<"R" | "kWh">("R")
+  const [apiData, setApiData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(
+          // fetch api from backend
+          `/api/buildings/compare?building_id_a=${buildingA}&building_id_b=${buildingB}&time_range=${dateRange}d`,
+          { method: "POST" }
+        );
+        const result = await res.json();
+        
+        if (result.status === "success") setApiData(result.data);
+      } 
+      catch (error) {
+        console.error("Failed to fetch comparison:", error);
+      }
+    };
+
+    fetchData();
+  }, [buildingA, buildingB, dateRange]);
+
 
   useEffect(() => {
     const inter = document.createElement("link");
@@ -47,41 +69,36 @@ export default function CompareBuildingPage() {
     document.head.appendChild(jetbrains);
   }, []);
 
-  const rangeMultiplier = useMemo(() => {
-    switch (dateRange) {
-      case "7":
-        return 0.25;
-      case "30":
-        return 1;
-      case "90":
-        return 2.6;
-      default:
-        return 1;
-    }
-  }, [dateRange]);
 
-  const getValue = (building: string) => {
-    const base = energyData[building]?.[metric] ?? 0;
-    return Math.round(base * rangeMultiplier);
+  //get the values and metrics from API
+  const getValue = (selectedId: string) => {
+    if (!apiData) return 0;
+    const bData = apiData.buildingA.building_id === selectedId ? apiData.buildingA : apiData.buildingB;
+    return metric === "R" ? bData.total_cost_zar : bData.total_kwh;
   };
 
-  const getspacefootage = (building: string) => {
-    return energyData[building]?.spaceFootage ?? 0;
+  const getspacefootage = (selectedId: string) => {
+    if (!apiData) return 0;
+    const bData = apiData.buildingA.building_id === selectedId ? apiData.buildingA : apiData.buildingB;
+    return bData.square_footage || 0;
   };
+
+  //helper to get building name from ID for display purposes
+  const getBuildingName = (id: string) => buildings.find(b => b.id === id)?.name || id;
 
   const chartData = useMemo(() => {
-    const baseA = energyData[buildingA]?.[metric] ?? 0;
-    const baseB = energyData[buildingB]?.[metric] ?? 0;
+    if (!apiData) return [];
 
-    const scale = rangeMultiplier;
+    const baseA = getValue(buildingA);
+    const baseB = getValue(buildingB);
 
     return [
-      { day: "Week 1", A: Math.round(baseA * scale * 0.7), B: Math.round(baseB * scale * 0.6) },
-      { day: "Week 2", A: Math.round(baseA * scale * 0.8), B: Math.round(baseB * scale * 0.7) },
-      { day: "Week 3", A: Math.round(baseA * scale * 0.9), B: Math.round(baseB * scale * 0.8) },
-      { day: "Week 4", A: Math.round(baseA * scale), B: Math.round(baseB * scale * 0.9) },
+      { day: "Week 1", A: Math.round(baseA * 0.2), B: Math.round(baseB * 0.2) },
+      { day: "Week 2", A: Math.round(baseA * 0.4), B: Math.round(baseB * 0.3) },
+      { day: "Week 3", A: Math.round(baseA * 0.7), B: Math.round(baseB * 0.6) },
+      { day: "Week 4", A: Math.round(baseA), B: Math.round(baseB) },
     ];
-  }, [buildingA, buildingB, metric, rangeMultiplier]);
+  }, [apiData, buildingA, buildingB, metric]);
 
   return (
     <div className="dashboard-page">
@@ -113,7 +130,7 @@ export default function CompareBuildingPage() {
                 className="select"
               >
                 {buildings.map((b) => (
-                  <option key={b} value={b}>{b}</option>
+                  <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
             </div>
@@ -126,7 +143,7 @@ export default function CompareBuildingPage() {
                 className="select"
               >
                 {buildings.map((b) => (
-                  <option key={b} value={b}>{b}</option>
+                  <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
             </div>
@@ -160,7 +177,7 @@ export default function CompareBuildingPage() {
           
           <div className="dashboard-kpi-grid" style={{ marginBottom: "var(--space-6)" }}>
             <div className="card">
-              <h3>{buildingA}</h3>
+              <h3>{getBuildingName(buildingA)}</h3>
               <div style={{ marginTop: "var(--space-3)" }}>
                 <div className="dashboard-kpi-label">Total {metric}</div>
                 <div className="dashboard-kpi-value metric">
@@ -176,7 +193,7 @@ export default function CompareBuildingPage() {
             </div>
 
             <div className="card">
-              <h3>{buildingB}</h3>
+              <h3>{getBuildingName(buildingB)}</h3>
               <div style={{ marginTop: "var(--space-3)" }}>
                 <div className="dashboard-kpi-label">Total {metric}</div>
                 <div className="dashboard-kpi-value metric">
@@ -239,7 +256,7 @@ export default function CompareBuildingPage() {
                     <Line
                       type="monotone"
                       dataKey="A"
-                      name={buildingA}
+                      name={getBuildingName(buildingA)}
                       stroke="var(--brand-primary)"
                       strokeWidth={3}
                       dot={{ fill: "var(--brand-primary)", strokeWidth: 2 }}
@@ -248,7 +265,7 @@ export default function CompareBuildingPage() {
                     <Line
                       type="monotone"
                       dataKey="B"
-                      name={buildingB}
+                      name={getBuildingName(buildingB)}
                       stroke="var(--brand-secondary)"
                       strokeWidth={3}
                       dot={{ fill: "var(--brand-secondary)", strokeWidth: 2 }}
@@ -269,11 +286,13 @@ export default function CompareBuildingPage() {
               <div className="card dashboard-card-tight">
                 <div className="dashboard-kpi-label">Efficiency Ratio</div>
                 <div className="metric" style={{ fontSize: "1.25rem", fontWeight: "var(--fw-semibold)" }}>
-                  {((getValue(buildingA) / getspacefootage(buildingA)) / 
+                  {/*adding to handle division by zero scenario for space footage*/}
+                  {getspacefootage(buildingA) === 0 || getspacefootage(buildingB) === 0 ? "0.0" :
+                  ((getValue(buildingA) / getspacefootage(buildingA)) / 
                     (getValue(buildingB) / getspacefootage(buildingB)) * 100).toFixed(1)}%
                 </div>
                 <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
-                  {buildingA} vs {buildingB} per m²
+                  {getBuildingName(buildingA)} vs {getBuildingName(buildingB)} per m²
                 </div>
               </div>
               
@@ -284,8 +303,8 @@ export default function CompareBuildingPage() {
                 </div>
                 <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
                   {getValue(buildingA) > getValue(buildingB) 
-                    ? `${buildingA} consumes more` 
-                    : `${buildingB} consumes more`}
+                    ? `${getBuildingName(buildingA)} consumes more` 
+                    : `${getBuildingName(buildingB)} consumes more`}
                 </div>
               </div>
             </div>

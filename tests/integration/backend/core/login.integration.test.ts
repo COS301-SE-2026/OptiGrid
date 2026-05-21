@@ -1,6 +1,10 @@
 import request from 'supertest';
 import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
 
+function uniqueEmail(prefix: string) {
+	return `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2)}@optigrid.test`;
+}
+
 describe('Login integration', () => {
 	let harness: CoreApiHarness;
 
@@ -29,7 +33,7 @@ describe('Login integration', () => {
 
 	it('creates a user via signup and authenticates with login', async () => {
 		const signupPayload = {
-			email: 'integration.user@optigrid.test',
+			email: uniqueEmail('integration.user'),
 			password: 'StrongPass123!',
 			name: 'Integration User',
 		};

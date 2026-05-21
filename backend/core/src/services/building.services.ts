@@ -80,7 +80,7 @@ export const compareBuildingsService = async (
   // we calculate metrics such as EUI, cost per sq ft and cost per kwh, ensuring no division by 0
   const calculateMetrics = (building: Building, influxData: any) => {
     const totalKwh = typeof influxData === 'number' ? influxData : influxData.total_kwh;
-    const totalCostUsd = typeof influxData === 'number' ? 0 : influxData.total_cost_usd;
+    const totalCostZar = typeof influxData === 'number' ? 0 : (influxData.total_cost_zar || influxData.total_cost_usd || 0);    
     const sqFt = Number(building.square_footage);
     const hasSquareFootage = Number.isFinite(sqFt) && sqFt > 0;
     const eui = hasSquareFootage ? totalKwh / sqFt : null;
@@ -89,11 +89,11 @@ export const compareBuildingsService = async (
       building_id: building.building_id,
       name: building.building_name,
       total_kwh: totalKwh,
-      total_cost_usd: totalCostUsd,
+      total_cost_zar: totalCostZar,
       square_footage: hasSquareFootage ? sqFt : null,
       eui: eui === null ? null : Number(eui.toFixed(2)),
-      cost_per_sq_ft: hasSquareFootage ? Number((totalCostUsd / sqFt).toFixed(2)) : null,
-      cost_per_kwh: totalKwh > 0 ? Number((totalCostUsd / totalKwh).toFixed(2)) : 0
+      cost_per_sq_ft: hasSquareFootage ? Number((totalCostZar / sqFt).toFixed(2)) : null,
+      cost_per_kwh: totalKwh > 0 ? Number((totalCostZar / totalKwh).toFixed(2)) : 0
     };
   };
 
