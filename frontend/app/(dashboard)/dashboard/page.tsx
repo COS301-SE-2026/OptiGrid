@@ -1,9 +1,18 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, } from "recharts";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+    CartesianGrid,
+    Line,
+    LineChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts";
+import { buildDisplayName, type SessionUser } from "../../../lib/session";
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
 
@@ -12,20 +21,45 @@ type Building = {
     name: string;
     location: string;
     type: string;
-    todayKwh: number;
+    todayKwh: number | null;
     status: BuildingStatus;
+    timezone: string;
+    squareFootage: number | null;
+    maxOccupancy: number | null;
 };
 
 type PortfolioSummary = {
     buildings: number;
-    todayUsageKwh: number;
-    estimatedCostRands: number;
+    todayUsageKwh: number | null;
+    estimatedCostRands: number | null;
     activeAlerts: number;
 };
 
 type ConsumptionPoint = {
     day: string;
     kwh: number;
+};
+
+type SessionResponse = {
+    user?: SessionUser;
+    message?: string;
+};
+
+type BuildingsResponse = {
+    data?: unknown;
+    message?: string;
+};
+
+type RawBuilding = {
+    building_id?: unknown;
+    building_name?: unknown;
+    physical_address?: unknown;
+    timezone?: unknown;
+    square_footage?: unknown;
+    max_occupancy?: unknown;
+    building_type?: unknown;
+    today_kwh?: unknown;
+    status?: unknown;
 };
 
 function formatNumberMetric(value: unknown): string {
@@ -43,15 +77,98 @@ function formatNumberMetric(value: unknown): string {
     return "--";
 }
 
-// must replace with real API call GET /api/portfolio/summary
-const MOCK_SUMMARY: PortfolioSummary = {
-    buildings: 3,
-    todayUsageKwh: 4182,
-    estimatedCostRands: 9420,
-    activeAlerts: 2,
-};
+function toNumber(value: unknown): number | null {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
 
-// must replace with real API call GET /api/portfolio/consumption?days=7
+    if (typeof value === "string") {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+
+    return null;
+}
+
+function mapBuildingStatus(rawStatus: unknown, todayKwh: number | null): BuildingStatus {
+    if (typeof rawStatus === "string") {
+        if (rawStatus === "Peak alert" || rawStatus === "Offline" || rawStatus === "Normal") {
+            return rawStatus;
+        }
+    }
+
+    if (todayKwh === 0) {
+        return "Offline";
+    }
+
+    return "Normal";
+}
+
+function mapBuilding(row: RawBuilding): Building {
+    const id = typeof row.building_id === "string" ? row.building_id : "";
+    const name = typeof row.building_name === "string" ? row.building_name : "Unnamed building";
+    const location =
+        typeof row.physical_address === "string" && row.physical_address.trim().length > 0
+            ? row.physical_address
+            : "No address set";
+    const timezone =
+        typeof row.timezone === "string" && row.timezone.trim().length > 0
+            ? row.timezone
+            : "UTC";
+    const type =
+        typeof row.building_type === "string" && row.building_type.trim().length > 0
+            ? row.building_type
+            : "Unspecified";
+
+    const todayKwh = toNumber(row.today_kwh);
+
+    return {
+        id,
+        name,
+        location,
+        type,
+        timezone,
+        squareFootage: toNumber(row.square_footage),
+        maxOccupancy: toNumber(row.max_occupancy),
+        todayKwh,
+        status: mapBuildingStatus(row.status, todayKwh),
+    };
+}
+
+async function fetchSessionUser(): Promise<SessionUser> {
+    const response = await fetch("/api/auth/session", {
+        method: "GET",
+        cache: "no-store",
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as SessionResponse;
+    if (!response.ok || !payload.user) {
+        throw new Error(payload.message || "Unable to load authenticated user.");
+    }
+
+    return payload.user;
+}
+
+async function fetchBuildings(): Promise<Building[]> {
+    const response = await fetch("/api/buildings", {
+        method: "GET",
+        cache: "no-store",
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as BuildingsResponse;
+    if (!response.ok) {
+        throw new Error(payload.message || "Unable to fetch buildings.");
+    }
+
+    const rows = Array.isArray(payload.data) ? (payload.data as RawBuilding[]) : [];
+    return rows
+        .map(mapBuilding)
+        .filter((building) => building.id.length > 0);
+}
+
+// Placeholder until telemetry summary endpoint is available.
 const MOCK_CONSUMPTION: ConsumptionPoint[] = [
     { day: "Mon", kwh: 3800 },
     { day: "Tue", kwh: 4100 },
@@ -60,34 +177,6 @@ const MOCK_CONSUMPTION: ConsumptionPoint[] = [
     { day: "Fri", kwh: 4182 },
     { day: "Sat", kwh: 2800 },
     { day: "Sun", kwh: 2600 },
-];
-
-// must replace with real API call GET /api/buildings
-const MOCK_BUILDINGS: Building[] = [
-    {
-        id: "1",
-        name: "Sandton HQ",
-        location: "Sandton, JHB",
-        type: "Office",
-        todayKwh: 1847,
-        status: "Normal",
-    },
-    {
-        id: "2",
-        name: "Rosebank Tower",
-        location: "Rosebank, JHB",
-        type: "Office",
-        todayKwh: 1512,
-        status: "Peak alert",
-    },
-    {
-        id: "3",
-        name: "Midrand Warehouse",
-        location: "Midrand, JHB",
-        type: "Industrial",
-        todayKwh: 823,
-        status: "Normal",
-    },
 ];
 
 function BellIcon() {
@@ -156,9 +245,7 @@ const STATUS_CLASSES: Record<BuildingStatus, string> = {
 };
 
 function StatusBadge({ status }: { status: BuildingStatus }) {
-    return (
-        <span className={`badge ${STATUS_CLASSES[status]}`}>{status}</span>
-    );
+    return <span className={`badge ${STATUS_CLASSES[status]}`}>{status}</span>;
 }
 
 function Skeleton({ className = "", style }: { className?: string; style?: CSSProperties }) {
@@ -193,18 +280,23 @@ function KpiCard({
 }
 
 export default function DashboardPage() {
-    // must replace with Supabase session user metadata
-    const firstName = "Abdelrahman";
-    const fullName = "Abdelrahman Esam";
-    const initials = "AE";
+    const queryClient = useQueryClient();
+
+    const { data: user } = useQuery({
+        queryKey: ["auth-session"],
+        queryFn: fetchSessionUser,
+        retry: false,
+    });
 
     const {
-        data: summary,
-        isLoading: summaryLoading,
+        data: buildings = [],
+        isLoading: buildingsLoading,
+        isError: buildingsError,
+        error: buildingsErrorDetails,
         dataUpdatedAt,
     } = useQuery({
-        queryKey: ["portfolio-summary"],
-        queryFn: (): Promise<PortfolioSummary> => Promise.resolve(MOCK_SUMMARY),
+        queryKey: ["buildings"],
+        queryFn: fetchBuildings,
     });
 
     const { data: consumption, isLoading: consumptionLoading } = useQuery({
@@ -213,10 +305,42 @@ export default function DashboardPage() {
             Promise.resolve(MOCK_CONSUMPTION),
     });
 
-    const { data: buildings, isLoading: buildingsLoading } = useQuery({
-        queryKey: ["buildings"],
-        queryFn: (): Promise<Building[]> => Promise.resolve(MOCK_BUILDINGS),
+    const deleteBuildingMutation = useMutation({
+        mutationFn: async (buildingId: string) => {
+            const response = await fetch(`/api/buildings/${buildingId}`, {
+                method: "DELETE",
+            });
+
+            const payload = (await response.json().catch(() => ({}))) as {
+                message?: string;
+            };
+            if (!response.ok) {
+                throw new Error(payload.message || "Failed to delete building.");
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["buildings"] });
+        },
     });
+
+    const firstName = user?.firstName?.trim() || "there";
+    const fullName = user ? buildDisplayName(user) : "User";
+    const initials = fullName
+        .split(" ")
+        .map((part) => part[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join("")
+        .toUpperCase() || "U";
+
+    const summary: PortfolioSummary = {
+        buildings: buildings.length,
+        todayUsageKwh: buildings.some((b) => b.todayKwh !== null)
+            ? buildings.reduce((total, b) => total + (b.todayKwh ?? 0), 0)
+            : null,
+        estimatedCostRands: null,
+        activeAlerts: buildings.filter((b) => b.status !== "Normal").length,
+    };
 
     const minutesAgo = dataUpdatedAt
         ? Math.floor((Date.now() - dataUpdatedAt) / 60000)
@@ -224,11 +348,24 @@ export default function DashboardPage() {
     const lastUpdatedLabel =
         minutesAgo === 0 ? "just now" : `${minutesAgo} min ago`;
 
+    const handleDelete = (building: Building) => {
+        const confirmed = window.confirm(
+            `Delete "${building.name}" permanently? This action cannot be undone.`,
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        deleteBuildingMutation.mutate(building.id, {
+            onError: (error) => {
+                window.alert(error.message || "Unable to delete building.");
+            },
+        });
+    };
+
     return (
         <div>
-            {/* User info bar */}
             <div className="dashboard-topbar">
-                {/* must wire up theme toggle once a theming system is in place */}
                 <button
                     className="icon-button"
                     aria-label="Notifications"
@@ -241,12 +378,11 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Page header */}
             <div className="dashboard-header">
                 <div>
                     <h1 className="dashboard-title">Welcome back, {firstName}</h1>
                     <p className="dashboard-subtitle">
-                        Portfolio overview · last updated {lastUpdatedLabel}
+                        Portfolio overview - last updated {lastUpdatedLabel}
                     </p>
                 </div>
                 <Link
@@ -257,42 +393,38 @@ export default function DashboardPage() {
                 </Link>
             </div>
 
-            {/* KPI cards */}
             <div className="dashboard-kpi-grid">
                 <KpiCard
                     label="Buildings"
-                    value={summary ? String(summary.buildings) : "--"}
-                    loading={summaryLoading}
+                    value={String(summary.buildings)}
+                    loading={buildingsLoading}
                 />
                 <KpiCard
                     label="Today's usage"
                     value={
-                        summary
-                            ? `${formatNumberMetric(summary.todayUsageKwh)} kWh`
-                            : "--"
+                        summary.todayUsageKwh === null
+                            ? "--"
+                            : `${formatNumberMetric(summary.todayUsageKwh)} kWh`
                     }
-                    loading={summaryLoading}
+                    loading={buildingsLoading}
                 />
                 <KpiCard
                     label="Est. cost"
                     value={
-                        summary
-                            ? `R ${formatNumberMetric(summary.estimatedCostRands)}`
-                            : "--"
+                        summary.estimatedCostRands === null
+                            ? "--"
+                            : `R ${formatNumberMetric(summary.estimatedCostRands)}`
                     }
-                    loading={summaryLoading}
+                    loading={buildingsLoading}
                 />
                 <KpiCard
                     label="Active alerts"
-                    value={summary ? String(summary.activeAlerts) : "--"}
-                    valueTone={
-                        summary && summary.activeAlerts > 0 ? "warning" : "default"
-                    }
-                    loading={summaryLoading}
+                    value={String(summary.activeAlerts)}
+                    valueTone={summary.activeAlerts > 0 ? "warning" : "default"}
+                    loading={buildingsLoading}
                 />
             </div>
 
-            {/* Consumption chart */}
             <div className="card dashboard-section">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">
@@ -346,7 +478,6 @@ export default function DashboardPage() {
                 )}
             </div>
 
-            {/* Buildings table */}
             <div className="dashboard-section">
                 <h2
                     className="dashboard-section-title"
@@ -360,7 +491,13 @@ export default function DashboardPage() {
                         <Skeleton style={{ height: 56, width: "100%" }} />
                         <Skeleton style={{ height: 56, width: "100%" }} />
                     </div>
-                ) : !buildings || buildings.length === 0 ? (
+                ) : buildingsError ? (
+                    <div className="card dashboard-empty">
+                        <p className="text-muted">
+                            {buildingsErrorDetails?.message || "Unable to load buildings right now."}
+                        </p>
+                    </div>
+                ) : buildings.length === 0 ? (
                     <div className="card dashboard-empty">
                         <p className="text-muted">No buildings yet.</p>
                         <Link
@@ -383,32 +520,18 @@ export default function DashboardPage() {
                         <table className="dashboard-table">
                             <thead>
                                 <tr>
-                                    <th>
-                                        Name
-                                    </th>
-                                    <th>
-                                        Type
-                                    </th>
-                                    <th>
-                                        Today (kWh)
-                                    </th>
-                                    <th>
-                                        Status
-                                    </th>
-                                    <th style={{ textAlign: "right" }}>
-                                        Actions
-                                    </th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Today (kWh)</th>
+                                    <th>Status</th>
+                                    <th style={{ textAlign: "right" }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {buildings.map((building) => (
-                                    <tr
-                                        key={building.id}
-                                    >
+                                    <tr key={building.id}>
                                         <td>
-                                            <p style={{ fontWeight: 600 }}>
-                                                {building.name}
-                                            </p>
+                                            <p style={{ fontWeight: 600 }}>{building.name}</p>
                                             <p className="text-muted" style={{ fontSize: "0.75rem" }}>
                                                 {building.location}
                                             </p>
@@ -425,7 +548,7 @@ export default function DashboardPage() {
                                         <td>
                                             <div className="dashboard-actions">
                                                 <Link
-                                                    href={`/buildings/${building.id}/edit`}
+                                                    href={`/dashboard/edit/${building.id}`}
                                                     className="icon-button"
                                                     aria-label={`Edit ${building.name}`}
                                                 >
@@ -434,7 +557,8 @@ export default function DashboardPage() {
                                                 <button
                                                     className="icon-button icon-danger"
                                                     aria-label={`Delete ${building.name}`}
-                                                // must connect delete modal
+                                                    onClick={() => handleDelete(building)}
+                                                    disabled={deleteBuildingMutation.isPending}
                                                 >
                                                     <TrashIcon />
                                                 </button>

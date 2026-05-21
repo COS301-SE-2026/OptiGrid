@@ -2,9 +2,11 @@
 "use client"
 
 import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 
 export default function AddBuildingPage() {
+  const router = useRouter();
   const buildingTypes = [
     { label: "Office", value: "Commercial" },
     { label: "Residential", value: "Residential" },
@@ -80,6 +82,8 @@ export default function AddBuildingPage() {
             formElement.reset();
             setStartTime('08:00');
             setEndTime('18:00');
+            router.push('/dashboard');
+            router.refresh();
           } 
           //error case
           else {
