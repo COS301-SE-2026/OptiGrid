@@ -66,9 +66,10 @@ describe("CompareBuildingPage Component", () => {
     document.head.innerHTML = "";
   });
 
-  test("renders initial UI elements correctly", () => {
-    act(() => {
+  test("renders initial UI elements correctly", async () => {
+    await act(async () => {
       render(<CompareBuildingPage />);
+      await Promise.resolve();
     });
 
     expect(screen.getByRole("heading", { name: /compare buildings/i })).toBeInTheDocument();
@@ -83,9 +84,10 @@ describe("CompareBuildingPage Component", () => {
     expect(dropdowns[3]).toHaveValue("R");
   });
 
-  test("injects Google Font stylesheets on mount", () => {
-    act(() => {
+  test("injects Google Font stylesheets on mount", async () => {
+    await act(async () => {
       render(<CompareBuildingPage />);
+      await Promise.resolve();
     });
 
     const links = document.head.querySelectorAll("link");

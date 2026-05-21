@@ -14,13 +14,8 @@ import {
     YAxis,
 } from "recharts";
 
-type Granularity = "hourly" | "daily";
-type Horizon = 7 | 14 | 30;
-
 type ForecastParams = {
     building_id: string;
-    horizon_days: Horizon;
-    granularity: Granularity;
 };
 
 type HistoricalPoint = { timestamp: string; kwh: number };
@@ -51,83 +46,31 @@ type ChartPoint = {
     yhat_upper?: number;
 };
 
+type BuildingApiRecord = {
+    building_id: string;
+    building_name: string;
+};
+
 type Building = { id: string; name: string };
 
-// replace with real API call GET /api/buildings
-const MOCK_BUILDINGS: Building[] = [
-    { id: "1", name: "Sandton HQ" },
-    { id: "2", name: "Rosebank Tower" },
-    { id: "3", name: "Midrand Warehouse" },
-];
-
-// replace with real API call POST /api/forecast
-function generateMockForecast(params: ForecastParams): ForecastResult {
-    const now = new Date("2026-05-19T12:00:00Z");
-    const step =
-        params.granularity === "hourly"
-            ? 60 * 60 * 1000
-            : 24 * 60 * 60 * 1000;
-    const histSteps = params.granularity === "hourly" ? 7 * 24 : 7;
-    const fcastSteps =
-        params.granularity === "hourly"
-            ? params.horizon_days * 24
-            : params.horizon_days;
-
-    const historical: HistoricalPoint[] = [];
-    for (let i = histSteps; i >= 0; i--) {
-        const ts = new Date(now.getTime() - i * step);
-        const base = 150 + Math.sin((ts.getUTCHours() * Math.PI) / 12) * 80;
-        historical.push({
-            timestamp: ts.toISOString(),
-            kwh: Math.round(base + (Math.random() - 0.5) * 30),
-        });
+function toFiniteNumber(value: unknown): number | undefined {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
     }
 
-    const forecast: ForecastPoint[] = [];
-    let peakKwh = 0;
-    let peakTimestamp = "";
-    let totalKwh = 0;
-
-    for (let i = 1; i <= fcastSteps; i++) {
-        const ts = new Date(now.getTime() + i * step);
-        const base = 150 + Math.sin((ts.getUTCHours() * Math.PI) / 12) * 80;
-        const yhat = Math.round(base + (Math.random() - 0.5) * 20);
-        if (yhat > peakKwh) {
-            peakKwh = yhat;
-            peakTimestamp = ts.toISOString();
-        }
-        totalKwh += yhat;
-        forecast.push({
-            timestamp: ts.toISOString(),
-            yhat,
-            yhat_lower: Math.round(yhat * 0.87),
-            yhat_upper: Math.round(yhat * 1.13),
-        });
+    if (typeof value === "string") {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : undefined;
     }
 
-    return {
-        historical,
-        forecast,
-        summary: {
-            peak_kwh: peakKwh,
-            peak_timestamp: peakTimestamp,
-            avg_daily_kwh: Math.round(totalKwh / params.horizon_days),
-            mape: 4.8,
-        },
-    };
+    return undefined;
 }
 
-function formatXTick(ts: string, granularity: Granularity): string {
+function formatXTick(ts: string): string {
     const d = new Date(ts);
-    if (granularity === "hourly") {
-        const day = new Intl.DateTimeFormat("en", { weekday: "short" }).format(d);
-        const hour = String(d.getUTCHours()).padStart(2, "0");
-        return `${day} ${hour}:00`;
-    }
-    return new Intl.DateTimeFormat("en", {
-        month: "short",
-        day: "numeric",
-    }).format(d);
+    const day = new Intl.DateTimeFormat("en", { weekday: "short" }).format(d);
+    const hour = String(d.getUTCHours()).padStart(2, "0");
+    return `${day} ${hour}:00`;
 }
 
 function formatPeakTimestamp(ts: string): string {
@@ -177,46 +120,102 @@ function Skeleton({ style }: { style?: CSSProperties }) {
     return <div className="skeleton" style={style} />;
 }
 
+function formatFullTimestamp(ts: string): string {
+    return new Intl.DateTimeFormat("en", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "UTC",
+    }).format(new Date(ts));
+}
+
 export default function ForecastPage() {
     const [buildingId, setBuildingId] = useState<string>("");
-    const [horizon, setHorizon] = useState<Horizon>(7);
-    const [granularity, setGranularity] = useState<Granularity>("hourly");
+    const [forecastError, setForecastError] = useState<string | null>(null);
 
-    const { data: buildings } = useQuery<Building[]>({
+    const { data: buildings = [], isLoading: buildingsLoading, isError: buildingsError } = useQuery<
+        Building[]
+    >({
         queryKey: ["buildings"],
-        queryFn: () => Promise.resolve(MOCK_BUILDINGS),
+        queryFn: async () => {
+            const response = await fetch("/api/buildings", {
+                method: "GET",
+                credentials: "include",
+                cache: "no-store",
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.message || "Unable to load buildings.");
+            }
+
+            const buildingRecords = Array.isArray(payload?.data) ? payload.data : [];
+            return buildingRecords.map((building: BuildingApiRecord) => ({
+                id: building.building_id,
+                name: building.building_name,
+            }));
+        },
     });
 
     const { mutate, isPending, data: result } = useMutation({
         mutationFn: async (params: ForecastParams) => {
-            const response = await fetch(`http://localhost:3001/api/analytics/forecast/${params.building_id}`, {
+            const response = await fetch(`/api/analytics/forecast/${params.building_id}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    // "Authorization": `Bearer ${localStorage.getItem('token')}` //if we using
                 },
                 body: JSON.stringify({
-                    horizon_days: params.horizon_days,
-                    granularity: params.granularity
-                })
+                    horizon_days: 1,
+                    granularity: "hourly",
+                }),
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || "Failed to fetch forecast");
             }
-            
+
             return response.json() as Promise<ForecastResult>;
-        }
+        },
+        onMutate: () => {
+            setForecastError(null);
+        },
+        onError: (error: Error) => {
+            setForecastError(error.message);
+        },
     });
+
+    const normalizedHistorical = (result?.historical ?? [])
+        .map((point) => ({
+            timestamp: point.timestamp,
+            kwh: toFiniteNumber(point.kwh) ?? 0,
+        }))
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    const normalizedForecast = (result?.forecast ?? [])
+        .map((point) => {
+            const forecastValue = toFiniteNumber(point.yhat) ?? 0;
+            const lowerBound = toFiniteNumber(point.yhat_lower) ?? forecastValue;
+            const upperBound = toFiniteNumber(point.yhat_upper) ?? forecastValue;
+
+            return {
+                timestamp: point.timestamp,
+                yhat: forecastValue,
+                yhat_lower: Math.min(lowerBound, upperBound),
+                yhat_upper: Math.max(lowerBound, upperBound),
+            };
+        })
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     const chartData: ChartPoint[] = result
         ? [
-            ...result.historical.map((p) => ({
+            ...normalizedHistorical.map((p) => ({
                 timestamp: p.timestamp,
                 kwh: p.kwh,
             })),
-            ...result.forecast.map((p) => ({
+            ...normalizedForecast.map((p) => ({
                 timestamp: p.timestamp,
                 yhat: p.yhat,
                 yhat_lower: p.yhat_lower,
@@ -225,13 +224,19 @@ export default function ForecastPage() {
         ]
         : [];
 
-    const nowTs = result && result.historical.length > 0
-            ? result.historical[result.historical.length - 1].timestamp
+    const nowTs = normalizedHistorical.length > 0
+            ? normalizedHistorical[normalizedHistorical.length - 1].timestamp
             : null;
+    const showActualDots = normalizedHistorical.length <= 1 ? { r: 4, strokeWidth: 0 } : false;
+    const showForecastDots = normalizedForecast.length <= 1 ? { r: 4, strokeWidth: 0 } : false;
+    const hasConfidenceBand = normalizedForecast.some(
+        (point) => point.yhat_lower !== point.yhat_upper,
+    );
+    const tickInterval = 23;
 
-    const tickInterval = granularity === "hourly" ? 23 : 0;
-
-    const canRun = buildingId !== "" && !isPending;
+    const canRun = buildingId !== "" && !isPending && !buildingsLoading;
+    const selectedBuildingName =
+        buildings.find((building) => building.id === buildingId)?.name ?? "Selected building";
 
     const selectStyle: CSSProperties = {
         appearance: "none",
@@ -252,7 +257,7 @@ export default function ForecastPage() {
             >
                 <h1 className="dashboard-title">Demand Forecast</h1>
                 <p className="dashboard-subtitle">
-                    Select a building and run a forecast to see predictions.
+                    Select a building to view its upcoming demand forecast.
                 </p>
             </div>
 
@@ -280,83 +285,17 @@ export default function ForecastPage() {
                                 className="select"
                                 style={selectStyle}
                                 value={buildingId}
+                                disabled={buildingsLoading || buildings.length === 0}
                                 onChange={(e) => setBuildingId(e.target.value)}
                             >
-                                <option value="">Select building</option>
-                                {(buildings ?? MOCK_BUILDINGS).map((b) => (
+                                <option value="">
+                                    {buildingsLoading ? "Loading buildings..." : "Select building"}
+                                </option>
+                                {buildings.map((b) => (
                                     <option key={b.id} value={b.id}>
                                         {b.name}
                                     </option>
                                 ))}
-                            </select>
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    right: "12px",
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--brand-ink-muted)",
-                                    pointerEvents: "none",
-                                }}
-                            >
-                                <ChevronDown />
-                            </span>
-                        </div>
-                    </div>
-
-                    <div style={{ display: "grid", gap: "6px" }}>
-                        <label
-                            className="label"
-                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
-                        >
-                            Horizon
-                        </label>
-                        <div style={{ position: "relative" }}>
-                            <select
-                                value={horizon}
-                                onChange={(e) =>
-                                    setHorizon(Number(e.target.value) as Horizon)
-                                }
-                                className="select"
-                                style={selectStyle}
-                            >
-                                <option value={7}>7 days</option>
-                                <option value={14}>14 days</option>
-                                <option value={30}>30 days</option>
-                            </select>
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    right: "12px",
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--brand-ink-muted)",
-                                    pointerEvents: "none",
-                                }}
-                            >
-                                <ChevronDown />
-                            </span>
-                        </div>
-                    </div>
-
-                    <div style={{ display: "grid", gap: "6px" }}>
-                        <label
-                            className="label"
-                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
-                        >
-                            Granularity
-                        </label>
-                        <div style={{ position: "relative" }}>
-                            <select
-                                value={granularity}
-                                onChange={(e) =>
-                                    setGranularity(e.target.value as Granularity)
-                                }
-                                className="select"
-                                style={selectStyle}
-                            >
-                                <option value="hourly">Hourly</option>
-                                <option value="daily">Daily</option>
                             </select>
                             <span
                                 style={{
@@ -382,8 +321,6 @@ export default function ForecastPage() {
                             onClick={() =>
                                 mutate({
                                     building_id: buildingId,
-                                    horizon_days: horizon,
-                                    granularity,
                                 })
                             }
                             className="btn btn-primary"
@@ -394,13 +331,29 @@ export default function ForecastPage() {
                         </button>
                     </div>
                 </div>
+
+                {buildingsError ? (
+                    <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+                        Unable to load your assigned buildings right now.
+                    </p>
+                ) : buildings.length === 0 && !buildingsLoading ? (
+                    <p className="text-muted" style={{ marginTop: "12px" }}>
+                        No buildings are currently assigned to your account.
+                    </p>
+                ) : null}
+
+                {forecastError ? (
+                    <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+                        {forecastError}
+                    </p>
+                ) : null}
             </div>
 
             {/* Chart */}
             <div className="card dashboard-section">
                 <div className="dashboard-section-header">
-                    <h2 className="dashboard-section-title">Historical + forecast</h2>
-                    <span className="dashboard-section-meta">kWh</span>
+                    <h2 className="dashboard-section-title">Demand Trend</h2>
+                    <span className="dashboard-section-meta">Next 24 hours</span>
                 </div>
 
                 {isPending ? (
@@ -433,9 +386,7 @@ export default function ForecastPage() {
                                 />
                                 <XAxis
                                     dataKey="timestamp"
-                                    tickFormatter={(ts) =>
-                                        formatXTick(ts, granularity)
-                                    }
+                                    tickFormatter={(ts) => formatXTick(ts)}
                                     interval={tickInterval}
                                     tick={{
                                         fill: "var(--brand-ink-muted)",
@@ -461,27 +412,29 @@ export default function ForecastPage() {
                                         fontSize: "12px",
                                     }}
                                     cursor={{ stroke: "var(--brand-border)" }}
-                                    labelFormatter={(ts) =>
-                                        formatXTick(ts as string, granularity)
-                                    }
+                                    labelFormatter={(ts) => formatXTick(ts as string)}
                                 />
                                 {/* Confidence band - renders below lines */}
-                                <Area
-                                    type="monotone"
-                                    dataKey="yhat_upper"
-                                    fill="var(--brand-primary)"
-                                    fillOpacity={0.16}
-                                    stroke="none"
-                                    connectNulls={false}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="yhat_lower"
-                                    fill="var(--brand-bg)"
-                                    fillOpacity={1}
-                                    stroke="none"
-                                    connectNulls={false}
-                                />
+                                {hasConfidenceBand ? (
+                                    <>
+                                        <Area
+                                            type="monotone"
+                                            dataKey="yhat_upper"
+                                            fill="var(--brand-primary)"
+                                            fillOpacity={0.16}
+                                            stroke="none"
+                                            connectNulls={false}
+                                        />
+                                        <Area
+                                            type="monotone"
+                                            dataKey="yhat_lower"
+                                            fill="var(--brand-bg)"
+                                            fillOpacity={1}
+                                            stroke="none"
+                                            connectNulls={false}
+                                        />
+                                    </>
+                                ) : null}
                                 {nowTs && (
                                     <ReferenceLine
                                         x={nowTs}
@@ -500,7 +453,8 @@ export default function ForecastPage() {
                                     dataKey="kwh"
                                     stroke="var(--brand-primary)"
                                     strokeWidth={2}
-                                    dot={false}
+                                    dot={showActualDots}
+                                    activeDot={{ r: 5 }}
                                     connectNulls={false}
                                 />
                                 <Line
@@ -509,7 +463,8 @@ export default function ForecastPage() {
                                     stroke="var(--brand-primary)"
                                     strokeWidth={2}
                                     strokeDasharray="4 2"
-                                    dot={false}
+                                    dot={showForecastDots}
+                                    activeDot={{ r: 5 }}
                                     connectNulls={false}
                                 />
                             </ComposedChart>
@@ -560,6 +515,55 @@ export default function ForecastPage() {
                                 />
                                 95% interval
                             </span>
+                        </div>
+
+                        <div
+                            style={{
+                                marginTop: "20px",
+                                display: "grid",
+                                gap: "12px",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    padding: "14px 16px",
+                                    border: "1px solid var(--brand-border)",
+                                    borderRadius: "var(--radius-md)",
+                                    background: "var(--brand-bg-subtle)",
+                                }}
+                            >
+                                <p className="dashboard-kpi-label">Building</p>
+                                <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                                    {selectedBuildingName}
+                                </p>
+                            </div>
+                            <div
+                                style={{
+                                    padding: "14px 16px",
+                                    border: "1px solid var(--brand-border)",
+                                    borderRadius: "var(--radius-md)",
+                                    background: "var(--brand-bg-subtle)",
+                                }}
+                            >
+                                <p className="dashboard-kpi-label">Forecast points</p>
+                                <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                                    {result.forecast.length}
+                                </p>
+                            </div>
+                            <div
+                                style={{
+                                    padding: "14px 16px",
+                                    border: "1px solid var(--brand-border)",
+                                    borderRadius: "var(--radius-md)",
+                                    background: "var(--brand-bg-subtle)",
+                                }}
+                            >
+                                <p className="dashboard-kpi-label">Peak timestamp</p>
+                                <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                                    {formatFullTimestamp(result.summary.peak_timestamp)}
+                                </p>
+                            </div>
                         </div>
                     </>
                 )}

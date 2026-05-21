@@ -23,7 +23,20 @@ function readCookieValue(cookieHeader: string | null, cookieName: string): strin
 	return null;
 }
 
-function getForwardHeaders(request: Request, includeContentType = false): Headers | null {
+function createIdempotencyKey(prefix = "buildings"): string {
+	const randomId =
+		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+			? crypto.randomUUID()
+			: `${Date.now()}-${Math.random()}`;
+
+	return `${prefix}-${randomId}`;
+}
+
+function getForwardHeaders(
+	request: Request,
+	options: { includeContentType?: boolean; includeIdempotency?: boolean } = {},
+): Headers | null {
+	const { includeContentType = false, includeIdempotency = false } = options;
 	const headers = new Headers();
 	const authorization = request.headers.get("authorization");
 	const cookie = request.headers.get("cookie");
@@ -40,6 +53,11 @@ function getForwardHeaders(request: Request, includeContentType = false): Header
 		headers.set("Authorization", resolvedAuthorizationHeader);
 	}
 	if (cookie) headers.set("Cookie", cookie);
+
+	if (includeIdempotency) {
+		const incomingIdempotencyKey = request.headers.get("idempotency-key")?.trim();
+		headers.set("Idempotency-Key", incomingIdempotencyKey || createIdempotencyKey());
+	}
 
 	if (includeContentType) {
 		headers.set("Content-Type", "application/json");
@@ -81,7 +99,10 @@ export async function POST(request: Request) {
 		return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
 	}
 
-	const headers = getForwardHeaders(request, true);
+	const headers = getForwardHeaders(request, {
+		includeContentType: true,
+		includeIdempotency: true,
+	});
 	if (!headers) {
 		return NextResponse.json(
 			{ message: "Authentication required." },

@@ -91,7 +91,7 @@ describe("ForecastPage", () => {
             screen.getByRole("heading", { name: "Demand Forecast" })
         ).toBeInTheDocument();
         expect(screen.getAllByText(/run a forecast/i).length).toBeGreaterThan(0);
-        expect(screen.getAllByRole("combobox")).toHaveLength(3);
+        expect(screen.getAllByRole("combobox")).toHaveLength(1);
         expect(
             screen.getByRole("button", { name: "Run forecast" })
         ).toBeDisabled();
@@ -106,9 +106,7 @@ describe("ForecastPage", () => {
         render(<ForecastPage />);
 
         const user = userEvent.setup();
-        const selects = screen.getAllByRole("combobox");
-
-        await user.selectOptions(selects[0], "1");
+        await user.selectOptions(screen.getByLabelText(/building/i), "1");
 
         const runButton = screen.getByRole("button", { name: "Run forecast" });
         expect(runButton).not.toBeDisabled();
@@ -117,8 +115,6 @@ describe("ForecastPage", () => {
 
         expect(mutate).toHaveBeenCalledWith({
             building_id: "1",
-            horizon_days: 7,
-            granularity: "hourly",
         });
     });
 
@@ -128,6 +124,7 @@ describe("ForecastPage", () => {
         render(<ForecastPage />);
 
         expect(screen.queryByText(/Configure the controls above/i)).toBeNull();
+        expect(screen.getByText(/Demand Trend/i)).toBeInTheDocument();
         expect(screen.getByText(/250 kWh/)).toBeInTheDocument();
         expect(screen.getByText(/1,?200 kWh/)).toBeInTheDocument();
         expect(screen.getByText(/MAPE 4.8%/)).toBeInTheDocument();
