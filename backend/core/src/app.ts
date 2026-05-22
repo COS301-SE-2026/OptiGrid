@@ -1,0 +1,55 @@
+import express, { type Express, type RequestHandler } from "express";
+import swaggerJsdoc from "swagger-jsdoc";
+import swaggerUi from "swagger-ui-express";
+import userAuthRoutes from "./routes/user_auth.routes";
+import sensorRoutes from "./routes/sensor.routes"
+import buildingRoutes from "./routes/building.routes"
+import { authenticateRequest } from "./middleware/auth.middleware";
+import analyticsRoutes from "./routes/analytics.routes";
+import userPreferencesRoutes from "./routes/user_preferences.routes";
+
+
+export interface CreateAppOptions {
+	routeMiddleware?: RequestHandler[];
+}
+
+export function createApp(port = Number(process.env.PORT ?? 4000), options: CreateAppOptions = {}): Express {
+	const app = express();
+
+	const swaggerSpec = swaggerJsdoc({
+		definition: {
+			openapi: "3.0.0",
+			info: {
+				title: "OptiGrid API Documentation",
+				version: "0.1.0",
+				description: "OptiGrid API documentation using swagger-jsdoc and swagger-ui-express",
+			},
+			servers: [
+				{
+					url: `http://localhost:${port}`,
+					description: "Local development server",
+				},
+			],
+		},
+		apis: ["./src/routes/*.ts"],
+	});
+
+	app.use(express.json());
+	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
+	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+	app.use("/auth", userAuthRoutes);
+	app.use("/api/sensors", sensorRoutes);
+	app.use("/api/analytics", authenticateRequest, analyticsRoutes);
+	app.use("/api/buildings", authenticateRequest, buildingRoutes);
+	app.use("/api/preferences", authenticateRequest, userPreferencesRoutes);
+
+	app.get("/health", (_req, res) => {
+		return res.status(200).json({ status: "ok", service: "core" });
+	});
+
+	app.use((_req, res) => {
+		res.status(404).json({ status: "error", message: "Not found" });
+	});
+
+	return app;
+}

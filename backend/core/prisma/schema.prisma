@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN            @map("Admin")
+  BUILDING_MANAGER @map("Building_Manager")
+  VIEWER           @map("Viewer")
+
+  @@map("user_role")
+}
+
+enum ThemePreference {
+  LIGHT  @map("light")
+  DARK   @map("dark")
+  SYSTEM @map("system")
+
+  @@map("theme_preference")
+}
+
+enum BuildingType {
+  Residential
+  Commercial
+  Industrial
+  Healthcare
+  Construction
+  Mixed_Use
+  ShoppingCentre
+  Other
+}
+
+enum SensorStatus {
+  Active
+  Offline
+  Maintenance
+}
+
+// All the models for db tables are made here
+model User {
+  userId         String          @id @map("user_id") @db.Uuid
+  tenantId       String?         @map("tenant_id") @db.Uuid
+  email          String          @unique @db.VarChar(255)
+  roleType       UserRole        @default(VIEWER) @map("role_type")
+  firstName      String?         @map("first_name") @db.VarChar(100)
+  lastName       String?         @map("last_name") @db.VarChar(100)
+  preferredTheme ThemePreference @default(SYSTEM) @map("preferred_theme")
+  passwordHash   String          @map("password_hash") @db.VarChar(255)
+  createdAt      DateTime?       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime?       @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  // Relations with other tables
+  tenant         Tenant?              @relation(fields: [tenantId], references: [tenant_id], onDelete: Cascade)
+  buildingAccess UserBuildingAccess[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Tenant {
+  tenant_id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_name      String    @db.VarChar(255)
+  subscription_tier String?   @default("Standard") @db.VarChar(50)
+  created_at        DateTime? @default(now()) @db.Timestamptz
+  updated_at        DateTime? @default(now()) @db.Timestamptz
+
+  // Relations with other tables
+  users             User[]
+  buildings         Building[]
+
+  @@map("tenants")
+}
+
+model Building {
+  building_id      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id        String?       @db.Uuid
+  building_name    String        @db.VarChar(255)
+  building_type    BuildingType? @default(Residential) @map("building_type")
+  square_footage   Decimal?      @db.Decimal
+  physical_address String?
+  timezone         String?       @default("UTC") @db.VarChar(50)
+  max_occupancy    Int?
+  created_at       DateTime?     @default(now()) @db.Timestamptz
+  updated_at       DateTime?     @default(now()) @db.Timestamptz
+
+  // Relations with other tables
+  tenant           Tenant?               @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
+  authorized_users UserBuildingAccess[]
+  sensors          Sensor[]
+
+  @@index([tenant_id])
+  @@map("buildings")
+}
+
+model UserBuildingAccess {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String   @db.Uuid
+  building_id String   @db.Uuid
+
+  // Relations
+  user        User     @relation(fields: [user_id], references: [userId], onDelete: Cascade)
+  building    Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@unique([user_id, building_id])
+  @@map("user_building_access")
+}
+
+model Sensor {
+  sensor_id      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  building_id    String?       @db.Uuid
+  mac_address    String        @unique @db.VarChar(50)
+  sensor_type    String?       @db.VarChar(100)
+  unit           String?       @default("kWh") @db.VarChar(50)
+  location_zone  String?       @db.VarChar(100)
+  status         SensorStatus? @default(Active)
+  installed_date DateTime?     @default(now()) @db.Date
+  created_at     DateTime?     @default(now()) @db.Timestamptz
+  updated_at     DateTime?     @default(now()) @db.Timestamptz
+
+  // Relations
+  building       Building?     @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@index([building_id])
+  @@map("sensors")
+}
+
+model BuildingAnalytics {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  building_id      String   @db.VarChar(255)
+  todays_usage     Float?
+  forecast_peak    Float?
+  forecast_avg_day Float?
+  model_mape       Float?
+  forecast_series  Json?    @db.JsonB
+  updated_at       DateTime @default(now()) @db.Timestamptz
+
+  @@unique([building_id])
+  @@index([building_id])
+  @@map("building_analytics")
+}

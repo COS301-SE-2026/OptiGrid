@@ -1,0 +1,15 @@
+{
+	"name": "@optigrid/analytics",
+	"private": true,
+	"version": "0.1.0",
+	"scripts": {
+		"dev": "python -m src.api.main",
+		"train": "python -m src.models.train",
+		"test": "python -m pytest",
+		"mlflow:ui": "mlflow ui --host 0.0.0.0 --port 5000",
+		"venv": "python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt"
+	},
+	"devDependencies": {
+		"snyk": "^1.1304.0"
+	}
+}
