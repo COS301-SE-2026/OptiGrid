@@ -47,7 +47,8 @@ jobs:
       - name: Set image tags
         id: meta
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ matrix.image_name }}"
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          IMAGE="ghcr.io/${OWNER}/${{ matrix.image_name }}"
           SHA_TAG="${GITHUB_SHA}"
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
           echo "latest_tag=${IMAGE}:latest" >> "$GITHUB_OUTPUT"
