@@ -270,6 +270,10 @@ export default function LandingPage() {
 
             <footer className="landing-footer">
                 <div className="landing-shell">
+                    <nav className="landing-links" aria-label="Footer" style={{ justifyContent: "center", marginBottom: "var(--space-3)" }}>
+                        <Link href="/contact">Contact</Link>
+                        <Link href="/faqs">FAQs</Link>
+                    </nav>
                     <span>© 2026 OptiGrid. All rights reserved.</span>
                 </div>
             </footer>
