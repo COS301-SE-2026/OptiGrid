@@ -5,12 +5,30 @@ import os
 from datetime import datetime, timezone
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
-from backend.ingestion.src.config import *
+
+try:
+    from backend.ingestion.src.config import (
+        INFLUX_BUCKET,
+        INFLUX_ORG,
+        INFLUX_TOKEN,
+        INFLUX_URL,
+        require_influx_config,
+    )
+except ModuleNotFoundError:
+    from config import (  # type: ignore
+        INFLUX_BUCKET,
+        INFLUX_ORG,
+        INFLUX_TOKEN,
+        INFLUX_URL,
+        require_influx_config,
+    )
 
 CSV_PATH = os.path.join(os.path.dirname(__file__), "data.csv")
 
 def emulate_sensor():
     #mock buidlings with their sensors and meters
+    require_influx_config()
+
     client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
     write_api = client.write_api(write_options=SYNCHRONOUS)
     building_profiles = [
@@ -53,4 +71,3 @@ def emulate_sensor():
 
 if __name__ == "__main__":
     emulate_sensor()
-    
