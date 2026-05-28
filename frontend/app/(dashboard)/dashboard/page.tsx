@@ -514,7 +514,7 @@ export default function DashboardPage() {
                                         <td>
                                             <div className="dashboard-actions">
                                                 <Link
-                                                    href={`/dashboard/edit/${building.id}`}
+                                                    href={`/buildings/${building.id}/edit`}
                                                     className="icon-button"
                                                     aria-label={`Edit ${building.name}`}
                                                 >
