@@ -26,6 +26,33 @@ services:
     volumes:
       - influxdb_data:/var/lib/influxdb2
 
+  mlflow:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
+    restart: unless-stopped
+    command:
+      [
+        "mlflow",
+        "server",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5000",
+        "--backend-store-uri",
+        "sqlite:////mlflow/mlflow.db",
+        "--default-artifact-root",
+        "/mlflow/artifacts"
+      ]
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   frontend:
     image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-frontend:latest
     restart: unless-stopped
@@ -116,9 +143,13 @@ services:
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
     depends_on:
       influxdb:
+        condition: service_healthy
+      mlflow:
         condition: service_healthy
 
 volumes:
   influxdb_data:
+  mlflow_data:
