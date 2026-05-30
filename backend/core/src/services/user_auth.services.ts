@@ -87,7 +87,7 @@ function isSupabaseInvalidCredentialsError(error: { message?: string; code?: str
 
     const code = typeof error.code === 'string' ? error.code.toLowerCase() : '';
     const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
-    return code === 'invalid_credentials' || message.includes('invalid login credentials');
+    return code === 'invalid_credentials' || message.includes('invalid login credentials') || message.includes('invalid email or password');
 }
 
 function isUserIdForeignKeyError(error: unknown): boolean {
