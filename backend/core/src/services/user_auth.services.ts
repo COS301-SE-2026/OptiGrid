@@ -1,5 +1,4 @@
 import prisma from '../lib/prisma';
-import { hashPassword } from '../lib/password';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
 import { Prisma } from '@prisma/client';
@@ -17,7 +16,6 @@ const SIGNUP_USER_SELECT = {
 type SignupCreateData = {
     userId: string;
     email: string;
-    passwordHash: string;
     firstName: string;
     lastName: string;
 };
@@ -126,7 +124,6 @@ function isRecordNotFoundError(error: unknown): boolean {
 async function updateUserByUserIdWithRetry(createData: {
     userId: string;
     email: string;
-    passwordHash: string;
     firstName: string;
     lastName: string;
 }) {
@@ -142,16 +139,10 @@ async function updateUserByUserIdWithRetry(createData: {
                 },
                 data: {
                     email: createData.email,
-                    passwordHash: createData.passwordHash,
                     firstName: createData.firstName,
                     lastName: createData.lastName,
                 },
-                select: {
-                    userId: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                },
+                select: SIGNUP_USER_SELECT,
             });
         } catch (error) {
             if (!isRecordNotFoundError(error) || attempt === maxAttempts) {
@@ -182,7 +173,6 @@ async function createOrUpsertUser(createData: SignupCreateData) {
         create: createData,
         update: {
             email: createData.email,
-            passwordHash: createData.passwordHash,
             firstName: createData.firstName,
             lastName: createData.lastName,
         },
@@ -230,8 +220,7 @@ export const signup = async (email: string, password: string, name: string) => {
     const userExists = await prisma.user.findUnique({ where: { email } });
     if (userExists) throw new Error(USER_EXISTS_ERROR);
 
-    //we hash passwords, split name and then add to users table
-    const hashPass = await hashPassword(password);
+    //we split name and then add to users table
     const [firstName = '', ...otherNames] = name.trim().split(/\s+/);
     const lastName = otherNames.join(' ');
 
@@ -241,7 +230,6 @@ export const signup = async (email: string, password: string, name: string) => {
     const createData = {
         userId: provisionedAuthUser.userId,
         email,
-        passwordHash: hashPass,
         firstName,
         lastName,
     };

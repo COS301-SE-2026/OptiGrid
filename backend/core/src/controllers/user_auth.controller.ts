@@ -43,11 +43,16 @@ export const login = async (req: Request, res: Response) => {
             accessToken: loginResult.accessToken,
         });
     }
-    catch(error: any){
-        if(error.message === "Invalid email or password"){
-            return res.status(400).json({message: error.message});
+    catch(error: unknown){
+        if(error instanceof Error){
+            if (error.message === 'Invalid email or password.') {
+                return res.status(400).json({ message: error.message });
+            }
+            console.error("Login error:", error);
         }
-        console.error("Login error:", error);
+        else {
+            console.error("Login error:", error);
+        }
         return res.status(500).json({message: "Internal server error"});
     }
 }
