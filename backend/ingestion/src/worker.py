@@ -60,11 +60,8 @@ def main() -> None:
                 except (ValueError, TypeError):
                     cost_usd = 0.0
 
-                # def time series metric name
-                metric_name = "building_energy_usage"
-
                 # constructing InfluxDB Timeseries Point with tags and multiple fields
-                point = Point(metric_name) \
+                point = Point("energy_consumption") \
                     .tag("sensor_id", sensor_id) \
                     .tag("building_id", building_id) \
                     .tag("meter_id", meter_id) \
@@ -84,7 +81,7 @@ def main() -> None:
     #cleanup on shutdown
     print("[ingestion-worker] Disconnecting system integration hooks")
     influx_client.close()
-    print("[ingestion-worker] System stopped.")\
+    print("[ingestion-worker] System stopped.")
         
 if __name__ == "__main__":
     main()

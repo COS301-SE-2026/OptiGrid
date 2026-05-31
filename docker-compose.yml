@@ -8,9 +8,9 @@ services:
   
   ingestion-api:
     build: 
-      context: ./backend/ingestion
-      dockerfile: Dockerfile
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
+      context: .
+      dockerfile: backend/ingestion/Dockerfile
+    command: uvicorn backend.ingestion.src.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     environment:
@@ -20,9 +20,9 @@ services:
 
   ingestion-worker:
     build: 
-      context: ./backend/ingestion
-      dockerfile: Dockerfile
-    command: python src/worker.py
+      context: .
+      dockerfile: backend/ingestion/Dockerfile
+    command: python /app/backend/ingestion/src/worker.py
     environment:
       - REDIS_HOST=optigrid_redis
       - INFLUXDB_URL=http://optigrid_influxdb:8086

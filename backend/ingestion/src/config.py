@@ -8,6 +8,10 @@ INFLUX_TOKEN = os.getenv("INFLUXDB_TOKEN")
 INFLUX_ORG = os.getenv("INFLUXDB_ORG")
 INFLUX_BUCKET = os.getenv("INFLUXDB_BUCKET")
 
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_DB = int(os.getenv("REDIS_DB", 0))
+
 
 def require_influx_config() -> None:
     missing_vars = []
@@ -26,3 +30,5 @@ def require_influx_config() -> None:
             f"Missing InfluxDB configuration: {missing_list}. "
             "Set these environment variables before running ingestion scripts."
         )
+
+require_influx_config() 

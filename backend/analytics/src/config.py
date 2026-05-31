@@ -7,7 +7,7 @@ load_dotenv()
 INFLUX_URL = os.getenv("INFLUXDB_URL", "http://localhost:8086")
 INFLUX_TOKEN = os.getenv("INFLUXDB_TOKEN", "mock-token")
 INFLUX_ORG = os.getenv("INFLUXDB_ORG", "optigrid-org")
-INFLUX_BUCKET = os.getenv("INFLUXDB_BUCKET", "telemetry_bucket")
+INFLUX_BUCKET = os.getenv("INFLUXDB_BUCKET", "EnergyData")
 
 # supabase Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
