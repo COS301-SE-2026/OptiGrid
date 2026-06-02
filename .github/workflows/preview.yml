@@ -17,13 +17,22 @@ jobs:
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
+    environment: aws-preview
     concurrency:
       group: aws-preview-server
       queue: max
       cancel-in-progress: false
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
 
     steps:
       - name: Check PR preview eligibility
+        id: preview
         uses: actions/github-script@v7
         with:
           script: |
@@ -32,6 +41,7 @@ jobs:
 
             if (!pr) {
               core.notice("Skipping AWS preview: CI run is not attached to a PR.");
+              core.setOutput("enabled", "false");
               return;
             }
 
@@ -44,17 +54,66 @@ jobs:
 
             if (pull.base.ref !== "develop") {
               core.notice(`Skipping AWS preview: PR #${pr.number} targets ${pull.base.ref}, not develop.`);
+              core.setOutput("enabled", "false");
               return;
             }
 
             if (pull.head.sha !== run.head_sha) {
               core.notice(`Skipping stale AWS preview: CI tested ${run.head_sha}, latest PR head is ${pull.head.sha}.`);
+              core.setOutput("enabled", "false");
               return;
             }
 
+            core.setOutput("enabled", "true");
+            core.setOutput("number", String(pr.number));
+            core.setOutput("head_sha", run.head_sha);
             core.notice(`AWS preview queue acquired for PR #${pr.number} at ${run.head_sha}.`);
 
-      - name: Preview placeholder
+      - name: Check Terraform preview inputs
+        if: steps.preview.outputs.enabled == 'true'
+        shell: bash
         run: |
-          echo "AWS preview queue is wired."
-          echo "Terraform/app deploy steps will be added in later commits."
+          missing=()
+
+          for name in \
+            AWS_ACCESS_KEY_ID \
+            AWS_SECRET_ACCESS_KEY \
+            AWS_REGION \
+            TF_VAR_ssh_public_key
+          do
+            if [ -z "${!name}" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required preview inputs:\n'
+            printf ' - %s\n' "${missing[@]}"
+            exit 1
+          fi
+
+      - name: Setup Terraform preview variables
+        if: steps.preview.outputs.enabled == 'true'
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.preview.outputs.number }}
+        run: |
+          runner_ip="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
+
+          {
+            echo "TF_VAR_environment=pr-${PR_NUMBER}"
+            echo "TF_VAR_instance_type=t3.medium"
+            echo "TF_VAR_root_volume_size_gb=30"
+            echo "TF_VAR_allowed_ssh_cidr=${runner_ip}/32"
+          } >> "$GITHUB_ENV"
+
+      - name: Preview inputs ready
+        if: steps.preview.outputs.enabled == 'true'
+        run: |
+          echo "AWS preview inputs are wired."
+          echo "Terraform lifecycle steps will be added in the next commit."
+
+      - name: Preview skipped
+        if: steps.preview.outputs.enabled != 'true'
+        run: |
+          echo "AWS preview skipped for this CI run."
