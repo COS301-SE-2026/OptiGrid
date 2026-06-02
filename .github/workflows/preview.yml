@@ -107,11 +107,43 @@ jobs:
             echo "TF_VAR_allowed_ssh_cidr=${runner_ip}/32"
           } >> "$GITHUB_ENV"
 
-      - name: Preview inputs ready
+      - name: Checkout PR code
+        if: steps.preview.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.preview.outputs.head_sha }}
+
+      - name: Setup Terraform
+        if: steps.preview.outputs.enabled == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init
+        if: steps.preview.outputs.enabled == 'true'
+        id: tf_init
+        working-directory: infrastructure/terraform
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        if: steps.preview.outputs.enabled == 'true'
+        working-directory: infrastructure/terraform
+        run: terraform validate
+
+      - name: Apply preview infrastructure
+        if: steps.preview.outputs.enabled == 'true'
+        working-directory: infrastructure/terraform
+        run: terraform apply -auto-approve -input=false -no-color
+
+      - name: Destroy preview infrastructure
+        if: always() && steps.preview.outputs.enabled == 'true' && steps.tf_init.outcome == 'success'
+        working-directory: infrastructure/terraform
+        run: terraform destroy -auto-approve -input=false -no-color
+
+      - name: Preview lifecycle complete
         if: steps.preview.outputs.enabled == 'true'
         run: |
-          echo "AWS preview inputs are wired."
-          echo "Terraform lifecycle steps will be added in the next commit."
+          echo "AWS preview Terraform lifecycle completed."
 
       - name: Preview skipped
         if: steps.preview.outputs.enabled != 'true'
