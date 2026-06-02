@@ -29,6 +29,7 @@ jobs:
       AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
       TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
+      SERVER_SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
 
     steps:
       - name: Check PR preview eligibility
@@ -79,7 +80,8 @@ jobs:
             AWS_ACCESS_KEY_ID \
             AWS_SECRET_ACCESS_KEY \
             AWS_REGION \
-            TF_VAR_ssh_public_key
+            TF_VAR_ssh_public_key \
+            SERVER_SSH_PRIVATE_KEY
           do
             if [ -z "${!name}" ]; then
               missing+=("$name")
@@ -134,6 +136,51 @@ jobs:
         if: steps.preview.outputs.enabled == 'true'
         working-directory: infrastructure/terraform
         run: terraform apply -auto-approve -input=false -no-color
+
+      - name: Setup SSH key
+        if: steps.preview.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SERVER_SSH_PRIVATE_KEY" | tr -d '\r' > "$HOME/.ssh/optigrid-preview"
+          chmod 600 "$HOME/.ssh/optigrid-preview"
+          echo "SSH_KEY_PATH=$HOME/.ssh/optigrid-preview" >> "$GITHUB_ENV"
+
+      - name: Capture server host
+        if: steps.preview.outputs.enabled == 'true'
+        id: tf_outputs
+        working-directory: infrastructure/terraform
+        shell: bash
+        run: |
+          server_host="$(terraform output -raw server_public_ip)"
+          echo "server_host=${server_host}" >> "$GITHUB_OUTPUT"
+
+      - name: Check Docker on preview server
+        if: steps.preview.outputs.enabled == 'true'
+        shell: bash
+        env:
+          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+        run: |
+          ssh_opts=(
+            -i "$SSH_KEY_PATH"
+            -o StrictHostKeyChecking=no
+            -o UserKnownHostsFile=/dev/null
+            -o ConnectTimeout=10
+          )
+
+          for attempt in $(seq 1 60); do
+            if ssh "${ssh_opts[@]}" "ubuntu@${SERVER_HOST}" \
+              "cloud-init status --wait >/dev/null 2>&1 && sudo docker version >/dev/null 2>&1"; then
+              echo "Preview server is reachable and Docker is ready."
+              exit 0
+            fi
+
+            echo "Waiting for SSH, cloud-init, and Docker... attempt ${attempt}/60"
+            sleep 10
+          done
+
+          echo "Preview server did not become ready in time."
+          exit 1
 
       - name: Destroy preview infrastructure
         if: always() && steps.preview.outputs.enabled == 'true' && steps.tf_init.outcome == 'success'
