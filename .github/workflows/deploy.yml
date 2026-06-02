@@ -1,25 +1,42 @@
 name: Deploy Containers
 
 on:
-  workflow_run:
-    workflows: ["Build and Publish Images"]
-    types:
-      - completed
   workflow_dispatch:
+    inputs:
+      action:
+        description: Deployment action to run
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - status
+          - down
+          - destroy
+      ref:
+        description: Branch, tag, or SHA to deploy
+        required: true
+        default: develop
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    concurrency:
+      group: aws-deploy
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Copy production compose file to server
+        if: inputs.action == 'deploy'
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -30,6 +47,7 @@ jobs:
           overwrite: true
 
       - name: Configure .env and deploy via SSH
+        if: inputs.action == 'deploy'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -114,3 +132,39 @@ jobs:
           INFLUXDB_TOKEN: ${{ secrets.INFLUXDB_TOKEN }}
           INFLUXDB_ORG: ${{ secrets.INFLUXDB_ORG }}
           INFLUXDB_BUCKET: ${{ secrets.INFLUXDB_BUCKET }}
+
+      - name: Run remote deployment control action
+        if: inputs.action != 'deploy'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+          envs: DEPLOY_ACTION
+          script: |
+            set -e
+            if [ ! -d ~/optigrid ]; then
+              echo "No ~/optigrid deployment directory found."
+              exit 0
+            fi
+
+            cd ~/optigrid
+
+            case "${DEPLOY_ACTION}" in
+              status)
+                docker compose ps
+                ;;
+              down)
+                docker compose down --remove-orphans
+                ;;
+              destroy)
+                docker compose down --volumes --remove-orphans
+                docker image prune -af
+                ;;
+              *)
+                echo "Unsupported deployment action: ${DEPLOY_ACTION}"
+                exit 1
+                ;;
+            esac
+        env:
+          DEPLOY_ACTION: ${{ inputs.action }}
