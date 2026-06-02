@@ -25,6 +25,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: aws-preview
     concurrency:
       group: aws-deploy
       cancel-in-progress: false
@@ -34,6 +35,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+
+      - name: Resolve GHCR namespace
+        id: ghcr
+        shell: bash
+        run: |
+          namespace="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "namespace=${namespace}" >> "$GITHUB_OUTPUT"
 
       - name: Copy production compose file to server
         if: inputs.action == 'deploy'
@@ -53,31 +61,55 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,INFLUXDB_URL,INFLUXDB_TOKEN,INFLUXDB_ORG,INFLUXDB_BUCKET
+          envs: GHCR_USERNAME,GHCR_TOKEN,GHCR_NAMESPACE,DATABASE_URL,SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_KEY,INFLUXDB_URL,INFLUXDB_ORG,INFLUXDB_BUCKET
           script: |
             set -e
             mkdir -p ~/optigrid
             mv ~/optigrid/infrastructure/docker/docker-compose.prod.yml ~/optigrid/docker-compose.yml
             rm -rf ~/optigrid/infrastructure
+            sed -i "s#ghcr.io/YOUR_GITHUB_USERNAME/#ghcr.io/${GHCR_NAMESPACE}/#g" ~/optigrid/docker-compose.yml
+
+            existing_env_value() {
+              if [ -f ~/optigrid/.env ]; then
+                grep -m 1 "^$1=" ~/optigrid/.env | cut -d= -f2- || true
+              fi
+            }
+
+            INFLUXDB_TOKEN="$(existing_env_value INFLUXDB_TOKEN)"
+            if [ -z "${INFLUXDB_TOKEN}" ]; then
+              INFLUXDB_TOKEN="$(openssl rand -hex 32)"
+            fi
+
+            INFLUXDB_INIT_PASSWORD="$(existing_env_value INFLUXDB_INIT_PASSWORD)"
+            if [ -z "${INFLUXDB_INIT_PASSWORD}" ]; then
+              INFLUXDB_INIT_PASSWORD="$(openssl rand -hex 24)"
+            fi
 
             cat > ~/optigrid/.env <<EOF
             NODE_ENV=production
-            FRONTEND_PORT=3000
+            FRONTEND_PORT=80
             CORE_PORT=4000
             INGESTION_PORT=8000
             ANALYTICS_PORT=8001
+            DATABASE_URL=${DATABASE_URL}
             SUPABASE_URL=${SUPABASE_URL}
+            SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
             SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+            SUPABASE_KEY=${SUPABASE_KEY}
             INFLUXDB_URL=${INFLUXDB_URL}
             INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
             INFLUXDB_ORG=${INFLUXDB_ORG}
             INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+            INFLUXDB_INIT_PASSWORD=${INFLUXDB_INIT_PASSWORD}
             EOF
 
-            docker login ghcr.io -u "${GHCR_USERNAME}" -p "${GHCR_TOKEN}"
+            if [ -n "${GHCR_USERNAME}" ] && [ -n "${GHCR_TOKEN}" ]; then
+              echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
+            fi
+
             cd ~/optigrid
-            docker compose pull frontend core ingestion analytics
-            docker compose up -d frontend core ingestion analytics
+            docker compose pull
+            docker compose up -d --remove-orphans
             sleep 10
 
             health_check_failed() {
@@ -111,7 +143,7 @@ jobs:
             }
 
             echo "Checking frontend..."
-            curl -fsS http://localhost:3000/health || curl -fsS http://localhost:3000/ || health_check_failed
+            curl -fsS http://localhost:80/health || curl -fsS http://localhost:80/ || health_check_failed
 
             echo "Checking core..."
             curl -fsS http://localhost:4000/health || health_check_failed
@@ -126,12 +158,15 @@ jobs:
         env:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_NAMESPACE: ${{ steps.ghcr.outputs.namespace }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          INFLUXDB_URL: ${{ secrets.INFLUXDB_URL }}
-          INFLUXDB_TOKEN: ${{ secrets.INFLUXDB_TOKEN }}
-          INFLUXDB_ORG: ${{ secrets.INFLUXDB_ORG }}
-          INFLUXDB_BUCKET: ${{ secrets.INFLUXDB_BUCKET }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          INFLUXDB_URL: ${{ vars.INFLUXDB_URL }}
+          INFLUXDB_ORG: ${{ vars.INFLUXDB_ORG }}
+          INFLUXDB_BUCKET: ${{ vars.INFLUXDB_BUCKET }}
 
       - name: Run remote deployment control action
         if: inputs.action != 'deploy'
