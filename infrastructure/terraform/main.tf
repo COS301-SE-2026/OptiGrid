@@ -1,3 +1,9 @@
+locals {
+  environment_name = lower(var.environment)
+  resource_prefix  = "${lower(var.project_name)}-${local.environment_name}"
+  server_name      = "${var.project_name}-${local.environment_name}-server"
+}
+
 data "aws_vpc" "default" {
   default = true
 }
@@ -14,19 +20,19 @@ data "aws_ssm_parameter" "ubuntu_ami" {
 }
 
 resource "aws_key_pair" "optigrid" {
-  key_name   = "${lower(var.project_name)}-${var.environment}-key"
+  key_name   = "${local.resource_prefix}-key"
   public_key = var.ssh_public_key
 
   tags = {
     Project     = var.project_name
-    Environment = var.environment
+    Environment = local.environment_name
     ManagedBy   = "Terraform"
   }
 }
 
 resource "aws_security_group" "optigrid_server" {
-  name        = "${lower(var.project_name)}-${var.environment}-sg"
-  description = "Security group for OptiGrid production server"
+  name        = "${local.resource_prefix}-sg"
+  description = "Security group for OptiGrid ${local.environment_name} server"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -78,7 +84,7 @@ resource "aws_security_group" "optigrid_server" {
 
   tags = {
     Project     = var.project_name
-    Environment = var.environment
+    Environment = local.environment_name
     ManagedBy   = "Terraform"
   }
 }
@@ -97,9 +103,9 @@ resource "aws_instance" "optigrid_server" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-server"
+    Name        = local.server_name
     Project     = var.project_name
-    Environment = var.environment
+    Environment = local.environment_name
     ManagedBy   = "Terraform"
   }
 }

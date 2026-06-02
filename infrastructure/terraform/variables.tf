@@ -5,9 +5,14 @@ variable "aws_region" {
 }
 
 variable "environment" {
-  description = "Deployment environment name."
+  description = "Deployment environment name. Use production for the shared server or pr-<number> for isolated PR previews."
   type        = string
   default     = "production"
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9-]{0,47}$", var.environment))
+    error_message = "environment must be 1-48 lowercase letters, numbers, or hyphens, and must start with a letter or number."
+  }
 }
 
 variable "project_name" {
