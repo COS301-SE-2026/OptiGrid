@@ -30,6 +30,14 @@ jobs:
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
       TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
       SERVER_SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      INFLUXDB_URL: ${{ vars.INFLUXDB_URL }}
+      INFLUXDB_ORG: ${{ vars.INFLUXDB_ORG }}
+      INFLUXDB_BUCKET: ${{ vars.INFLUXDB_BUCKET }}
 
     steps:
       - name: Check PR preview eligibility
@@ -70,7 +78,7 @@ jobs:
             core.setOutput("head_sha", run.head_sha);
             core.notice(`AWS preview queue acquired for PR #${pr.number} at ${run.head_sha}.`);
 
-      - name: Check Terraform preview inputs
+      - name: Check preview inputs
         if: steps.preview.outputs.enabled == 'true'
         shell: bash
         run: |
@@ -81,7 +89,15 @@ jobs:
             AWS_SECRET_ACCESS_KEY \
             AWS_REGION \
             TF_VAR_ssh_public_key \
-            SERVER_SSH_PRIVATE_KEY
+            SERVER_SSH_PRIVATE_KEY \
+            DATABASE_URL \
+            SUPABASE_URL \
+            SUPABASE_ANON_KEY \
+            SUPABASE_SERVICE_ROLE_KEY \
+            SUPABASE_KEY \
+            INFLUXDB_URL \
+            INFLUXDB_ORG \
+            INFLUXDB_BUCKET
           do
             if [ -z "${!name}" ]; then
               missing+=("$name")
@@ -107,6 +123,15 @@ jobs:
             echo "TF_VAR_instance_type=t3.medium"
             echo "TF_VAR_root_volume_size_gb=30"
             echo "TF_VAR_allowed_ssh_cidr=${runner_ip}/32"
+          } >> "$GITHUB_ENV"
+
+      - name: Setup preview app variables
+        if: steps.preview.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          {
+            echo "INFLUXDB_TOKEN=$(openssl rand -hex 32)"
+            echo "INFLUXDB_INIT_PASSWORD=$(openssl rand -hex 24)"
           } >> "$GITHUB_ENV"
 
       - name: Checkout PR code
@@ -229,6 +254,39 @@ jobs:
           sudo docker image ls --filter 'reference=optigrid-preview-*'
           REMOTE
 
+      - name: Configure preview app environment
+        if: steps.preview.outputs.enabled == 'true'
+        shell: bash
+        env:
+          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+        run: |
+          ssh_opts=(
+            -i "$SSH_KEY_PATH"
+            -o StrictHostKeyChecking=no
+            -o UserKnownHostsFile=/dev/null
+            -o ConnectTimeout=10
+          )
+
+          preview_env="$(mktemp)"
+          {
+            printf '%s\n' "NODE_ENV=production"
+            printf '%s\n' "FRONTEND_PORT=80"
+            printf '%s\n' "CORE_PORT=4000"
+            printf '%s\n' "INGESTION_PORT=8000"
+            printf '%s=%s\n' "DATABASE_URL" "$DATABASE_URL"
+            printf '%s=%s\n' "SUPABASE_URL" "$SUPABASE_URL"
+            printf '%s=%s\n' "SUPABASE_ANON_KEY" "$SUPABASE_ANON_KEY"
+            printf '%s=%s\n' "SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY"
+            printf '%s=%s\n' "SUPABASE_KEY" "$SUPABASE_KEY"
+            printf '%s=%s\n' "INFLUXDB_URL" "$INFLUXDB_URL"
+            printf '%s=%s\n' "INFLUXDB_TOKEN" "$INFLUXDB_TOKEN"
+            printf '%s=%s\n' "INFLUXDB_ORG" "$INFLUXDB_ORG"
+            printf '%s=%s\n' "INFLUXDB_BUCKET" "$INFLUXDB_BUCKET"
+            printf '%s=%s\n' "INFLUXDB_INIT_PASSWORD" "$INFLUXDB_INIT_PASSWORD"
+          } > "$preview_env"
+
+          scp "${ssh_opts[@]}" "$preview_env" "ubuntu@${SERVER_HOST}:~/optigrid-preview/.env.preview"
+
       - name: Destroy preview infrastructure
         if: always() && steps.preview.outputs.enabled == 'true' && steps.tf_init.outcome == 'success'
         working-directory: infrastructure/terraform
@@ -237,7 +295,7 @@ jobs:
       - name: Preview lifecycle complete
         if: steps.preview.outputs.enabled == 'true'
         run: |
-          echo "AWS preview Docker image build completed."
+          echo "AWS preview app environment configured."
 
       - name: Preview skipped
         if: steps.preview.outputs.enabled != 'true'
