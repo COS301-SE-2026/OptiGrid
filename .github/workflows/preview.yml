@@ -27,8 +27,6 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
-      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
-      TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
       SERVER_SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -88,7 +86,6 @@ jobs:
             AWS_ACCESS_KEY_ID \
             AWS_SECRET_ACCESS_KEY \
             AWS_REGION \
-            TF_VAR_ssh_public_key \
             SERVER_SSH_PRIVATE_KEY \
             DATABASE_URL \
             SUPABASE_URL \
@@ -110,21 +107,6 @@ jobs:
             exit 1
           fi
 
-      - name: Setup Terraform preview variables
-        if: steps.preview.outputs.enabled == 'true'
-        shell: bash
-        env:
-          PR_NUMBER: ${{ steps.preview.outputs.number }}
-        run: |
-          runner_ip="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
-
-          {
-            echo "TF_VAR_environment=pr-${PR_NUMBER}"
-            echo "TF_VAR_instance_type=t3.medium"
-            echo "TF_VAR_root_volume_size_gb=30"
-            echo "TF_VAR_allowed_ssh_cidr=${runner_ip}/32"
-          } >> "$GITHUB_ENV"
-
       - name: Setup preview app variables
         if: steps.preview.outputs.enabled == 'true'
         shell: bash
@@ -140,27 +122,13 @@ jobs:
         with:
           ref: ${{ steps.preview.outputs.head_sha }}
 
-      - name: Setup Terraform
+      - name: Configure AWS credentials
         if: steps.preview.outputs.enabled == 'true'
-        uses: hashicorp/setup-terraform@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          terraform_wrapper: false
-
-      - name: Terraform init
-        if: steps.preview.outputs.enabled == 'true'
-        id: tf_init
-        working-directory: infrastructure/terraform
-        run: terraform init -input=false
-
-      - name: Terraform validate
-        if: steps.preview.outputs.enabled == 'true'
-        working-directory: infrastructure/terraform
-        run: terraform validate
-
-      - name: Apply preview infrastructure
-        if: steps.preview.outputs.enabled == 'true'
-        working-directory: infrastructure/terraform
-        run: terraform apply -auto-approve -input=false -no-color
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Setup SSH key
         if: steps.preview.outputs.enabled == 'true'
@@ -171,20 +139,84 @@ jobs:
           chmod 600 "$HOME/.ssh/optigrid-preview"
           echo "SSH_KEY_PATH=$HOME/.ssh/optigrid-preview" >> "$GITHUB_ENV"
 
-      - name: Capture server host
+      - name: Start reusable preview server
         if: steps.preview.outputs.enabled == 'true'
-        id: tf_outputs
-        working-directory: infrastructure/terraform
+        id: preview_server
         shell: bash
         run: |
-          server_host="$(terraform output -raw server_public_ip)"
+          instance_id="$(aws ec2 describe-instances \
+            --filters \
+              "Name=tag:Project,Values=OptiGrid" \
+              "Name=tag:Environment,Values=preview" \
+              "Name=tag:Role,Values=pr-preview" \
+              "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+            --query 'Reservations[0].Instances[0].InstanceId' \
+            --output text)"
+
+          if [ -z "$instance_id" ] || [ "$instance_id" = "None" ]; then
+            echo "No reusable preview server found. Create it once with Terraform environment=preview."
+            exit 1
+          fi
+
+          security_group_id="$(aws ec2 describe-instances \
+            --instance-ids "$instance_id" \
+            --query 'Reservations[0].Instances[0].SecurityGroups[0].GroupId' \
+            --output text)"
+
+          runner_ip="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
+          ssh_cidr="${runner_ip}/32"
+
+          aws ec2 authorize-security-group-ingress \
+            --group-id "$security_group_id" \
+            --protocol tcp \
+            --port 22 \
+            --cidr "$ssh_cidr" \
+            2>/tmp/authorize-ssh.err || {
+              if grep -q "InvalidPermission.Duplicate" /tmp/authorize-ssh.err; then
+                echo "SSH ingress for $ssh_cidr already exists."
+              else
+                cat /tmp/authorize-ssh.err
+                exit 1
+              fi
+            }
+
+          state="$(aws ec2 describe-instances \
+            --instance-ids "$instance_id" \
+            --query 'Reservations[0].Instances[0].State.Name' \
+            --output text)"
+
+          if [ "$state" = "stopping" ]; then
+            aws ec2 wait instance-stopped --instance-ids "$instance_id"
+            state="stopped"
+          fi
+
+          if [ "$state" = "stopped" ]; then
+            aws ec2 start-instances --instance-ids "$instance_id" >/dev/null
+          fi
+
+          aws ec2 wait instance-running --instance-ids "$instance_id"
+          aws ec2 wait instance-status-ok --instance-ids "$instance_id"
+
+          server_host="$(aws ec2 describe-instances \
+            --instance-ids "$instance_id" \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text)"
+
+          if [ -z "$server_host" ] || [ "$server_host" = "None" ]; then
+            echo "Reusable preview server is running but has no public IPv4 address."
+            exit 1
+          fi
+
+          echo "instance_id=${instance_id}" >> "$GITHUB_OUTPUT"
+          echo "security_group_id=${security_group_id}" >> "$GITHUB_OUTPUT"
+          echo "ssh_cidr=${ssh_cidr}" >> "$GITHUB_OUTPUT"
           echo "server_host=${server_host}" >> "$GITHUB_OUTPUT"
 
       - name: Check Docker on preview server
         if: steps.preview.outputs.enabled == 'true'
         shell: bash
         env:
-          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+          SERVER_HOST: ${{ steps.preview_server.outputs.server_host }}
         run: |
           ssh_opts=(
             -i "$SSH_KEY_PATH"
@@ -211,7 +243,7 @@ jobs:
         if: steps.preview.outputs.enabled == 'true'
         shell: bash
         env:
-          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+          SERVER_HOST: ${{ steps.preview_server.outputs.server_host }}
         run: |
           ssh_opts=(
             -i "$SSH_KEY_PATH"
@@ -232,7 +264,7 @@ jobs:
         if: steps.preview.outputs.enabled == 'true'
         shell: bash
         env:
-          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+          SERVER_HOST: ${{ steps.preview_server.outputs.server_host }}
         run: |
           ssh_opts=(
             -i "$SSH_KEY_PATH"
@@ -258,7 +290,7 @@ jobs:
         if: steps.preview.outputs.enabled == 'true'
         shell: bash
         env:
-          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+          SERVER_HOST: ${{ steps.preview_server.outputs.server_host }}
         run: |
           ssh_opts=(
             -i "$SSH_KEY_PATH"
@@ -291,7 +323,7 @@ jobs:
         if: steps.preview.outputs.enabled == 'true'
         shell: bash
         env:
-          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+          SERVER_HOST: ${{ steps.preview_server.outputs.server_host }}
         run: |
           ssh_opts=(
             -i "$SSH_KEY_PATH"
@@ -369,11 +401,11 @@ jobs:
           REMOTE
 
       - name: Stop preview compose stack
-        if: always() && steps.preview.outputs.enabled == 'true' && steps.tf_outputs.outputs.server_host != ''
+        if: always() && steps.preview.outputs.enabled == 'true' && steps.preview_server.outputs.server_host != ''
         continue-on-error: true
         shell: bash
         env:
-          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+          SERVER_HOST: ${{ steps.preview_server.outputs.server_host }}
         run: |
           ssh_opts=(
             -i "$SSH_KEY_PATH"
@@ -411,10 +443,22 @@ jobs:
           rm -rf ~/optigrid-preview
           REMOTE
 
-      - name: Destroy preview infrastructure
-        if: always() && steps.preview.outputs.enabled == 'true' && steps.tf_init.outcome == 'success'
-        working-directory: infrastructure/terraform
-        run: terraform destroy -auto-approve -input=false -no-color
+      - name: Revoke preview SSH ingress
+        if: always() && steps.preview.outputs.enabled == 'true' && steps.preview_server.outputs.security_group_id != ''
+        continue-on-error: true
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id "${{ steps.preview_server.outputs.security_group_id }}" \
+            --protocol tcp \
+            --port 22 \
+            --cidr "${{ steps.preview_server.outputs.ssh_cidr }}" || true
+
+      - name: Stop reusable preview server
+        if: always() && steps.preview.outputs.enabled == 'true' && steps.preview_server.outputs.instance_id != ''
+        continue-on-error: true
+        run: |
+          aws ec2 stop-instances --instance-ids "${{ steps.preview_server.outputs.instance_id }}" >/dev/null
+          aws ec2 wait instance-stopped --instance-ids "${{ steps.preview_server.outputs.instance_id }}"
 
       - name: Preview lifecycle complete
         if: steps.preview.outputs.enabled == 'true'
