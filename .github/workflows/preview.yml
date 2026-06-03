@@ -287,6 +287,95 @@ jobs:
 
           scp "${ssh_opts[@]}" "$preview_env" "ubuntu@${SERVER_HOST}:~/optigrid-preview/.env.preview"
 
+      - name: Run preview compose smoke test
+        if: steps.preview.outputs.enabled == 'true'
+        shell: bash
+        env:
+          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+        run: |
+          ssh_opts=(
+            -i "$SSH_KEY_PATH"
+            -o StrictHostKeyChecking=no
+            -o UserKnownHostsFile=/dev/null
+            -o ConnectTimeout=10
+          )
+
+          ssh "${ssh_opts[@]}" "ubuntu@${SERVER_HOST}" <<'REMOTE'
+          set -Eeuo pipefail
+
+          cd ~/optigrid-preview
+
+          cp infrastructure/docker/docker-compose.prod.yml docker-compose.preview.yml
+          sed -i 's#ghcr.io/YOUR_GITHUB_USERNAME/optigrid-#optigrid-preview-#g' docker-compose.preview.yml
+
+          compose() {
+            sudo docker compose -p optigrid-preview -f docker-compose.preview.yml --env-file .env.preview "$@"
+          }
+
+          wait_for_http() {
+            name="$1"
+            url="$2"
+
+            for attempt in $(seq 1 60); do
+              if curl -fsSL "$url" >/dev/null 2>&1; then
+                echo "$name responded at $url"
+                return 0
+              fi
+
+              echo "Waiting for $name... attempt ${attempt}/60"
+              sleep 5
+            done
+
+            echo "$name did not respond at $url"
+            return 1
+          }
+
+          check_service_running() {
+            service="$1"
+            container_id="$(compose ps -q "$service")"
+
+            if [ -z "$container_id" ]; then
+              echo "Service $service does not have a container id."
+              return 1
+            fi
+
+            status="$(sudo docker inspect --format='{{.State.Status}}' "$container_id")"
+            echo "$service status=$status"
+            [ "$status" = "running" ]
+          }
+
+          compose up -d --remove-orphans
+          wait_for_http "frontend" "http://127.0.0.1:80/health"
+          wait_for_http "core" "http://127.0.0.1:4000/health"
+          check_service_running ingestion
+          check_service_running analytics
+          compose ps
+          REMOTE
+
+      - name: Stop preview compose stack
+        if: always() && steps.preview.outputs.enabled == 'true' && steps.tf_outputs.outputs.server_host != ''
+        continue-on-error: true
+        shell: bash
+        env:
+          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+        run: |
+          ssh_opts=(
+            -i "$SSH_KEY_PATH"
+            -o StrictHostKeyChecking=no
+            -o UserKnownHostsFile=/dev/null
+            -o ConnectTimeout=10
+          )
+
+          ssh "${ssh_opts[@]}" "ubuntu@${SERVER_HOST}" <<'REMOTE'
+          set -Eeuo pipefail
+
+          cd ~/optigrid-preview
+
+          if [ -f docker-compose.preview.yml ]; then
+            sudo docker compose -p optigrid-preview -f docker-compose.preview.yml --env-file .env.preview down --volumes --remove-orphans
+          fi
+          REMOTE
+
       - name: Destroy preview infrastructure
         if: always() && steps.preview.outputs.enabled == 'true' && steps.tf_init.outcome == 'success'
         working-directory: infrastructure/terraform
@@ -295,7 +384,7 @@ jobs:
       - name: Preview lifecycle complete
         if: steps.preview.outputs.enabled == 'true'
         run: |
-          echo "AWS preview app environment configured."
+          echo "AWS preview Compose smoke test completed."
 
       - name: Preview skipped
         if: steps.preview.outputs.enabled != 'true'
