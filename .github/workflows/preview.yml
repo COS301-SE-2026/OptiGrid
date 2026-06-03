@@ -182,6 +182,53 @@ jobs:
           echo "Preview server did not become ready in time."
           exit 1
 
+      - name: Upload PR source to preview server
+        if: steps.preview.outputs.enabled == 'true'
+        shell: bash
+        env:
+          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+        run: |
+          ssh_opts=(
+            -i "$SSH_KEY_PATH"
+            -o StrictHostKeyChecking=no
+            -o UserKnownHostsFile=/dev/null
+            -o ConnectTimeout=10
+          )
+
+          ssh "${ssh_opts[@]}" "ubuntu@${SERVER_HOST}" \
+            "rm -rf ~/optigrid-preview && mkdir -p ~/optigrid-preview"
+
+          git archive --format=tar HEAD \
+            | gzip -1 \
+            | ssh "${ssh_opts[@]}" "ubuntu@${SERVER_HOST}" \
+              "tar -xzf - -C ~/optigrid-preview"
+
+      - name: Build preview images on server
+        if: steps.preview.outputs.enabled == 'true'
+        shell: bash
+        env:
+          SERVER_HOST: ${{ steps.tf_outputs.outputs.server_host }}
+        run: |
+          ssh_opts=(
+            -i "$SSH_KEY_PATH"
+            -o StrictHostKeyChecking=no
+            -o UserKnownHostsFile=/dev/null
+            -o ConnectTimeout=10
+          )
+
+          ssh "${ssh_opts[@]}" "ubuntu@${SERVER_HOST}" <<'REMOTE'
+          set -Eeuo pipefail
+
+          cd ~/optigrid-preview
+
+          sudo docker build -f frontend/Dockerfile -t optigrid-preview-frontend:latest .
+          sudo docker build -f backend/core/Dockerfile -t optigrid-preview-core:latest .
+          sudo docker build -f backend/ingestion/Dockerfile -t optigrid-preview-ingestion:latest .
+          sudo docker build -f backend/analytics/Dockerfile -t optigrid-preview-analytics:latest .
+
+          sudo docker image ls --filter 'reference=optigrid-preview-*'
+          REMOTE
+
       - name: Destroy preview infrastructure
         if: always() && steps.preview.outputs.enabled == 'true' && steps.tf_init.outcome == 'success'
         working-directory: infrastructure/terraform
@@ -190,7 +237,7 @@ jobs:
       - name: Preview lifecycle complete
         if: steps.preview.outputs.enabled == 'true'
         run: |
-          echo "AWS preview Terraform lifecycle completed."
+          echo "AWS preview Docker image build completed."
 
       - name: Preview skipped
         if: steps.preview.outputs.enabled != 'true'
