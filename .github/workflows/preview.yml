@@ -434,12 +434,6 @@ jobs:
             sudo docker compose "${compose_args[@]}" down --volumes --remove-orphans || true
           fi
 
-          preview_images="$(sudo docker image ls --format '{{.Repository}}:{{.Tag}}' --filter 'reference=optigrid-preview-*' || true)"
-
-          if [ -n "$preview_images" ]; then
-            echo "$preview_images" | xargs -r sudo docker image rm -f
-          fi
-
           rm -rf ~/optigrid-preview
           REMOTE
 
