@@ -1,7 +1,9 @@
 locals {
-  environment_name = lower(var.environment)
-  resource_prefix  = "${lower(var.project_name)}-${local.environment_name}"
-  server_name      = "${var.project_name}-${local.environment_name}-server"
+  environment_name       = lower(var.environment)
+  is_preview_environment = local.environment_name == "preview" || startswith(local.environment_name, "pr-")
+  resource_prefix        = "${lower(var.project_name)}-${local.environment_name}"
+  server_name            = "${var.project_name}-${local.environment_name}-server"
+  server_role            = local.is_preview_environment ? "pr-preview" : "app-server"
 }
 
 data "aws_vpc" "default" {
@@ -27,6 +29,7 @@ resource "aws_key_pair" "optigrid" {
     Project     = var.project_name
     Environment = local.environment_name
     ManagedBy   = "Terraform"
+    Role        = local.server_role
   }
 }
 
@@ -86,6 +89,7 @@ resource "aws_security_group" "optigrid_server" {
     Project     = var.project_name
     Environment = local.environment_name
     ManagedBy   = "Terraform"
+    Role        = local.server_role
   }
 }
 
@@ -107,5 +111,6 @@ resource "aws_instance" "optigrid_server" {
     Project     = var.project_name
     Environment = local.environment_name
     ManagedBy   = "Terraform"
+    Role        = local.server_role
   }
 }

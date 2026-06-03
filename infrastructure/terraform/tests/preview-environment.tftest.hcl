@@ -60,4 +60,9 @@ run "preview_environment_naming_contracts" {
     condition     = aws_instance.optigrid_server.tags.Environment == "pr-123"
     error_message = "Preview instance Environment tag must include the PR environment."
   }
+
+  assert {
+    condition     = aws_instance.optigrid_server.tags.Role == "pr-preview"
+    error_message = "PR preview instance Role tag must identify preview infrastructure."
+  }
 }

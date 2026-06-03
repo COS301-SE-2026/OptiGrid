@@ -5,7 +5,7 @@ variable "aws_region" {
 }
 
 variable "environment" {
-  description = "Deployment environment name. Use production for the shared server or pr-<number> for isolated PR previews."
+  description = "Deployment environment name. Use production for the shared server, preview for the reusable PR test server, or pr-<number> for isolated PR previews."
   type        = string
   default     = "production"
 
@@ -28,7 +28,7 @@ variable "instance_type" {
 }
 
 variable "root_volume_size_gb" {
-  description = "Root EBS volume size in GB."
+  description = "Root EBS volume size in GB. Use a larger value for reusable preview servers to preserve Docker build cache."
   type        = number
   default     = 20
 }
