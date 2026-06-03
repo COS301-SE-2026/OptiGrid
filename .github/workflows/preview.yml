@@ -312,6 +312,22 @@ jobs:
             sudo docker compose -p optigrid-preview -f docker-compose.preview.yml --env-file .env.preview "$@"
           }
 
+          dump_preview_diagnostics() {
+            echo "Preview Compose status:"
+            compose ps || true
+
+            echo "Recent Preview Compose logs:"
+            compose logs --tail=120 || true
+
+            echo "Preview containers:"
+            sudo docker ps -a --filter "label=com.docker.compose.project=optigrid-preview" || true
+
+            echo "Docker disk usage:"
+            sudo docker system df || true
+          }
+
+          trap 'code=$?; echo "Preview Compose smoke test failed with exit code ${code}."; dump_preview_diagnostics; exit "${code}"' ERR
+
           wait_for_http() {
             name="$1"
             url="$2"
