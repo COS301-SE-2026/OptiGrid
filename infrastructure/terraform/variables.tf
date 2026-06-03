@@ -5,14 +5,9 @@ variable "aws_region" {
 }
 
 variable "environment" {
-  description = "Deployment environment name. Use production for the shared server, preview for the reusable PR test server, or pr-<number> for isolated PR previews."
+  description = "Deployment environment name."
   type        = string
   default     = "production"
-
-  validation {
-    condition     = can(regex("^[a-z0-9][a-z0-9-]{0,47}$", var.environment))
-    error_message = "environment must be 1-48 lowercase letters, numbers, or hyphens, and must start with a letter or number."
-  }
 }
 
 variable "project_name" {
@@ -28,7 +23,7 @@ variable "instance_type" {
 }
 
 variable "root_volume_size_gb" {
-  description = "Root EBS volume size in GB. Use a larger value for reusable preview servers to preserve Docker build cache."
+  description = "Root EBS volume size in GB."
   type        = number
   default     = 20
 }
