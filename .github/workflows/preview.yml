@@ -385,11 +385,30 @@ jobs:
           ssh "${ssh_opts[@]}" "ubuntu@${SERVER_HOST}" <<'REMOTE'
           set -Eeuo pipefail
 
+          if [ ! -d ~/optigrid-preview ]; then
+            echo "No preview workspace found; skipping Compose cleanup."
+            exit 0
+          fi
+
           cd ~/optigrid-preview
 
           if [ -f docker-compose.preview.yml ]; then
-            sudo docker compose -p optigrid-preview -f docker-compose.preview.yml --env-file .env.preview down --volumes --remove-orphans
+            compose_args=(-p optigrid-preview -f docker-compose.preview.yml)
+
+            if [ -f .env.preview ]; then
+              compose_args+=(--env-file .env.preview)
+            fi
+
+            sudo docker compose "${compose_args[@]}" down --volumes --remove-orphans || true
           fi
+
+          preview_images="$(sudo docker image ls --format '{{.Repository}}:{{.Tag}}' --filter 'reference=optigrid-preview-*' || true)"
+
+          if [ -n "$preview_images" ]; then
+            echo "$preview_images" | xargs -r sudo docker image rm -f
+          fi
+
+          rm -rf ~/optigrid-preview
           REMOTE
 
       - name: Destroy preview infrastructure
