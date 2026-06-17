@@ -81,6 +81,7 @@ describe('Login integration', () => {
 	});
 
 	it('returns 500 when Supabase auth succeeds but the local profile is missing', async () => {
+		const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 		const signupPayload = {
 			email: uniqueEmail('missing-profile'),
 			password: 'StrongPass123!',
@@ -98,10 +99,15 @@ describe('Login integration', () => {
 			await client.end();
 		}
 
-		const response = await request(harness.app).post('/auth/login').send({
-			email: signupPayload.email,
-			password: signupPayload.password,
-		});
+		let response: request.Response;
+		try {
+			response = await request(harness.app).post('/auth/login').send({
+				email: signupPayload.email,
+				password: signupPayload.password,
+			});
+		} finally {
+			consoleErrorSpy.mockRestore();
+		}
 
 		expect(response.status).toBe(500);
 		expect(response.body.message).toBe('Internal server error');

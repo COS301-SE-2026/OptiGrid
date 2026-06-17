@@ -67,15 +67,21 @@ describe('Sensor API Integration', () => {
 	});
 
 	it('returns 500 when the ingestion service rejects telemetry', async () => {
+		const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 		mockedForwardToIngestionService.mockRejectedValue(new Error('Ingestion unavailable'));
 
-		const response = await request(harness.app)
-			.post('/api/sensors/data')
-			.send({
-				building_id: '11111111-1111-4111-8111-111111111111',
-				sensor_id: '22222222-2222-4222-8222-222222222222',
-				usage: 42.5,
-			});
+		let response: request.Response;
+		try {
+			response = await request(harness.app)
+				.post('/api/sensors/data')
+				.send({
+					building_id: '11111111-1111-4111-8111-111111111111',
+					sensor_id: '22222222-2222-4222-8222-222222222222',
+					usage: 42.5,
+				});
+		} finally {
+			consoleErrorSpy.mockRestore();
+		}
 
 		expect(response.status).toBe(500);
 		expect(response.body).toEqual({
