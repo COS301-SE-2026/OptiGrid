@@ -60,8 +60,11 @@ describe('sensor controller unit tests', () => {
 
         // Assert
         expect(mockedForwardToIngestionService).toHaveBeenCalledWith(mockReq.body);
-        expect(mockRes.status).not.toHaveBeenCalledWith(400);
-        expect(mockRes.status).not.toHaveBeenCalledWith(500);
+        expect(mockRes.status).toHaveBeenCalledWith(200);
+        expect(mockRes.json).toHaveBeenCalledWith({
+            status: 'success',
+            data: { status: 'success' },
+        });
     });
 
     it('returns a 500 server error status code if downstream service links throw exceptions', async () => {

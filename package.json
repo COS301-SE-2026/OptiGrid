@@ -49,7 +49,7 @@
 		"infra:app:status": "node scripts/deploy-ec2-stack.mjs status",
 		"security:test": "snyk test --all-projects",
 		"security:monitor": "snyk monitor --all-projects",
-		"prepare": "playwright install --with-deps",
+		"prepare": "node -e \"if (!process.env.CI) require('node:child_process').execFileSync(process.platform === 'win32' ? 'playwright.cmd' : 'playwright', ['install', '--with-deps'], { stdio: 'inherit' })\"",
 		"lint": "pnpm -w exec eslint . --ignore-pattern .gitignore",
 		"lint:fix": "pnpm -w exec eslint . --fix --ignore-pattern .gitignore"
 	},
