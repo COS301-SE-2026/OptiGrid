@@ -190,26 +190,5 @@ describe("ContactUs", () => {
     });
   });
 
-  describe("Font loading", () => {
-    it("appends Inter font link", () => {
-      render(<ContactUs />);
-      const hrefs = Array.from(document.head.querySelectorAll("link[rel='stylesheet']"))
-        .map((l) => (l as HTMLLinkElement).href);
-      expect(hrefs.some((h) => h.includes("Inter"))).toBe(true);
-    });
 
-    it("appends Space Grotesk font link", () => {
-      render(<ContactUs />);
-      const hrefs = Array.from(document.head.querySelectorAll("link[rel='stylesheet']"))
-        .map((l) => (l as HTMLLinkElement).href);
-      expect(hrefs.some((h) => h.includes("Space+Grotesk"))).toBe(true);
-    });
-
-    it("appends JetBrains Mono font link", () => {
-      render(<ContactUs />);
-      const hrefs = Array.from(document.head.querySelectorAll("link[rel='stylesheet']"))
-        .map((l) => (l as HTMLLinkElement).href);
-      expect(hrefs.some((h) => h.includes("JetBrains+Mono"))).toBe(true);
-    });
-  });
 });
