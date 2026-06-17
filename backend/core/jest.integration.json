@@ -2,7 +2,7 @@
 	"preset": "ts-jest",
 	"testEnvironment": "node",
 	"roots": ["<rootDir>/../../tests/integration/backend/core"],
-	"setupFiles": ["<rootDir>/../../tests/integration/backend/core/setup-env.ts"],
+	"setupFiles": ["<rootDir>/../../tests/integration/backend/core/setup-env.mock-supabase.ts"],
 	"testMatch": ["**/*.integration.test.ts"],
 	"testPathIgnorePatterns": ["supabase-login.integration.test.ts"],
 	"transform": {
