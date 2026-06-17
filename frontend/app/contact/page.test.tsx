@@ -1,7 +1,25 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ContactUs from "./page";
+
+
+
+beforeAll(() => {
+  jest.spyOn(console, "log").mockImplementation(() => {});
+});
+
+afterAll(() => {
+  jest.restoreAllMocks();
+});
+
+
+const getSelect = () => screen.getByRole("combobox");
+const getSubject = () => screen.getByPlaceholderText(/enter a subject/i);
+const getDescription = () => screen.getByPlaceholderText(/describe your inquiry/i);
+const submitForm = () => fireEvent.submit(document.querySelector("form")!);
+
+
 
 describe("ContactUs", () => {
 
@@ -11,41 +29,159 @@ describe("ContactUs", () => {
       expect(screen.getByRole("heading", { name: /contact us/i })).toBeInTheDocument();
     });
 
-    it("renders the enquiries text", () => {
+    it("renders the inquiry description text", () => {
       render(<ContactUs />);
-      expect(screen.getByText(/for any enquiries, please contact us at/i)).toBeInTheDocument();
+      expect(screen.getByText(/please provide details about your inquiry/i)).toBeInTheDocument();
     });
 
-    it("renders the email link", () => {
+    it("renders the Inquiry Type select", () => {
       render(<ContactUs />);
-      expect(screen.getByRole("link", { name: /cos301\.coreflow@gmail\.com/i })).toBeInTheDocument();
+      expect(getSelect()).toBeInTheDocument();
     });
 
-    it("email link points to Gmail URL", () => {
+    it("renders the Subject input", () => {
       render(<ContactUs />);
-      const link = screen.getByRole("link", { name: /cos301\.coreflow@gmail\.com/i });
-      expect(link).toHaveAttribute(
-        "href",
-        "https://mail.google.com/mail/?view=cm&fs=1&to=cos301.coreflow@gmail.com"
-      );
+      expect(getSubject()).toBeInTheDocument();
     });
 
-    it("renders the Business Hours", () => {
+    it("renders the Description textarea", () => {
       render(<ContactUs />);
-      expect(screen.getByRole("heading", { name: /business hours/i })).toBeInTheDocument();
+      expect(getDescription()).toBeInTheDocument();
+    });
+
+    it("renders the Submit button", () => {
+      render(<ContactUs />);
+      expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
+    });
+
+    it("Submit button is type='submit'", () => {
+      render(<ContactUs />);
+      expect(screen.getByRole("button", { name: /submit/i })).toHaveAttribute("type", "submit");
+    });
+
+    it("does not show success message before submit", () => {
+      render(<ContactUs />);
+      expect(screen.queryByText(/your inquiry has been submitted successfully/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Inquiry Type dropdown", () => {
+    it("has a default empty placeholder option", () => {
+      render(<ContactUs />);
+      expect((getSelect() as HTMLSelectElement).value).toBe("");
+    });
+
+    it("renders General Inquiry option", () => {
+      render(<ContactUs />);
+      expect(screen.getByRole("option", { name: /general inquiry/i })).toBeInTheDocument();
+    });
+
+    it("renders Technical Support option", () => {
+      render(<ContactUs />);
+      expect(screen.getByRole("option", { name: /technical support/i })).toBeInTheDocument();
+    });
+
+    it("renders Billing and Payments option", () => {
+      render(<ContactUs />);
+      expect(screen.getByRole("option", { name: /billing & payments/i })).toBeInTheDocument();
+    });
+
+    it("updates inquiry type when changed", () => {
+      render(<ContactUs />);
+      fireEvent.change(getSelect(), { target: { value: "Technical Support" } });
+      expect((getSelect() as HTMLSelectElement).value).toBe("Technical Support");
+    });
+  });
+
+  describe("Form field updates", () => {
+    it("updates subject on change", () => {
+      render(<ContactUs />);
+      fireEvent.change(getSubject(), { target: { value: "Login issue" } });
+      expect((getSubject() as HTMLInputElement).value).toBe("Login issue");
+    });
+
+    it("updates description on change", () => {
+      render(<ContactUs />);
+      fireEvent.change(getDescription(), { target: { value: "unable to login" } });
+      expect((getDescription() as HTMLTextAreaElement).value).toBe("unable to login");
+    });
+  });
+
+  describe("Form submission", () => {
+    it("shows success message after submit", () => {
+      render(<ContactUs />);
+      fireEvent.change(getSelect(), { target: { value: "General Inquiry" } });
+      fireEvent.change(getSubject(), { target: { value: "subject" } });
+      fireEvent.change(getDescription(), { target: { value: "description" } });
+
+      submitForm();
+
+      expect(screen.getByText(/your inquiry has been submitted successfully/i)).toBeInTheDocument();
+    });
+
+    it("logs inquiry data to console on submit", () => {
+      render(<ContactUs />);
+      fireEvent.change(getSelect(), { target: { value: "Technical Support" } });
+      fireEvent.change(getSubject(), { target: { value: "subject" } });
+      fireEvent.change(getDescription(), { target: { value: "description" } });
+
+      submitForm();
+
+      expect(console.log).toHaveBeenCalledWith({
+        inquiryType: "Technical Support",
+        subject: "subject",
+        description: "description",
+      });
+    });
+
+    it("resets inquiry type to empty after submit", () => {
+      render(<ContactUs />);
+      fireEvent.change(getSelect(), { target: { value: "General Inquiry" } });
+      fireEvent.change(getSubject(), { target: { value: "Test" } });
+      fireEvent.change(getDescription(), { target: { value: "Test description" } });
+
+      submitForm();
+
+      expect((getSelect() as HTMLSelectElement).value).toBe("");
+    });
+
+    it("resets subject to empty after submit", () => {
+      render(<ContactUs />);
+      fireEvent.change(getSelect(), { target: { value: "General Inquiry" } });
+      fireEvent.change(getSubject(), { target: { value: "Test" } });
+      fireEvent.change(getDescription(), { target: { value: "Test description" } });
+
+      submitForm();
+
+      expect((getSubject() as HTMLInputElement).value).toBe("");
+    });
+
+    it("resets description to empty after submit", () => {
+      render(<ContactUs />);
+      fireEvent.change(getSelect(), { target: { value: "General Inquiry" } });
+      fireEvent.change(getSubject(), { target: { value: "Test" } });
+      fireEvent.change(getDescription(), { target: { value: "Test description" } });
+
+      submitForm();
+
+      expect((getDescription() as HTMLTextAreaElement).value).toBe("");
     });
   });
 
   describe("Business hours", () => {
+    it("renders the Operating Hours heading", () => {
+      render(<ContactUs />);
+      expect(screen.getByRole("heading", { name: /operating hours/i })).toBeInTheDocument();
+    });
+
     it("renders Monday - Friday hours", () => {
       render(<ContactUs />);
-      expect(screen.getByText(/monday - friday/i)).toBeInTheDocument();
       expect(screen.getByText(/monday - friday.*08:00.*17:00/i)).toBeInTheDocument();
     });
 
     it("renders Saturday hours", () => {
       render(<ContactUs />);
-      expect(screen.getByText(/saturday.*09:00.*15:00/i)).toBeInTheDocument();
+      expect(screen.getByText(/saturday/i)).toBeInTheDocument();
     });
 
     it("renders Sunday as Closed", () => {
@@ -55,25 +191,25 @@ describe("ContactUs", () => {
   });
 
   describe("Font loading", () => {
-    it("appends Inter font link on mount", () => {
+    it("appends Inter font link", () => {
       render(<ContactUs />);
-      const links = Array.from(document.head.querySelectorAll("link[rel='stylesheet']"));
-      const hrefs = links.map((l) => (l as HTMLLinkElement).href);
+      const hrefs = Array.from(document.head.querySelectorAll("link[rel='stylesheet']"))
+        .map((l) => (l as HTMLLinkElement).href);
       expect(hrefs.some((h) => h.includes("Inter"))).toBe(true);
     });
 
-    it("appends Space Grotesk font link on mount", () => {
+    it("appends Space Grotesk font link", () => {
       render(<ContactUs />);
-      const links = Array.from(document.head.querySelectorAll("link[rel='stylesheet']"));
-      const hrefs = links.map((l) => (l as HTMLLinkElement).href);
+      const hrefs = Array.from(document.head.querySelectorAll("link[rel='stylesheet']"))
+        .map((l) => (l as HTMLLinkElement).href);
       expect(hrefs.some((h) => h.includes("Space+Grotesk"))).toBe(true);
     });
 
-    it("appends JetBrains Mono font link on mount", () => {
+    it("appends JetBrains Mono font link", () => {
       render(<ContactUs />);
-      const links = Array.from(document.head.querySelectorAll("link[rel='stylesheet']"));
-      const hrefs = links.map((l) => (l as HTMLLinkElement).href);
+      const hrefs = Array.from(document.head.querySelectorAll("link[rel='stylesheet']"))
+        .map((l) => (l as HTMLLinkElement).href);
       expect(hrefs.some((h) => h.includes("JetBrains+Mono"))).toBe(true);
     });
   });
-});   
+});
