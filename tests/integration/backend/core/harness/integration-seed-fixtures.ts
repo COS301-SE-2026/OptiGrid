@@ -21,14 +21,12 @@ export async function applySupabaseMigrationAndSeed(connectionString: string): P
 			user_id,
 			email,
 			first_name,
-			last_name,
-			password_hash
+			last_name
 		) VALUES (
 			'33333333-3333-3333-3333-333333333333',
 			'ops-admin@optigrid.test',
 			'Ops',
-			'Admin',
-			'$2b$10$2h2mZKoDbJkWBk4x9swFZeF7Ojf9SIxkV8W8QhQPXfS9M9iYjW0uS'
+			'Admin'
 		)
 		ON CONFLICT (user_id) DO NOTHING;
 		`,
