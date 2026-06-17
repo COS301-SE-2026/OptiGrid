@@ -8,26 +8,7 @@ export default function ContactUs() {
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    const inter = document.createElement("link");
-    inter.rel = "stylesheet";
-    inter.href =
-      "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap";
-    document.head.appendChild(inter);
-
-    const space = document.createElement("link");
-    space.rel = "stylesheet";
-    space.href =
-      "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap";
-    document.head.appendChild(space);
-
-    const jetbrains = document.createElement("link");
-    jetbrains.rel = "stylesheet";
-    jetbrains.href =
-      "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap";
-    document.head.appendChild(jetbrains);
-  }, []);
-
+  
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
