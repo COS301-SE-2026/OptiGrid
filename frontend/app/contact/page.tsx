@@ -1,9 +1,13 @@
-
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 
 export default function ContactUs() {
+  const [inquiryType, setInquiryType] = useState("");
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
   useEffect(() => {
     const inter = document.createElement("link");
     inter.rel = "stylesheet";
@@ -24,6 +28,22 @@ export default function ContactUs() {
     document.head.appendChild(jetbrains);
   }, []);
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    console.log({
+      inquiryType,
+      subject,
+      description,
+    });
+
+    setSubmitted(true);
+
+    setInquiryType("");
+    setSubject("");
+    setDescription("");
+  };
+
   return (
     <div className="dashboard-page">
       <div
@@ -38,30 +58,103 @@ export default function ContactUs() {
         <div
           className="card"
           style={{
-            maxWidth: "600px",
+            maxWidth: "700px",
             width: "100%",
             padding: "var(--space-6)",
-            textAlign: "center",
           }}
         >
-          <h1>Contact Us</h1>
+          <h1 style={{ marginBottom: "var(--space-2)" }}>Contact Us</h1>
 
-          <p className="text-muted">
-            For any enquiries, please contact us at:
+          <p className="text-muted" style={{ marginBottom: "var(--space-5)" }}>
+            Please provide details about your inquiry.
           </p>
 
-          <a
-            href="https://mail.google.com/mail/?view=cm&fs=1&to=cos301.coreflow@gmail.com"
-            className="btn btn-primary"
-            style={{ display: "inline-flex" }}
-          >
-            cos301.coreflow@gmail.com
-          </a>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: "grid", gap: "var(--space-4)" }}>
+              <div>
+                <label className="label">Inquiry Type</label>
+                <select
+                  value={inquiryType}
+                  onChange={(e) => setInquiryType(e.target.value)}
+                  className="select"
+                  required
+                >
+                  <option value="">Select an inquiry type</option>
+                  <option value="General Inquiry">General Inquiry</option>
+                  <option value="Technical Support">Technical Support</option>
+                  <option value="Billing & Payments">Billing & Payments</option>
+                  
+                  
+                </select>
+              </div>
 
-          <div style={{ marginTop: "var(--space-5)" }}>
-            <h3>Business Hours</h3>
+              <div>
+                <label className="label">Subject</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="input"
+                  placeholder="Enter a subject"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="label">Description</label>
+                <textarea
+                  rows={5}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="input"
+                  placeholder="Describe your inquiry."
+                  style={{ resize: "vertical" }}
+                  required
+                />
+              </div>
+
+              <div style={{ marginTop: "var(--space-2)" }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    width: "100%",
+                    justifyContent: "center",
+                  }}
+                >
+                  Submit
+                </button>
+              </div>
+
+              {submitted && (
+                <div
+                  className="badge badge-success"
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    padding: "var(--space-3)",
+                    marginTop: "var(--space-2)",
+                  }}
+                >
+                  Your inquiry has been submitted successfully.
+                </div>
+              )}
+            </div>
+          </form>
+
+          <div
+            className="card"
+            style={{
+              marginTop: "var(--space-5)",
+              padding: "var(--space-4)",
+              backgroundColor: "var(--brand-surface-alt)",
+            }}
+          >
+            <h3 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)" }}>
+              Operating Hours
+            </h3>
             <p>Monday - Friday: 08:00 - 17:00</p>
-            <p>Saturday: 09:00 - 15:00</p>
+            <p>Saturday: 09:00 - 13:00</p>
             <p>Sunday: Closed</p>
           </div>
         </div>
