@@ -119,6 +119,32 @@ describe('Building integration - Delete Building', () => {
 		});
 	});
 
+	it('returns the cached delete response when reusing Idempotency-Key', async () => {
+		const buildingId = uuidv4();
+		const idempotencyKey = uuidv4();
+		await seedBuilding(buildingId);
+
+		const firstResponse = await request(harness.app)
+			.delete(`/api/buildings/${buildingId}`)
+			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders);
+
+		expect(firstResponse.status).toBe(200);
+
+		const secondResponse = await request(harness.app)
+			.delete(`/api/buildings/${buildingId}`)
+			.set('Idempotency-Key', idempotencyKey)
+			.set(authHeaders);
+
+		expect(secondResponse.status).toBe(200);
+		expect(secondResponse.body).toEqual(firstResponse.body);
+		await expect(countBuildingRows(buildingId)).resolves.toEqual({
+			buildingCount: 0,
+			accessCount: 0,
+			sensorCount: 0,
+		});
+	});
+
 	it('returns 403 and leaves the building intact when the user lacks access', async () => {
 		const buildingId = uuidv4();
 		await seedBuilding(buildingId, { grantAccess: false });
