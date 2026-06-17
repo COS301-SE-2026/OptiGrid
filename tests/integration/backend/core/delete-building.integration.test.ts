@@ -1,6 +1,7 @@
 const { Client } = require('pg');
 const request = require('supertest');
 import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
+import { insertIntegrationUsers } from './harness/user-fixtures';
 const { v4: uuidv4 } = require('uuid');
 
 describe('Building integration - Delete Building', () => {
@@ -24,12 +25,15 @@ describe('Building integration - Delete Building', () => {
 				 on conflict (tenant_id) do nothing`,
 				[tenantId, 'OptiGrid Test Tenant'],
 			);
-			await client.query(
-				`insert into users (user_id, tenant_id, email, password_hash, first_name, last_name)
-				 values ($1, $2, $3, $4, $5, $6)
-				 on conflict (user_id) do nothing`,
-				[userId, tenantId, 'delete-building.integration@optigrid.test', '$2b$10$2h2mZKoDbJkWBk4x9swFZeF7Ojf9SIxkV8W8QhQPXfS9M9iYjW0uS', 'Integration', 'User'],
-			);
+			await insertIntegrationUsers(client, [
+				{
+					userId,
+					tenantId,
+					email: 'delete-building.integration@optigrid.test',
+					firstName: 'Integration',
+					lastName: 'User',
+				},
+			]);
 		} finally {
 			await client.end();
 		}

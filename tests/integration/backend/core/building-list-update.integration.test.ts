@@ -1,6 +1,7 @@
 const { Client } = require('pg');
 const request = require('supertest');
 import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
+import { insertIntegrationUsers } from './harness/user-fixtures';
 const { v4: uuidv4 } = require('uuid');
 
 describe('Building integration - List and Update Buildings', () => {
@@ -25,25 +26,22 @@ describe('Building integration - List and Update Buildings', () => {
 				 on conflict (tenant_id) do nothing`,
 				[tenantId, 'OptiGrid Test Tenant'],
 			);
-			await client.query(
-				`insert into users (user_id, tenant_id, email, password_hash, first_name, last_name)
-				 values
-					($1, $2, $3, $4, $5, $6),
-					($7, $2, $8, $4, $9, $10)
-				 on conflict (user_id) do nothing`,
-				[
+			await insertIntegrationUsers(client, [
+				{
 					userId,
 					tenantId,
-					'building-list-update.integration@optigrid.test',
-					'$2b$10$2h2mZKoDbJkWBk4x9swFZeF7Ojf9SIxkV8W8QhQPXfS9M9iYjW0uS',
-					'Integration',
-					'User',
-					otherUserId,
-					'building-list-update-other.integration@optigrid.test',
-					'Other',
-					'User',
-				],
-			);
+					email: 'building-list-update.integration@optigrid.test',
+					firstName: 'Integration',
+					lastName: 'User',
+				},
+				{
+					userId: otherUserId,
+					tenantId,
+					email: 'building-list-update-other.integration@optigrid.test',
+					firstName: 'Other',
+					lastName: 'User',
+				},
+			]);
 		} finally {
 			await client.end();
 		}
