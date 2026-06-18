@@ -1,4 +1,4 @@
-import { contactSchema } from "../../../backend/core/validation/contact.validation"; 
+import { contactSchema } from "../../../backend/core/src/validation/contact.validation"; 
 
 describe("Contatc Validation schema", () =>{
     it("should_pass_if_valid_data_given", () => {

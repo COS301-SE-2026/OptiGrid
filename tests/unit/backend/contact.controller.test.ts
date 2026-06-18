@@ -1,4 +1,3 @@
-import { mock } from "node:test";
 import { handleSubmit } from "../../../backend/core/src/controllers/contact.controller.ts"
 import { contactService } from "../../../backend/core/src/services/contact.services.ts"
 import { Request, Response } from "express"
