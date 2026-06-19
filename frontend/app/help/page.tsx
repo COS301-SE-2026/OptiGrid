@@ -56,7 +56,7 @@ export default function HelpPage() {
                     <div className="landing-shell">
                         <div className="landing-section-header">
                             <p className="landing-kicker">Quick access</p>
-                            <h2>Choose the path that matches what you need.</h2>
+                            <h2>Pick one of the resources available below to help with your problem</h2>
                             <p className="text-muted">
                                 Our help centre groups the most useful resources so you can
                                 can find solutions and clarify confusions.
