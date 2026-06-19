@@ -1,7 +1,6 @@
 import {Request, Response} from "express";
 import {contactSchema} from "../validation/contact.validation"
 import {contactService} from "../services/contact.services"
-import { success } from "zod";
 
 export const handleSubmit = async (req: Request, resp: Response): Promise<void> => {
     try{
