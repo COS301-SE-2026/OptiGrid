@@ -338,22 +338,13 @@ supabase start
 supabase status
 ```
 
-Set the local Supabase values reported by `supabase status`:
-
-```powershell
-$env:DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
-$env:SUPABASE_URL = "http://127.0.0.1:54321"
-$env:SUPABASE_ANON_KEY = "<local anon key>"
-$env:SUPABASE_SERVICE_ROLE_KEY = "<local service role key>"
-```
-
 Run the create-building E2E test:
 
 ```powershell
 corepack pnpm run test:e2e:supabase -- tests/e2e/buildings/create-building.e2e.spec.ts
 ```
 
-The Supabase E2E launcher runs `prisma db push --accept-data-loss` before starting the core API. It does not run `supabase/seed.sql`; keep that seed aligned with the current Prisma schema before using `supabase db reset`.
+The Supabase E2E launcher reads `supabase status -o env` and maps the local `DB_URL`, `API_URL`, `ANON_KEY`, and `SERVICE_ROLE_KEY` into the app environment automatically. It also runs `prisma db push --accept-data-loss` before starting the core API. It does not run `supabase/seed.sql`; keep that seed aligned with the current Prisma schema before using `supabase db reset`.
 
 ---
 
