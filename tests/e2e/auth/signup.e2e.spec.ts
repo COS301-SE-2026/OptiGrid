@@ -53,15 +53,20 @@ test.describe("Signup page", () => {
 		const user = buildUniqueUser();
 
 		await page.goto("/signup");
-		await page.getByLabel("First Name").fill(user.firstName);
-		await page.getByLabel("Last Name").fill(user.lastName);
-		await page.getByLabel("Email Address").fill(user.email);
+		await page.getByLabel("First name").fill(user.firstName);
+		await page.getByLabel("Last name").fill(user.lastName);
+		await page.getByLabel("Work email").fill(user.email);
 		await page.getByLabel("Password", { exact: true }).fill(user.password);
-		await page.getByLabel("Confirm Password", { exact: true }).fill(user.password);
+		await page.getByLabel("Confirm password", { exact: true }).fill(user.password);
+		const signupResponsePromise = page.waitForResponse("**/api/auth/signup");
 		await page.getByRole("button", { name: "Create account" }).click();
+		const signupResponse = await signupResponsePromise;
+		expect(signupResponse.ok()).toBeTruthy();
 
-		await expect(page).toHaveURL(/\/dashboard$/);
-		await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+		await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
+		await expect(
+			page.getByRole("heading", { name: `Welcome back, ${user.firstName}` })
+		).toBeVisible();
 	});
 
 	test("shows duplicate-user error returned by backend", async ({ page, request }) => {
@@ -69,11 +74,11 @@ test.describe("Signup page", () => {
 		await createUserInCore(request, user);
 
 		await page.goto("/signup");
-		await page.getByLabel("First Name").fill(user.firstName);
-		await page.getByLabel("Last Name").fill(user.lastName);
-		await page.getByLabel("Email Address").fill(user.email);
+		await page.getByLabel("First name").fill(user.firstName);
+		await page.getByLabel("Last name").fill(user.lastName);
+		await page.getByLabel("Work email").fill(user.email);
 		await page.getByLabel("Password", { exact: true }).fill(user.password);
-		await page.getByLabel("Confirm Password", { exact: true }).fill(user.password);
+		await page.getByLabel("Confirm password", { exact: true }).fill(user.password);
 		await page.getByRole("button", { name: "Create account" }).click();
 
 		await expect(page.getByText("User already exists, please login instead.")).toBeVisible();

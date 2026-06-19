@@ -54,9 +54,12 @@ test.describe("Create building", () => {
     await page.goto("/login");
     await page.getByLabel("Work email").fill(user.email);
     await page.getByLabel("Password").fill(user.password);
+    const loginResponsePromise = page.waitForResponse("**/api/auth/login");
     await page.getByRole("button", { name: "Log in" }).click();
+    const loginResponse = await loginResponsePromise;
+    expect(loginResponse.ok()).toBeTruthy();
 
-    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
 
     await page.getByRole("link", { name: "+ Add building" }).click();
     await expect(page).toHaveURL(/\/buildings\/add$/);
