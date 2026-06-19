@@ -59,6 +59,21 @@ function pushPrismaSchema(env) {
   );
 }
 
+function generatePrismaClient(env) {
+  runOrExit(
+    "corepack",
+    [
+      "pnpm",
+      "--filter",
+      "@optigrid/core",
+      "exec",
+      "prisma",
+      "generate",
+    ],
+    env
+  );
+}
+
 function startCoreServer(env) {
   return spawn(
     "corepack",
@@ -103,6 +118,7 @@ async function main() {
   try {
     const serviceEnv = {
       ...process.env,
+      NODE_ENV: "test",
       PORT: CORE_PORT,
     };
 
@@ -130,6 +146,7 @@ async function main() {
     }
 
     pushPrismaSchema(serviceEnv);
+    generatePrismaClient(serviceEnv);
     coreProcess = startCoreServer(serviceEnv);
 
     coreProcess.on("exit", (code) => {
