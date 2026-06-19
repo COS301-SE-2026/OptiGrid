@@ -1,5 +1,5 @@
-import { handleSubmit } from "../../../backend/core/src/controllers/contact.controller.ts"
-import { contactService } from "../../../backend/core/src/services/contact.services.ts"
+import { handleSubmit } from "../../../backend/core/src/controllers/contact.controller"
+import { contactService } from "../../../backend/core/src/services/contact.services"
 import { Request, Response } from "express"
 
 jest.mock("../../../backend/core/src/services/contact.services.ts");
