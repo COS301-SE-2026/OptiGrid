@@ -859,6 +859,58 @@ h3 {
     line-height: 1.65;
 }
 
+.help-anchor {
+    scroll-margin-top: 88px;
+}
+
+.help-resource-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+}
+
+.help-resource-card {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.help-resource-header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+}
+
+.help-resource-content {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.help-resource-actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.help-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+}
+
+.help-guide-card {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.help-guide-list {
+        color: var(--brand-ink-muted);
+    line-height: 1.65;
+    margin: 0;
+    padding-left: var(--space-5);
+    display: grid;
+    gap: var(--space-2);
+}
+
 @keyframes fade-up {
     from {
         opacity: 0;
@@ -875,7 +927,9 @@ h3 {
 
     .landing-hero-grid,
     .landing-feature-grid,
-    .landing-outcomes-grid {
+    .landing-outcomes-grid,
+    .help-resource-grid,
+    .help-guide-grid {
         grid-template-columns: 1fr;
     }
 
