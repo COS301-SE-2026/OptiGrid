@@ -60,16 +60,38 @@ type SessionPayload = {
 	email?: string;
 };
 
+function parseJsonSessionPayload(value: string): SessionPayload | null {
+	try {
+		return JSON.parse(value) as SessionPayload;
+	} catch {
+		return null;
+	}
+}
+
 function parseSessionPayload(rawSession: string | null): SessionPayload | null {
 	if (!rawSession) {
 		return null;
 	}
 
-	try {
-		return JSON.parse(rawSession) as SessionPayload;
-	} catch {
-		return null;
+	let candidate = rawSession;
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		const parsed = parseJsonSessionPayload(candidate);
+		if (parsed) {
+			return parsed;
+		}
+
+		try {
+			const decoded = decodeURIComponent(candidate);
+			if (decoded === candidate) {
+				return null;
+			}
+			candidate = decoded;
+		} catch {
+			return null;
+		}
 	}
+
+	return null;
 }
 
 async function trySessionCookieAuth(req: Request): Promise<boolean> {

@@ -21,6 +21,7 @@
 		"test:python": "PYTHONPATH=. pytest tests/unit/ingestion/ -v && PYTHONPATH=. pytest tests/unit/analytics/ -v",
 		"test:all": "pnpm test:node && pnpm test:python",
 		"test:e2e": "playwright test --config playwright.config.ts",
+		"test:e2e:supabase": "node scripts/e2e-local-supabase.mjs",
 		"storybook": "corepack pnpm --filter ./frontend run storybook",
 		"storybook:build": "corepack pnpm --filter ./frontend run build-storybook",
 		"stack:up": "node scripts/docker-stack-up.mjs",
