@@ -7,6 +7,7 @@ import buildingRoutes from "./routes/building.routes"
 import { authenticateRequest } from "./middleware/auth.middleware";
 import analyticsRoutes from "./routes/analytics.routes";
 import userPreferencesRoutes from "./routes/user_preferences.routes";
+import contactRoutes from "./routes/contact.routes";
 
 
 export interface CreateAppOptions {
@@ -42,6 +43,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use("/api/analytics", authenticateRequest, analyticsRoutes);
 	app.use("/api/buildings", authenticateRequest, buildingRoutes);
 	app.use("/api/preferences", authenticateRequest, userPreferencesRoutes);
+	app.use("/api/contact, contactRoutes")
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });
