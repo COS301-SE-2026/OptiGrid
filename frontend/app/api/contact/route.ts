@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getUniqPayload } from "recharts/types/util/payload/getUniqPayload";
 
 const getUrl = () => process.env.CORE_URL ?? "http://core:4000";
 
@@ -46,7 +45,7 @@ export async function POST(req:Request) {
 
         const load = await resp.json().catch(() => ({message: resp.ok ? "Ticket sent succesfully" : "Ticket not send, failed",}));
 
-        return NextResponse.json(getUniqPayload, {
+        return NextResponse.json(load, {
             status: resp.status
         });
     }

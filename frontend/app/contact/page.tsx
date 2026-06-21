@@ -9,20 +9,37 @@ export default function ContactUs() {
   const [submitted, setSubmitted] = useState(false);
 
   
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    console.log({
-      inquiryType,
-      subject,
-      description,
-    });
+    try {
+      const resp = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inquiryType,
+          subject,
+          message: description,
+        }),
+      });
 
-    setSubmitted(true);
+      const data = await resp.json();
+      if(resp.ok) {
+        setSubmitted(true);
 
-    setInquiryType("");
-    setSubject("");
-    setDescription("");
+        setInquiryType("");
+        setSubject("");
+        setDescription("");
+      } 
+      else {
+        alert(`Message not sent, FAILED: ${data.message || data.error}`);
+      }
+    } 
+    catch {
+      alert("Network Issue, please ensure you have a valid connection or try again later");
+    }
   };
 
   return (

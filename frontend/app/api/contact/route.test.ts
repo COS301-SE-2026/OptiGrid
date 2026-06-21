@@ -15,11 +15,11 @@ describe("Contact-Us route for integration", () => {
         }) as jest.Mock;
     });
     
-    afterEach(() => { jest.clearAllMocks});
+    afterEach(() => { jest.clearAllMocks()});
 
     it("should_pass_the_payload_and_key_to_the_core", async () => {
         //arrange
-        const req = new Request("http://localhost/api/contract", {
+        const req = new Request("http://localhost/api/contact", {
             method: "POST",
             headers: {
                 cookie: "optigrid_session=%7B%22userId%22%3A%22user-123%22%7D",
@@ -41,8 +41,8 @@ describe("Contact-Us route for integration", () => {
         expect(data.success).toBe(true);
         expect(data.id).toBe("email-111");
         expect(global.fetch).toHaveBeenCalledTimes(1);
-        expect(url).toBe("http://core.test/api/contract");
-        expect(headers.cookie).toContain("optigrid_session=");
+        expect(url).toBe("http://core.test/api/contact");
+        expect(headers.Cookie).toContain("optigrid_session=");
         expect(headers["Idempotency-Key"]).toMatch(/^contact-/);
         expect(opt.body).toContain("Test Message needs to be more than 10 char");
         
