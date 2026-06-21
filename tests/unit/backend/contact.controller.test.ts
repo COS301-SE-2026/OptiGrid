@@ -4,7 +4,7 @@ import { Request, Response } from "express"
 import { checkIdempotencyKey, saveIdempotencyKey } from "../../../backend/core/src/services/idempotency.services";
 
 jest.mock("../../../backend/core/src/services/contact.services.ts");
-jest.mock("../../../backend.core/src/services/idempotency.services", () => ({
+jest.mock("../../../backend/core/src/services/idempotency.services", () => ({
     checkIdempotencyKey: jest.fn(),
     saveIdempotencyKey: jest.fn()
 }))
@@ -47,7 +47,7 @@ describe("Contact-Us page Controller", () => {
         expect(mockstatus).toHaveBeenCalledWith(200);
         expect(json).toHaveBeenCalledWith({
             success: true,
-            message: "Received the ticket",
+            message: "Recieved the ticket",
             id: "email-111",
         });
         
@@ -98,7 +98,7 @@ describe("Contact-Us page Controller", () => {
         expect(checkIdempotencyKey).toHaveBeenCalledWith("test-duplicate-123");
         expect(contactService.sendMail).not.toHaveBeenCalled();
         expect(saveIdempotencyKey).not.toHaveBeenCalled();
-        expect(mockstatus).toBe(200);
+        expect(mockstatus).toHaveBeenCalledWith(200);
         expect(json).toHaveBeenCalledWith(cached);
     })
 })

@@ -1,15 +1,20 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ContactUs from "./page";
 
 
 
-beforeAll(() => {
+beforeEach(() => {
   jest.spyOn(console, "log").mockImplementation(() => {});
+  jest.spyOn(window, "alert").mockImplementation(() => {});
+  (globalThis as typeof globalThis & { fetch: jest.Mock }).fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({}),
+  } as Response);
 });
 
-afterAll(() => {
+afterEach(() => {
   jest.restoreAllMocks();
 });
 
@@ -108,7 +113,7 @@ describe("ContactUs", () => {
   });
 
   describe("Form submission", () => {
-    it("shows success message after submit", () => {
+    it("sends inquiry data to the contact API", async () => {
       render(<ContactUs />);
       fireEvent.change(getSelect(), { target: { value: "General Inquiry" } });
       fireEvent.change(getSubject(), { target: { value: "subject" } });
@@ -116,10 +121,24 @@ describe("ContactUs", () => {
 
       submitForm();
 
-      expect(screen.getByText(/your inquiry has been submitted successfully/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith("/api/contact",
+          expect.objectContaining({
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              inquiryType: "General Inquiry",
+              subject: "subject",
+              message: "description",
+            }),
+          }),
+        );
+      });
     });
 
-    it("logs inquiry data to console on submit", () => {
+    it("logs inquiry data to console on submit", async ()  => {
       render(<ContactUs />);
       fireEvent.change(getSelect(), { target: { value: "Technical Support" } });
       fireEvent.change(getSubject(), { target: { value: "subject" } });
@@ -127,44 +146,37 @@ describe("ContactUs", () => {
 
       submitForm();
 
-      expect(console.log).toHaveBeenCalledWith({
-        inquiryType: "Technical Support",
-        subject: "subject",
-        description: "description",
-      });
+      await waitFor(() => {expect(screen.getByText(/your inquiry has been submitted successfully/i)).toBeInTheDocument();});
     });
 
-    it("resets inquiry type to empty after submit", () => {
+    it("resets inquiry type to empty after submit", async () => {
       render(<ContactUs />);
       fireEvent.change(getSelect(), { target: { value: "General Inquiry" } });
       fireEvent.change(getSubject(), { target: { value: "Test" } });
       fireEvent.change(getDescription(), { target: { value: "Test description" } });
 
       submitForm();
-
-      expect((getSelect() as HTMLSelectElement).value).toBe("");
+      await waitFor(() => {expect((getSelect() as HTMLSelectElement).value).toBe("");});
     });
 
-    it("resets subject to empty after submit", () => {
+    it("resets subject to empty after submit", async () => {
       render(<ContactUs />);
       fireEvent.change(getSelect(), { target: { value: "General Inquiry" } });
       fireEvent.change(getSubject(), { target: { value: "Test" } });
       fireEvent.change(getDescription(), { target: { value: "Test description" } });
 
       submitForm();
-
-      expect((getSubject() as HTMLInputElement).value).toBe("");
+      await waitFor(() => {expect((getSubject() as HTMLInputElement).value).toBe("");});
     });
 
-    it("resets description to empty after submit", () => {
+    it("resets description to empty after submit", async () => {
       render(<ContactUs />);
       fireEvent.change(getSelect(), { target: { value: "General Inquiry" } });
       fireEvent.change(getSubject(), { target: { value: "Test" } });
       fireEvent.change(getDescription(), { target: { value: "Test description" } });
 
       submitForm();
-
-      expect((getDescription() as HTMLTextAreaElement).value).toBe("");
+      await waitFor(() => {expect((getDescription() as HTMLTextAreaElement).value).toBe("");});
     });
   });
 
@@ -190,5 +202,6 @@ describe("ContactUs", () => {
     });
   });
 
+  
 
 });
