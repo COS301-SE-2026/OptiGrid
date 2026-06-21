@@ -1,8 +1,13 @@
 import { handleSubmit } from "../../../backend/core/src/controllers/contact.controller"
 import { contactService } from "../../../backend/core/src/services/contact.services"
 import { Request, Response } from "express"
+import { checkIdempotencyKey, saveIdempotencyKey } from "../../../backend/core/src/services/idempotency.services";
 
 jest.mock("../../../backend/core/src/services/contact.services.ts");
+jest.mock("../../../backend.core/src/services/idempotency.services", () => ({
+    checkIdempotencyKey: jest.fn(),
+    saveIdempotencyKey: jest.fn()
+}))
 
 describe("Contact-Us page Controller", () => {
     let req: Partial<Request>;
@@ -20,9 +25,12 @@ describe("Contact-Us page Controller", () => {
         };
     });
 
-    it("should_return_an_200_when_everything_is_valid", async() => {
+    it("should_return_an_200_when_everything_is_valid_and_save_key", async() => {
         //arrange
         req = {
+            headers: {
+                "idempotency-key": "test-123"
+            },
             body: {
                 inquiryType: "Building",
                 subject: "Testing",
@@ -30,9 +38,11 @@ describe("Contact-Us page Controller", () => {
             },
         };
         //act
+        (checkIdempotencyKey as jest.Mock).mockResolvedValue(null);
         (contactService.sendMail as jest.Mock).mockResolvedValue({id: "email-111"});
         await handleSubmit(req as Request, resp as Response);
         //assert
+        expect(checkIdempotencyKey).toHaveBeenCalledWith("test-123")
         expect(contactService.sendMail).toHaveBeenCalledWith(req.body);
         expect(mockstatus).toHaveBeenCalledWith(200);
         expect(json).toHaveBeenCalledWith({
@@ -46,15 +56,49 @@ describe("Contact-Us page Controller", () => {
     it("should_return_400_if_field_missing", async () => {
         //arrange
         req = {
+            headers: {
+                "idempotency-key": "test-123"
+            },
             body: {
                 inquiryType: "Building",
                 subject: "Testing",
             },
         };
-        //acr and assert
+        //act 
+        (checkIdempotencyKey as jest.Mock).mockResolvedValue(null)
         await handleSubmit(req as Request, resp as Response);
+        //assert
+        expect(saveIdempotencyKey).not.toHaveBeenCalled();
         expect(contactService.sendMail).not.toHaveBeenCalled();
         expect(mockstatus).toHaveBeenLastCalledWith(400);
         expect(json).toHaveBeenCalledWith(expect.objectContaining({success: false}));
     });
+
+    it("should_return_cahced_responese_if_key_exists", async () => {
+        req = {
+            headers: {
+                "idempotency-key": "test-duplicate-123"
+            },
+            body: {
+                inquiryType: "Building",
+                subject: "Testing",
+                message: "we need this duplicate message",
+            },
+        };
+
+        const cached = {
+            success: true,
+            message: "Received the ticket",
+            id: "email-old-id-from-redis"
+        };
+        //act
+        (checkIdempotencyKey as jest.Mock).mockResolvedValue(cached);
+        await handleSubmit(req as Request, resp as Response);
+        //assert
+        expect(checkIdempotencyKey).toHaveBeenCalledWith("test-duplicate-123");
+        expect(contactService.sendMail).not.toHaveBeenCalled();
+        expect(saveIdempotencyKey).not.toHaveBeenCalled();
+        expect(mockstatus).toBe(200);
+        expect(json).toHaveBeenCalledWith(cached);
+    })
 })
