@@ -43,7 +43,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use("/api/analytics", authenticateRequest, analyticsRoutes);
 	app.use("/api/buildings", authenticateRequest, buildingRoutes);
 	app.use("/api/preferences", authenticateRequest, userPreferencesRoutes);
-	app.use("/api/contact, contactRoutes")
+	app.use("/api/contact", contactRoutes)
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });
