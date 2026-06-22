@@ -4,9 +4,12 @@ import {Request, Response, NextFunction } from "express";
 import { UserRole } from "@prisma/client";
 
 jest.mock("../../../backend/core/src/lib/prisma", () => ({
-    userBuildingAccess: {
-        findUnique: jest.fn(),
-    },
+    __esModule: true,
+    default: {
+        userBuildingAccess: {
+            findUnique: jest.fn(),
+        },
+    }
 }));
 
 describe("Role Based Access Control (RBAC) Unit Tests", () => {
@@ -72,7 +75,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         const middleware = reqRole([UserRole.BUILDING_MANAGER]);
         middleware(req as Request, resp as Response, nextFunc);
         //assert
-        expect(statusMock).not.toHaveBeenCalledWith(403);
+        expect(statusMock).toHaveBeenCalledWith(403);
         expect(json).toHaveBeenCalledWith({
             success: false,
             error: "You do not have access to this"
@@ -87,7 +90,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         const middleware = reqRole([UserRole.BUILDING_MANAGER]);
         middleware(req as Request, resp as Response, nextFunc);
         //assert
-        expect(statusMock).not.toHaveBeenCalledWith(403);
+        expect(statusMock).toHaveBeenCalledWith(401);
         expect(json).toHaveBeenCalledWith({
             success: false,
             error: "Unauthorised"
@@ -132,7 +135,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         await reqBuildAccess(req as Request, resp as Response, nextFunc);
         //arrange
         expect(prisma.userBuildingAccess.findUnique).toHaveBeenCalledWith({
-            where: { userBuildingAccess: {
+            where: { user_id_building_id: {
                 user_id: "user-123",
                 building_id: "building-123"
             }}
@@ -184,5 +187,5 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         });
         expect(statusMock).toHaveBeenCalledWith(500);
         expect(nextFunc).not.toHaveBeenCalled();
-    })
-})
+    });
+});

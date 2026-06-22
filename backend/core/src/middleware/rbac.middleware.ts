@@ -31,7 +31,7 @@ export const reqBuildAccess = async (req: Request, resp: Response, nextFunc: Nex
         const user = (req as any).user;
         const {buildingId} = req.params;
 
-        if(!user || !user.id) {
+        if(!user || !user.userId) {
             return resp.status(401).json({
                 success: false,
                 error: "Unauthorised"
@@ -51,7 +51,7 @@ export const reqBuildAccess = async (req: Request, resp: Response, nextFunc: Nex
         const haveAccess = await prisma.userBuildingAccess.findUnique({
             where: {
                 user_id_building_id: {
-                    user_id: user.user_id,
+                    user_id: user.userId,
                     building_id: buildingId
                 },
             },
