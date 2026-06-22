@@ -1,16 +1,29 @@
 import {Request, Response} from "express";
 import {contactSchema} from "../validation/contact.validation"
 import {contactService} from "../services/contact.services"
+import { checkIdempotencyKey, saveIdempotencyKey } from "../services/idempotency.services";
 
 export const handleSubmit = async (req: Request, resp: Response): Promise<void> => {
     try{
+        //added for idempotency key, hits redis cache
+        const key = req.headers["idempotency-key"] as string;
+        if(key) {
+            const cachedResp = await checkIdempotencyKey(key);
+            if(cachedResp) {
+                resp.status(200).json(cachedResp);
+                return;
+            }
+        }
         const correct = contactSchema.parse(req.body);
         const out = await contactService.sendMail(correct);
-        resp.status(200).json({
-            success:true,
-            message: "Received the ticket",
+        const load = {
+            success: true,
+            message: "Recieved the ticket",
             id: out?.id
-        });
+        };
+        
+        if(key) await saveIdempotencyKey(key, load);
+        resp.status(200).json(load);
     }
     catch (error: any) {
         resp.status(400).json({
