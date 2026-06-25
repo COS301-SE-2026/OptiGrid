@@ -10,6 +10,9 @@ type BuildingRecord = {
     square_footage?: number | string | null;
     timezone?: string | null;
     max_occupancy?: number | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+    geohash?: string | null;
 };
 
 type BuildingResponse = {
@@ -52,6 +55,9 @@ export default function EditBuildingPage({
         square_footage: "",
         timezone: "UTC",
         max_occupancy: "",
+        latitude: "",
+        longitude: "",
+        geohash: "",
     });
 
     useEffect(() => {
@@ -93,6 +99,9 @@ export default function EditBuildingPage({
                             typeof building.max_occupancy === "number"
                                 ? String(building.max_occupancy)
                                 : "",
+                        latitude: building.latitude != null ? String(building.latitude) : "",
+                        longitude: building.longitude != null ? String(building.longitude) : "",
+                        geohash: building.geohash ?? "",
                     });
                 }
             } catch (loadError) {
@@ -255,7 +264,48 @@ export default function EditBuildingPage({
                         }
                     />
                 </div>
-
+                <div style={
+                    {
+                     display: "grid",
+                     gap: "12px", 
+                     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" 
+                    }}>
+                    <div>
+                        <label className="label" htmlFor="latitude">Latitude</label>
+                        <input
+                            id="latitude"
+                            className="input"
+                            value={form.latitude}
+                            onChange={(event) =>
+                                setForm((prev) => ({ ...prev, latitude: event.target.value }))
+                            }
+                            inputMode="decimal"
+                        />
+                    </div>
+                    <div>
+                        <label className="label" htmlFor="longitude">Longitude</label>
+                        <input
+                            id="longitude"
+                            className="input"
+                            value={form.longitude}
+                            onChange={(event) =>
+                                setForm((prev) => ({ ...prev, longitude: event.target.value }))
+                            }
+                            inputMode="decimal"
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label className="label" htmlFor="geohash">Geohash</label>
+                    <input
+                        id="geohash"
+                        className="input"
+                        value={form.geohash}
+                        onChange={(event) =>
+                            setForm((prev) => ({ ...prev, geohash: event.target.value }))
+                        }
+                    />
+                </div>
                 {success ? (
                     <p style={{ color: "var(--brand-success)", fontWeight: 500, fontSize: "0.9rem" }}>
                         Building updated successfully. Redirecting...
