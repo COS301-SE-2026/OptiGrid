@@ -1,1 +1,0 @@
-//we should add unit tests here for editing a building
