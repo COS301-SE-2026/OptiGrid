@@ -12,6 +12,8 @@ export interface buildingPayload {
   physical_address?: string;
   timezone?: string;
   max_occupancy?: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface updateBuildingPayload {
@@ -21,6 +23,8 @@ export interface updateBuildingPayload {
   physical_address?: string;
   timezone?: string;
   max_occupancy?: number;
+  latitude ?: number;
+  longitude?: number;
 }
 
 export const createBuilding = async (
@@ -39,7 +43,9 @@ export const createBuilding = async (
         square_footage: payload.square_footage,
         physical_address: payload.physical_address,
         timezone: payload.timezone || 'UTC',
-        max_occupancy: payload.max_occupancy
+        max_occupancy: payload.max_occupancy,
+        latitude: payload.latitude,
+        longitude: payload.longitude
       },
     });
 
@@ -99,6 +105,8 @@ export const updateBuildingService = async (
       ...(payload.physical_address !== undefined ? { physical_address: payload.physical_address } : {}),
       ...(payload.timezone !== undefined ? { timezone: payload.timezone } : {}),
       ...(payload.max_occupancy !== undefined ? { max_occupancy: payload.max_occupancy } : {}),
+      ...(payload.latitude !== undefined ? {latitude: payload.latitude} : {}),
+      ...(payload.longitude !== undefined ? {longitude: payload.longitude} : {}),
     },
   });
 };

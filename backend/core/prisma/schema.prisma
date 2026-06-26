@@ -84,6 +84,9 @@ model Building {
   max_occupancy    Int?
   created_at       DateTime?     @default(now()) @db.Timestamptz
   updated_at       DateTime?     @default(now()) @db.Timestamptz
+  latitude         Float? 
+  longitude        Float?
+  geohash          String?        @db.VarChar(10)
 
   // Relations with other tables
   tenant           Tenant?               @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
