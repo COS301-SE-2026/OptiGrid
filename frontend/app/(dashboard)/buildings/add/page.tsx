@@ -237,9 +237,11 @@ export default function AddBuildingPage() {
                     />
                 </div>
 
-                <div>
-                     <label className="label" htmlFor="geohash">Geohash</label>
-                     <input
+                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                    <label className="label" htmlFor="geohash">
+                        Geohash
+                    </label>
+                    <input
                         id="geohash"
                         name="geohash"
                         type="text"
@@ -248,13 +250,19 @@ export default function AddBuildingPage() {
                         onChange={handleChange}
                         disabled={loading}
                         placeholder="kgesj5h"
-
-                     />
+                        style={{
+                            outline: "none",
+                            fontFamily: "var(--font-body)",
+                            fontSize: "var(--fs-body)",
+                        }}
+                    />
                 </div>
 
-                  <div>
-                     <label className="label" htmlFor="latitude">latitude</label>
-                     <input
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                    <label className="label" htmlFor="latitude">
+                        Latitude
+                    </label>
+                    <input
                         id="latitude"
                         name="latitude"
                         type="number"
@@ -263,13 +271,20 @@ export default function AddBuildingPage() {
                         onChange={handleChange}
                         disabled={loading}
                         placeholder="-26.111"
-
-                     />
+                        step="any"
+                        style={{
+                            outline: "none",
+                            fontFamily: "var(--font-body)",
+                            fontSize: "var(--fs-body)",
+                        }}
+                    />
                 </div>
-                
-                  <div>
-                     <label className="label" htmlFor="longitude">longitude</label>
-                     <input
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                    <label className="label" htmlFor="longitude">
+                        Longitude
+                    </label>
+                    <input
                         id="longitude"
                         name="longitude"
                         type="number"
@@ -278,9 +293,17 @@ export default function AddBuildingPage() {
                         onChange={handleChange}
                         disabled={loading}
                         placeholder="44.66"
-
-                     />
+                        step="any"
+                        style={{
+                            outline: "none",
+                            fontFamily: "var(--font-body)",
+                            fontSize: "var(--fs-body)",
+                        }}
+                    />
                 </div>
+
+                  
+                  
 
 
 
