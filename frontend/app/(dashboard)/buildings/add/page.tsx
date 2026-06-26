@@ -22,6 +22,9 @@ type FormData = {
     square_footage: string;
     max_occupancy: string;
     timezone: string;
+    geohash:string;
+    latitude:string;
+    longitude:string;
 };
 
 const initial: FormData = {
@@ -31,6 +34,10 @@ const initial: FormData = {
     square_footage: "",
     max_occupancy: "",
     timezone: "Africa/Johannesburg",
+    geohash:"",
+    latitude:"",
+    longitude:""
+
 };
 
 const errorStyle = {
@@ -229,6 +236,23 @@ export default function AddBuildingPage() {
                         placeholder="Africa/Johannesburg"
                     />
                 </div>
+
+                <div>
+                     <label className="label" htmlFor="geohash">Geohash</label>
+                     <input
+                        id="geohash"
+                        name="geohash"
+                        type="text"
+                        className="input"
+                        value={form.geohash}
+                        onChange={handleChange}
+                        disabled={loading}
+                        placeholder="kgesj5h"
+
+                     />
+                </div>
+
+
 
                 {apiError && (
                     <div
