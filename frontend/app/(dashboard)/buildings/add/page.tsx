@@ -252,6 +252,36 @@ export default function AddBuildingPage() {
                      />
                 </div>
 
+                  <div>
+                     <label className="label" htmlFor="latitude">latitude</label>
+                     <input
+                        id="latitude"
+                        name="latitude"
+                        type="number"
+                        className="input"
+                        value={form.latitude}
+                        onChange={handleChange}
+                        disabled={loading}
+                        placeholder="-26.111"
+
+                     />
+                </div>
+                
+                  <div>
+                     <label className="label" htmlFor="longitude">longitude</label>
+                     <input
+                        id="longitude"
+                        name="longitude"
+                        type="number"
+                        className="input"
+                        value={form.longitude}
+                        onChange={handleChange}
+                        disabled={loading}
+                        placeholder="44.66"
+
+                     />
+                </div>
+
 
 
                 {apiError && (
