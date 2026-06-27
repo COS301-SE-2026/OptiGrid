@@ -253,22 +253,43 @@ describe("PATCH payload on submit", () => {
         await waitFor(() => expect(getPatchBody()).not.toHaveProperty("timezone"));
     });
 
-    it("does not send latitude in the payload", async () => {
+    it("sends latitude as a float", async () => {
         mockFetchPatch();
+        await renderAndWait();
+        fireEvent.submit(document.querySelector("form")!);
+        await waitFor(() => expect(getPatchBody()).toHaveProperty("latitude", -25.7461));
+    });
+
+    it("sends longitude as a float", async () => {
+        mockFetchPatch();
+        await renderAndWait();
+        fireEvent.submit(document.querySelector("form")!);
+        await waitFor(() => expect(getPatchBody()).toHaveProperty("longitude", 28.1881));
+    });
+
+    it("sends geohash as a string", async () => {
+        mockFetchPatch();
+        await renderAndWait();
+        fireEvent.submit(document.querySelector("form")!);
+        await waitFor(() => expect(getPatchBody()).toHaveProperty("geohash", "ke7fq"));
+    });
+
+    it("omits latitude when the field is empty", async () => {
+        mockFetchPatch(true, undefined, { ...BASE_BUILDING, latitude: null });
         await renderAndWait();
         fireEvent.submit(document.querySelector("form")!);
         await waitFor(() => expect(getPatchBody()).not.toHaveProperty("latitude"));
     });
 
-    it("does not send longitude in the payload", async () => {
-        mockFetchPatch();
+    it("omits longitude when the field is empty", async () => {
+        mockFetchPatch(true, undefined, { ...BASE_BUILDING, longitude: null });
         await renderAndWait();
         fireEvent.submit(document.querySelector("form")!);
         await waitFor(() => expect(getPatchBody()).not.toHaveProperty("longitude"));
     });
 
-    it("does not send geohash in the payload", async () => {
-        mockFetchPatch();
+    it("omits geohash when the field is empty", async () => {
+        mockFetchPatch(true, undefined, { ...BASE_BUILDING, geohash: null });
         await renderAndWait();
         fireEvent.submit(document.querySelector("form")!);
         await waitFor(() => expect(getPatchBody()).not.toHaveProperty("geohash"));

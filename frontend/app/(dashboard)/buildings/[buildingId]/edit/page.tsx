@@ -10,8 +10,8 @@ type BuildingRecord = {
     square_footage?: number | string | null;
     timezone?: string | null;
     max_occupancy?: number | null;
-    latitude?: number | string | null;
-    longitude?: number | string | null;
+    latitude?: number | null;
+    longitude?: number | null;
     geohash?: string | null;
 };
 
@@ -26,6 +26,9 @@ type UpdatePayload = {
     square_footage?: number;
     timezone?: string;
     max_occupancy?: number;
+    latitude?: number;
+    longitude?: number;
+    geohash?: string;
 };
 
 function toNumber(value: string): number | undefined {
@@ -136,6 +139,9 @@ export default function EditBuildingPage({
             timezone: form.timezone.trim() || undefined,
             square_footage: toNumber(form.square_footage),
             max_occupancy: toNumber(form.max_occupancy),
+            latitude: toNumber(form.latitude),
+            longitude: toNumber(form.longitude),
+            geohash: form.geohash.trim() || undefined,
         };
 
         Object.keys(payload).forEach((key) => {
