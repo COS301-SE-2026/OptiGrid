@@ -1,6 +1,8 @@
 import prisma from '../lib/prisma';
 import { Building, BuildingType } from '@prisma/client';
 import { queryTotalKwh } from '../lib/influx';
+import crypto from 'crypto';
+import { queueBuildingProvisioning } from './provisioning.service';
 
 
 // handle building creation, updating, deletion, and others here
@@ -12,6 +14,9 @@ export interface buildingPayload {
   physical_address?: string;
   timezone?: string;
   max_occupancy?: number;
+  nominal_voltage?: number;
+  max_current_threshold?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface updateBuildingPayload {
@@ -23,14 +28,22 @@ export interface updateBuildingPayload {
   max_occupancy?: number;
 }
 
+function generateHardwareAuthToken(buildingId: string): string {
+  const randomBytes = crypto.randomBytes(32);
+  const encoded = randomBytes.toString('base64').replace(/[+/=]/g, (c) => {
+    const map: Record<string, string> = { '+': '-', '/': '_', '=': '' };
+    return map[c] || c;
+  });
+  return `optigrid_${encoded}_${buildingId}`;
+}
+
 export const createBuilding = async (
   userId: string,
   payload: buildingPayload
 ) => {
-  // we ensure we have a prisma transaction for data integrity
   return await prisma.$transaction(async (tx) => {
-
-    //create the building row 
+    // Step 1: Create the Building record with lifecycle_state = PROVISIONING,
+    //         persisting nominal_voltage, max_current_threshold, and hardware_auth_token
     const newBuilding = await tx.building.create({
       data: {
         tenant_id: payload.tenant_id,
@@ -39,11 +52,23 @@ export const createBuilding = async (
         square_footage: payload.square_footage,
         physical_address: payload.physical_address,
         timezone: payload.timezone || 'UTC',
-        max_occupancy: payload.max_occupancy
+        max_occupancy: payload.max_occupancy,
+        nominal_voltage: payload.nominal_voltage ?? 230,
+        max_current_threshold: payload.max_current_threshold ?? 60,
+        lifecycle_state: 'PROVISIONING',
       },
     });
 
-    // grant access to the user who created the building
+    // Generate the hardware auth token deterministically linked to the building UUID
+    const finalHardwareAuthToken = generateHardwareAuthToken(newBuilding.building_id);
+
+    // Persist the hardware_auth_token back to the building record
+    await tx.building.update({
+      where: { building_id: newBuilding.building_id },
+      data: { hardware_auth_token: finalHardwareAuthToken },
+    });
+
+    // Step 2: Create the user-building access link
     await tx.userBuildingAccess.create({
       data: {
         user_id: userId,
@@ -51,35 +76,28 @@ export const createBuilding = async (
       },
     });
 
-    const ingestionUrl = (process.env.INGESTION_API_URL || 'http://localhost:8000').replace(/;$/, '').trim();
-    const analyticsUrl = (process.env.ANALYTICS_API_URL || 'http://localhost:5001').replace(/;$/, '').trim();
+    // Step 3: Fire async provisioning (non-blocking - do NOT await)
+    setImmediate(() => {
+      queueBuildingProvisioning(
+        newBuilding.building_id,
+        newBuilding.building_name,
+        payload.nominal_voltage ?? 230,
+        payload.max_current_threshold ?? 60,
+        finalHardwareAuthToken,
+        payload.metadata
+      ).catch((err: any) => {
+        console.error(`Failed to queue provisioning for building ${newBuilding.building_id}:`, err);
+      });
+    });
 
-    try {
-      const [ingestionRes, analyticsRes] = await Promise.all([
-        fetch(`${ingestionUrl}/init-building`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ building_id: newBuilding.building_id })
-        }),
-        fetch(`${analyticsUrl}/init-building`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ building_id: newBuilding.building_id })
-        })
-      ]);
-
-      if (!ingestionRes.ok) {
-        throw new Error(`Ingestion system rejected provisioning with code: ${ingestionRes.status}`);
-      }
-      if (!analyticsRes.ok) {
-        throw new Error(`Analytics engine rejected provisioning with code: ${analyticsRes.status}`);
-      }
-    }
-    catch (syncError: any) {
-      throw new Error(`Distributed sync failure. Transaction aborted: ${syncError.message}`);
-    }
-
-    return newBuilding;
+    return {
+      ...newBuilding,
+      hardware_auth_token: finalHardwareAuthToken,
+      nominal_voltage: payload.nominal_voltage ?? 230,
+      max_current_threshold: payload.max_current_threshold ?? 60,
+      lifecycle_state: 'PROVISIONING',
+      message: 'Building created. Infrastructure provisioning queued asynchronously.'
+    };
   });
 };
 

@@ -10,6 +10,8 @@ services:
 
   influxdb:
     image: influxdb:2.7-alpine
+    ports:
+      - "8086:8086"
     restart: unless-stopped
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
@@ -19,10 +21,10 @@ services:
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
     healthcheck:
-      test: ["CMD", "influx", "ping"]
-      interval: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 5s
       timeout: 5s
-      retries: 12
+      retries: 5
     volumes:
       - influxdb_data:/var/lib/influxdb2
 
@@ -135,6 +137,9 @@ services:
   analytics:
     image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
     restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "backend.analytics.src.main:app", "--host", "0.0.0.0", "--port", "5001"]
+    ports:
+      - "5001:5001"
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}

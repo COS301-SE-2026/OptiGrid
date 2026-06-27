@@ -1,11 +1,15 @@
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional
+from typing import Dict, List, Optional, Any
 import redis
 import json
 from datetime import datetime, timezone
-from backend.ingestion.src.config import *
+
+try:
+    from backend.ingestion.src.config import *
+except ModuleNotFoundError:
+    from config import *
 
 app = FastAPI(title="OptiGrid Ingestion API", version="1.0.0")
 
@@ -42,6 +46,11 @@ class BatchTelemetryPayload(BaseModel):
 
 class BuildingInitPayload(BaseModel):
     building_id: str
+    hardware_auth_token: Optional[str] = None
+    nominal_voltage: Optional[float] = None
+    max_current_threshold: Optional[float] = None
+    influx_bucket: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
     
 @app.get("/health", status_code=status.HTTP_200_OK)
 def health_check():
@@ -67,15 +76,16 @@ def root():
     }
 
 #endpoint to receives data from core-api
-@app.post("/ingest")
-def ingest_entry(data: dict):
+@app.post("/ingest", status_code=210)
+def ingest_entry(payload: TelemetryPoint):
     #pushes incoming data to redis queue (left push)
     #worker will pick it up from right side (brpop)
     try:
-        r.lpush("ingestion_queue", json.dumps(data))
-        return {"status": "success", "message": "Data buffered"}
+        r.lpush("ingestion_queue", payload.model_dump_json())
+        return {"status": "success", "message": "Data buffered", "building_id": payload.building_id, "queue_length": r.llen("ingestion_queue")}
+    except redis.exceptions.ConnectionError:
+        raise HTTPException(status_code=530, detail="Redis connection failed")
     except Exception as e:
-        print("Ingestion Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/init-building", status_code=200)
@@ -87,6 +97,17 @@ def init_building(payload: BuildingInitPayload):
             "initialized_at": datetime.now(timezone.utc).isoformat(),
             "status": "active"
         }
+        if payload.hardware_auth_token is not None:
+            building_config["hardware_auth_token"] = payload.hardware_auth_token
+        if payload.nominal_voltage is not None:
+            building_config["nominal_voltage"] = str(payload.nominal_voltage)
+        if payload.max_current_threshold is not None:
+            building_config["max_current_threshold"] = str(payload.max_current_threshold)
+        if payload.influx_bucket:
+            building_config["influx_bucket"] = payload.influx_bucket
+        if payload.metadata is not None:
+            building_config["metadata"] = json.dumps(payload.metadata)
+
         r.hset(f"building:{payload.building_id}", mapping=building_config)
         print(f"[Ingestion Service] Initialized tracking matrix context for: {payload.building_id}")
         return {

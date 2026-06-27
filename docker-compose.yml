@@ -48,6 +48,12 @@ services:
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: token-1234
     volumes:
       - influxdb_data:/var/lib/influxdb2
+    
+  analytics:
+    image: ghcr.io/local/optigrid-analytics:latest
+    command: ["python", "-m", "uvicorn", "backend.analytics.src.main:app", "--host", "0.0.0.0", "--port", "5001"]
+    ports:
+      - "5001:5001"
 
 volumes:
   influxdb_data:

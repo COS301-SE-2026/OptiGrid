@@ -22,6 +22,8 @@ type FormData = {
     square_footage: string;
     max_occupancy: string;
     timezone: string;
+    nominal_voltage: string;
+    max_current_threshold: string;
 };
 
 const initial: FormData = {
@@ -31,6 +33,8 @@ const initial: FormData = {
     square_footage: "",
     max_occupancy: "",
     timezone: "Africa/Johannesburg",
+    nominal_voltage: "230",
+    max_current_threshold: "60",
 };
 
 const errorStyle = {
@@ -62,6 +66,15 @@ export default function AddBuildingPage() {
             next.square_footage = "Square footage must be a positive number.";
         if (form.max_occupancy && (!Number.isInteger(Number(form.max_occupancy)) || Number(form.max_occupancy) <= 0))
             next.max_occupancy = "Max occupancy must be a positive whole number.";
+        
+        const voltage = Number(form.nominal_voltage);
+        if (form.nominal_voltage && (isNaN(voltage) || voltage <= 0))
+            next.nominal_voltage = "Nominal voltage must be a positive number.";
+        
+        const current = Number(form.max_current_threshold);
+        if (form.max_current_threshold && (isNaN(current) || current <= 0))
+            next.max_current_threshold = "Max current must be a positive number.";
+        
         setErrors(next);
         return Object.keys(next).length === 0;
     };
@@ -80,6 +93,8 @@ export default function AddBuildingPage() {
         if (form.square_footage) body.square_footage = Number(form.square_footage);
         if (form.max_occupancy) body.max_occupancy = Number(form.max_occupancy);
         if (form.timezone.trim()) body.timezone = form.timezone.trim();
+        if (form.nominal_voltage) body.nominal_voltage = Number(form.nominal_voltage);
+        if (form.max_current_threshold) body.max_current_threshold = Number(form.max_current_threshold);
 
         try {
             const res = await fetch("/api/buildings", {
@@ -211,6 +226,54 @@ export default function AddBuildingPage() {
                         {errors.max_occupancy && (
                             <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "0.75rem" }}>
                                 {errors.max_occupancy}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                        <label className="label" htmlFor="nominal_voltage">Nominal voltage (V)</label>
+                        <input
+                            id="nominal_voltage"
+                            name="nominal_voltage"
+                            type="number"
+                            min="0"
+                            step="any"
+                            className="input"
+                            value={form.nominal_voltage}
+                            onChange={handleChange}
+                            disabled={loading}
+                            placeholder="230"
+                            style={errors.nominal_voltage ? errorStyle : undefined}
+                        />
+                        <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>For ESP32 hardware (defaults to 230V)</p>
+                        {errors.nominal_voltage && (
+                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "0.75rem" }}>
+                                {errors.nominal_voltage}
+                            </p>
+                        )}
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                        <label className="label" htmlFor="max_current_threshold">Max current threshold (A)</label>
+                        <input
+                            id="max_current_threshold"
+                            name="max_current_threshold"
+                            type="number"
+                            min="0"
+                            step="any"
+                            className="input"
+                            value={form.max_current_threshold}
+                            onChange={handleChange}
+                            disabled={loading}
+                            placeholder="60"
+                            style={errors.max_current_threshold ? errorStyle : undefined}
+                        />
+                        <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Amperes for alerting (defaults to 60A)</p>
+                        {errors.max_current_threshold && (
+                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "0.75rem" }}>
+                                {errors.max_current_threshold}
                             </p>
                         )}
                     </div>

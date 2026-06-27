@@ -7,10 +7,10 @@ catch (err) {
     InfluxDB = undefined;
 }
 
-const url = process.env.INFLUX_URL || 'http://localhost:8086';
-const token = process.env.INFLUX_TOKEN || 'example-token';
-const org = process.env.INFLUX_ORG || 'optigrid';
-const bucket = process.env.INFLUX_BUCKET || 'energy_data';
+const url = process.env.INFLUXDB_URL || 'http://localhost:8086';
+const token = process.env.INFLUXDB_TOKEN || 'example-token';
+const org = process.env.INFLUXDB_ORG || 'optigrid';
+const bucket = process.env.INFLUXDB_BUCKET || 'energy_data';
 
 //we query influx for total energy and cost for the builidng given 
 export const queryUsage = async (buildingId: string, timeRange: string) => {

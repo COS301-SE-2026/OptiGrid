@@ -1,8 +1,8 @@
-insert into tenants (tenant_id, name)
+insert into tenants (tenant_id, company_name)
 values ('11111111-1111-1111-1111-111111111111', 'OptiGrid Demo Tenant')
-on conflict (tenant_id) do update set name = excluded.name;
+on conflict (tenant_id) do update set company_name = excluded.company_name;
 
-insert into buildings (building_id, tenant_id, name, timezone)
+insert into buildings (building_id, tenant_id, building_name, timezone)
 values (
   '22222222-2222-2222-2222-222222222222',
   '11111111-1111-1111-1111-111111111111',
@@ -12,7 +12,7 @@ values (
 on conflict (building_id) do update
 set
   tenant_id = excluded.tenant_id,
-  name = excluded.name,
+  building_name = excluded.building_name,
   timezone = excluded.timezone;
 
 insert into users (
@@ -45,16 +45,14 @@ set
   preferred_theme = excluded.preferred_theme,
   password_hash = excluded.password_hash;
 
-insert into user_building_access (user_id, building_id, access_level)
+insert into user_building_access (user_id, building_id)
 values (
   '33333333-3333-3333-3333-333333333333',
-  '22222222-2222-2222-2222-222222222222',
-  'admin'
+  '22222222-2222-2222-2222-222222222222'
 )
-on conflict (user_id, building_id) do update
-set access_level = excluded.access_level;
+on conflict (user_id, building_id) do nothing;
 
-insert into sensors (sensor_id, building_id, external_id, name, unit)
+insert into sensors (sensor_id, building_id, mac_address, sensor_type, unit)
 values (
   '44444444-4444-4444-4444-444444444444',
   '22222222-2222-2222-2222-222222222222',
@@ -65,9 +63,22 @@ values (
 on conflict (sensor_id) do update
 set
   building_id = excluded.building_id,
-  external_id = excluded.external_id,
-  name = excluded.name,
+  mac_address = excluded.mac_address,
+  sensor_type = excluded.sensor_type,
   unit = excluded.unit;
+
+insert into building_analytics (id, building_id, todays_usage, forecast_peak, forecast_avg_day, model_mape, forecast_series, updated_at)
+values (
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+  '22222222-2222-2222-2222-222222222222',
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  '[]'::jsonb,
+  now()
+)
+on conflict (building_id) do nothing;
 
 insert into alert_thresholds (threshold_id, sensor_id, metric, min_value, max_value)
 values (

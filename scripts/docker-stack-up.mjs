@@ -313,10 +313,10 @@ writeFileSync(
 );
 
 if (!skipBuild) {
-  run("docker build -f frontend/Dockerfile -t ghcr.io/local/optigrid-frontend:latest .");
-  run("docker build -f backend/core/Dockerfile -t ghcr.io/local/optigrid-core:latest .");
-  run("docker build -f backend/ingestion/Dockerfile -t ghcr.io/local/optigrid-ingestion:latest .");
-  run("docker build -f backend/analytics/Dockerfile -t ghcr.io/local/optigrid-analytics:latest .");
+  run("docker build -f frontend/Dockerfile -t optigrid-frontend:latest .");
+  run("docker build -f backend/core/Dockerfile -t optigrid-core:latest .");
+  run("docker build -f backend/ingestion/Dockerfile -t optigrid-ingestion:latest .");
+  run("docker build -f backend/analytics/Dockerfile -t optigrid-analytics:latest .");
 }
 
 run(composeCmd("up -d"));

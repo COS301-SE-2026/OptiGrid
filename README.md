@@ -358,3 +358,280 @@ This project follows **GitFlow** — a structured branching model that separates
 <div align="center">
   <sub>© 2026 Coreflow · Built for COS301 in partnership with EPI-USE</sub>
 </div>
+```
+OptiGrid
+├─ .agents
+├─ .dockerignore
+├─ .eslintrc.cjs
+├─ README.md
+├─ backend
+│  ├─ analytics
+│  │  ├─ Dockerfile
+│  │  ├─ requirements.txt
+│  │  └─ src
+│  │     ├─ batch_worker.py
+│  │     ├─ config.py
+│  │     ├─ core_engine.py
+│  │     └─ main.py
+│  ├─ core
+│  │  ├─ .eslintignore
+│  │  ├─ Dockerfile
+│  │  ├─ jest.config.cjs
+│  │  ├─ prisma
+│  │  │  ├─ migrations
+│  │  │  │  └─ 0_init
+│  │  │  └─ schema.prisma
+│  │  ├─ prisma.config.ts
+│  │  ├─ scripts
+│  │  │  └─ prisma-generate-dummy.mjs
+│  │  └─ src
+│  │     ├─ app.ts
+│  │     ├─ controllers
+│  │     │  ├─ analytics.controller.ts
+│  │     │  ├─ building.controller.ts
+│  │     │  ├─ sensor.controller.ts
+│  │     │  ├─ user_auth.controller.ts
+│  │     │  └─ user_preferences.controller.ts
+│  │     ├─ lib
+│  │     │  ├─ influx.ts
+│  │     │  ├─ password.ts
+│  │     │  ├─ prisma.ts
+│  │     │  └─ redis.ts
+│  │     ├─ middleware
+│  │     │  └─ auth.middleware.ts
+│  │     ├─ routes
+│  │     │  ├─ analytics.routes.ts
+│  │     │  ├─ building.routes.ts
+│  │     │  ├─ sensor.routes.ts
+│  │     │  ├─ user_auth.routes.ts
+│  │     │  └─ user_preferences.routes.ts
+│  │     ├─ server.ts
+│  │     ├─ services
+│  │     │  ├─ building.services.ts
+│  │     │  ├─ idempotency.services.ts
+│  │     │  ├─ provisioning.service.ts
+│  │     │  ├─ sensor.services.ts
+│  │     │  └─ user_auth.services.ts
+│  │     ├─ types
+│  │     │  ├─ express.d.ts
+│  │     │  └─ ws.d.ts
+│  │     └─ validation
+│  │        ├─ building.validation.ts
+│  │        └─ user_auth.validation.ts
+│  └─ ingestion
+│     ├─ Dockerfile
+│     ├─ prisma
+│     │  └─ schema.prisma
+│     ├─ requirements.txt
+│     └─ src
+│        ├─ config.py
+│        ├─ data.csv
+│        ├─ main.py
+│        ├─ seed_influx.py
+│        ├─ sensor_emulator.py
+│        └─ worker.py
+├─ docker-compose.yml
+├─ docs
+│  ├─ Brand_Guidelines.html
+│  ├─ Design_Specifications.md
+│  ├─ SRS.md
+│  ├─ images
+│  │  ├─ Administration.png
+│  │  ├─ Anamoly_Detection.png
+│  │  ├─ Architecture_Diagram.png
+│  │  ├─ Data_Ingestion.png
+│  │  ├─ Data_Storage.png
+│  │  ├─ Demand_Forecasting.png
+│  │  ├─ Monitoring_Dashboard.png
+│  │  ├─ Optimisation_Recommendations.png
+│  │  ├─ Screenshot 2026-05-21 224726.png
+│  │  ├─ domain_model.png
+│  │  └─ image.png
+│  └─ wireframes.html
+├─ eslint.config.cjs
+├─ frontend
+│  ├─ .storybook
+│  │  ├─ main.ts
+│  │  └─ preview.ts
+│  ├─ Dockerfile
+│  ├─ __mocks__
+│  │  └─ @prisma
+│  │     └─ client.ts
+│  ├─ app
+│  │  ├─ (auth)
+│  │  │  ├─ login
+│  │  │  │  ├─ page.test.tsx
+│  │  │  │  ├─ page.tsx
+│  │  │  │  ├─ validation.totest.ts
+│  │  │  │  └─ validation.ts
+│  │  │  └─ signup
+│  │  │     ├─ logic.totest.ts
+│  │  │     ├─ logic.ts
+│  │  │     ├─ page.test.tsx
+│  │  │     ├─ page.tsx
+│  │  │     ├─ validation.test.ts
+│  │  │     └─ validation.ts
+│  │  ├─ (dashboard)
+│  │  │  ├─ buildings
+│  │  │  │  ├─ [buildingId]
+│  │  │  │  │  └─ edit
+│  │  │  │  │     ├─ page.totest.tsx
+│  │  │  │  │     └─ page.tsx
+│  │  │  │  ├─ add
+│  │  │  │  │  ├─ page.totest.tsx
+│  │  │  │  │  └─ page.tsx
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ compare
+│  │  │  │  ├─ page.test.tsx
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ dashboard
+│  │  │  │  ├─ page.test.tsx
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ forecast
+│  │  │  │  ├─ page.test.tsx
+│  │  │  │  └─ page.tsx
+│  │  │  ├─ layout.tsx
+│  │  │  ├─ nav-links.totest.tsx
+│  │  │  └─ nav-links.tsx
+│  │  ├─ api
+│  │  │  ├─ analytics
+│  │  │  │  └─ forecast
+│  │  │  │     └─ [buildingId]
+│  │  │  │        ├─ route.test.ts
+│  │  │  │        └─ route.ts
+│  │  │  ├─ auth
+│  │  │  │  ├─ login
+│  │  │  │  │  ├─ route.test.totest
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ me
+│  │  │  │  │  ├─ route.test.totest
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ session
+│  │  │  │  │  ├─ route.test.totest
+│  │  │  │  │  └─ route.ts
+│  │  │  │  └─ signup
+│  │  │  │     ├─ route.test.totest
+│  │  │  │     └─ route.ts
+│  │  │  ├─ buildings
+│  │  │  │  ├─ [buildingId]
+│  │  │  │  │  ├─ route.test.ts
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ compare
+│  │  │  │  │  ├─ route.test.ts
+│  │  │  │  │  └─ route.ts
+│  │  │  │  ├─ route.test.ts
+│  │  │  │  └─ route.ts
+│  │  │  └─ preferences
+│  │  │     └─ theme
+│  │  │        ├─ route.test.totest
+│  │  │        └─ route.ts
+│  │  ├─ contact
+│  │  │  └─ page.tsx
+│  │  ├─ faqs
+│  │  │  ├─ accordion.test.tsx
+│  │  │  ├─ accordion.tsx
+│  │  │  ├─ data.test.ts
+│  │  │  ├─ data.ts
+│  │  │  └─ page.tsx
+│  │  ├─ health
+│  │  │  └─ route.ts
+│  │  ├─ layout.tsx
+│  │  ├─ page.test.tsx
+│  │  ├─ page.tsx
+│  │  ├─ providers.tsx
+│  │  ├─ theme-provider.test.tsx
+│  │  ├─ theme-provider.tsx
+│  │  ├─ theme-toggle.test.tsx
+│  │  └─ theme-toggle.tsx
+│  ├─ eslint.config.mjs
+│  ├─ jest.config.cjs
+│  ├─ jest.setup.ts
+│  ├─ lib
+│  │  ├─ session.test.totest
+│  │  └─ session.ts
+│  ├─ next-env.d.ts
+│  ├─ styles
+│  │  └─ optigrid-theme.css
+│  ├─ tailwind.config.ts
+│  └─ tsconfig.tsbuildinfo
+├─ infrastructure
+│  ├─ docker
+│  │  ├─ .generated
+│  │  │  └─ docker-compose.local.yml
+│  │  ├─ docker-compose.dev.ec2.yml
+│  │  └─ docker-compose.prod.yml
+│  └─ terraform
+│     ├─ .terraform.lock.hcl
+│     ├─ docker-user-data.sh
+│     ├─ main.tf
+│     ├─ outputs.tf
+│     ├─ providers.tf
+│     ├─ tests
+│     │  ├─ contracts.tftest.hcl
+│     │  ├─ scaffold.tftest.hcl
+│     │  └─ security-network.tftest.hcl
+│     └─ variables.tf
+├─ playwright.config.ts
+├─ pnpm-lock.yaml
+├─ pnpm-workspace.yaml
+├─ scripts
+│  ├─ deploy-ec2-dev-stack.mjs
+│  ├─ deploy-ec2-stack.mjs
+│  ├─ docker-stack-down.mjs
+│  ├─ docker-stack-up.mjs
+│  ├─ e2e-core-server.mjs
+│  ├─ infra-t2.mjs
+│  ├─ infra-t3-e2e.mjs
+│  ├─ optigrid-cli.mjs
+│  ├─ optigrid-local.mjs
+│  ├─ terraform-apply-destroy-smoke.mjs
+│  └─ verify-ec2-docker-bootstrap.mjs
+├─ supabase
+│  ├─ .temp
+│  │  └─ cli-latest
+│  └─ seed.sql
+└─ tests
+   ├─ e2e
+   │  └─ auth
+   │     ├─ login.e2e.spec.ts
+   │     └─ signup.e2e.spec.ts
+   ├─ integration
+   │  └─ backend
+   │     └─ core
+   │        ├─ analytics.integration.test.ts
+   │        ├─ building.integration.test.ts
+   │        ├─ compare.integration.test.ts
+   │        ├─ harness
+   │        │  ├─ core-api-harness.ts
+   │        │  ├─ integration-seed-fixtures.ts
+   │        │  ├─ postgres-container.ts
+   │        │  └─ prisma-schema.ts
+   │        ├─ login.integration.test.ts
+   │        ├─ preferences.integration.test.ts
+   │        ├─ setup-env.ts
+   │        ├─ signup.integration.test.ts
+   │        └─ supabase-login.integration.test.ts
+   ├─ integration tests
+   ├─ unit
+   │  ├─ analytics
+   │  │  ├─ test_core_engine.py
+   │  │  └─ test_main.py
+   │  ├─ backend
+   │  │  ├─ analytics.controller.test.ts
+   │  │  ├─ building.controller.test.ts
+   │  │  ├─ building.service.test.ts
+   │  │  ├─ building.validation.test.ts
+   │  │  ├─ sensor.controller.test.ts
+   │  │  ├─ sensor.service.test.ts
+   │  │  ├─ signup.service.test.ts
+   │  │  ├─ signup.validation.test.ts
+   │  │  ├─ user_auth.controller.test.ts
+   │  │  ├─ user_auth.services.test.ts
+   │  │  └─ user_preferences.test.ts
+   │  └─ ingestion
+   │     ├─ test_main.py
+   │     └─ test_worker.py
+   └─ unit tests
+      └─ frontend
+
+```

@@ -76,6 +76,12 @@ importers:
 
   backend/core:
     dependencies:
+      '@influxdata/influxdb-client':
+        specifier: ^1.35.0
+        version: 1.35.0
+      '@influxdata/influxdb-client-apis':
+        specifier: 1.35.0
+        version: 1.35.0(@influxdata/influxdb-client@1.35.0)
       '@prisma/adapter-pg':
         specifier: ^7.8.0
         version: 7.8.0
@@ -1665,6 +1671,14 @@ packages:
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [x64]
     os: [win32]
+
+  '@influxdata/influxdb-client-apis@1.35.0':
+    resolution: {integrity: sha512-+7h6smVPHYBge2rNKgYh/5k+SriYvPMsoJDfbUiQt1vJtpWnElwgBDLDl7Cr6d9XPC+FCI9GP4GQEMv7y8WxdA==}
+    peerDependencies:
+      '@influxdata/influxdb-client': '*'
+
+  '@influxdata/influxdb-client@1.35.0':
+    resolution: {integrity: sha512-woWMi8PDpPQpvTsRaUw4Ig+nOGS/CWwAwS66Fa1Vr/EkW+NEwxI8YfPBsdBMn33jK2Y86/qMiiuX/ROHIkJLTw==}
 
   '@internationalized/date@3.12.1':
     resolution: {integrity: sha512-6IedsVWXyq4P9Tj+TxuU8WGWM70hYLl12nbYU8jkikVpa6WXapFazPUcHUMDMoWftIDE2ILDkFFte6W2nFCkRQ==}
@@ -8968,6 +8982,12 @@ snapshots:
 
   '@img/sharp-win32-x64@0.34.5':
     optional: true
+
+  '@influxdata/influxdb-client-apis@1.35.0(@influxdata/influxdb-client@1.35.0)':
+    dependencies:
+      '@influxdata/influxdb-client': 1.35.0
+
+  '@influxdata/influxdb-client@1.35.0': {}
 
   '@internationalized/date@3.12.1':
     dependencies:

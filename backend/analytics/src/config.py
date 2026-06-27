@@ -4,11 +4,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # influxDB Configuration
-INFLUX_URL = os.getenv("INFLUXDB_URL", "http://localhost:8086")
-INFLUX_TOKEN = os.getenv("INFLUXDB_TOKEN", "mock-token")
-INFLUX_ORG = os.getenv("INFLUXDB_ORG", "optigrid-org")
-INFLUX_BUCKET = os.getenv("INFLUXDB_BUCKET", "EnergyData")
-
+INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN", "mock-token")
+INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "optigrid-org")
+INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "EnergyData")
+INFLUXDB_HOST = "influxdb"
 # supabase Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
