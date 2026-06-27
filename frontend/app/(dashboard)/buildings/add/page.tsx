@@ -87,6 +87,9 @@ export default function AddBuildingPage() {
         if (form.square_footage) body.square_footage = Number(form.square_footage);
         if (form.max_occupancy) body.max_occupancy = Number(form.max_occupancy);
         if (form.timezone.trim()) body.timezone = form.timezone.trim();
+        if (form.geohash.trim()) body.geohash = form.geohash.trim();
+        if (form.latitude) body.latitude = Number(form.latitude);
+        if (form.longitude) body.longitude = Number(form.longitude);
 
         try {
             const res = await fetch("/api/buildings", {
