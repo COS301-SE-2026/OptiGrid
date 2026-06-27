@@ -19,7 +19,18 @@ export const createBuildingController = async (req: Request, res: Response) => {
   try {
     //get users, tenant info and idempotency key from headers and body
     if (!req.user) {
-        return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+        return res.status(401).json({ 
+          status: 'error', 
+          message: 'Unauthorized' 
+        });
+    }
+
+    const role= req.user.roleType || req.user.user_metadata?.roleType || "VIEWER";
+    if(role === "VIEWER" || role === "Viewer") {
+      return res.status(403).json({
+        status: "error",
+        message: "You do not have permission to create a building"
+      })
     }
     const userId = req.user.id;
     const tenantId = toUuidOrUndefined(req.user.user_metadata?.tenant_id);
@@ -117,10 +128,18 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
       });
     }
     // this handles any access denied erros
-    if (error.message.includes('Access Denied')) return res.status(403).json({ status: 'error', message: error.message });
+    if (error.message.includes('Access Denied')) {
+      return res.status(403).json({ 
+        status: 'error', 
+        message: error.message 
+      });
+    }
     //this handles any unexpected errors
     console.error('[compareBuildingsController] Error:', error);
-    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+    return res.status(500).json({ 
+      status: 'error', 
+      message: 'Internal server error' 
+    });
   }
 };
 
@@ -130,7 +149,16 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
-    const userId = req.user.id || "11d32fe0-2a19-42fd-833c-d920f0df0b52";
+    //enfore rbac
+    const role= req.user.roleType || req.user.user_metadata?.roleType || "VIEWER";
+    if(role === "VIEWER" || role === "Viewer") {
+      return res.status(403).json({
+        status: "error",
+        message: "You do not have permission to create a building"
+      })
+    }
+
+    const userId = req.user.id;
 
     // enforce strict idempotency processing
     const idempotencyKey = req.headers['idempotency-key'] as string;
@@ -175,6 +203,14 @@ export const updateBuildingController = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+    //enforce rbac
+    const role= req.user.roleType || req.user.user_metadata?.roleType || "VIEWER";
+    if(role === "VIEWER" || role === "Viewer") {
+      return res.status(403).json({
+        status: "error",
+        message: "You do not have permission to create a building"
+      })
     }
 
     const { building_id } = deleteBuildingSchema.parse(req.params);
