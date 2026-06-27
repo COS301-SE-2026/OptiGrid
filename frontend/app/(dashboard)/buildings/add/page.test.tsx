@@ -32,12 +32,7 @@ const mockFetchOk = () => {
   });
 };
  
-const mockFetchFail = (message = "Failed to create building.") => {
-  global.fetch = jest.fn().mockResolvedValue({
-    ok: false,
-    json: async () => ({ message }),
-  });
-};
+
  
 describe("AddBuildingPage", () => {
   beforeEach(() => {
