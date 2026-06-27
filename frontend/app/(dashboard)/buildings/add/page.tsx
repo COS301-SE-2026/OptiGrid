@@ -69,6 +69,14 @@ export default function AddBuildingPage() {
             next.square_footage = "Square footage must be a positive number.";
         if (form.max_occupancy && (!Number.isInteger(Number(form.max_occupancy)) || Number(form.max_occupancy) <= 0))
             next.max_occupancy = "Max occupancy must be a positive whole number.";
+
+        if (form.latitude && (Number(form.latitude) < -90 || Number(form.latitude) > 90)) {
+    next.latitude = "Latitude must be between -90 and 90.";
+}
+
+if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) > 180)) {
+    next.longitude = "Longitude must be between -180 and 180.";
+}
         setErrors(next);
         return Object.keys(next).length === 0;
     };
