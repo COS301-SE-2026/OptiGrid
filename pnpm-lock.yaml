@@ -121,6 +121,9 @@ importers:
       redis:
         specifier: ^4.7.0
         version: 4.7.1
+      resend:
+        specifier: ^6.12.4
+        version: 6.14.0
       swagger-jsdoc:
         specifier: ^6.2.8
         version: 6.2.8(openapi-types@12.1.3)
