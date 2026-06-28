@@ -73,3 +73,6 @@ supabase/.temp/*
 
 # Local-only helper scripts
 scripts/run-core-integration.mjs
+
+infrastructure/docker/.data/
+infrastructure/docker/.generated/

@@ -1,44 +1,32 @@
 services:
-
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: optigrid_redis
     ports:
       - "6379:6379"
-  
-  ingestion-api:
-    build: 
-      context: ./backend/ingestion
-      dockerfile: Dockerfile
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
-    ports:
-      - "8000:8000"
-    environment:
-      - REDIS_HOST=optigrid_redis
-    depends_on:
-      - redis
-
-  ingestion-worker:
-    build: 
-      context: ./backend/ingestion
-      dockerfile: Dockerfile
-    command: python src/worker.py
-    environment:
-      - REDIS_HOST=optigrid_redis
-      - INFLUXDB_URL=http://optigrid_influxdb:8086
-      - INFLUXDB_TOKEN=token-1234
-      - INFLUXDB_ORG=OptiGrid
-      - INFLUXDB_BUCKET=EnergyData
-    depends_on:
-      - redis
-      - influxdb
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - ./infrastructure/docker/.data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   influxdb:
-    image: influxdb:2
+    image: influxdb:2.7-alpine
     container_name: optigrid_influxdb
-    restart: always
+    restart: unless-stopped
     ports:
       - "8086:8086"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: admin
@@ -47,7 +35,49 @@ services:
       DOCKER_INFLUXDB_INIT_BUCKET: EnergyData
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: token-1234
     volumes:
-      - influxdb_data:/var/lib/influxdb2
+      - ./infrastructure/docker/.data/influxdb:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD-SHELL", "influx ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-volumes:
-  influxdb_data:
+  ingestion-api:
+    build: 
+      context: .
+      dockerfile: ./backend/ingestion/Dockerfile
+    command: uvicorn backend.ingestion.src.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=optigrid_redis
+      - INFLUXDB_URL=http://optigrid_influxdb:8086
+      - INFLUXDB_TOKEN=token-1234
+      - INFLUXDB_ORG=OptiGrid
+      - INFLUXDB_BUCKET=EnergyData
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+
+  ingestion-worker:
+    build: 
+      context: .
+      dockerfile: ./backend/ingestion/Dockerfile
+    command: python -m backend.ingestion.src.worker
+    environment:
+      - REDIS_HOST=optigrid_redis
+      - INFLUXDB_URL=http://optigrid_influxdb:8086
+      - INFLUXDB_TOKEN=token-1234
+      - INFLUXDB_ORG=OptiGrid
+      - INFLUXDB_BUCKET=EnergyData
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
