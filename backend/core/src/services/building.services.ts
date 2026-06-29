@@ -2,7 +2,7 @@ import prisma from '../lib/prisma';
 import { Building, BuildingType } from '@prisma/client';
 import { queryTotalKwh } from '../lib/influx';
 import crypto from 'crypto';
-import { queueBuildingProvisioning } from './provisioning.service';
+import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
 
 
 // handle building creation, updating, deletion, and others here
@@ -42,8 +42,7 @@ export const createBuilding = async (
   payload: buildingPayload
 ) => {
   return await prisma.$transaction(async (tx) => {
-    // Step 1: Create the Building record with lifecycle_state = PROVISIONING,
-    //         persisting nominal_voltage, max_current_threshold, and hardware_auth_token
+    // create building 
     const newBuilding = await tx.building.create({
       data: {
         tenant_id: payload.tenant_id,
@@ -67,8 +66,8 @@ export const createBuilding = async (
       where: { building_id: newBuilding.building_id },
       data: { hardware_auth_token: finalHardwareAuthToken },
     });
-
-    // Step 2: Create the user-building access link
+    
+    //ensure we give access
     await tx.userBuildingAccess.create({
       data: {
         user_id: userId,
@@ -76,26 +75,28 @@ export const createBuilding = async (
       },
     });
 
-    // Step 3: Fire async provisioning (non-blocking - do NOT await)
-    setImmediate(() => {
-      queueBuildingProvisioning(
+    // we try to await this and not set it immediately
+    //this way prisma transaction rolls back n no supabase isseu arise
+    try  {
+      await queueBuildingProvisioning(
         newBuilding.building_id,
         newBuilding.building_name,
         payload.nominal_voltage ?? 230,
         payload.max_current_threshold ?? 60,
         finalHardwareAuthToken,
         payload.metadata
-      ).catch((err: any) => {
-        console.error(`Failed to queue provisioning for building ${newBuilding.building_id}:`, err);
-      });
-    });
+      );
+    } 
+     catch (error:any) {
+      throw new Error(`Failed to queue provisioning for building ${newBuilding.building_id}`);
+    } 
 
     return {
       ...newBuilding,
       hardware_auth_token: finalHardwareAuthToken,
       nominal_voltage: payload.nominal_voltage ?? 230,
       max_current_threshold: payload.max_current_threshold ?? 60,
-      lifecycle_state: 'PROVISIONING',
+      lifecycle_state: 'ACTIVE',
       message: 'Building created. Infrastructure provisioning queued asynchronously.'
     };
   });
@@ -247,5 +248,8 @@ export const deleteBuildingService = async (userId: string, buildingId: string) 
       building_id: buildingId,
     },
   });
+  //ensure we delete bucket in influx as well
+  await deleteInfluxBucket(buildingId);
+
   return deletedBuidling;
 };

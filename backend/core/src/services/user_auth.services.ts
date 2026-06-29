@@ -17,7 +17,6 @@ const SIGNUP_USER_SELECT = {
 type SignupCreateData = {
     userId: string;
     email: string;
-    passwordHash: string;
     firstName: string;
     lastName: string;
 };
@@ -126,7 +125,6 @@ function isRecordNotFoundError(error: unknown): boolean {
 async function updateUserByUserIdWithRetry(createData: {
     userId: string;
     email: string;
-    passwordHash: string;
     firstName: string;
     lastName: string;
 }) {
@@ -142,7 +140,6 @@ async function updateUserByUserIdWithRetry(createData: {
                 },
                 data: {
                     email: createData.email,
-                    passwordHash: createData.passwordHash,
                     firstName: createData.firstName,
                     lastName: createData.lastName,
                 },
@@ -182,7 +179,6 @@ async function createOrUpsertUser(createData: SignupCreateData) {
         create: createData,
         update: {
             email: createData.email,
-            passwordHash: createData.passwordHash,
             firstName: createData.firstName,
             lastName: createData.lastName,
         },
@@ -227,11 +223,14 @@ async function provisionAuthUser(email: string, password: string): Promise<Provi
 //This function is used for the signup logic
 export const signup = async (email: string, password: string, name: string) => {
     //we check if user exists, and if so he should login
-    const userExists = await prisma.user.findUnique({ where: { email } });
+    const userExists = await prisma.user.findUnique({
+        where: { email },
+        select: { userId: true },
+    });
     if (userExists) throw new Error(USER_EXISTS_ERROR);
 
-    //we hash passwords, split name and then add to users table
-    const hashPass = await hashPassword(password);
+    // //we hash passwords, split name and then add to users table
+    // const hashPass = await hashPassword(password);
     const [firstName = '', ...otherNames] = name.trim().split(/\s+/);
     const lastName = otherNames.join(' ');
 
@@ -241,7 +240,6 @@ export const signup = async (email: string, password: string, name: string) => {
     const createData = {
         userId: provisionedAuthUser.userId,
         email,
-        passwordHash: hashPass,
         firstName,
         lastName,
     };
