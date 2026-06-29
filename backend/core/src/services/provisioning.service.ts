@@ -5,7 +5,7 @@ import prisma from '../lib/prisma';
 const INFLUX_URL = process.env.INFLUXDB_URL || 'http://localhost:8086';
 const INFLUX_TOKEN = process.env.INFLUXDB_TOKEN || '';
 const INFLUX_ORG = process.env.INFLUXDB_ORG || 'OptiGrid';
-const INFLUX_BUCKET_PREFIX = process.env.INFLUX_BUCKET_PREFIX || 'building_';
+//const INFLUX_BUCKET_PREFIX = process.env.INFLUX_BUCKET_PREFIX || 'building_';
 const DATA_RETENTION_DAYS = 30;
 
 export async function queueBuildingProvisioning(
@@ -53,13 +53,13 @@ async function provisionInfluxDBBucket(
   nominalVoltage: number,
   maxCurrentThreshold: number
 ): Promise<string> {
-  const bucketName = `${INFLUX_BUCKET_PREFIX}${buildingId}`;
+  const bucketName = `building-${buildingId}`;
   const retentionSeconds = DATA_RETENTION_DAYS * 24 * 3600;
 
   try {
     const influxClient = new InfluxDB({ url: INFLUX_URL, token: INFLUX_TOKEN });
     const bucketsAPI = new BucketsAPI(influxClient);
-    const buckets = await bucketsAPI.getBuckets();
+    //const buckets = await bucketsAPI.getBuckets();
     const bucketConfig = {
       orgID: INFLUX_ORG,
       name: bucketName,
@@ -71,13 +71,13 @@ async function provisionInfluxDBBucket(
     };
 
     console.log(`[INFLUX] Creating bucket: ${bucketName}`);
-    console.log(`[INFLUX] Bucket config:
-      - Name: ${bucketName}
-      - Description: Telemetry data for ${buildingName}
-      - Nominal Voltage: ${nominalVoltage}V
-      - Max Current Threshold: ${maxCurrentThreshold}A
-      - Retention Policy: ${DATA_RETENTION_DAYS} days
-      - Organization: ${INFLUX_ORG}`);
+    // console.log(`[INFLUX] Bucket config:
+    //   - Name: ${bucketName}
+    //   - Description: Telemetry data for ${buildingName}
+    //   - Nominal Voltage: ${nominalVoltage}V
+    //   - Max Current Threshold: ${maxCurrentThreshold}A
+    //   - Retention Policy: ${DATA_RETENTION_DAYS} days
+    //   - Organization: ${INFLUX_ORG}`);
 
     try {
       await bucketsAPI.postBuckets({body: bucketConfig});
@@ -170,4 +170,28 @@ async function initializeAnalyticsService(
 export async function getHardwareAuthToken(buildingId: string): Promise<string | null> {
   console.log(`Retrieving hardware token for building: ${buildingId}`);
   return null;
+}
+
+// this function ensures that when we delete a building 
+//in frontend or supabase its deleted from influx as well
+export async function deleteInfluxBucket(buildingId: string): Promise<void> {
+  const bucket = 'building-${buildingId}';
+  try {
+    const influxClient = new InfluxDB({ url: INFLUX_URL, token: INFLUX_TOKEN });
+    const bucketsAPI = new BucketsAPI(influxClient);
+
+    const allBuckets = await bucketsAPI.getBuckets({
+      name: bucket
+    });
+    if(allBuckets.buckets && allBuckets.buckets.length > 0) {
+      await bucketsAPI.deleteBucketsID({
+        bucketID: allBuckets.buckets[0].id as string
+      });
+      //debug purposes
+      console.log("Bucket deleted");
+    }
+  }
+  catch(error) {
+    console.error(`Failed to delete bucket ${bucket}: `, error);
+  }
 }

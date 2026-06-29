@@ -7,6 +7,7 @@ settings:
 overrides:
   '@types/react': ^19.0.0
   '@types/react-dom': ^19.0.0
+  '@influxdata/influxdb-client-apis': ^1.35.0
 
 importers:
 
@@ -80,7 +81,7 @@ importers:
         specifier: ^1.35.0
         version: 1.35.0
       '@influxdata/influxdb-client-apis':
-        specifier: 1.35.0
+        specifier: ^1.35.0
         version: 1.35.0(@influxdata/influxdb-client@1.35.0)
       '@prisma/adapter-pg':
         specifier: ^7.8.0
