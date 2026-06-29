@@ -21,6 +21,7 @@
 		"test:python": "PYTHONPATH=. pytest tests/unit/ingestion/ -v && PYTHONPATH=. pytest tests/unit/analytics/ -v",
 		"test:all": "pnpm test:node && pnpm test:python",
 		"test:e2e": "playwright test --config playwright.config.ts",
+		"test:e2e:supabase": "node scripts/e2e-local-supabase.mjs",
 		"storybook": "corepack pnpm --filter ./frontend run storybook",
 		"storybook:build": "corepack pnpm --filter ./frontend run build-storybook",
 		"stack:up": "node scripts/docker-stack-up.mjs",
@@ -49,7 +50,7 @@
 		"infra:app:status": "node scripts/deploy-ec2-stack.mjs status",
 		"security:test": "snyk test --all-projects",
 		"security:monitor": "snyk monitor --all-projects",
-		"prepare": "playwright install --with-deps",
+		"prepare": "node -e \"if (!process.env.CI) require('node:child_process').execFileSync(process.platform === 'win32' ? 'playwright.cmd' : 'playwright', ['install', '--with-deps'], { stdio: 'inherit' })\"",
 		"lint": "pnpm -w exec eslint . --ignore-pattern .gitignore",
 		"lint:fix": "pnpm -w exec eslint . --fix --ignore-pattern .gitignore"
 	},
@@ -57,6 +58,7 @@
 		"@playwright/test": "^1.52.0",
 		"@types/express": "4.17.21",
 		"@types/jest": "^29.5.14",
+		"@types/multer": "^2.1.0",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
 		"@types/supertest": "^6.0.3",
@@ -94,6 +96,8 @@
 		}
 	},
 	"dependencies": {
+		"multer": "^2.2.0",
+		"resend": "^6.12.4",
 		"zod": "^4.3.6"
 	}
 }

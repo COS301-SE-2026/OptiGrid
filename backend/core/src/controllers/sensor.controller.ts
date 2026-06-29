@@ -12,7 +12,11 @@ export const handleSensorTelemetry = async (req: Request, res: Response): Promis
             return;
         }
         // forward validated data to ingestion service (which sends to redis)
-        await forwardToIngestionService(telemetryData);
+        const ingestionResponse = await forwardToIngestionService(telemetryData);
+        res.status(200).json({
+            status: "success",
+            data: ingestionResponse,
+        });
     }
     catch(error :any){
         console.error("Core API Gateway error forwarding sensor data: ", error.message);

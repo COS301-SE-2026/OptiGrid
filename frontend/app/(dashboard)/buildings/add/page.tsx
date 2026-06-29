@@ -22,6 +22,9 @@ type FormData = {
     square_footage: string;
     max_occupancy: string;
     timezone: string;
+    geohash:string;
+    latitude:string;
+    longitude:string;
     nominal_voltage: string;
     max_current_threshold: string;
 };
@@ -33,6 +36,10 @@ const initial: FormData = {
     square_footage: "",
     max_occupancy: "",
     timezone: "Africa/Johannesburg",
+    geohash:"",
+    latitude:"",
+    longitude:""
+
     nominal_voltage: "230",
     max_current_threshold: "60",
 };
@@ -66,6 +73,14 @@ export default function AddBuildingPage() {
             next.square_footage = "Square footage must be a positive number.";
         if (form.max_occupancy && (!Number.isInteger(Number(form.max_occupancy)) || Number(form.max_occupancy) <= 0))
             next.max_occupancy = "Max occupancy must be a positive whole number.";
+
+        if (form.latitude && (Number(form.latitude) < -90 || Number(form.latitude) > 90)) {
+    next.latitude = "Latitude must be between -90 and 90.";
+}
+
+if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) > 180)) {
+    next.longitude = "Longitude must be between -180 and 180.";
+}
         
         const voltage = Number(form.nominal_voltage);
         if (form.nominal_voltage && (isNaN(voltage) || voltage <= 0))
@@ -93,6 +108,9 @@ export default function AddBuildingPage() {
         if (form.square_footage) body.square_footage = Number(form.square_footage);
         if (form.max_occupancy) body.max_occupancy = Number(form.max_occupancy);
         if (form.timezone.trim()) body.timezone = form.timezone.trim();
+        if (form.geohash.trim()) body.geohash = form.geohash.trim();
+        if (form.latitude) body.latitude = Number(form.latitude);
+        if (form.longitude) body.longitude = Number(form.longitude);
         if (form.nominal_voltage) body.nominal_voltage = Number(form.nominal_voltage);
         if (form.max_current_threshold) body.max_current_threshold = Number(form.max_current_threshold);
 
@@ -292,6 +310,76 @@ export default function AddBuildingPage() {
                         placeholder="Africa/Johannesburg"
                     />
                 </div>
+
+                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                    <label className="label" htmlFor="geohash">
+                        Geohash
+                    </label>
+                    <input
+                        id="geohash"
+                        name="geohash"
+                        type="text"
+                        className="input"
+                        value={form.geohash}
+                        onChange={handleChange}
+                        disabled={loading}
+                        placeholder="kgesj5h"
+                        style={{
+                            outline: "none",
+                            fontFamily: "var(--font-body)",
+                            fontSize: "var(--fs-body)",
+                        }}
+                    />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                    <label className="label" htmlFor="latitude">
+                        Latitude
+                    </label>
+                    <input
+                        id="latitude"
+                        name="latitude"
+                        type="number"
+                        className="input"
+                        value={form.latitude}
+                        onChange={handleChange}
+                        disabled={loading}
+                        placeholder="-26.111"
+                        step="any"
+                        style={{
+                            outline: "none",
+                            fontFamily: "var(--font-body)",
+                            fontSize: "var(--fs-body)",
+                        }}
+                    />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                    <label className="label" htmlFor="longitude">
+                        Longitude
+                    </label>
+                    <input
+                        id="longitude"
+                        name="longitude"
+                        type="number"
+                        className="input"
+                        value={form.longitude}
+                        onChange={handleChange}
+                        disabled={loading}
+                        placeholder="44.66"
+                        step="any"
+                        style={{
+                            outline: "none",
+                            fontFamily: "var(--font-body)",
+                            fontSize: "var(--fs-body)",
+                        }}
+                    />
+                </div>
+
+                  
+                  
+
+
 
                 {apiError && (
                     <div

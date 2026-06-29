@@ -14,15 +14,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install root dependencies
         run: pnpm install --frozen-lockfile
@@ -58,15 +60,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
@@ -117,6 +121,36 @@ jobs:
       - name: Build
         run: pnpm --filter @optigrid/core run build
 
+  python-services:
+    name: Python Services
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            backend/ingestion/requirements.txt
+            backend/analytics/requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/ingestion/requirements.txt
+          pip install -r backend/analytics/requirements.txt
+
+      - name: Run ingestion unit tests
+        run: python -m pytest tests/unit/ingestion/ -v
+
+      - name: Run analytics unit tests
+        run: python -m pytest tests/unit/analytics/ -v
+
   integration-foundation:
     name: Integration (Terraform + Auth)
     runs-on: ubuntu-latest
@@ -124,15 +158,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
@@ -180,3 +216,50 @@ jobs:
 
       - name: Run bottom-up local suite
         run: pnpm run test:bottom-up:local
+
+  e2e:
+    name: E2E (Playwright + Supabase)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Start Supabase local emulator
+        run: |
+          if [ ! -f supabase/config.toml ]; then
+            supabase init --yes
+          fi
+          # This repository's supabase/seed.sql targets app tables managed by Prisma test harness, not Supabase local migrations.
+          # Move it out of the way for this CI job so Supabase local Auth can start cleanly.
+          if [ -f supabase/seed.sql ]; then
+            mv supabase/seed.sql supabase/seed.sql.ci.bak
+          fi
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+
+      - name: Run Playwright E2E tests
+        run: pnpm run test:e2e:supabase

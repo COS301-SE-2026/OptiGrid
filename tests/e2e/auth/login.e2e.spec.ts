@@ -53,9 +53,9 @@ test.describe("Login page", () => {
 
   test("shows API error for invalid credentials", async ({ page }) => {
     await page.goto("/login");
-    await page.getByPlaceholder("Email").fill("invalid@optigrid.test");
-    await page.getByPlaceholder("Password").fill("BadPass123!");
-    await page.getByRole("button", { name: "Login" }).click();
+    await page.getByLabel("Work email").fill("invalid@optigrid.test");
+    await page.getByLabel("Password").fill("BadPass123!");
+    await page.getByRole("button", { name: "Log in" }).click();
 
     await expect(page.getByText("Invalid email or password")).toBeVisible();
   });
@@ -65,11 +65,16 @@ test.describe("Login page", () => {
     await createUserInCore(request, user);
 
     await page.goto("/login");
-    await page.getByPlaceholder("Email").fill(user.email);
-    await page.getByPlaceholder("Password").fill(user.password);
-    await page.getByRole("button", { name: "Login" }).click();
+    await page.getByLabel("Work email").fill(user.email);
+    await page.getByLabel("Password").fill(user.password);
+    const loginResponsePromise = page.waitForResponse("**/api/auth/login");
+    await page.getByRole("button", { name: "Log in" }).click();
+    const loginResponse = await loginResponsePromise;
+    expect(loginResponse.ok()).toBeTruthy();
 
-    await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
+    await expect(
+      page.getByRole("heading", { name: `Welcome back, ${user.firstName}` })
+    ).toBeVisible();
   });
 });

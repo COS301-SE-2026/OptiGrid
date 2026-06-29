@@ -1,5 +1,4 @@
 import prisma from '../lib/prisma';
-import { hashPassword } from '../lib/password';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
 import { Prisma } from '@prisma/client';
@@ -88,7 +87,7 @@ function isSupabaseInvalidCredentialsError(error: { message?: string; code?: str
 
     const code = typeof error.code === 'string' ? error.code.toLowerCase() : '';
     const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
-    return code === 'invalid_credentials' || message.includes('invalid login credentials');
+    return code === 'invalid_credentials' || message.includes('invalid login credentials') || message.includes('invalid email or password');
 }
 
 function isUserIdForeignKeyError(error: unknown): boolean {
@@ -143,12 +142,7 @@ async function updateUserByUserIdWithRetry(createData: {
                     firstName: createData.firstName,
                     lastName: createData.lastName,
                 },
-                select: {
-                    userId: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                },
+                select: SIGNUP_USER_SELECT,
             });
         } catch (error) {
             if (!isRecordNotFoundError(error) || attempt === maxAttempts) {

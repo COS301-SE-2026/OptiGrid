@@ -39,8 +39,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                     </div>
                     <NavLinks />
                     <div className="dashboard-utility">
+                        <Link href="/help" className="dashboard-link">Help Centre</Link>
                         <Link href="/contact" className="dashboard-link">Contact Us</Link>
-                        <Link href="/faqs" className="dashboard-link">FAQs</Link>
                     </div>
                     <form action="/api/auth/logout" method="post">
                         <button type="submit" className="btn btn-secondary w-full">

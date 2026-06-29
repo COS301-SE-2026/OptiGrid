@@ -63,3 +63,16 @@ playwright-report/
 test-results/
 
 mlruns/
+
+# Local Supabase emulator artifacts
+supabase/*
+!supabase/seed.sql
+!supabase/.temp/
+supabase/.temp/*
+!supabase/.temp/cli-latest
+
+# Local-only helper scripts
+scripts/run-core-integration.mjs
+
+infrastructure/docker/.data/
+infrastructure/docker/.generated/

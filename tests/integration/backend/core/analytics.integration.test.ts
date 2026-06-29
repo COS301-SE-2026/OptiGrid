@@ -10,13 +10,12 @@ describe('Analytics API Integration', () => {
 
 	async function seedAssignedBuildingAccess(client: InstanceType<typeof Client>) {
 		await client.query(
-			`INSERT INTO public.users (user_id, email, password_hash, first_name, last_name)
-			 VALUES ($1, $2, $3, $4, $5)
+			`INSERT INTO public.users (user_id, email, first_name, last_name)
+			 VALUES ($1, $2, $3, $4)
 			 ON CONFLICT (user_id) DO NOTHING`,
 			[
 				testUserId,
 				'analytics.integration@optigrid.test',
-				'$2b$10$2h2mZKoDbJkWBk4x9swFZeF7Ojf9SIxkV8W8QhQPXfS9M9iYjW0uS',
 				'Analytics',
 				'Integration',
 			],

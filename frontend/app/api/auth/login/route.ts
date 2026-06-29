@@ -48,9 +48,7 @@ export async function POST(request: Request) {
 		const lastName = typeof maybeUser?.lastName === "string" ? maybeUser.lastName : "";
 
 		if (coreResponse.ok && userId && emailValue) {
-			const sessionPayload = encodeURIComponent(
-				JSON.stringify({ userId, email: emailValue, firstName, lastName })
-			);
+			const sessionPayload = JSON.stringify({ userId, email: emailValue, firstName, lastName });
 			response.cookies.set(SESSION_COOKIE_NAME, sessionPayload, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === "production",

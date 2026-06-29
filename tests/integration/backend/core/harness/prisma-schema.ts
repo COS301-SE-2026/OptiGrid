@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,6 +6,7 @@ const { Client } = require('pg');
 
 const repoRoot = path.resolve(__dirname, '../../../../../');
 const coreWorkspace = path.resolve(repoRoot, 'backend/core');
+const prismaCliPath = require.resolve('prisma/build/index.js', { paths: [coreWorkspace] });
 let cachedSchemaSql: string | null = null;
 
 function withPublicSchema(connectionString: string): string {
@@ -24,10 +25,19 @@ function getSchemaSqlFromPrismaSchema(): string {
 
 	try {
 		// Generate SQL from schema.prisma instead of maintaining handwritten DDL.
-		execSync(`pnpm exec prisma migrate diff --from-empty --to-schema "./prisma/schema.prisma" --script --output "${outputPath}"`, {
+		execFileSync(process.execPath, [
+			prismaCliPath,
+			'migrate',
+			'diff',
+			'--from-empty',
+			'--to-schema',
+			'./prisma/schema.prisma',
+			'--script',
+			'--output',
+			outputPath,
+		], {
 			cwd: coreWorkspace,
 			stdio: 'inherit',
-			shell: '/bin/bash',
 			env: { ...process.env },
 		});
 		cachedSchemaSql = readFileSync(outputPath, 'utf8');
