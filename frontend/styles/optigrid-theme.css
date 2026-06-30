@@ -976,6 +976,78 @@ h3 {
     }
 }
 
+@keyframes live-pulse {
+    0% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-success) 70%, transparent);
+    }
+    70% {
+        box-shadow: 0 0 0 8px color-mix(in srgb, var(--brand-success) 0%, transparent);
+    }
+    100% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-success) 0%, transparent);
+    }
+}
+
+.live-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+.live-dot.off {
+    background: var(--brand-ink-muted);
+}
+
+.live-dot.on {
+    background: var(--brand-success);
+    animation: live-pulse 1.8s ease-out infinite;
+}
+
+.live-progress {
+    height: 3px;
+    margin-top: 14px;
+    background: var(--brand-border);
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.live-progress > span {
+    height: 100%;
+    background: var(--brand-primary);
+    transition: width 1s linear;
+    display: block;
+}
+
+.live-chip {
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: transparent;
+    color: var(--brand-ink-muted);
+    padding: 6px 14px;
+    border-radius: 99px;
+    border: 1px solid var(--brand-border);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.live-chip:hover:not(:disabled) {
+    border-color: var(--brand-primary);
+    color: var(--brand-ink);
+}
+
+.live-chip:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.live-chip.on {
+    background: var(--brand-primary);
+    border-color: var(--brand-primary);
+    color: #fff;
+}
+
 @media (max-width: 900px) {
     .dashboard-shell {
         flex-direction: column;
