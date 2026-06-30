@@ -93,6 +93,7 @@ services:
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
       INFLUXDB_ORG: ${INFLUXDB_ORG}
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
     depends_on:
       redis:
         condition: service_healthy

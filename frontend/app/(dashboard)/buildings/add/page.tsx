@@ -38,7 +38,7 @@ const initial: FormData = {
     timezone: "Africa/Johannesburg",
     geohash:"",
     latitude:"",
-    longitude:""
+    longitude:"",
 
     nominal_voltage: "230",
     max_current_threshold: "60",
