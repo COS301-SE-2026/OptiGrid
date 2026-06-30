@@ -903,12 +903,109 @@ h3 {
 }
 
 .help-guide-list {
-        color: var(--brand-ink-muted);
+    color: var(--brand-ink-muted);
     line-height: 1.65;
     margin: 0;
     padding-left: var(--space-5);
     display: grid;
     gap: var(--space-2);
+}
+
+.tutorial-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+}
+
+.tutorial-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.tutorial-card-frame {
+    border-bottom: 1px solid var(--brand-border);
+}
+
+.tutorial-video-placeholder {
+    display: grid;
+    place-items: center;
+    padding: var(--space-5);
+    background: radial-gradient(circle at top, color-mix(in srgb, var(--brand-primary) 20%, transparent), transparent 50%), linear-gradient(135deg, color-mix(in srgb, var(--brand-surface-alt) 55%, transparent), var(--brand-surface));
+}
+
+.tutorial-video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--brand-surface-alt);
+}
+
+.tutorial-video-placeholder-content {
+    width: 100%;
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+    gap: var(--space-3);
+    border: 1px dashed var(--brand-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    text-align: center;
+}
+
+.tutorial-video-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--brand-primary);
+    background: color-mix(in srgb, var(--brand-surface) 82%, transparent);
+    border: 1px solid var(--brand-border);
+}
+
+.tutorial-video-chip {
+    font-size: var(--fs-small);
+    font-weight: var(--fw-semibold);
+    color: var(--brand-primary);
+    background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+    border-radius: var(--radius-pill);
+    padding: 4px 12px;
+}
+
+.tutorial-video-copy {
+    max-width: 320px;
+    margin: 0;
+    color: var(--brand-ink-muted);
+    line-height: 1.55;
+}
+
+.tutorial-card-body {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-5);
+}
+
+.tutorial-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.tutorial-duration {
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    color: var(--brand-ink-muted);
+    white-space: nowrap;
+}
+
+.tutorial-step-list {
+    margin-top: 2px;
+}
+
+.tutorials-section {
+    scroll-margin-top: 88px;
 }
 
 @keyframes fade-up {
@@ -929,7 +1026,8 @@ h3 {
     .landing-feature-grid,
     .landing-outcomes-grid,
     .help-resource-grid,
-    .help-guide-grid {
+    .help-guide-grid,
+    .tutorial-grid {
         grid-template-columns: 1fr;
     }
 
