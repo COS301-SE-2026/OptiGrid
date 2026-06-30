@@ -54,6 +54,7 @@ infrastructure/terraform/terraform.tfvars
 # Generated EC2 deployment artifacts
 infrastructure/docker/.generated/
 infrastructure/docker/.env.localtest
+infrastructure/docker/
 
 .gitignore
 package-lock.json
