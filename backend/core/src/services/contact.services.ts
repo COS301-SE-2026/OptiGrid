@@ -3,7 +3,7 @@ import { Resend } from "resend";
 let resend: Resend | undefined;
 
 function getResendClient(): Resend {
-    const api = process.env.RESEND_API_KEY;
+    const api = process.env.NODE_ENV === "test" ? "dummy" : process.env.RESEND_API_KEY;
 
     if (!api) {
         throw new Error("Missing RESEND_API_KEY. Set it to enable contact email.");
@@ -22,8 +22,6 @@ export interface Contact{
 
 export const contactService = {
     sendMail: async (data: Contact) => {
-        if(process.env.NODE_ENV === 'test') return { id: 'mocked-id' };
-
         const { inquiryType, subject, message } = data;
         const resendClient = getResendClient();
 
@@ -46,6 +44,7 @@ export const contactService = {
 
         if(error) throw new Error(`Failed to send: ${error.message}`);
         if(responseData) return responseData;
+        if(process.env.NODE_ENV === 'test') return { id: 'mocked-id' };
 
         return responseData;
     }
