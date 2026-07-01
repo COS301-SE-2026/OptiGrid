@@ -544,6 +544,7 @@ describe('Building Controller', () => {
 					status: 'error',
 					message: 'Idempotency-Key header is required',
 				});
+				expect(mockedCheckIdempotencyKey).not.toHaveBeenCalled();
 				expect(mockedCompareBuildingsService).not.toHaveBeenCalled();
 			});
 
