@@ -1,5 +1,5 @@
 import { InfluxDB } from '@influxdata/influxdb-client';
-import { BucketsAPI } from '@influxdata/influxdb-client-apis';
+import { BucketsAPI, OrgsAPI } from '@influxdata/influxdb-client-apis';
 import prisma from '../lib/prisma';
 
 const INFLUX_URL = process.env.INFLUXDB_URL || 'http://localhost:8086';
@@ -16,36 +16,14 @@ export async function queueBuildingProvisioning(
   hardwareAuthToken: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
-  try {
-    console.log(`[PROVISIONING] Starting async provisioning for building: ${buildingId} (${buildingName})`);
-    const influxBucketName = await provisionInfluxDBBucket(buildingId, buildingName, nominalVoltage, maxCurrentThreshold);
-    await initializeIngestionService(buildingId, hardwareAuthToken, nominalVoltage, maxCurrentThreshold, influxBucketName, metadata);
-    await initializeAnalyticsService(buildingId, buildingName);
+  console.log(`PROVISIONING: gonna provision building- ${buildingId} ${buildingName}`);
+  const bucketName = await provisionInfluxDBBucket(buildingId, buildingName, nominalVoltage, maxCurrentThreshold);
+  await initializeIngestionService(buildingId, hardwareAuthToken, nominalVoltage, maxCurrentThreshold, bucketName, metadata);
+  await initializeAnalyticsService(buildingId, buildingName);
 
-    // Step 4: On success, update lifecycle_state to ACTIVE
-    await prisma.building.update({
-      where: { building_id: buildingId },
-      data: { lifecycle_state: 'ACTIVE' },
-    });
-    console.log(`[PROVISIONING] ✓ Successfully provisioned building: ${buildingId}`);
-  } catch (error) {
-    console.error(`[PROVISIONING] ✗ Failed to provision building ${buildingId}:`, error);
-
-    // Step 4: On failure, update lifecycle_state to PROVISIONING_FAILED so UI can prompt retry
-    try {
-      await prisma.building.update({
-        where: { building_id: buildingId },
-        data: { lifecycle_state: 'PROVISIONING_FAILED' },
-      });
-      console.log(`[PROVISIONING] Marked building ${buildingId} as PROVISIONING_FAILED`);
-    } catch (dbErr) {
-      console.error(`[PROVISIONING] Failed to update lifecycle_state for ${buildingId}:`, dbErr);
-    }
-
-    // Re-throw so the caller in building.services.ts can log it
-    throw error;
+  console.log(`Its working sunwuxniqjsqjsjsqijsinuidhudbcsdbcdsbc`);
   }
-}
+
 
 async function provisionInfluxDBBucket(
   buildingId: string,
@@ -60,6 +38,14 @@ async function provisionInfluxDBBucket(
     const influxClient = new InfluxDB({ url: INFLUX_URL, token: INFLUX_TOKEN });
     const bucketsAPI = new BucketsAPI(influxClient);
     //const buckets = await bucketsAPI.getBuckets();
+    const orgs = new OrgsAPI(influxClient);
+    const orgsResp = await orgs.getOrgs({
+      org: INFLUX_ORG
+    });
+
+    if(!orgsResp.orgs || orgsResp.orgs.length == 0) throw new Error("Not found");
+    const orgID = orgsResp.orgs[0].id;
+    
     const bucketConfig = {
       orgID: INFLUX_ORG,
       name: bucketName,
