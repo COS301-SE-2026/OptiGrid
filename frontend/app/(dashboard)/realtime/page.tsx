@@ -177,6 +177,8 @@ type Filter = "all" | "alerts";
 export default function RealtimePage() {
     const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
     const [filter, setFilter] = useState<Filter>("all");
+    //we track a refreshes done by the user only so that the automatic background poll does not trigger the refresh animation
+    const [isManualRefreshing, setIsManualRefreshing] = useState(false);
     const {
         data: buildings = [],
         isLoading,
@@ -199,6 +201,11 @@ export default function RealtimePage() {
     }, [dataUpdatedAt]);
     const alertCount = buildings.filter((building) => building.status !== "Normal").length;
     const isLive = !isFetching && !isLoading;
+    
+    const handleManualRefresh = () => {
+        setIsManualRefreshing(true);
+        refetch().finally(() => setIsManualRefreshing(false));
+    };
 
     // apply the active filter, then surface the heaviest consumers first
     const visibleBuildings = [...buildings]
@@ -221,8 +228,8 @@ export default function RealtimePage() {
                         </div>
                     </div>
 
-                    <button className="btn btn-secondary" onClick={() => refetch()} disabled={isFetching}>
-                        {isFetching ? "Refreshing..." : "Refresh"}
+                    <button className="btn btn-secondary" onClick={handleManualRefresh} disabled={isManualRefreshing}>
+                        {isManualRefreshing ? "Refreshing..." : "Refresh"}
                     </button>
                 </div>
             </div>
