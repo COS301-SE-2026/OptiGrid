@@ -479,6 +479,31 @@ describe('compareBuildingsService', () => {
 		expect(result.mostEfficient).toBe(buildingB);
 	});
 
+	it('uses_normalized_influx_usage_and_cost_totals', async () => {
+		// arrange
+		(mockedPrisma as any).userBuildingAccess = { findFirst: jest.fn() };
+		(mockedPrisma as any).userBuildingAccess.findFirst.mockResolvedValueOnce({ user_id: mockUserId, building_id: buildingA });
+		(mockedPrisma as any).userBuildingAccess.findFirst.mockResolvedValueOnce({ user_id: mockUserId, building_id: buildingB });
+		(mockedPrisma as any).building = {
+			findUnique: jest.fn()
+				.mockResolvedValueOnce({ building_id: buildingA, square_footage: 1000, building_name: 'A Tower' })
+				.mockResolvedValueOnce({ building_id: buildingB, square_footage: 2000, building_name: 'B Plaza' }),
+		};
+		mockedInflux.queryTotalKwh
+			.mockResolvedValueOnce({ total_kwh: 5000, total_cost_usd: 200, total_cost_zar: 3600 })
+			.mockResolvedValueOnce({ total_kwh: 4000, total_cost_usd: 150, total_cost_zar: 0 });
+
+		// act
+		const result = await compareBuildingsService(mockUserId, buildingA, buildingB, '30d');
+
+		// assert
+		expect(result.buildingA.total_kwh).toBe(5000);
+		expect(result.buildingA.total_cost_zar).toBe(3600);
+		expect(result.buildingA.total_cost_usd).toBe(200);
+		expect(result.buildingA.cost_per_kwh).toBe(0.72);
+		expect(result.buildingB.total_cost_zar).toBe(150);
+	});
+
 	it('authorization_error_when_user_has_no_access_and_influx_not_called', async () => {
 		// arrange
 		(mockedPrisma as any).userBuildingAccess = {
