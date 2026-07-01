@@ -29,7 +29,6 @@ type BuildingsResponse = {
 
 // how often we poll the API for fresh readings. I have it currentlt at 10 seconds
 const REFETCH_MILLISECONDS = 10_000;
-const REFRESH_SECONDS = REFETCH_MILLISECONDS / 1000;
 
 // this maps each status to its badge class and its accent colour
 const STATUS_STYLES: Record<BuildingStatus, { badge: string; color: string }> = {
@@ -176,7 +175,6 @@ function BuildingCard({ building, updatedAt }: { building: Building; updatedAt: 
 type Filter = "all" | "alerts";
 
 export default function RealtimePage() {
-    const [secondsLeft, setSecondsLeft] = useState(REFRESH_SECONDS);
     const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
     const [filter, setFilter] = useState<Filter>("all");
     const {
@@ -193,26 +191,14 @@ export default function RealtimePage() {
         refetchInterval: REFETCH_MILLISECONDS,
     });
 
-    // whenever new data lands, stamp the time and restart the countdown
+    //whenever new data lands, we stamp the time it arrived at
     useEffect(() => {
         if (dataUpdatedAt) {
             setLastRefreshedAt(new Date(dataUpdatedAt));
-            setSecondsLeft(REFRESH_SECONDS);
         }
     }, [dataUpdatedAt]);
-
-    //tick the "next refresh in Ns" countdown once every second
-    useEffect(() => {
-        const intervalId = setInterval(
-            () => setSecondsLeft((remaining) => Math.max(0, remaining - 1)),
-            1000,
-        );
-        return () => clearInterval(intervalId);
-    }, []);
-
     const alertCount = buildings.filter((building) => building.status !== "Normal").length;
     const isLive = !isFetching && !isLoading;
-    const countdownPercent = (secondsLeft / REFRESH_SECONDS) * 100;
 
     // apply the active filter, then surface the heaviest consumers first
     const visibleBuildings = [...buildings]
@@ -229,7 +215,7 @@ export default function RealtimePage() {
                             <h1 className="dashboard-title">Live readings</h1>
                             <p className="dashboard-subtitle">
                                 {lastRefreshedAt
-                                    ? `Updated ${formatTime(lastRefreshedAt)} · next refresh in ${secondsLeft}s`
+                                    ? `Last updated ${formatTime(lastRefreshedAt)}`
                                     : "Connecting..."}
                             </p>
                         </div>
@@ -238,10 +224,6 @@ export default function RealtimePage() {
                     <button className="btn btn-secondary" onClick={() => refetch()} disabled={isFetching}>
                         {isFetching ? "Refreshing..." : "Refresh"}
                     </button>
-                </div>
-                {/* Drains toward zero as the next auto-refresh approaches */}
-                <div className="live-progress" aria-hidden="true">
-                    <span style={{ width: `${countdownPercent}%` }} />
                 </div>
             </div>
             {isLoading ? (
