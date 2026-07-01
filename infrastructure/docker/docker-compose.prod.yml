@@ -84,7 +84,8 @@ services:
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      INGESTION_API_URL: http://ingestion-api:8000/ingest
+      INGESTION_API_URL: http://ingestion-api:8000
+      ANALYTICS_API_URL: http://analytics:5001
       DATABASE_URL: ${DATABASE_URL}
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}

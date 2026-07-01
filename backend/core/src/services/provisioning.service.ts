@@ -5,7 +5,6 @@ import prisma from '../lib/prisma';
 const INFLUX_URL = process.env.INFLUX_URL || process.env.INFLUXDB_URL || 'http://influxdb:8086';
 const INFLUX_TOKEN = process.env.INFLUXDB_TOKEN || '';
 const INFLUX_ORG = process.env.INFLUXDB_ORG || 'OptiGrid';
-//const INFLUX_BUCKET_PREFIX = process.env.INFLUX_BUCKET_PREFIX || 'building_';
 const DATA_RETENTION_DAYS = 30;
 
 export async function queueBuildingProvisioning(
@@ -20,8 +19,6 @@ export async function queueBuildingProvisioning(
   const bucketName = await provisionInfluxDBBucket(buildingId, buildingName, nominalVoltage, maxCurrentThreshold);
   await initializeIngestionService(buildingId, hardwareAuthToken, nominalVoltage, maxCurrentThreshold, bucketName, metadata);
   await initializeAnalyticsService(buildingId, buildingName);
-
-  console.log(`Its working sunwuxniqjsqjsjsqijsinuidhudbcsdbcdsbc`);
   }
 
 
@@ -45,7 +42,6 @@ async function provisionInfluxDBBucket(
 
     if(!orgsResp.orgs || orgsResp.orgs.length == 0) throw new Error("Not found");
     const orgID = orgsResp.orgs[0].id;
-    
     const bucketConfig = {
       orgID: orgID as string,
       name: bucketName,
@@ -109,7 +105,7 @@ async function initializeIngestionService(
       throw new Error(`Ingestion service returned ${response.status}: ${response.statusText}`);
     }
 
-    console.log(`[INGESTION] ✓ Initialized ingestion service for building: ${buildingId}`);
+    console.log(`[INGESTION] Initialized ingestion service for building: ${buildingId}`);
   } catch (error) {
     console.error(`[INGESTION] Failed to initialize ingestion for building ${buildingId}:`, error);
     throw new Error(`Ingestion initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -139,7 +135,7 @@ async function initializeAnalyticsService(
       throw new Error(`Analytics service returned ${response.status}: ${response.statusText}`);
     }
 
-    console.log(`[ANALYTICS] ✓ Initialized analytics service for building: ${buildingId}`);
+    console.log(`[ANALYTICS] Initialized analytics service for building: ${buildingId}`);
   } catch (error) {
     console.error(`[ANALYTICS] Failed to initialize analytics for building ${buildingId}:`, error);
     throw new Error(`Analytics initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
