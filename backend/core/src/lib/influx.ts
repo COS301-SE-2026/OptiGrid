@@ -7,7 +7,7 @@ catch (err) {
     InfluxDB = undefined;
 }
 
-const url = process.env.INFLUXDB_URL || 'http://localhost:8086';
+const url = process.env.INFLUX_URL || process.env.INFLUXDB_URL || 'http://influxdb:8086';
 const token = process.env.INFLUXDB_TOKEN || 'example-token';
 const org = process.env.INFLUXDB_ORG || 'optigrid';
 //this is gonna be a fallback bucket
