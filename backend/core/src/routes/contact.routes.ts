@@ -25,15 +25,15 @@ const router = Router();
  *               inquiryType:
  *                 type: string
  *                 description: Category for the support request.
- *                 example: Building
+ *                 example: "Building"
  *               subject:
  *                 type: string
  *                 description: Email subject.
- *                 example: Cannot create a building
+ *                 example: "Cannot create a building"
  *               message:
  *                 type: string
  *                 description: Summary of the issue.
- *                 example: I cannot create a building and need help.
+ *                 example: "I cannot create a building and need help."
  *     responses:
  *       200:
  *         description: Ticket email accepted.
@@ -47,11 +47,11 @@ const router = Router();
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: Recieved the ticket
+ *                   example: "Ticket Received"
  *                 id:
  *                   type: string
  *                   description: Email provider id for the submitted ticket.
- *                   example: 5b304c4f-1234-5f56-4321-8dcb76cd1123
+ *                   example: "5b304c4f-1234-5f56-4321-8dcb76cd1123"
  *       400:
  *         description: Validation failure or email provider error.
  *         content:
