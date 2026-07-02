@@ -13,7 +13,8 @@ export const checkIdempotencyKey = async (key: string) => {
     if (cachedResponse) {
       return JSON.parse(cachedResponse);
     }
-  } catch (error) {
+  } catch (error: any) {
+    if(error instanceof SyntaxError || error.name === "Syntax Error") throw error;
     console.warn('[IDEMPOTENCY] Redis unavailable for checkIdempotencyKey, allowing request through:', error);
   }
   return null; 

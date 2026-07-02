@@ -88,7 +88,7 @@ export const createBuilding = async (
       );
     } 
      catch (error:any) {
-      throw new Error(`Failed to queue provisioning for building ${newBuilding.building_id}`);
+      throw new Error(`Failed to queue provisioning for building ${newBuilding.building_id}:`, error);
     } 
 
     return {
