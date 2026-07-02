@@ -8,18 +8,18 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 
 try:
     from backend.ingestion.src.config import (
-        INFLUX_BUCKET,
-        INFLUX_ORG,
-        INFLUX_TOKEN,
-        INFLUX_URL,
+        INFLUXDB_BUCKET,
+        INFLUXDB_ORG,
+        INFLUXDB_TOKEN,
+        INFLUXDB_URL,
         require_influx_config,
     )
 except ModuleNotFoundError:
     from config import (  # type: ignore
-        INFLUX_BUCKET,
-        INFLUX_ORG,
-        INFLUX_TOKEN,
-        INFLUX_URL,
+        INFLUXDB_BUCKET,
+        INFLUXDB_ORG,
+        INFLUXDB_TOKEN,
+        INFLUXDB_URL,
         require_influx_config,
     )
 
@@ -29,7 +29,7 @@ def emulate_sensor():
     #mock buidlings with their sensors and meters
     require_influx_config()
 
-    client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
+    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
     write_api = client.write_api(write_options=SYNCHRONOUS)
     building_profiles = [
         {"b_id": "building-001", "m_id": "meter-001", "s_id": "sensor-001"}, 
@@ -64,7 +64,7 @@ def emulate_sensor():
                 .time(datetime.utcnow(), WritePrecision.NS)
                 
             points_batch.append(point)
-        write_api.write(bucket=INFLUX_BUCKET, record=points_batch)
+        write_api.write(bucket=INFLUXDB_BUCKET, record=points_batch)
             
         print("Batch transmission complete. Waiting 2 seconds...")
         time.sleep(2) #waiting before next batch

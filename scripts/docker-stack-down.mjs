@@ -10,7 +10,31 @@ function run(cmd) {
   execSync(cmd, { stdio: "inherit", cwd: root });
 }
 
-if (existsSync(composeLocal) && existsSync(envLocal)) {
-  run(`docker compose -f "${composeLocal}" --env-file "${envLocal}" down`);
+function runQuiet(cmd) {
+  try {
+    execSync(cmd, { stdio: "pipe", cwd: root });
+    return true;
+  } catch {
+    return false;
+  }
 }
-run("docker image prune -f");
+
+if (existsSync(composeLocal) && existsSync(envLocal)) {
+  console.log("Stopping Docker Compose stack...");
+  run(`docker compose -f "${composeLocal}" --env-file "${envLocal}" down --remove-orphans`);
+  
+  console.log("Removing unused networks...");
+  run(`docker compose -f "${composeLocal}" --env-file "${envLocal}" down --remove-orphans --volumes`);
+}
+
+console.log("Cleaning up Docker resources...");
+runQuiet("docker network prune -f");
+runQuiet("docker container prune -f");
+
+try {
+  execSync("lsof -ti :8000", { stdio: "pipe" });
+  console.warn("Warning: Port 8000 still appears to be in use outside Docker.");
+  console.warn("You may need to run: sudo kill -9 $(lsof -ti :8000)");
+} catch {
+  console.log("Port 8000 is free");
+}

@@ -283,10 +283,14 @@ async function provisionOrResolveAuthUser(email: string, password: string): Prom
 //This function is used for the signup logic
 export const signup = async (email: string, password: string, name: string) => {
     //we check if user exists, and if so he should login
-    const userExists = await prisma.user.findUnique({ where: { email } });
+    const userExists = await prisma.user.findUnique({
+        where: { email },
+        select: { userId: true },
+    });
     if (userExists) throw new Error(USER_EXISTS_ERROR);
 
-    //we split name and then add to users table
+    // //we hash passwords, split name and then add to users table
+    // const hashPass = await hashPassword(password);
     const [firstName = '', ...otherNames] = name.trim().split(/\s+/);
     const lastName = otherNames.join(' ');
 

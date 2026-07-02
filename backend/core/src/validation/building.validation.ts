@@ -17,9 +17,15 @@ export const createBuildingSchema = z.object({
         .optional(),
 
     //validate physical address, 
-    physical_address: z.string().trim()
+    physical_address: z.string()
         .min(5, "Address must be at least 5 characters")
         .max(500, "Address is too long")
+        .optional(),
+    nominal_voltage: z.number()
+        .positive("Nominal voltage must be a positive number")
+        .optional(),
+    max_current_threshold: z.number()
+        .positive("Max current threshold must be a positive number")
         .optional(),
     
 }).strict();
@@ -53,7 +59,7 @@ export const updateBuildingSchema = z.object({
         .int("Max occupancy must be a whole number i.e. 0, 1, 2, etc.")
         .positive("Max occupancy must be greater than 0")
         .optional(),
-    physical_address: z.string().trim()
+    physical_address: z.string()
         .min(5, "Address must be at least 5 characters")
         .max(500, "Address is too long")
         .optional(),

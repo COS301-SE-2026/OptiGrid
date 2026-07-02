@@ -1,17 +1,22 @@
 import prisma from '../lib/prisma';
 import { Building, BuildingType } from '@prisma/client';
-import { queryTotalKwh } from '../lib/influx'; 
+import { queryTotalKwh } from '../lib/influx';
+import crypto from 'crypto';
+import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
 
 
 // handle building creation, updating, deletion, and others here
 export interface buildingPayload {
-  tenant_id?: string; 
+  tenant_id?: string;
   building_name: string;
-  building_type?: BuildingType; 
+  building_type?: BuildingType;
   square_footage?: number;
   physical_address?: string;
   timezone?: string;
   max_occupancy?: number;
+  nominal_voltage?: number;
+  max_current_threshold?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface updateBuildingPayload {
@@ -23,14 +28,21 @@ export interface updateBuildingPayload {
   max_occupancy?: number;
 }
 
+function generateHardwareAuthToken(buildingId: string): string {
+  const randomBytes = crypto.randomBytes(32);
+  const encoded = randomBytes.toString('base64').replace(/[+/=]/g, (c) => {
+    const map: Record<string, string> = { '+': '-', '/': '_', '=': '' };
+    return map[c] || c;
+  });
+  return `optigrid_${encoded}_${buildingId}`;
+}
+
 export const createBuilding = async (
-  userId: string, 
+  userId: string,
   payload: buildingPayload
 ) => {
-  // we ensure we have a prisma transaction for data integrity
   return await prisma.$transaction(async (tx) => {
-    
-    //create the building row 
+    // create building 
     const newBuilding = await tx.building.create({
       data: {
         tenant_id: payload.tenant_id,
@@ -39,11 +51,23 @@ export const createBuilding = async (
         square_footage: payload.square_footage,
         physical_address: payload.physical_address,
         timezone: payload.timezone || 'UTC',
-        max_occupancy: payload.max_occupancy
+        max_occupancy: payload.max_occupancy,
+        nominal_voltage: payload.nominal_voltage ?? 230,
+        max_current_threshold: payload.max_current_threshold ?? 60,
+        lifecycle_state: 'PROVISIONING',
       },
     });
 
-    // grant access to the user who created the building
+    // Generate the hardware auth token deterministically linked to the building UUID
+    const finalHardwareAuthToken = generateHardwareAuthToken(newBuilding.building_id);
+
+    // Persist the hardware_auth_token back to the building record
+    await tx.building.update({
+      where: { building_id: newBuilding.building_id },
+      data: { hardware_auth_token: finalHardwareAuthToken },
+    });
+    
+    //ensure we give access
     await tx.userBuildingAccess.create({
       data: {
         user_id: userId,
@@ -51,7 +75,30 @@ export const createBuilding = async (
       },
     });
 
-    return newBuilding;
+    // we try to await this and not set it immediately
+    //this way prisma transaction rolls back n no supabase isseu arise
+    try  {
+      await queueBuildingProvisioning(
+        newBuilding.building_id,
+        newBuilding.building_name,
+        payload.nominal_voltage ?? 230,
+        payload.max_current_threshold ?? 60,
+        finalHardwareAuthToken,
+        payload.metadata
+      );
+    } 
+     catch (error:any) {
+      throw new Error(`Failed to queue provisioning for building ${newBuilding.building_id}:`, error);
+    } 
+
+    return {
+      ...newBuilding,
+      hardware_auth_token: finalHardwareAuthToken,
+      nominal_voltage: payload.nominal_voltage ?? 230,
+      max_current_threshold: payload.max_current_threshold ?? 60,
+      lifecycle_state: 'ACTIVE',
+      message: 'Building created. Infrastructure provisioning queued asynchronously.'
+    };
   });
 };
 
@@ -105,9 +152,9 @@ export const updateBuildingService = async (
 
 //handles logic to comapre buildings
 export const compareBuildingsService = async (
-  userId: string, 
-  buildingId_1: string, 
-  buildingId_2: string, 
+  userId: string,
+  buildingId_1: string,
+  buildingId_2: string,
   timeRange: string
 ) => {
   //we ensure user has acess to both buildings
@@ -139,11 +186,11 @@ export const compareBuildingsService = async (
   // we calculate metrics such as EUI, cost per sq ft and cost per kwh, ensuring no division by 0
   const calculateMetrics = (building: Building, influxData: any) => {
     const totalKwh = typeof influxData === 'number' ? influxData : influxData.total_kwh;
-    const totalCostZar = typeof influxData === 'number' ? 0 : (influxData.total_cost_zar || influxData.total_cost_usd || 0);    
+    const totalCostZar = typeof influxData === 'number' ? 0 : (influxData.total_cost_zar || influxData.total_cost_usd || 0);
     const sqFt = Number(building.square_footage);
     const hasSquareFootage = Number.isFinite(sqFt) && sqFt > 0;
     const eui = hasSquareFootage ? totalKwh / sqFt : null;
-    
+
     return {
       building_id: building.building_id,
       name: building.building_name,
@@ -190,7 +237,7 @@ export const deleteBuildingService = async (userId: string, buildingId: string) 
     },
   });
 
-  if(!accessRecord){
+  if (!accessRecord) {
     throw new Error("Access Denied: You do not have permission to delete the buidling.")
   }
 
@@ -201,5 +248,8 @@ export const deleteBuildingService = async (userId: string, buildingId: string) 
       building_id: buildingId,
     },
   });
+  //ensure we delete bucket in influx as well
+  await deleteInfluxBucket(buildingId);
+
   return deletedBuidling;
 };
