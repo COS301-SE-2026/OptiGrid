@@ -1,9 +1,7 @@
 import prisma from '../../../backend/core/src/lib/prisma';
-import { createBuilding, buildingPayload } from '../../../backend/core/src/services/building.services';
+import { createBuilding, buildingPayload, compareBuildingsService, deleteBuildingService } from '../../../backend/core/src/services/building.services';
 import { BuildingType } from '@prisma/client';
-import { compareBuildingsService } from '../../../backend/core/src/services/building.services';
-import { deleteBuildingService } from '../../../backend/core/src/services/building.services';
-
+import { deleteInfluxBucket } from "../../../backend/core/src/services/provisioning.service"
 // Mock Prisma with 
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	__esModule: true,
@@ -32,6 +30,7 @@ jest.mock('../../../backend/core/src/lib/influx', () => ({
 jest.mock('../../../backend/core/src/services/provisioning.service', () => ({
 	__esModule: true,
 	queueBuildingProvisioning: jest.fn().mockResolvedValue(undefined),
+	deleteInfluxBucket: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockedInflux = require('../../../backend/core/src/lib/influx') as {
@@ -103,7 +102,7 @@ describe('Building Services, happy path', () => {
 		expect(result.timezone).toBe('America/New_York');
 		expect(result.nominal_voltage).toBe(230);
 		expect(result.max_current_threshold).toBe(60);
-		expect(result.lifecycle_state).toBe('PROVISIONING');
+		expect(result.lifecycle_state).toBe('ACTIVE');
 		expect(result.hardware_auth_token).toBeTruthy();
 		expect(result.hardware_auth_token).toContain('optigrid_');
 		expect(mockTx.building.update).toHaveBeenCalled();
@@ -204,7 +203,7 @@ describe('Building Services, happy path', () => {
 			expect(result.tenant_id).toBe(mockTenantId);
 			expect(result.building_name).toBe('Minimal Building');
 			expect(result.hardware_auth_token).toBeTruthy();
-			expect(result.lifecycle_state).toBe('PROVISIONING');
+			expect(result.lifecycle_state).toBe('ACTIVE');
 		});
 
 		it('should grant user access to the created building', async () => {
