@@ -172,6 +172,8 @@ jobs:
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
+        with: 
+          version: 2.100.1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
