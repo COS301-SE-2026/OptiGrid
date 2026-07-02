@@ -1,15 +1,16 @@
 import { Router } from "express";
 import { handleSubmit } from "../controllers/contact.controller";
-import router from "./user_auth.routes";
+
+const router = Router();
 
 /**
  * @swagger
  * /api/contact:
  *   post:
- *     summary: Submit a new ticket for support
- *     description: This takes a users' request for help and sends it as an email to our email via Resend API
+ *     summary: Submit a support ticket
+ *     description: Sends a contact/support request email through Resend.
  *     tags:
- *       - Suport
+ *       - Support
  *     requestBody:
  *       required: true
  *       content:
@@ -17,42 +18,42 @@ import router from "./user_auth.routes";
  *           schema:
  *             type: object
  *             required:
- *               - inquiryTYpe
+ *               - inquiryType
  *               - subject
  *               - message
  *             properties:
  *               inquiryType:
  *                 type: string
- *                 description: Under which category the request falls under.
+ *                 description: Category for the support request.
  *                 example: "Building"
  *               subject:
  *                 type: string
- *                 description: The subject of the email.
- *                 example: "Can not create a building"
+ *                 description: Email subject.
+ *                 example: "Cannot create a building"
  *               message:
  *                 type: string
  *                 description: Summary of the issue.
- *                 example: "I can not create a building, I do not know what is the issue."
+ *                 example: "I cannot create a building and need help."
  *     responses:
- *       '200':
- *         description: Email succesfully received.
+ *       200:
+ *         description: Ticket email accepted.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 success: 
+ *                 success:
  *                   type: boolean
  *                   example: true
- *                 message: 
+ *                 message:
  *                   type: string
- *                   example: "Ticket Recieved"
- *                 id: 
+ *                   example: "Ticket Received"
+ *                 id:
  *                   type: string
- *                   description: Unique id of each email to differentiate and search for them.
+ *                   description: Email provider id for the submitted ticket.
  *                   example: "5b304c4f-1234-5f56-4321-8dcb76cd1123"
- *       '400':
- *         description: Validation failure/API error
+ *       400:
+ *         description: Validation failure or email provider error.
  *         content:
  *           application/json:
  *             schema:
@@ -65,5 +66,6 @@ import router from "./user_auth.routes";
  *                   type: string
  *                   example: "Failed to send: API key is missing or invalid"
  */
-router.post('/', handleSubmit);
+router.post("/", handleSubmit);
+
 export default router;

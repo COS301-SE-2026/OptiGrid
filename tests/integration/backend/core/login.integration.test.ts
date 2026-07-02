@@ -80,8 +80,7 @@ describe('Login integration', () => {
 		expect(response.body.message).toBe('Email and password are required fields.');
 	});
 
-	it('returns 500 when Supabase auth succeeds but the local profile is missing', async () => {
-		const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+	it('repairs the local profile when Supabase auth succeeds but the profile is missing', async () => {
 		const signupPayload = {
 			email: uniqueEmail('missing-profile'),
 			password: 'StrongPass123!',
@@ -95,21 +94,32 @@ describe('Login integration', () => {
 		await client.connect();
 		try {
 			await client.query('delete from users where user_id = $1', [signupResponse.body.user.userId]);
-		} finally {
-			await client.end();
-		}
-
-		let response: request.Response;
-		try {
-			response = await request(harness.app).post('/auth/login').send({
+			const response = await request(harness.app).post('/auth/login').send({
 				email: signupPayload.email,
 				password: signupPayload.password,
 			});
-		} finally {
-			consoleErrorSpy.mockRestore();
-		}
 
-		expect(response.status).toBe(500);
-		expect(response.body.message).toBe('Internal server error');
+			expect(response.status).toBe(200);
+			expect(response.body.user).toEqual({
+				userId: signupResponse.body.user.userId,
+				email: signupPayload.email,
+				firstName: '',
+				lastName: '',
+			});
+			expect(response.body.accessToken).toEqual(expect.any(String));
+
+			const repairedProfile = await client.query('select user_id, email, first_name, last_name from users where user_id = $1', [
+				signupResponse.body.user.userId,
+			]);
+			expect(repairedProfile.rowCount).toBe(1);
+			expect(repairedProfile.rows[0]).toEqual({
+				user_id: signupResponse.body.user.userId,
+				email: signupPayload.email,
+				first_name: '',
+				last_name: '',
+			});
+		} finally {
+			await client.end();
+		}
 	});
 });
