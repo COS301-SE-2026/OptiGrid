@@ -84,6 +84,9 @@ describe('signup service', () => {
 		// Assert: auth user is provisioned first, then app profile is upserted with same user id.
 		expect(mockedPrisma.user.findUnique).toHaveBeenCalledWith({
 			where: { email: 'user@example.com' },
+			select: {
+				userId: true,
+			},
 		});
 		expect(mockCreateUser).toHaveBeenCalledWith({
 			email: 'user@example.com',

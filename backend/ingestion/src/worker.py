@@ -60,11 +60,16 @@ def main() -> None:
                 except (ValueError, TypeError):
                     cost_usd = 0.0
 
-                # def time series metric name
-                metric_name = "building_energy_usage"
+                bucket_name = influx_bucket
+                if building_id and building_id != "unknown_building":
+                    try:
+                        building_meta = r.hgetall(f"building:{building_id}") or {}
+                        bucket_name = building_meta.get("influx_bucket") or bucket_name
+                    except Exception as e:
+                        print(f"[ingestion-worker] Warning: failed to load metadata for building {building_id}: {e}")
 
                 # constructing InfluxDB Timeseries Point with tags and multiple fields
-                point = Point(metric_name) \
+                point = Point("energy_consumption") \
                     .tag("sensor_id", sensor_id) \
                     .tag("building_id", building_id) \
                     .tag("meter_id", meter_id) \
@@ -73,7 +78,7 @@ def main() -> None:
                     .field("cost_usd", cost_usd)
                 
                 # write to influx
-                write_api.write(bucket=influx_bucket, org=influx_org, record=point)
+                write_api.write(bucket=bucket_name, org=influx_org, record=point)
                 print(f"[ingestion-worker] Processed telemetry point -> {sensor_id}: Usage: {usage_kwh}kWh, Cost: ${cost_usd}")
         except redis.exceptions.ConnectionError:
             print("[ingestion-worker] Lost database connection. Re trying in 5s...")
@@ -84,7 +89,7 @@ def main() -> None:
     #cleanup on shutdown
     print("[ingestion-worker] Disconnecting system integration hooks")
     influx_client.close()
-    print("[ingestion-worker] System stopped.")\
+    print("[ingestion-worker] System stopped.")
         
 if __name__ == "__main__":
     main()

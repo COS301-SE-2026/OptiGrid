@@ -124,7 +124,7 @@ export const getForecastController = async (req: Request, res: Response) => {
                 Prisma.sql`
                     SELECT *
                     FROM public.building_analytics
-                    WHERE building_id LIKE 'building-%'
+                    WHERE building_id::text LIKE 'building-%'
                     ORDER BY building_id ASC
                 `,
             );
