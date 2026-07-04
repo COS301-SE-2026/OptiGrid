@@ -28,17 +28,46 @@ except Exception as e:
 class AnalyticsEngine:
     def __init__(self):
         #initialising dbs
-        self.influx = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
+        self.influx = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
         self.supabase: Optional[Client] = None
         try:
             self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         except Exception as e:
             logger.warning(f"Supabase client initialisation failed; analytics writes disabled: {e}")
         
+    
+    def register_new_building(self, building_id: str) -> bool:
+        """
+        Instantiates atomic placeholder rows inside your building_analytics database.
+        This provides instant baseline data for charts and prevents frontend component crashes.
+        """
+        logger.info(f"Received analytics initialization signal for building identifier: {building_id}")
+        try:
+            if self.supabase is not None:
+                initial_state = {
+                    "building_id": building_id,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "todays_usage": 0.0,
+                    "todays_cost": 0.0,
+                    "forecast_peak": 0.0,
+                    "forecast_avg_day": 0.0,
+                    "model_mape": 0.0,
+                    "forecast_series": []
+                }
+                self.supabase.table("building_analytics").upsert(initial_state).execute()
+                logger.info(f"Successfully generated analytical layout space for building: {building_id}")
+                return True
+            else:
+                logger.warning("Supabase target manager client is offline. Registration bypassed.")
+                return False
+        except Exception as e:
+            logger.error(f"Error executing provisioning cycle logic for {building_id}: {str(e)}")
+            raise e
+    
     def fetch_telemetry(self, building_id: str) -> pd.DataFrame:
         #fetching raw data from influx for the last 30 days
         query = f'''
-        from(bucket: "{INFLUX_BUCKET}") 
+        from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -30d) 
             |> filter(fn: (r) => r["building_id"] == "{building_id}")
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
@@ -196,7 +225,7 @@ class AnalyticsEngine:
     def process_all_buildings(self):
         #gets data for all buildings for the last 24 hours
         query = f'''
-        from(bucket: "{INFLUX_BUCKET}") 
+        from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -7d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")

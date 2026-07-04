@@ -21,6 +21,12 @@ export const createBuildingSchema = z.object({
         .min(5, "Address must be at least 5 characters")
         .max(500, "Address is too long")
         .optional(),
+    nominal_voltage: z.number()
+        .positive("Nominal voltage must be a positive number")
+        .optional(),
+    max_current_threshold: z.number()
+        .positive("Max current threshold must be a positive number")
+        .optional(),
     latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90").optional(),
     longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180").optional(),
     geohash: z.string().min(5).max(10, "Geohash must be between 5 and 10").optional(),
@@ -55,7 +61,7 @@ export const updateBuildingSchema = z.object({
         .int("Max occupancy must be a whole number i.e. 0, 1, 2, etc.")
         .positive("Max occupancy must be greater than 0")
         .optional(),
-    physical_address: z.string().trim()
+    physical_address: z.string()
         .min(5, "Address must be at least 5 characters")
         .max(500, "Address is too long")
         .optional(),

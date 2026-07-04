@@ -46,7 +46,7 @@ export default function HelpPage() {
                     </Link>
                     <div className="landing-nav-actions">
                         <Link href="/dashboard" className="btn btn-primary">
-                            ← Back to dashboard
+                            Back to dashboard
                         </Link>
                     </div>
                 </div>

@@ -1,7 +1,17 @@
 import { Resend } from "resend";
 
-const api = process.env.NODE_ENV === "test" ? "dummy" : process.env.RESEND_API_KEY;
-const resend = new Resend(api);
+let resend: Resend | undefined;
+
+function getResendClient(): Resend {
+    const api = process.env.NODE_ENV === "test" ? "dummy" : process.env.RESEND_API_KEY;
+
+    if (!api) {
+        throw new Error("Missing RESEND_API_KEY. Set it to enable contact email.");
+    }
+
+    resend ??= new Resend(api);
+    return resend;
+}
 
 //data we need to pass through
 export interface Contact{
@@ -13,6 +23,7 @@ export interface Contact{
 export const contactService = {
     sendMail: async (data: Contact) => {
         const { inquiryType, subject, message } = data;
+        const resendClient = getResendClient();
 
         const emailLoad = {
             from: "OptiGrid Support <onboarding@resend.dev>",
@@ -27,7 +38,7 @@ export const contactService = {
             <p>${message}</p>`,
         };
 
-        const resendResp = await resend.emails.send(emailLoad);
+        const resendResp = await resendClient.emails.send(emailLoad);
         const responseData = resendResp?.data;
         const error = resendResp?.error;
 

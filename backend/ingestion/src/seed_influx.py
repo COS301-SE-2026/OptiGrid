@@ -7,25 +7,25 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 
 try:
     from backend.ingestion.src.config import (
-        INFLUX_BUCKET,
-        INFLUX_ORG,
-        INFLUX_TOKEN,
-        INFLUX_URL,
+        INFLUXDB_BUCKET,
+        INFLUXDB_ORG,
+        INFLUXDB_TOKEN,
+        INFLUXDB_URL,
         require_influx_config,
     )
 except ModuleNotFoundError:
     from config import (  # type: ignore
-        INFLUX_BUCKET,
-        INFLUX_ORG,
-        INFLUX_TOKEN,
-        INFLUX_URL,
+        INFLUXDB_BUCKET,
+        INFLUXDB_ORG,
+        INFLUXDB_TOKEN,
+        INFLUXDB_URL,
         require_influx_config,
     )
 
 def seed_building_intervals(days_back: int = 30):
     require_influx_config()
 
-    client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
+    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
     write_api = client.write_api(write_options=SYNCHRONOUS)
     print("Generating historic telemetry data for building")
     start_time = datetime.utcnow() - timedelta(days=days_back)
@@ -62,12 +62,12 @@ def seed_building_intervals(days_back: int = 30):
         
         #flush to influx when buffer hits 6000 items (2000 time steps x 3 buildings)
         if len(points_buffer) >= 6000:
-            write_api.write(bucket=INFLUX_BUCKET, record=points_buffer)
+            write_api.write(bucket=INFLUXDB_BUCKET, record=points_buffer)
             total_points += len(points_buffer)
             points_buffer = []
     #write any remaining data points
     if points_buffer:
-        write_api.write(bucket=INFLUX_BUCKET, record=points_buffer)
+        write_api.write(bucket=INFLUXDB_BUCKET, record=points_buffer)
         total_points += len(points_buffer)
 
     client.close()
