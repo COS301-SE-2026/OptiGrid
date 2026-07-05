@@ -33,7 +33,7 @@ services:
       DOCKER_INFLUXDB_INIT_PASSWORD: pass1234
       DOCKER_INFLUXDB_INIT_ORG: OptiGrid
       DOCKER_INFLUXDB_INIT_BUCKET: EnergyData
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: token-1234
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: dummy
     volumes:
       - ./infrastructure/docker/.data/influxdb:/var/lib/influxdb2
     healthcheck:

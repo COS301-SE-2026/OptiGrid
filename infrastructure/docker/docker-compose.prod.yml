@@ -10,6 +10,8 @@ services:
 
   influxdb:
     image: influxdb:2.7-alpine
+    ports:
+      - "8086:8086"
     restart: unless-stopped
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
@@ -19,10 +21,10 @@ services:
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
     healthcheck:
-      test: ["CMD", "influx", "ping"]
-      interval: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 5s
       timeout: 5s
-      retries: 12
+      retries: 5
     volumes:
       - influxdb_data:/var/lib/influxdb2
 
@@ -82,15 +84,17 @@ services:
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      INGESTION_API_URL: http://ingestion-api:8000/ingest
+      INGESTION_API_URL: http://ingestion-api:8000
+      ANALYTICS_API_URL: http://analytics:5001
       DATABASE_URL: ${DATABASE_URL}
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-      INFLUXDB_URL: ${INFLUXDB_URL}
-      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
-      INFLUXDB_ORG: ${INFLUXDB_ORG}
-      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: dummy
+      INFLUXDB_ORG: OptiGrid
+      INFLUXDB_BUCKET: EnergyData
+      RESEND_API_KEY: ${RESEND_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
@@ -135,6 +139,9 @@ services:
   analytics:
     image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
     restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "backend.analytics.src.main:app", "--host", "0.0.0.0", "--port", "5001"]
+    ports:
+      - "5001:5001"
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}

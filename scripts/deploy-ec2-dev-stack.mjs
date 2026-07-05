@@ -411,7 +411,7 @@ function createSourceArchive() {
       "--exclude=.next",
       "--exclude=frontend/.next",
       "--exclude=dist",
-      "--exclude=backend/core/dist",
+      //"--exclude=backend/core/dist",
       "--exclude=.codex-runtime",
       "--exclude=playwright-report",
       "--exclude=test-results",

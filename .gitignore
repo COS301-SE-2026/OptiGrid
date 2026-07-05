@@ -76,3 +76,5 @@ scripts/run-core-integration.mjs
 
 infrastructure/docker/.data/
 infrastructure/docker/.generated/
+
+.mypy_cache/
