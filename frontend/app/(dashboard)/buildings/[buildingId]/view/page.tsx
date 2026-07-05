@@ -74,13 +74,12 @@ export default function ViewBuildingPage({
                     setBuilding(foundBuilding);
                 }
             } catch (err) {
-                if (isMounted) {
-                    setError(
-                        err instanceof Error
-                            ? err.message
-                            : "Unable to load building details."
-                    );
-                }
+   
+
+    if (isMounted) {
+        setError("Unable to load building details.");
+    }
+
             } finally {
                 if (isMounted) {
                     setLoading(false);
