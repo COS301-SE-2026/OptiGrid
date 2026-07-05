@@ -1,108 +1,171 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
 
-type Building = {
+type BuildingRecord = {
+    building_id: string;
     building_name: string;
-    building_type: string;
-    physical_address: string;
-    square_footage: number | string;
-    max_occupancy: number | string;
-    timezone: string;
-    geohash: string;
-    latitude: number | string;
-    longitude: number | string;
+    physical_address?: string | null;
+    square_footage?: number | string | null;
+    timezone?: string | null;
+    max_occupancy?: number | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    geohash?: string | null;
 };
 
-const initial: Building = {
-    building_name: "",
-    building_type: "",
-    physical_address: "",
-    square_footage: "",
-    max_occupancy: "",
-    timezone: "",
-    geohash: "",
-    latitude: "",
-    longitude: "",
+type BuildingResponse = {
+    data?: BuildingRecord[];
+    message?: string;
 };
 
-export default function ViewBuildingPage() {
-    const { id } = useParams<{ id: string }>();
-
-    const [building, setBuilding] = useState<Building>(initial);
+export default function ViewBuildingPage({
+    params,
+}: {
+    params: Promise<{ buildingId: string }>;
+}) {
     const [loading, setLoading] = useState(true);
-    const [apiError, setApiError] = useState("");
+    const [error, setError] = useState("");
+
+    const [building, setBuilding] = useState<BuildingRecord>({
+        building_id: "",
+        building_name: "",
+        physical_address: "",
+        square_footage: "",
+        timezone: "UTC",
+        max_occupancy: null,
+        latitude: null,
+        longitude: null,
+        geohash: "",
+    });
 
     useEffect(() => {
-        const loadBuilding = async () => {
+        let isMounted = true;
+
+        const load = async () => {
+            const resolvedParams = await params;
+            const resolvedBuildingId = resolvedParams.buildingId;
+
             try {
-                const res = await fetch(`/api/buildings/${id}`);
+                const response = await fetch("/api/buildings", {
+                    method: "GET",
+                    cache: "no-store",
+                });
 
-                const data = await res.json().catch(() => ({}));
+                const payload =
+                    (await response.json().catch(() => ({}))) as BuildingResponse;
 
-                if (!res.ok) {
-                    throw new Error(data?.message ?? "failed to load building.");
+                if (!response.ok) {
+                    throw new Error(
+                        payload.message || "Unable to load buildings."
+                    );
                 }
 
-                setBuilding({
-                    building_name: data.building_name ?? "",
-                    building_type: data.building_type ?? "",
-                    physical_address: data.physical_address ?? "",
-                    square_footage: data.square_footage ?? "",
-                    max_occupancy: data.max_occupancy ?? "",
-                    timezone: data.timezone ?? "",
-                    geohash: data.geohash ?? "",
-                    latitude: data.latitude ?? "",
-                    longitude: data.longitude ?? "",
-                });
-            } catch (err) {
-                setApiError(
-                    err instanceof Error
-                        ? err.message
-                        : "failed to load building."
+                const foundBuilding = (payload.data ?? []).find(
+                    (row) => row.building_id === resolvedBuildingId
                 );
+
+                if (!foundBuilding) {
+                    throw new Error("Building not found.");
+                }
+
+                if (isMounted) {
+                    setBuilding(foundBuilding);
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Unable to load building details."
+                    );
+                }
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
-        if (id) {
-            loadBuilding();
-        }
-    }, [id]);
+        load();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [params]);
 
     if (loading) {
-        return <p>Loading...</p>;
+        return (
+            <div className="card">
+                <p className="text-muted">
+                    Loading building details...
+                </p>
+            </div>
+        );
     }
 
-
+    if (error) {
         return (
-        <div>
-            <div className="dashboard-header" style={{ marginBottom: "24px" }}>
+            <div className="card">
+                <h1 className="dashboard-title">
+                    View Building
+                </h1>
+
+                <p
+                    className="text-muted"
+                    style={{ marginTop: "8px" }}
+                >
+                    {error}
+                </p>
+
+                <div style={{ marginTop: "20px" }}>
+                    <Link
+                        href="/dashboard"
+                        className="btn btn-secondary"
+                    >
+                        Back
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="card">
+            <div
+                className="dashboard-header"
+                style={{ marginBottom: "24px" }}
+            >
                 <div>
-                    <h1 className="dashboard-title">View Building</h1>
+                    <h1 className="dashboard-title">
+                        View Building
+                    </h1>
+
                     <p className="dashboard-subtitle">
                         Building information.
                     </p>
                 </div>
 
-                <Link href="/dashboard" className="btn btn-secondary">
+                <Link
+                    href="/dashboard"
+                    className="btn btn-secondary"
+                >
                     Back
                 </Link>
             </div>
 
             <div
-                className="card"
                 style={{
-                    maxWidth: "560px",
                     display: "grid",
-                    gap: "20px",
+                    gap: "16px",
                 }}
             >
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label">Building name</label>
+                <div>
+                    <label className="label">
+                        Building name
+                    </label>
+
                     <input
                         className="input"
                         value={building.building_name}
@@ -110,100 +173,109 @@ export default function ViewBuildingPage() {
                     />
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label">Building type</label>
-                    <input
-                        className="input"
-                        value={building.building_type}
+                <div>
+                    <label className="label">
+                        Physical address
+                    </label>
+
+                    <textarea
+                        className="textarea"
+                        value={building.physical_address ?? ""}
+                        rows={3}
                         disabled
                     />
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label">Physical address</label>
-                    <input
-                        className="input"
-                        value={building.physical_address}
-                        disabled
-                    />
-                </div>
+                <div
+                    style={{
+                        display: "grid",
+                        gap: "12px",
+                        gridTemplateColumns:
+                            "repeat(auto-fit,minmax(180px,1fr))",
+                    }}
+                >
+                    <div>
+                        <label className="label">
+                            Square footage
+                        </label>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                        <label className="label">floor area</label>
                         <input
                             className="input"
-                            value={building.square_footage}
+                            value={building.square_footage ?? ""}
                             disabled
                         />
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                        <label className="label">Max occupancy</label>
+                    <div>
+                        <label className="label">
+                            Max occupancy
+                        </label>
+
                         <input
                             className="input"
-                            value={building.max_occupancy}
+                            value={building.max_occupancy ?? ""}
                             disabled
                         />
                     </div>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label">Timezone</label>
+                <div>
+                    <label className="label">
+                        Timezone
+                    </label>
+
                     <input
                         className="input"
-                        value={building.timezone}
+                        value={building.timezone ?? ""}
                         disabled
                     />
                 </div>
 
+                <div
+                    style={{
+                        display: "grid",
+                        gap: "12px",
+                        gridTemplateColumns:
+                            "repeat(auto-fit,minmax(180px,1fr))",
+                    }}
+                >
+                    <div>
+                        <label className="label">
+                            Latitude
+                        </label>
 
-                                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label">Geohash</label>
-                    <input
-                        className="input"
-                        value={building.geohash}
-                        disabled
-                    />
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label">Latitude</label>
-                    <input
-                        className="input"
-                        value={building.latitude}
-                        disabled
-                    />
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label">Longitude</label>
-                    <input
-                        className="input"
-                        value={building.longitude}
-                        disabled
-                    />
-                </div>
-
-            
-                {apiError && (
-                    <div
-                        role="alert"
-                        style={{
-                            border: "1px solid var(--brand-danger)",
-                            background: "color-mix(in srgb, var(--brand-danger) 12%, transparent)",
-                            color: "var(--brand-danger)",
-                            padding: "12px 16px",
-                            borderRadius: "var(--radius-md)",
-                            fontSize: "0.875rem",
-                        }}
-                    >
-                        {apiError}
+                        <input
+                            className="input"
+                            value={building.latitude ?? ""}
+                            disabled
+                        />
                     </div>
-                )}
+
+                    <div>
+                        <label className="label">
+                            Longitude
+                        </label>
+
+                        <input
+                            className="input"
+                            value={building.longitude ?? ""}
+                            disabled
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="label">
+                        Geohash
+                    </label>
+
+                    <input
+                        className="input"
+                        value={building.geohash ?? ""}
+                        disabled
+                    />
+                </div>
             </div>
         </div>
     );
-
-
 }
