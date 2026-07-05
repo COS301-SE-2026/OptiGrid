@@ -105,45 +105,16 @@ export default function ViewBuildingPage({
         );
     }
 
-    if (error) {
-        return (
-            <div className="card">
-                <h1 className="dashboard-title">
-                    View Building
-                </h1>
-
-                <p
-                    className="text-muted"
-                    style={{ marginTop: "8px" }}
-                >
-                    {error}
-                </p>
-
-                <div style={{ marginTop: "20px" }}>
-                    <Link
-                        href="/dashboard"
-                        className="btn btn-secondary"
-                    >
-                        Back
-                    </Link>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="card">
+        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
             <div
                 className="dashboard-header"
-                style={{ marginBottom: "24px" }}
+                style={{ marginBottom: "var(--space-6)" }}
             >
                 <div>
-                    <h1 className="dashboard-title">
-                        View Building
-                    </h1>
-
+                    <h1 className="dashboard-title">Building Details</h1>
                     <p className="dashboard-subtitle">
-                        Building information.
+                        View information.
                     </p>
                 </div>
 
@@ -155,125 +126,115 @@ export default function ViewBuildingPage({
                 </Link>
             </div>
 
+            {error && (
+                <div
+                    className="card"
+                    style={{
+                        marginBottom: "var(--space-4)",
+                        borderColor: "var(--brand-danger)",
+                        backgroundColor: "color-mix(in srgb, var(--brand-danger) 8%, transparent)",
+                        padding: "var(--space-4)",
+                    }}
+                >
+                    <p style={{ color: "var(--brand-danger)", margin: 0 }}>
+                        {error}
+                    </p>
+                </div>
+            )}
+
             <div
+                className="card"
                 style={{
                     display: "grid",
-                    gap: "16px",
+                    gap: "var(--space-6)",
+                    padding: "var(--space-6)",
                 }}
             >
+ 
                 <div>
-                    <label className="label">
-                        Building name
-                    </label>
+                    <h3 style={{ 
+                        color: "var(--brand-primary)", 
+                        marginBottom: "var(--space-4)",
+                        fontSize: "var(--fs-h3)",
+                        fontWeight: "var(--fw-semibold)",
+                    }}>
+                        General Information
+                    </h3>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "220px 1fr",
+                            rowGap: "var(--space-4)",
+                        }}
+                    >
+                        <div className="text-muted">Building Name</div>
+                        <div style={{ fontFamily: "var(--font-body)" }}>{building.building_name || "-"}</div>
 
-                    <input
-                        className="input"
-                        value={building.building_name}
-                        disabled
-                    />
-                </div>
+                        <div className="text-muted">Physical Address</div>
+                        <div style={{ fontFamily: "var(--font-body)" }}>
+                            {building.physical_address || "-"}
+                        </div>
 
-                <div>
-                    <label className="label">
-                        Physical address
-                    </label>
-
-                    <textarea
-                        className="textarea"
-                        value={building.physical_address ?? ""}
-                        rows={3}
-                        disabled
-                    />
-                </div>
-
-                <div
-                    style={{
-                        display: "grid",
-                        gap: "12px",
-                        gridTemplateColumns:
-                            "repeat(auto-fit,minmax(180px,1fr))",
-                    }}
-                >
-                    <div>
-                        <label className="label">
-                            Square footage
-                        </label>
-
-                        <input
-                            className="input"
-                            value={building.square_footage ?? ""}
-                            disabled
-                        />
-                    </div>
-
-                    <div>
-                        <label className="label">
-                            Max occupancy
-                        </label>
-
-                        <input
-                            className="input"
-                            value={building.max_occupancy ?? ""}
-                            disabled
-                        />
+                        <div className="text-muted">Timezone</div>
+                        <div style={{ fontFamily: "var(--font-body)" }}>{building.timezone || "-"}</div>
                     </div>
                 </div>
 
+ 
                 <div>
-                    <label className="label">
-                        Timezone
-                    </label>
+                    <h3 style={{ 
+                        color: "var(--brand-primary)", 
+                        marginBottom: "var(--space-4)",
+                        fontSize: "var(--fs-h3)",
+                        fontWeight: "var(--fw-semibold)",
+                    }}>
+                        Building Specifications
+                    </h3>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "220px 1fr",
+                            rowGap: "var(--space-4)",
+                        }}
+                    >
+                        <div className="text-muted">Square Footage</div>
+                        <div style={{ fontFamily: "var(--font-body)" }}>
+                            {building.square_footage ?? "-"} m²
+                        </div>
 
-                    <input
-                        className="input"
-                        value={building.timezone ?? ""}
-                        disabled
-                    />
-                </div>
-
-                <div
-                    style={{
-                        display: "grid",
-                        gap: "12px",
-                        gridTemplateColumns:
-                            "repeat(auto-fit,minmax(180px,1fr))",
-                    }}
-                >
-                    <div>
-                        <label className="label">
-                            Latitude
-                        </label>
-
-                        <input
-                            className="input"
-                            value={building.latitude ?? ""}
-                            disabled
-                        />
-                    </div>
-
-                    <div>
-                        <label className="label">
-                            Longitude
-                        </label>
-
-                        <input
-                            className="input"
-                            value={building.longitude ?? ""}
-                            disabled
-                        />
+                        <div className="text-muted">Max Occupancy</div>
+                        <div style={{ fontFamily: "var(--font-body)" }}>
+                            {building.max_occupancy ?? "-"}
+                        </div>
                     </div>
                 </div>
 
+ 
                 <div>
-                    <label className="label">
-                        Geohash
-                    </label>
+                    <h3 style={{ 
+                        color: "var(--brand-primary)", 
+                        marginBottom: "var(--space-4)",
+                        fontSize: "var(--fs-h3)",
+                        fontWeight: "var(--fw-semibold)",
+                    }}>
+                        Location Details
+                    </h3>
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "220px 1fr",
+                            rowGap: "var(--space-4)",
+                        }}
+                    >
+                        <div className="text-muted">Latitude</div>
+                        <div style={{ fontFamily: "var(--font-body)" }}>{building.latitude ?? "-"}</div>
 
-                    <input
-                        className="input"
-                        value={building.geohash ?? ""}
-                        disabled
-                    />
+                        <div className="text-muted">Longitude</div>
+                        <div style={{ fontFamily: "var(--font-body)" }}>{building.longitude ?? "-"}</div>
+
+                        <div className="text-muted">Geohash</div>
+                        <div style={{ fontFamily: "var(--font-body)" }}>{building.geohash || "-"}</div>
+                    </div>
                 </div>
             </div>
         </div>
