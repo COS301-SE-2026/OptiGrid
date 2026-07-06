@@ -1,61 +1,115 @@
-//this file is a reader for influx, used to connect to db n query from there
 let InfluxDB: any;
 try {
     InfluxDB = require('@influxdata/influxdb-client').InfluxDB;
-} 
-catch (err) {
+} catch {
     InfluxDB = undefined;
 }
 
 const url = process.env.INFLUX_URL || process.env.INFLUXDB_URL || 'http://influxdb:8086';
-const token = process.env.INFLUXDB_TOKEN || 'example-token';
-const org = process.env.INFLUXDB_ORG || 'optigrid';
-//this is gonna be a fallback bucket
-const bucket = process.env.INFLUXDB_BUCKET || 'energy_data';
+const token = process.env.INFLUXDB_TOKEN || process.env.INFLUX_TOKEN || 'example-token';
+const org = process.env.INFLUXDB_ORG || process.env.INFLUX_ORG || 'optigrid';
+const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'energy_data';
 
-//we query influx for total energy and cost for the builidng given 
-export const queryUsage = async (buildingId: string, timeRange: string) => {
-    //need to return 0 if for some reason the package aint installed
-    if (!InfluxDB) return { total_kwh: 0, total_cost_usd: 0 };
+const allowedTimeRanges = new Set(['7d', '30d', '90d', '1y']);
+const telemetryMeasurements = ['energy_consumption', 'building_energy_usage'];
+const usageFields = ['usage', 'usage_kwh'];
+const costFields = ['cost_usd', 'cost_zar'];
+const telemetryFields = [...usageFields, ...costFields];
 
+export type UsageTotals = {
+    total_kwh: number;
+    total_cost_usd: number;
+    total_cost_zar: number;
+};
+
+function fluxString(value: string): string {
+    return JSON.stringify(value);
+}
+
+function fluxStringArray(values: string[]): string {
+    return `[${values.map(fluxString).join(', ')}]`;
+}
+
+function normalizeTimeRange(timeRange: string): string {
+    if (!allowedTimeRanges.has(timeRange)) {
+        throw new Error('Invalid time range for telemetry query');
+    }
+
+    return timeRange;
+}
+
+function toFiniteNumber(value: unknown): number | null {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function uniqueBuckets(buildingId: string): string[] {
+    return Array.from(new Set([`building-${buildingId}`, bucket].filter(Boolean)));
+}
+
+async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: string, bucketName: string) {
+    const fluxQuery = `
+        from(bucket: ${fluxString(bucketName)})
+        |> range(start: -${timeRange})
+        |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
+        |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
+        |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(telemetryFields)}))
+        |> group(columns: ["_field"])
+        |> sum()
+    `;
+
+    const totals: UsageTotals = {
+        total_kwh: 0,
+        total_cost_usd: 0,
+        total_cost_zar: 0,
+    };
+
+    for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
+        const rowObject = tableMeta.toObject(values);
+        const field = String(rowObject._field);
+        const value = toFiniteNumber(rowObject._value);
+
+        if (value === null) {
+            continue;
+        }
+
+        if (usageFields.includes(field)) {
+            totals.total_kwh += value;
+        } else if (field === 'cost_usd') {
+            totals.total_cost_usd += value;
+        } else if (field === 'cost_zar') {
+            totals.total_cost_zar += value;
+        }
+    }
+
+    return totals;
+}
+
+// Query InfluxDB for total energy and cost for a building over a validated range.
+export const queryUsage = async (buildingId: string, timeRange: string): Promise<UsageTotals> => {
+    if (!InfluxDB) {
+        return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 };
+    }
+
+    const normalizedRange = normalizeTimeRange(timeRange);
     const influxClient = new InfluxDB({ url, token });
     const queryApi = influxClient.getQueryApi(org);
-    //we create buckets dynamicallyto match with supabase
-    const properBucket = `building-${buildingId}`;
-    // we filter for building, get relevant fields, and sum them 
-    const runFlux = async (nameBucket: string) => {
-        const fluxQuery = `
-            from(bucket: "${bucket}")
-            |> range(start: -${timeRange})
-            |> filter(fn: (r) => r["_measurement"] == "energy_consumption")
-            |> filter(fn: (r) => r["building_id"] == "${buildingId}")
-            |> filter(fn: (r) => r["_field"] == "usage_kwh" or r["_field"] == "cost_usd")
-            |> group(columns: ["_field"])
-            |> sum()
-        `;
-        let total_kwh = 0;
-        let total_cost_zar = 0;
+    const bucketsToTry = uniqueBuckets(buildingId);
+    let lastError: unknown;
 
-        for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
-            const rowObject = tableMeta.toObject(values);
-            
-            // Map the vars 
-            if (rowObject._field === 'usage_kwh') total_kwh = rowObject._value;
-            if (rowObject._field === 'cost_usd') total_cost_zar = rowObject._value;
+    for (const bucketName of bucketsToTry) {
+        try {
+            return await queryBucketTotals(queryApi, buildingId, normalizedRange, bucketName);
+        } catch (error: any) {
+            lastError = error;
+            if (!String(error?.message).includes('can not find the bucket')) {
+                break;
+            }
         }
-        
-        return { total_kwh, total_cost_zar };
     }
 
-    try {
-        return await runFlux(properBucket);
-    } 
-    catch (error: any) {
-        if(String(error?.message).includes("can not find the bucket")) return await runFlux(bucket);
-        // console.error(`[InfluxDB] Failed to query energy usage for building ${buildingId}:`, error);
-        // throw 500 if db acting up
-        throw new Error('Internal server error, failed to retrieve time-series telemetry from InfluxDB');
-    }
+    console.error(`[InfluxDB] Failed to query energy usage for building ${buildingId}:`, lastError);
+    throw new Error('Internal server error, failed to retrieve time-series telemetry from InfluxDB');
 };
 
 export const queryTotalKwh = queryUsage;

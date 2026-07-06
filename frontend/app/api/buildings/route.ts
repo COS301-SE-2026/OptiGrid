@@ -5,6 +5,14 @@ const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 const SESSION_COOKIE_NAME = "optigrid_session";
 
 type BuildingPayload = Record<string, unknown>;
+const ALLOWED_BUILDING_FIELDS = [
+	"building_name",
+	"building_type",
+	"physical_address",
+	"square_footage",
+	"max_occupancy",
+	"timezone",
+] as const;
 
 function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
 	if (!cookieHeader) {
@@ -30,6 +38,17 @@ function createIdempotencyKey(prefix = "buildings"): string {
 			: `${Date.now()}-${Math.random()}`;
 
 	return `${prefix}-${randomId}`;
+}
+
+function sanitizeBuildingPayload(payload: BuildingPayload): BuildingPayload {
+	const sanitized: BuildingPayload = {};
+	for (const field of ALLOWED_BUILDING_FIELDS) {
+		if (payload[field] !== undefined) {
+			sanitized[field] = payload[field];
+		}
+	}
+
+	return sanitized;
 }
 
 function getForwardHeaders(
@@ -114,7 +133,7 @@ export async function POST(request: Request) {
 		const coreResponse = await fetch(`${CORE_URL}/api/buildings`, {
 			method: "POST",
 			headers,
-			body: JSON.stringify(body),
+			body: JSON.stringify(sanitizeBuildingPayload(body)),
 			cache: "no-store",
 		});
 

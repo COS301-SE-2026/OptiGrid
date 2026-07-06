@@ -4,6 +4,10 @@ import { queryTotalKwh } from '../lib/influx';
 import crypto from 'crypto';
 import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
 
+function toFiniteNumber(value: unknown, fallback = 0): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 // handle building creation, updating, deletion, and others here
 export interface buildingPayload {
@@ -42,7 +46,7 @@ export const createBuilding = async (
   payload: buildingPayload
 ) => {
   return await prisma.$transaction(async (tx) => {
-    // create building 
+    // create building
     const newBuilding = await tx.building.create({
       data: {
         tenant_id: payload.tenant_id,
@@ -86,10 +90,10 @@ export const createBuilding = async (
         finalHardwareAuthToken,
         payload.metadata
       );
-    } 
+    }
      catch (error:any) {
       throw new Error(`Failed to queue provisioning for building ${newBuilding.building_id}:`, error);
-    } 
+    }
 
     return {
       ...newBuilding,
@@ -185,8 +189,14 @@ export const compareBuildingsService = async (
 
   // we calculate metrics such as EUI, cost per sq ft and cost per kwh, ensuring no division by 0
   const calculateMetrics = (building: Building, influxData: any) => {
-    const totalKwh = typeof influxData === 'number' ? influxData : influxData.total_kwh;
-    const totalCostZar = typeof influxData === 'number' ? 0 : (influxData.total_cost_zar || influxData.total_cost_usd || 0);
+    const totalKwh = typeof influxData === 'number' ? influxData : toFiniteNumber(influxData?.total_kwh);
+    const totalCostUsd = typeof influxData === 'number' ? 0 : toFiniteNumber(influxData?.total_cost_usd);
+    const rawTotalCostZar = typeof influxData === 'number' ? 0 : toFiniteNumber(influxData?.total_cost_zar);
+    const totalCostZar = typeof influxData === 'number'
+      ? 0
+      : rawTotalCostZar > 0
+        ? rawTotalCostZar
+        : totalCostUsd;
     const sqFt = Number(building.square_footage);
     const hasSquareFootage = Number.isFinite(sqFt) && sqFt > 0;
     const eui = hasSquareFootage ? totalKwh / sqFt : null;
@@ -196,6 +206,7 @@ export const compareBuildingsService = async (
       name: building.building_name,
       total_kwh: totalKwh,
       total_cost_zar: totalCostZar,
+      total_cost_usd: totalCostUsd,
       square_footage: hasSquareFootage ? sqFt : null,
       eui: eui === null ? null : Number(eui.toFixed(2)),
       cost_per_sq_ft: hasSquareFootage ? Number((totalCostZar / sqFt).toFixed(2)) : null,
