@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { createBuilding, compareBuildingsService, deleteBuildingService, listBuildingsForUser, updateBuildingService } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import prisma from '../lib/prisma';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -147,14 +148,20 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
       });
     }
     //enfore rbac
-    const role= req.user.roleType || req.user.user_metadata?.roleType || "VIEWER";
-    if(role !== "ADMIN" || role === "Admin") {
+   let role= req.user.roleType || req.user.user_metadata?.roleType;
+    if(role !=="ADMIN" && role !== "Admin"){
+      const dbUser = await prisma.user.findUnique({
+        where:{ userId: req.user.id},
+        select: {roleType: true}
+      });
+      role = dbUser?.roleType || "VIEWER"
+    }
+    if(role !== "ADMIN" && role !== "Admin") {
       return res.status(403).json({
         status: "error",
         message: "You do not have permission to delete a building, submit a support ticket"
       })
     }
-
     const userId = req.user.id;
 
     // enforce strict idempotency processing
@@ -202,8 +209,15 @@ export const updateBuildingController = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
     //enforce rbac
-    const role= req.user.roleType || req.user.user_metadata?.roleType || "VIEWER";
-    if(role !== "ADMIN" || role !== "ADMIN") {
+    let role= req.user.roleType || req.user.user_metadata?.roleType;
+    if(role !=="ADMIN" && role !== "Admin"){
+      const dbUser = await prisma.user.findUnique({
+        where:{ userId: req.user.id},
+        select: {roleType: true}
+      });
+      role = dbUser?.roleType || "VIEWER"
+    }
+    if(role !== "ADMIN" && role !== "Admin") {
       return res.status(403).json({
         status: "error",
         message: "You do not have permission to edit the building"

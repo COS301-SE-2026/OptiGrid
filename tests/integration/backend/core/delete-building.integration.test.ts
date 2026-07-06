@@ -34,6 +34,12 @@ describe('Building integration - Delete Building', () => {
 					lastName: 'User',
 				},
 			]);
+			await client.query(`
+				UPDATE users
+				SET role_type = 'Admin'
+				WHERE user_id = $1`, 
+				[userId]
+			)
 		} finally {
 			await client.end();
 		}
@@ -159,7 +165,7 @@ describe('Building integration - Delete Building', () => {
 			.set(authHeaders);
 
 		expect(response.status).toBe(403);
-		expect(response.body.message).toContain('Access Denied');
+		expect(response.body.message).toContain('Access Denied: You do not have permission to delete the buidling.');
 		await expect(countBuildingRows(buildingId)).resolves.toEqual({
 			buildingCount: 1,
 			accessCount: 0,

@@ -105,6 +105,7 @@ describe('Login integration', () => {
 				email: signupPayload.email,
 				firstName: '',
 				lastName: '',
+				roleType: "VIEWER"
 			});
 			expect(response.body.accessToken).toEqual(expect.any(String));
 

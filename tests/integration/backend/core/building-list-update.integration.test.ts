@@ -42,6 +42,13 @@ describe('Building integration - List and Update Buildings', () => {
 					lastName: 'User',
 				},
 			]);
+
+			await client.query(`
+				UPDATE users
+				SET role_type = 'Admin'
+				WHERE user_id = $1`, 
+				[userId]
+			)
 		} finally {
 			await client.end();
 		}
@@ -188,7 +195,7 @@ describe('Building integration - List and Update Buildings', () => {
 			});
 
 		expect(response.status).toBe(403);
-		expect(response.body.message).toContain('Access Denied');
+		expect(response.body.message).toContain('Access Denied: You do not have permission to update this building.');
 	});
 
 	it('returns 400 when update payload is empty or invalid', async () => {
