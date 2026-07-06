@@ -187,7 +187,7 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
     if (error.name === "ZodError") {
       return res.status(400).json({ status: "error", message: "Invalid request parameters", details: error.errors });
     }
-    if (error.message.includes("Access Denied")) {
+    if (error.message.includes("Access Denied") || error.message.includes("permission")) {
       return res.status(403).json({ status: "error", message: error.message });
     }
     

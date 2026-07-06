@@ -1,7 +1,7 @@
 import prisma from '../lib/prisma';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 
 const USER_EXISTS_ERROR = 'User already exists, please login instead.';
 // Reused public shape returned to API callers after signup.
@@ -10,6 +10,7 @@ const SIGNUP_USER_SELECT = {
     email: true,
     firstName: true,
     lastName: true,
+    roleType: true,
 } as const;
 
 // Shared payload used to write or update the app-level user profile row.
@@ -18,6 +19,7 @@ type SignupCreateData = {
     email: string;
     firstName: string;
     lastName: string;
+    roleType?: UserRole;
 };
 
 // Captures the Supabase auth user id plus rollback behavior when app profile write fails.
@@ -129,12 +131,7 @@ function isRecordNotFoundError(error: unknown): boolean {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
 }
 
-async function updateUserByUserIdWithRetry(createData: {
-    userId: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-}) {
+async function updateUserByUserIdWithRetry(createData: SignupCreateData) {
     const maxAttempts = 5;
     const retryDelayMs = 250;
 
@@ -149,6 +146,7 @@ async function updateUserByUserIdWithRetry(createData: {
                     email: createData.email,
                     firstName: createData.firstName,
                     lastName: createData.lastName,
+                    ...(createData.roleType ? { roleType: createData.roleType} : {}),
                 },
                 select: SIGNUP_USER_SELECT,
             });
@@ -183,6 +181,7 @@ async function createOrUpsertUser(createData: SignupCreateData) {
             email: createData.email,
             firstName: createData.firstName,
             lastName: createData.lastName,
+            ...(createData.roleType ? { roleType: createData.roleType} : {}),
         },
         //we ensure not to show the password hash or return to frontend side
         select: SIGNUP_USER_SELECT,
@@ -289,10 +288,12 @@ export const signup = async (email: string, password: string, name: string) => {
     });
     if (userExists) throw new Error(USER_EXISTS_ERROR);
 
-    // //we hash passwords, split name and then add to users table
-    // const hashPass = await hashPassword(password);
     const [firstName = '', ...otherNames] = name.trim().split(/\s+/);
     const lastName = otherNames.join(' ');
+
+    //assign manager to users ending with @optigrid.com, viewer by default
+    let role: UserRole = "VIEWER";
+    if(email.trim().toLowerCase().endsWith("@optigrid.com")) role = "BUILDING_MANAGER";
 
     // Prefer Supabase auth user id to satisfy schemas where users.user_id references auth.users.id.
     const provisionedAuthUser = await provisionOrResolveAuthUser(email, password);
@@ -302,6 +303,7 @@ export const signup = async (email: string, password: string, name: string) => {
         email,
         firstName,
         lastName,
+        roleType: role,
     };
 
     try {
@@ -339,14 +341,20 @@ export const login = async (email: string, password: string) => {
             email: true,
             firstName: true,
             lastName: true,
+            roleType: true,
         },
     });
+
+    //fallbacl for prisma, in case we harcdode in supabase or add login with google
+    let role: UserRole = "VIEWER";
+    if(email.trim().toLowerCase().endsWith("@optigrid.com")) role = "BUILDING_MANAGER";
 
     const user = existingUser ?? await createOrUpsertUser({
         userId: authUser.userId,
         email: authUser.email,
         firstName: '',
         lastName: '',
+        roleType: role,
     });
 
     return {

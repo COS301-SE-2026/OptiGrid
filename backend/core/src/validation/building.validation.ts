@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { BuildingType } from '@prisma/client';
+import { BuildingType, LifecycleState } from '@prisma/client';
 
 export const createBuildingSchema = z.object({
     //validate building name
