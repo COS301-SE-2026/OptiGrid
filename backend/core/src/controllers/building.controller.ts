@@ -26,12 +26,6 @@ export const createBuildingController = async (req: Request, res: Response) => {
     }
 
     const role= req.user.roleType || req.user.user_metadata?.roleType || "VIEWER";
-    if(role === "VIEWER" || role === "Viewer") {
-      return res.status(403).json({
-        status: "error",
-        message: "You do not have permission to create a building"
-      })
-    }
     const userId = req.user.id;
     const tenantId = toUuidOrUndefined(req.user.user_metadata?.tenant_id);
     const idempotencyKey = req.headers['idempotency-key'] as string;
@@ -147,14 +141,17 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
   try {
     // enforce strict authentication check
     if (!req.user) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+      return res.status(401).json({ 
+        status: 'error', 
+        message: 'Unauthorized' 
+      });
     }
     //enfore rbac
     const role= req.user.roleType || req.user.user_metadata?.roleType || "VIEWER";
-    if(role === "VIEWER" || role === "Viewer") {
+    if(role !== "ADMIN" || role === "Admin") {
       return res.status(403).json({
         status: "error",
-        message: "You do not have permission to create a building"
+        message: "You do not have permission to delete a building, submit a support ticket"
       })
     }
 
@@ -206,10 +203,10 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     }
     //enforce rbac
     const role= req.user.roleType || req.user.user_metadata?.roleType || "VIEWER";
-    if(role === "VIEWER" || role === "Viewer") {
+    if(role !== "ADMIN" || role !== "ADMIN") {
       return res.status(403).json({
         status: "error",
-        message: "You do not have permission to create a building"
+        message: "You do not have permission to edit the building"
       })
     }
 

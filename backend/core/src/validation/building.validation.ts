@@ -68,6 +68,13 @@ export const updateBuildingSchema = z.object({
     latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90").optional(),
     longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180").optional(),
     geohash: z.string().min(5).max(10, "Geohash must be between 5 and 10").optional(),
+    lifecycle_state: z.nativeEnum(LifecycleState).optional(),
+    nominal_voltage: z.number()
+        .positive("Nominal voltage must be a positive number")
+        .optional(),
+    max_current_threshold: z.number()
+        .positive("Max current threshold must be a positive number")
+        .optional(),
 }).strict().refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required to update a building",
 });
