@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import DashboardPage from "./page";
 
 const mockUseQuery = jest.fn();
@@ -15,6 +15,16 @@ jest.mock("@tanstack/react-query", () => ({
         isPending: false,
     }),
 }));
+
+
+const mockPush = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
 
 jest.mock("next/link", () => {
     return function MockLink({
@@ -103,6 +113,7 @@ describe("DashboardPage", () => {
         mockUseQuery.mockReset();
         mockInvalidateQueries.mockReset();
         mockMutate.mockReset();
+        mockPush.mockReset();
         jest.spyOn(window, "confirm").mockReturnValue(false);
     });
 
@@ -154,4 +165,17 @@ describe("DashboardPage", () => {
         });
         expect(addLink).toHaveAttribute("href", "/buildings/add");
     });
+
+    it("navigates to the building details page when the building card is clicked", () => {
+    mockQueries();
+    render(<DashboardPage />);
+
+     fireEvent.click(screen.getByText("Sandton HQ"));
+
+    expect(mockPush).toHaveBeenCalledWith("/buildings/1/view");
+
+
+
+
+});
 });
