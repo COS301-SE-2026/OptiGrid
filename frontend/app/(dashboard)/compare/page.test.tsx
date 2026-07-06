@@ -1,151 +1,155 @@
-import React from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-import CompareBuildingPage from "./page"; 
+import CompareBuildingPage from "./page";
 
+const mockUseQuery = jest.fn();
+
+jest.mock("@tanstack/react-query", () => ({
+    useQuery: (options: unknown) => mockUseQuery(options),
+}));
 
 jest.mock("recharts", () => {
-  const originalModule = jest.requireActual("recharts");
-  return {
-    ...originalModule,
-    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-      <div style={{ width: "100%", height: "100%" }}>{children}</div>
-    ),
-  };
+    const MockChart = ({ children }: { children?: ReactNode }) => (
+        <div>{children}</div>
+    );
+    return {
+        ResponsiveContainer: MockChart,
+        LineChart: MockChart,
+        CartesianGrid: () => null,
+        Line: () => null,
+        Tooltip: () => null,
+        XAxis: () => null,
+        YAxis: () => null,
+    };
 });
 
-// we need to mock the fetch API to provide data for tests
-(global as any).fetch = jest.fn((input: string | Request | URL) => {
-  const urlStr = input.toString();
-  const params = new URLSearchParams(urlStr.split('?')[1] || '');
-  const a = params.get('building_id_a') || 'uuid-1';
-  const b = params.get('building_id_b') || 'uuid-2';
-  const time = (params.get('time_range') || '30d').replace('d', '');
+const buildingIdA = "11111111-1111-4111-8111-111111111111";
+const buildingIdB = "22222222-2222-4222-8222-222222222222";
+const buildingIdC = "33333333-3333-4333-8333-333333333333";
 
-  const map: any = {
-    'uuid-1': {
-      '30': { total_cost_zar: 12500, total_kwh: 8200, square_footage: 2500 },
-      '7': { total_cost_zar: 3125, total_kwh: 2050, square_footage: 2500 },
+const buildingsData = [
+    { id: buildingIdA, name: "Building A", squareFootage: 2500 },
+    { id: buildingIdB, name: "Building B", squareFootage: 1800 },
+    { id: buildingIdC, name: "Sandton HQ", squareFootage: 2700 },
+];
+
+const comparisonData = {
+    time_range: "30d",
+    mostEfficient: buildingIdB,
+    buildingA: {
+        building_id: buildingIdA,
+        name: "Building A",
+        total_kwh: 8200,
+        total_cost_zar: 12500,
+        square_footage: 2500,
+        eui: 3.28,
+        cost_per_sq_ft: 5,
+        cost_per_kwh: 1.52,
     },
-    'uuid-2': {
-      '30': { total_cost_zar: 9800, total_kwh: 6000, square_footage: 1800 },
-      '7': { total_cost_zar: 2450, total_kwh: 1500, square_footage: 1800 },
+    buildingB: {
+        building_id: buildingIdB,
+        name: "Building B",
+        total_kwh: 6000,
+        total_cost_zar: 9800,
+        square_footage: 1800,
+        eui: 3.33,
+        cost_per_sq_ft: 5.44,
+        cost_per_kwh: 1.63,
     },
-    'uuid-3': {
-      '30': { total_cost_zar: 14200, total_kwh: 9200, square_footage: 2700 },
-      '7': { total_cost_zar: 3550, total_kwh: 2300, square_footage: 2700 },
-    },
-    'uuid-4': {
-      '30': { total_cost_zar: 7600, total_kwh: 4100, square_footage: 1400 },
-      '7': { total_cost_zar: 1900, total_kwh: 1025, square_footage: 1400 },
-    },
-  };
+};
 
-  const aData = {
-    building_id: a,
-    name: a === 'uuid-3' ? 'Sandton HQ' : a === 'uuid-4' ? 'Greenwood Tower' : (a === 'uuid-1' ? 'Building A' : 'Building B'),
-    ...(map[a] && map[a][time] ? map[a][time] : map['uuid-1']['30']),
-  };
+function setupQueries({
+    buildings = buildingsData,
+    comparison = comparisonData,
+    buildingsLoading = false,
+    buildingsError = false,
+    comparisonError = false,
+}: {
+    buildings?: typeof buildingsData;
+    comparison?: typeof comparisonData | undefined;
+    buildingsLoading?: boolean;
+    buildingsError?: boolean;
+    comparisonError?: boolean;
+} = {}) {
+    mockUseQuery.mockImplementation((options: any) => {
+        const key = options?.queryKey?.[0];
+        if (key === "buildings") {
+            return {
+                data: buildings,
+                isLoading: buildingsLoading,
+                isError: buildingsError,
+                error: buildingsError ? new Error("Unable to load buildings.") : null,
+            };
+        }
 
-  const bData = {
-    building_id: b,
-    name: b === 'uuid-3' ? 'Sandton HQ' : b === 'uuid-4' ? 'Greenwood Tower' : (b === 'uuid-1' ? 'Building A' : 'Building B'),
-    ...(map[b] && map[b][time] ? map[b][time] : map['uuid-2']['30']),
-  };
+        if (key === "building-comparison") {
+            return {
+                data: comparison,
+                isLoading: false,
+                isFetching: false,
+                isError: comparisonError,
+                error: comparisonError ? new Error("Unable to compare buildings.") : null,
+            };
+        }
 
-  const result = { status: 'success', data: { buildingA: aData, buildingB: bData } };
+        return {};
+    });
+}
 
-  // return a resolved promise; json() returns synchronously to reduce async timing issues
-  return Promise.resolve({ json: () => result });
-}) as jest.Mock;
-
-describe("CompareBuildingPage Component", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    
-    document.head.innerHTML = "";
-  });
-
-  test("renders initial UI elements correctly", async () => {
-    await act(async () => {
-      render(<CompareBuildingPage />);
-      await Promise.resolve();
+describe("CompareBuildingPage", () => {
+    beforeEach(() => {
+        mockUseQuery.mockReset();
     });
 
-    expect(screen.getByRole("heading", { name: /compare buildings/i })).toBeInTheDocument();
+    it("renders building controls from assigned buildings", async () => {
+        setupQueries();
+        render(<CompareBuildingPage />);
 
-    const dropdowns = screen.getAllByRole("combobox");
-    expect(dropdowns).toHaveLength(4);
+        expect(screen.getByRole("heading", { name: /compare buildings/i })).toBeInTheDocument();
+        expect(screen.getAllByRole("combobox")).toHaveLength(4);
+        expect(screen.getAllByRole("option", { name: "Building A" }).length).toBeGreaterThan(0);
+        expect(screen.getAllByRole("option", { name: "Building B" }).length).toBeGreaterThan(0);
 
-    // dropdown values are UUIDs
-    expect(dropdowns[0]).toHaveValue("uuid-1");
-    expect(dropdowns[1]).toHaveValue("uuid-2");
-    expect(dropdowns[2]).toHaveValue("30");
-    expect(dropdowns[3]).toHaveValue("R");
-  });
-
-  test("injects Google Font stylesheets on mount", async () => {
-    await act(async () => {
-      render(<CompareBuildingPage />);
-      await Promise.resolve();
+        await waitFor(() => {
+            expect(screen.getByLabelText("Building 1")).toHaveValue(buildingIdA);
+            expect(screen.getByLabelText("Building 2")).toHaveValue(buildingIdB);
+        });
     });
 
-    const links = document.head.querySelectorAll("link");
-    expect(links).toHaveLength(3);
-    expect(links[0]).toHaveAttribute("href", expect.stringContaining("family=Inter"));
-    expect(links[1]).toHaveAttribute("href", expect.stringContaining("family=Space+Grotesk"));
-    expect(links[2]).toHaveAttribute("href", expect.stringContaining("family=JetBrains+Mono"));
-  });
+    it("displays comparison totals for the selected buildings", async () => {
+        setupQueries();
+        render(<CompareBuildingPage />);
 
-  test("displays correct base building calculation values initially", async () => {
-    await act(async () => {
-      render(<CompareBuildingPage />);
+        expect(await screen.findByText("R 12,500")).toBeInTheDocument();
+        expect(screen.getByText("R 9,800")).toBeInTheDocument();
+        expect(screen.getByText("2,500 m2")).toBeInTheDocument();
+        expect(screen.getByText("1,800 m2")).toBeInTheDocument();
+        expect(screen.getByText(/Building A is higher for the selected metric/)).toBeInTheDocument();
     });
 
-    expect(await screen.findByText(/12,500/)).toBeInTheDocument();
-    expect(await screen.findByText(/2,500\s*m²/)).toBeInTheDocument();
-    expect(await screen.findByText(/9,800/)).toBeInTheDocument();
-    expect(await screen.findByText(/1,800\s*m²/)).toBeInTheDocument();
-  });
+    it("switches between cost and energy metrics", async () => {
+        setupQueries();
+        render(<CompareBuildingPage />);
 
-  test("updates calculations and headers when changing building selectors", async () => {
-    await act(async () => {
-      render(<CompareBuildingPage />);
+        const user = userEvent.setup();
+        await user.selectOptions(screen.getByLabelText("Metric"), "kWh");
+
+        expect(await screen.findByText("8,200 kWh")).toBeInTheDocument();
+        expect(screen.getByText("6,000 kWh")).toBeInTheDocument();
+        expect(screen.getByText(/30 days - energy/i)).toBeInTheDocument();
     });
 
-    const [buildingASelect, buildingBSelect] = screen.getAllByRole("combobox");
+    it("shows a useful empty state when fewer than two buildings are assigned", () => {
+        setupQueries({
+            buildings: [buildingsData[0]],
+            comparison: undefined,
+        });
 
-    // select by UUIDs 
-    await act(async () => {
-      fireEvent.change(buildingASelect, { target: { value: "uuid-3" } });
+        render(<CompareBuildingPage />);
+
+        expect(screen.getByText(/Add another building before running a comparison/i)).toBeInTheDocument();
+        expect(screen.getByText(/Select two different buildings to compare/i)).toBeInTheDocument();
     });
-    expect(await screen.findByRole("heading", { name: "Sandton HQ" })).toBeInTheDocument();
-    expect(await screen.findByText(/14,200/)).toBeInTheDocument();
-
-    await act(async () => {
-      fireEvent.change(buildingBSelect, { target: { value: "uuid-4" } });
-    });
-    expect(await screen.findByRole("heading", { name: "Greenwood Tower" })).toBeInTheDocument();
-    expect(await screen.findByText(/7,600/)).toBeInTheDocument();
-  });
-
-  test("calculates multiplier alterations accurately when metric or date range shifts", async () => {
-    render(<CompareBuildingPage />);
-
-    const dropdowns = screen.getAllByRole("combobox");
-    const dateRangeSelect = dropdowns[2];
-    const metricSelect = dropdowns[3];
-
-    await act(async () => {
-      fireEvent.change(dateRangeSelect, { target: { value: "7" } });
-    });
-    expect(await screen.findByText(/3,125/)).toBeInTheDocument();
-
-    await act(async () => {
-      fireEvent.change(metricSelect, { target: { value: "kWh" } });
-    });
-    expect(await screen.findByText(/2,050/)).toBeInTheDocument();
-    expect(await screen.findByText(/Energy Consumption Comparison \(kWh\)/i)).toBeInTheDocument();
-    expect(await screen.findByText(/7 days • Weekly breakdown/i)).toBeInTheDocument();
-  });
 });

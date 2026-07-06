@@ -1,5 +1,5 @@
 "use client";
-
+import { useRouter } from "next/navigation";
 import { useState, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -14,6 +14,8 @@ import {
     YAxis,
 } from "recharts";
 import { buildDisplayName, type SessionUser } from "../../../lib/session";
+
+
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
 
@@ -277,6 +279,7 @@ export default function DashboardPage() {
         queryFn: fetchSessionUser,
         retry: false,
     });
+    const router = useRouter();
 
     const {
         data: buildings = [],
@@ -495,7 +498,10 @@ export default function DashboardPage() {
                             </thead>
                             <tbody>
                                 {buildings.map((building) => (
-                                    <tr key={building.id}>
+                                    <tr key={building.id}
+                                    onClick={() => router.push(`/buildings/${building.id}/view`)}
+
+                                    >
                                         <td>
                                             <p style={{ fontWeight: 600 }}>{building.name}</p>
                                             <p className="text-muted" style={{ fontSize: "0.75rem" }}>
@@ -511,25 +517,32 @@ export default function DashboardPage() {
                                         <td>
                                             <StatusBadge status={building.status} />
                                         </td>
+
                                         <td>
-                                            <div className="dashboard-actions">
-                                                <Link
-                                                    href={`/buildings/${building.id}/edit`}
-                                                    className="icon-button"
-                                                    aria-label={`Edit ${building.name}`}
-                                                >
-                                                    <PencilIcon />
-                                                </Link>
-                                                <button
-                                                    className="icon-button icon-danger"
-                                                    aria-label={`Delete ${building.name}`}
-                                                    onClick={() => handleDelete(building)}
-                                                    disabled={deleteBuildingMutation.isPending}
-                                                >
-                                                    <TrashIcon />
-                                                </button>
-                                            </div>
-                                        </td>
+   
+
+        <Link
+            href={`/buildings/${building.id}/edit`}
+            className="icon-button"
+            aria-label={`Edit ${building.name}`}
+            onClick={(e) => e.stopPropagation()}
+        >
+            <PencilIcon />
+        </Link>
+
+        <button
+            className="icon-button icon-danger"
+            aria-label={`Delete ${building.name}`}
+            onClick={(e) => { 
+                e.stopPropagation();
+                 handleDelete(building); }}
+            disabled={deleteBuildingMutation.isPending}
+        >
+            <TrashIcon />
+        </button>
+    
+</td>
+                                    
                                     </tr>
                                 ))}
                             </tbody>

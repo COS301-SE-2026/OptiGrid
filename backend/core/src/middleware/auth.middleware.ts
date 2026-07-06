@@ -5,8 +5,10 @@ import prisma from "../lib/prisma";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const SESSION_COOKIE_NAME = "optigrid_session";
-const allowSessionFallbackAuth = process.env.NODE_ENV !== "production";
+
+// so these are the signing algorithms that we accept and everything else like "none" algorithm is rejected and offline
+//this way the tokens can never be accepted wiz the signature stripped off or swapped and so on
+const ALLOWED_JWT_ALGORITHMS = new Set(["ES256", "ES384", "ES512", "HS256", "HS384", "HS512", "RS256", "RS384", "RS512"]);
 
 const supabaseClient =
 	supabaseUrl && supabaseAnonKey
@@ -38,88 +40,23 @@ function respondUnauthorized(res: Response) {
 	return res.status(401).json({ status: "error", message: "Unauthorized" });
 }
 
-function readCookieValue(cookieHeader: string | undefined, cookieName: string): string | null {
-	if (!cookieHeader) {
-		return null;
+// i added this offline check before we trust Supabase with a network connection so it confirms the token is well-formed three-part JWS 
+// it also check if the alogirthm header is allowed cuz some headers like "alg": "none" can be used to attack stripping the signsture
+function acceptHeader(token: string): boolean {
+	const parts = token.split(".");
+	if (parts.length !== 3 || parts.some(function (part) {
+		return part.length === 0;
+	})) {
+		return false;
 	}
-
-	const segments = cookieHeader.split(";");
-	for (const segment of segments) {
-		const [name, ...valueParts] = segment.trim().split("=");
-		if (name === cookieName) {
-			const rawValue = valueParts.join("=").trim();
-			return rawValue ? decodeURIComponent(rawValue) : null;
-		}
-	}
-
-	return null;
-}
-
-type SessionPayload = {
-	userId?: string;
-	email?: string;
-};
-
-function parseJsonSessionPayload(value: string): SessionPayload | null {
 	try {
-		return JSON.parse(value) as SessionPayload;
+		const headerJson = Buffer.from(parts[0], "base64url").toString("utf8");
+		const header = JSON.parse(headerJson) as { alg?: unknown };
+
+		return typeof header.alg === "string" && ALLOWED_JWT_ALGORITHMS.has(header.alg);
 	} catch {
-		return null;
-	}
-}
-
-function parseSessionPayload(rawSession: string | null): SessionPayload | null {
-	if (!rawSession) {
-		return null;
-	}
-
-	let candidate = rawSession;
-	for (let attempt = 0; attempt < 3; attempt += 1) {
-		const parsed = parseJsonSessionPayload(candidate);
-		if (parsed) {
-			return parsed;
-		}
-
-		try {
-			const decoded = decodeURIComponent(candidate);
-			if (decoded === candidate) {
-				return null;
-			}
-			candidate = decoded;
-		} catch {
-			return null;
-		}
-	}
-
-	return null;
-}
-
-async function trySessionCookieAuth(req: Request): Promise<boolean> {
-	const rawCookieHeader = req.header("cookie");
-	const sessionRaw = readCookieValue(rawCookieHeader, SESSION_COOKIE_NAME);
-	const sessionPayload = parseSessionPayload(sessionRaw);
-
-	if (!sessionPayload?.userId) {
 		return false;
 	}
-
-	const profile = await prisma.user.findUnique({
-		where: { userId: sessionPayload.userId },
-		select: { tenantId: true },
-	});
-
-	if (!profile) {
-		return false;
-	}
-
-	req.user = {
-		id: sessionPayload.userId,
-		user_metadata: {
-			tenant_id: profile.tenantId ?? "",
-		},
-	};
-
-	return true;
 }
 
 export async function authenticateRequest(req: Request, res: Response, next: NextFunction) {
@@ -128,13 +65,7 @@ export async function authenticateRequest(req: Request, res: Response, next: Nex
 	}
 
 	const accessToken = extractBearerToken(req.header("authorization"));
-	if (!accessToken) {
-		if (allowSessionFallbackAuth) {
-			const sessionAuthenticated = await trySessionCookieAuth(req);
-			if (sessionAuthenticated) {
-				return next();
-			}
-		}
+	if (!accessToken || !acceptHeader(accessToken)) {
 		return respondUnauthorized(res);
 	}
 
@@ -149,12 +80,6 @@ export async function authenticateRequest(req: Request, res: Response, next: Nex
 		const { data, error } = await supabaseClient.auth.getUser(accessToken);
 
 		if (error || !data.user?.id) {
-			if (allowSessionFallbackAuth) {
-				const sessionAuthenticated = await trySessionCookieAuth(req);
-				if (sessionAuthenticated) {
-					return next();
-				}
-			}
 			return respondUnauthorized(res);
 		}
 

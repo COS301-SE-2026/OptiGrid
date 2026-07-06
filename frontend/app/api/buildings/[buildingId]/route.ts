@@ -13,6 +13,15 @@ type UpdateBuildingPayload = {
 	building_type?: string;
 };
 
+const ALLOWED_BUILDING_FIELDS = [
+	"building_name",
+	"building_type",
+	"physical_address",
+	"square_footage",
+	"max_occupancy",
+	"timezone",
+] as const;
+
 type ForwardHeaderOptions = {
 	includeContentType?: boolean;
 	includeIdempotency?: boolean;
@@ -43,6 +52,17 @@ function createIdempotencyKey(prefix = "buildings"): string {
 			: `${Date.now()}-${Math.random()}`;
 
 	return `${prefix}-${randomId}`;
+}
+
+function sanitizeBuildingPayload(payload: UpdateBuildingPayload): Record<string, unknown> {
+	const sanitized: Record<string, unknown> = {};
+	for (const field of ALLOWED_BUILDING_FIELDS) {
+		if (payload[field] !== undefined) {
+			sanitized[field] = payload[field];
+		}
+	}
+
+	return sanitized;
 }
 
 function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {
@@ -163,7 +183,7 @@ export async function PATCH(
 		const coreResponse = await fetch(`${CORE_URL}/api/buildings/${buildingId}`, {
 			method: "PATCH",
 			headers,
-			body: JSON.stringify(body),
+			body: JSON.stringify(sanitizeBuildingPayload(body)),
 			cache: "no-store",
 		});
 
