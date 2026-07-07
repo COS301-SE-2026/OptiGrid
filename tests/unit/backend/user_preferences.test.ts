@@ -9,8 +9,13 @@ jest.mock("../../../backend/core/src/lib/prisma", () => ({
 }));
 
 describe("User Preferences Controller", () => {
-    const mockReq = { user: { id: "user-123" }, body: {} } as any;
-    const mockRes = { json: jest.fn(), status: jest.fn().mockReturnThis() } as any;
+    let mockReq: any;
+    let mockRes: any;
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockReq = { user: { id: "user-123" }, body: {} };
+        mockRes = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+    });
 
     it("should fetch theme correctly", async () => {
         (prisma.user.findUnique as jest.Mock).mockResolvedValue({ preferredTheme: "DARK" });
@@ -25,5 +30,27 @@ describe("User Preferences Controller", () => {
         expect(prisma.user.update).toHaveBeenCalledWith(
             expect.objectContaining({ data: { preferredTheme: "LIGHT" } })
         );
+    });
+
+    it("should reject an invalid theme value with a 400 code", async () => {
+        mockReq.body = { theme: "red" };
+        await updateUserTheme(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ status: "error", message: "Invalid theme payload" }));
+        expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("should reject a missing theme field with a 400 instead of just crashing", async () => {
+        mockReq.body = {};
+        await updateUserTheme(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("should reject payloads with any unexpected extra fields", async () => {
+        mockReq.body = { theme: "dark", role: "admin" };
+        await updateUserTheme(mockReq, mockRes);
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(prisma.user.update).not.toHaveBeenCalled();
     });
 });
