@@ -15,24 +15,6 @@ function toUuidOrUndefined(value: unknown): string | undefined {
   return UUID_PATTERN.test(trimmed) ? trimmed : undefined;
 }
 
-function isAdminRole(role: unknown): boolean {
-  return typeof role === 'string' && role.trim().toUpperCase() === 'ADMIN';
-}
-
-async function resolveRequestRole(req: Request): Promise<string> {
-  const attachedRole = req.user?.roleType || req.user?.user_metadata?.roleType;
-  if (typeof attachedRole === 'string' && attachedRole.trim()) {
-    return attachedRole.trim();
-  }
-
-  const dbUser = await prisma.user.findUnique({
-    where: { userId: req.user!.id },
-    select: { roleType: true },
-  });
-
-  return dbUser?.roleType || 'VIEWER';
-}
-
 // creates buildings with payload validation, idempotency handling, and error management
 export const createBuildingController = async (req: Request, res: Response) => {
   try {
@@ -167,8 +149,15 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
       });
     }
     //enfore rbac
-    const role = await resolveRequestRole(req);
-    if (!isAdminRole(role)) {
+   let role= req.user.roleType || req.user.user_metadata?.roleType;
+    if(role !=="ADMIN" && role !== "Admin"){
+      const dbUser = await prisma.user.findUnique({
+        where:{ userId: req.user.id},
+        select: {roleType: true}
+      });
+      role = dbUser?.roleType || "VIEWER"
+    }
+    if(role !== "ADMIN" && role !== "Admin") {
       return res.status(403).json({
         status: "error",
         message: "You do not have permission to delete a building, submit a support ticket"
@@ -221,8 +210,15 @@ export const updateBuildingController = async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
     //enforce rbac
-    const role = await resolveRequestRole(req);
-    if (!isAdminRole(role)) {
+    let role= req.user.roleType || req.user.user_metadata?.roleType;
+    if(role !=="ADMIN" && role !== "Admin"){
+      const dbUser = await prisma.user.findUnique({
+        where:{ userId: req.user.id},
+        select: {roleType: true}
+      });
+      role = dbUser?.roleType || "VIEWER"
+    }
+    if(role !== "ADMIN" && role !== "Admin") {
       return res.status(403).json({
         status: "error",
         message: "You do not have permission to edit the building"
