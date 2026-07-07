@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { createBuilding, compareBuildingsService, deleteBuildingService, listBuildingsForUser, updateBuildingService } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import prisma from '../lib/prisma';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -12,6 +13,24 @@ function toUuidOrUndefined(value: unknown): string | undefined {
 
   const trimmed = value.trim();
   return UUID_PATTERN.test(trimmed) ? trimmed : undefined;
+}
+
+function isAdminRole(role: unknown): boolean {
+  return typeof role === 'string' && role.trim().toUpperCase() === 'ADMIN';
+}
+
+async function resolveRequestRole(req: Request): Promise<string> {
+  const attachedRole = req.user?.roleType || req.user?.user_metadata?.roleType;
+  if (typeof attachedRole === 'string' && attachedRole.trim()) {
+    return attachedRole.trim();
+  }
+
+  const dbUser = await prisma.user.findUnique({
+    where: { userId: req.user!.id },
+    select: { roleType: true },
+  });
+
+  return dbUser?.roleType || 'VIEWER';
 }
 
 // creates buildings with payload validation, idempotency handling, and error management
@@ -147,6 +166,14 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
         message: 'Unauthorized' 
       });
     }
+    //enfore rbac
+    const role = await resolveRequestRole(req);
+    if (!isAdminRole(role)) {
+      return res.status(403).json({
+        status: "error",
+        message: "You do not have permission to delete a building, submit a support ticket"
+      })
+    }
     const userId = req.user.id;
 
     // enforce strict idempotency processing
@@ -193,6 +220,15 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
+    //enforce rbac
+    const role = await resolveRequestRole(req);
+    if (!isAdminRole(role)) {
+      return res.status(403).json({
+        status: "error",
+        message: "You do not have permission to edit the building"
+      })
+    }
+
     const { building_id } = deleteBuildingSchema.parse(req.params);
     const validatedPayload = updateBuildingSchema.parse(req.body);
 
