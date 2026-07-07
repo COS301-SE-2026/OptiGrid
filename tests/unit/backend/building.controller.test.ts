@@ -719,20 +719,24 @@ describe('Building Controller', () => {
 			});
 		});
 
-		it("should_return_403_if_not_Admin", async () =>{
+		it("should_delete_for_non_admin_user_when_service_allows_building_access", async () =>{
 			req = {
 				user: { id: mockUserId,roleType:"VIEWER" },
 				headers: { 'idempotency-key': mockIdempotencyKey },
 				params: { building_id: 'building-003' },
 			};
 
+			mockedCheckIdempotencyKey.mockResolvedValue(null);
+			mockedDeleteBuildingSchema.parse.mockReturnValue({ building_id: 'building-003' });
+			mockedDeleteBuildingService.mockResolvedValue(undefined);
+
 			await deleteBuildingController(req, res);
 			//assert
-			expect(res.status).toHaveBeenCalledWith(403);
-			expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-				status: 'error',
-				message: "You do not have permission to delete a building, submit a support ticket"
-			}));
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'success',
+				message: 'Building successfully deleted',
+			});
 		})
 	});
 });
