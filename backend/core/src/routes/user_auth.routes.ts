@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { signup, login } from '../controllers/user_auth.controller';
-import { validateSignUp, signupSchema } from '../validation/user_auth.validation';
+import { validateSignUp, validateBody, signupSchema, loginSchema } from '../validation/user_auth.validation';
 
 const router = Router();
 
@@ -180,7 +180,7 @@ router.post('/signup', validateSignUp(signupSchema), signup);
  *                   type: string
  *                   example: Internal server error
  */
-router.post('/login', login)
+router.post('/login', validateBody(loginSchema), login)
 
 export default router;
 
