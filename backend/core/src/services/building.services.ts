@@ -122,19 +122,23 @@ export const updateBuildingService = async (
   userId: string,
   buildingId: string,
   payload: updateBuildingPayload,
+  role: string = "VIEWER",
 ) => {
-  const accessRecord = await prisma.userBuildingAccess.findUnique({
-    where: {
-      user_id_building_id: {
-        user_id: userId,
-        building_id: buildingId,
+  if(role !== "ADMIN" && role !== "Admin") {
+    const accessRecord = await prisma.userBuildingAccess.findUnique({
+      where: {
+        user_id_building_id: {
+          user_id: userId,
+          building_id: buildingId,
+        },
       },
-    },
-  });
+    });
 
-  if (!accessRecord) {
-    throw new Error('Access Denied: You do not have permission to update this building.');
+    if (!accessRecord) {
+      throw new Error('Access Denied: You do not have permission to update this building.');
+    }
   }
+  
 
   const exists = await prisma.building.findUnique({
     where: { building_id: buildingId},
@@ -264,19 +268,26 @@ export const compareBuildingsService = async (
   };
 };
 
-export const deleteBuildingService = async (userId: string, buildingId: string) => {
-  //verify user has access to this building
-  const accessRecord = await prisma.userBuildingAccess.findUnique({
-    where: {
-      user_id_building_id: {
-        user_id: userId,
-        building_id: buildingId,
-      },
-    },
-  });
+export const deleteBuildingService = async (
+  userId: string, 
+  buildingId: string,
+  role: string = "VIEWER",
+) => {
 
-  if (!accessRecord) {
-    throw new Error("Access Denied: You do not have permission to delete the buidling.")
+  if(role !== "ADMIN" && role !== "Admin") {
+    //verify user has access to this building
+    const accessRecord = await prisma.userBuildingAccess.findUnique({
+      where: {
+        user_id_building_id: {
+          user_id: userId,
+          building_id: buildingId,
+        },
+      },
+    });
+
+    if (!accessRecord) {
+      throw new Error("Access Denied: You do not have permission to delete the buidling.")
+    }
   }
 
   //deleting building

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import prisma from '../../../backend/core/src/lib/prisma';
 
 // Mock Prisma before importing
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -9,6 +10,9 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 		},
 		userBuildingAccess: {
 			create: jest.fn(),
+		},
+		user: {
+			findUnique: jest.fn(),
 		},
 		$transaction: jest.fn(),
 	},
@@ -725,7 +729,7 @@ describe('Building Controller', () => {
 				headers: { 'idempotency-key': mockIdempotencyKey },
 				params: { building_id: 'building-003' },
 			};
-
+			(prisma.user.findUnique as jest.Mock).mockResolvedValue({ roleType: 'VIEWER' });
 			await deleteBuildingController(req, res);
 			//assert
 			expect(res.status).toHaveBeenCalledWith(403);

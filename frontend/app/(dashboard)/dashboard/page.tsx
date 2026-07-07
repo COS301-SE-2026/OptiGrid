@@ -520,7 +520,7 @@ export default function DashboardPage() {
 
                                         <td>
    
-
+        {(user?.roleType?.toUpperCase() === "ADMIN" || user?.roleType?.toUpperCase() === "BUILDING_MANAGER") && (
         <Link
             href={`/buildings/${building.id}/edit`}
             className="icon-button"
@@ -529,7 +529,9 @@ export default function DashboardPage() {
         >
             <PencilIcon />
         </Link>
+        )}
 
+        {user?.roleType?.toUpperCase() ===  "ADMIN" && (
         <button
             className="icon-button icon-danger"
             aria-label={`Delete ${building.name}`}
@@ -540,6 +542,7 @@ export default function DashboardPage() {
         >
             <TrashIcon />
         </button>
+        )}
     
 </td>
                                     

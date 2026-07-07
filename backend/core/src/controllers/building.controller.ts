@@ -180,7 +180,7 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
     const { building_id } = deleteBuildingSchema.parse(req.params);
 
     // delegate to the service layer
-    await deleteBuildingService(userId, building_id);
+    await deleteBuildingService(userId, building_id, role);
 
     const successResponse = {
       status: 'success',
@@ -211,14 +211,14 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     }
     //enforce rbac
     let role= req.user.roleType || req.user.user_metadata?.roleType;
-    if(role !=="ADMIN" && role !== "Admin"){
+    if(role !=="ADMIN" && role !== "Admin" && role !== "BUILDING_MANAGER" && role !== "Building_Manager"){
       const dbUser = await prisma.user.findUnique({
         where:{ userId: req.user.id},
         select: {roleType: true}
       });
       role = dbUser?.roleType || "VIEWER"
     }
-    if(role !== "ADMIN" && role !== "Admin") {
+    if(role !=="ADMIN" && role !== "Admin" && role !== "BUILDING_MANAGER" && role !== "Building_Manager") {
       return res.status(403).json({
         status: "error",
         message: "You do not have permission to edit the building"
@@ -228,7 +228,7 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     const { building_id } = deleteBuildingSchema.parse(req.params);
     const validatedPayload = updateBuildingSchema.parse(req.body);
 
-    const building = await updateBuildingService(req.user.id, building_id, validatedPayload);
+    const building = await updateBuildingService(req.user.id, building_id, validatedPayload, role);
     return res.status(200).json({
       status: 'success',
       data: building,
