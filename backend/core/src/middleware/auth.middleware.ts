@@ -88,9 +88,10 @@ export async function authenticateRequest(req: Request, res: Response, next: Nex
 			select: { tenantId: true },
 		});
 
+		//the tenant_id must come from our own DB only. so because supabase user_metadata is client-writable, we cannot trust it as users can self-assign a tenant
 		const userMetadata = {
 			...(data.user.user_metadata ?? {}),
-			tenant_id: profile?.tenantId ?? data.user.user_metadata?.tenant_id ?? "",
+			tenant_id: profile?.tenantId ?? "",
 		};
 
 		req.user = {

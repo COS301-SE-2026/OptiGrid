@@ -77,7 +77,8 @@ describe('Login integration', () => {
 		});
 
 		expect(response.status).toBe(400);
-		expect(response.body.message).toBe('Email and password are required fields.');
+		expect(response.body.message).toBe('Validation error');
+		expect(response.body.errors).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'password' })]),);
 	});
 
 	it('repairs the local profile when Supabase auth succeeds but the profile is missing', async () => {

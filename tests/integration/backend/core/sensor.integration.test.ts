@@ -59,10 +59,29 @@ describe('Sensor API Integration', () => {
 			});
 
 		expect(response.status).toBe(400);
-		expect(response.body).toEqual({
+		expect(response.body).toEqual(expect.objectContaining({
 			status: 'error',
-			message: 'Missing required telemetry fields',
-		});
+			message: 'Invalid telemetry payload',
+		}));
+		expect(mockedForwardToIngestionService).not.toHaveBeenCalled();
+	});
+
+	it('returns 400 when the payload contains unexpected fields', async () => {
+		const response = await request(harness.app)
+			.post('/api/sensors/data')
+			.send({
+				building_id: '11111111-1111-4111-8111-111111111111',
+				sensor_id: '22222222-2222-4222-8222-222222222222',
+				usage: 42.5,
+				hardware_auth_token: 'attack',
+			});
+
+		expect(response.status).toBe(400);
+
+		expect(response.body).toEqual(expect.objectContaining({
+			status: 'error',
+			message: 'Invalid telemetry payload',
+		}));
 		expect(mockedForwardToIngestionService).not.toHaveBeenCalled();
 	});
 

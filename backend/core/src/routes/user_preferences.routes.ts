@@ -41,7 +41,7 @@ const router = Router();
  *             properties:
  *               theme:
  *                 type: string
- *                 enum: [light, dark]
+ *                 enum: [light, dark, system]
  *                 example: dark
  *     responses:
  *       200:
