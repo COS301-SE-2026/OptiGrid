@@ -47,6 +47,16 @@ function uniqueBuckets(buildingId: string): string[] {
     return Array.from(new Set([`building-${buildingId}`, bucket].filter(Boolean)));
 }
 
+function isMissingBucketError(error: any): boolean {
+    const message = String(error?.message || error?.body || '');
+    return (
+        error?.statusCode === 404 ||
+        error?.code === 'not found' ||
+        message.includes('can not find the bucket') ||
+        message.includes('could not find bucket')
+    );
+}
+
 async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: string, bucketName: string) {
     const fluxQuery = `
         from(bucket: ${fluxString(bucketName)})
@@ -102,7 +112,7 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
             return await queryBucketTotals(queryApi, buildingId, normalizedRange, bucketName);
         } catch (error: any) {
             lastError = error;
-            if (!String(error?.message).includes('can not find the bucket')) {
+            if (!isMissingBucketError(error)) {
                 break;
             }
         }
