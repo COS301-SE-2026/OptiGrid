@@ -280,7 +280,7 @@ async function provisionOrResolveAuthUser(email: string, password: string): Prom
 }
 
 //This function is used for the signup logic
-export const signup = async (email: string, password: string, name: string) => {
+export const signup = async (email: string, password: string, name: string, roleType?: UserRole) => {
     //we check if user exists, and if so he should login
     const userExists = await prisma.user.findUnique({
         where: { email },
@@ -292,8 +292,8 @@ export const signup = async (email: string, password: string, name: string) => {
     const lastName = otherNames.join(' ');
 
     //assign manager to users ending with @optigrid.com, viewer by default
-    let role: UserRole = "VIEWER";
-    if(email.trim().toLowerCase().endsWith("@optigrid.com")) role = "BUILDING_MANAGER";
+    let role: UserRole = roleType ?? "VIEWER";
+    if(!roleType && email.trim().toLowerCase().endsWith("@optigrid.com")) role = "BUILDING_MANAGER";
 
     // Prefer Supabase auth user id to satisfy schemas where users.user_id references auth.users.id.
     const provisionedAuthUser = await provisionOrResolveAuthUser(email, password);

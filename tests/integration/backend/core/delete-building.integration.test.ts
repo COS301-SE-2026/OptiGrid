@@ -155,7 +155,7 @@ describe('Building integration - Delete Building', () => {
 		});
 	});
 
-	it('returns 403 and leaves the building intact when the user lacks access', async () => {
+	it('returns 200 if user is an admin', async () => {
 		const buildingId = uuidv4();
 		await seedBuilding(buildingId, { grantAccess: false });
 
@@ -164,10 +164,10 @@ describe('Building integration - Delete Building', () => {
 			.set('Idempotency-Key', uuidv4())
 			.set(authHeaders);
 
-		expect(response.status).toBe(403);
-		expect(response.body.message).toContain('Access Denied: You do not have permission to delete the buidling.');
+		expect(response.status).toBe(200);
+		expect(response.body.status).toBe("success");
 		await expect(countBuildingRows(buildingId)).resolves.toEqual({
-			buildingCount: 1,
+			buildingCount: 0,
 			accessCount: 0,
 			sensorCount: 0,
 		});

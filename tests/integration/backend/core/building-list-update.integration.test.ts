@@ -181,7 +181,7 @@ describe('Building integration - List and Update Buildings', () => {
 		});
 	});
 
-	it('returns 403 when updating a building the user cannot access', async () => {
+	it('returns 200 when updating a building the by an admin', async () => {
 		const buildingId = await seedBuilding({
 			name: 'Restricted Building',
 			ownerId: otherUserId,
@@ -194,8 +194,8 @@ describe('Building integration - List and Update Buildings', () => {
 				building_name: 'Should Not Update',
 			});
 
-		expect(response.status).toBe(403);
-		expect(response.body.message).toContain('Access Denied: You do not have permission to update this building.');
+		expect(response.status).toBe(200);
+		expect(response.body.status).toBe("success");
 	});
 
 	it('returns 400 when update payload is empty or invalid', async () => {

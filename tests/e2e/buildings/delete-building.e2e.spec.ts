@@ -6,6 +6,7 @@ type E2EUser = {
   email: string;
   password: string;
   name: string;
+  roleType: string;
 };
 
 type BuildingSeed = {
@@ -23,6 +24,7 @@ function buildUniqueUser(): E2EUser {
     email: `delete-building-e2e-${suffix}@optigrid.test`,
     password: "StrongPass123!",
     name: "Avery Building",
+    roleType: "Admin",
   };
 }
 
@@ -35,6 +37,7 @@ async function createUserInCore(
       email: user.email,
       password: user.password,
       name: user.name,
+      roleType: user.roleType,
     },
   });
 
@@ -124,10 +127,11 @@ test.describe("Delete building", () => {
     });
     await expect(buildingRow).toBeVisible();
     await expect(buildingRow).toContainText(building.address);
-
-    await buildingRow
-      .getByRole("button", { name: `Delete ${building.name}` })
-      .click();
+    
+    await buildingRow.hover();
+    const deleteButton = buildingRow.getByRole("button", { name: "Delete", exact: true });
+    await expect(deleteButton).toBeVisible();
+    await deleteButton.click();
 
     const deleteModal = page.locator(".modal");
     await expect(deleteModal.getByRole("heading", { name: "Delete building" })).toBeVisible();
