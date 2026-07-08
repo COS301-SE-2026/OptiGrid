@@ -63,7 +63,7 @@ const mockbuildings: Building[] = [
 ];
 
 
-const initialUsers: User[] = [
+const mockUsers: User[] = [
   { user_id: "u1", first_name: "Emma Wilson", email: "emma@example.com" },
   { user_id: "u2", first_name: "Liam Martinez", email: "liam@example.com" },
   { user_id: "u3", first_name: " Chen", email: "sophia@example.com" },
@@ -72,7 +72,7 @@ const initialUsers: User[] = [
   { user_id: "u6", first_name: " Brown", email: "ethan@example.com" },
 ];
 
-const initialManagers: Manager[] = [
+const mockManagers: Manager[] = [
   { manager_id: "m1", name: "Alice Johnson", email: "alice@example.com" },
   { manager_id: "m2", name: "Bob Smith", email: "bob@example.com" },
   { manager_id: "m3", name: "Clara", email: "clara@example.com" },
@@ -80,4 +80,49 @@ const initialManagers: Manager[] = [
   { manager_id: "m5", name: "Elena", email: "elena@example.com" },
 ];
 
+const [buildings, setBuildings] = useState<Building[]>(mockbuildings);
+  const [users] = useState<User[]>(mockUsers);
+  const [managers] = useState<Manager[]>(mockManagers);
+  const [lifecycleFilter, setLifecycleFilter] = useState<string>("all");
+  const [userFilter, setUserFilter] = useState<string>("");
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
+  const [formError, setFormError] = useState<string>("");
 
+
+
+ const [formName, setFormName] = useState<string>("");
+  const [formState, setFormState] = useState<lifecycle_state>("provisioning");
+  const [formUserId, setFormUserId] = useState<string>("");
+  const [formManagerId, setFormManagerId] = useState<string>("");
+
+
+
+    const filteredBuildings = useMemo(() => {
+    return buildings.filter((building) => {
+      if (lifecycleFilter !== "all" && building.state !== lifecycleFilter) {
+        return false;
+      }
+
+      if (userFilter.trim()) {
+        const query = userFilter.trim().toLowerCase();
+        const userMatch = building.user_id
+          ? users
+              .find((u) => u.user_id === building.user_id)
+              ?.first_name.toLowerCase()
+              .includes(query) || false
+          : false;
+        const managerMatch = building.manager_id
+          ? managers
+              .find((m) => m.manager_id === building.manager_id)
+              ?.name.toLowerCase()
+              .includes(query) || false
+          : false;
+        if (!userMatch && !managerMatch) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [buildings, lifecycleFilter, userFilter, users, managers]);
