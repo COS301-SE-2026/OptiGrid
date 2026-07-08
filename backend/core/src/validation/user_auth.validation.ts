@@ -11,6 +11,10 @@ export const signupSchema = z.object({
             message:'Password must include at least one uppercase letter, one number, and one special character',
         }),
     name: z.string().min(3, { message: 'Name must be 3 or more characters' }),
+    roleType: z.preprocess(
+        (value) => (typeof value === 'string' ? value.toUpperCase() : value),
+        z.enum(['ADMIN', 'BUILDING_MANAGER', 'VIEWER'])
+    ).optional(),
 }).strict();
 
 // we need a schema here to validate login credentials
@@ -18,10 +22,6 @@ export const loginSchema = z.object({
     email: z.string().email({ message: 'Invalid email address' }),
     password: z.string().min(1, { message: 'Password is required' }),
 }).strict();
-        roleType: z.preprocess(
-            (value) => (typeof value === 'string' ? value.toUpperCase() : value),
-            z.enum(['ADMIN', 'BUILDING_MANAGER', 'VIEWER'])
-        ).optional(),});
 
 
 export const validateSignUp = (schema: ZodTypeAny) => {
