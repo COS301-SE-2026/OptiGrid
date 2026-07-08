@@ -46,9 +46,10 @@ export async function POST(request: Request) {
 		const emailValue = typeof maybeUser?.email === "string" ? maybeUser.email : "";
 		const firstName = typeof maybeUser?.firstName === "string" ? maybeUser.firstName : "";
 		const lastName = typeof maybeUser?.lastName === "string" ? maybeUser.lastName : "";
+		const roleType = typeof maybeUser?.roleType === "string" ? maybeUser.roleType : "VIEWER"
 
 		if (coreResponse.ok && userId && emailValue) {
-			const sessionPayload = JSON.stringify({ userId, email: emailValue, firstName, lastName });
+			const sessionPayload = JSON.stringify({ userId, email: emailValue, firstName, lastName, roleType });
 			response.cookies.set(SESSION_COOKIE_NAME, sessionPayload, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === "production",

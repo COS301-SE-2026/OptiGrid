@@ -76,6 +76,7 @@ describe('signup service', () => {
 			email: 'user@example.com',
 			firstName: 'Jane',
 			lastName: 'Doe',
+			roleType: "VIEWER,"
 		});
 
 		// Act
@@ -102,17 +103,20 @@ describe('signup service', () => {
 				email: 'user@example.com',
 				firstName: 'Jane',
 				lastName: 'Doe',
+				roleType: "VIEWER"
 			},
 			update: {
 				email: 'user@example.com',
 				firstName: 'Jane',
 				lastName: 'Doe',
+				roleType: "VIEWER"
 			},
 			select: {
 				userId: true,
 				email: true,
 				firstName: true,
 				lastName: true,
+				roleType: true,
 			},
 		});
 		expect(user).toEqual({
@@ -120,6 +124,7 @@ describe('signup service', () => {
 			email: 'user@example.com',
 			firstName: 'Jane',
 			lastName: 'Doe',
+			roleType: "VIEWER,"
 		});
 	});
 

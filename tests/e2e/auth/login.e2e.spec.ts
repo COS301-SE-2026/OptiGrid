@@ -57,6 +57,9 @@ test.describe("Login page", () => {
     await page.getByLabel("Password").fill("BadPass123!");
     await page.getByRole("button", { name: "Log in" }).click();
 
+    const resp = page.waitForResponse("**/api/auth/login");
+    await page.getByRole("button", { name: "Log in"}).click();
+    await resp;
     await expect(page.getByText("Invalid email or password")).toBeVisible();
   });
 

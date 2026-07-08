@@ -3,8 +3,8 @@ import * as authService from '../services/user_auth.services';
 
 export const signup = async (req: Request, res: Response) => {
     try {
-        const { email, password, name } = req.body;
-        const user = await authService.signup(email, password, name);
+        const { email, password, name, roleType} = req.body;
+        const user = await authService.signup(email, password, name, roleType);
             
         return res.status(201).json({
             message: 'User created successfully',
