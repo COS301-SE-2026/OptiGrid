@@ -11,7 +11,10 @@ export const signupSchema = z.object({
             message:'Password must include at least one uppercase letter, one number, and one special character',
         }),
     name: z.string().min(3, { message: 'Name must be 3 or more characters' }),
-});
+        roleType: z.preprocess(
+            (value) => (typeof value === 'string' ? value.toUpperCase() : value),
+            z.enum(['ADMIN', 'BUILDING_MANAGER', 'VIEWER'])
+        ).optional(),});
 
 
 export const validateSignUp = (schema: ZodTypeAny) => {

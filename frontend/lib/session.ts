@@ -3,6 +3,7 @@ export type SessionUser = {
 	email: string;
 	firstName: string;
 	lastName: string;
+	roleType: string;
 };
 
 export const SESSION_COOKIE_NAME = "optigrid_session";
@@ -41,6 +42,7 @@ export function parseSession(rawValue: string | undefined): SessionUser | null {
 			email: parsed.email,
 			firstName: parsed.firstName ?? "",
 			lastName: parsed.lastName ?? "",
+			roleType: parsed.roleType ?? "VIEWER"
 		};
 	}
 

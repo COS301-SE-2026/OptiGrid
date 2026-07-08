@@ -519,29 +519,31 @@ export default function DashboardPage() {
                                         </td>
 
                                         <td>
-   
+                                            {/*{(user?.roleType?.toUpperCase() === "ADMIN" || user?.roleType?.toUpperCase() === "BUILDING_MANAGER") && (*/}
+                                                <Link
+                                                    href={`/buildings/${building.id}/edit`}
+                                                    className="icon-button"
+                                                    aria-label={"Edit"}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <PencilIcon />
+                                                </Link>
+                                            {/*})}*/}
 
-        <Link
-            href={`/buildings/${building.id}/edit`}
-            className="icon-button"
-            aria-label={`Edit ${building.name}`}
-            onClick={(e) => e.stopPropagation()}
-        >
-            <PencilIcon />
-        </Link>
+                                            {user?.roleType?.toUpperCase() === "ADMIN" && !deleteTarget && (
+                                                <button
+                                                    className="icon-button icon-danger"
+                                                    aria-label={"Delete"}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDelete(building); }}
+                                                    disabled={deleteBuildingMutation.isPending}
+                                                >
+                                                    <TrashIcon />
+                                                </button>
+                                            )}
 
-        <button
-            className="icon-button icon-danger"
-            aria-label={`Delete ${building.name}`}
-            onClick={(e) => { 
-                e.stopPropagation();
-                 handleDelete(building); }}
-            disabled={deleteBuildingMutation.isPending}
-        >
-            <TrashIcon />
-        </button>
-    
-</td>
+                                        </td>
                                     
                                     </tr>
                                 ))}

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import prisma from '../../../backend/core/src/lib/prisma';
 
 // Mock Prisma before importing
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -9,6 +10,9 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 		},
 		userBuildingAccess: {
 			create: jest.fn(),
+		},
+		user: {
+			findUnique: jest.fn(),
 		},
 		$transaction: jest.fn(),
 	},
@@ -650,7 +654,7 @@ describe('Building Controller', () => {
 
 		it('should return 400 if Idempotency-Key header is completely missing', async () => {
 			req = {
-				user: { id: mockUserId },
+				user: { id: mockUserId, roleType:"ADMIN" },
 				headers: {}, // Missing key header
 				params: { building_id: 'building-003' },
 			};
@@ -663,7 +667,7 @@ describe('Building Controller', () => {
 
 		it('should return 200 and cached response if Idempotency Key is found in Redis cache', async () => {
 			req = {
-				user: { id: mockUserId },
+				user: { id: mockUserId, roleType:"ADMIN" },
 				headers: { 'idempotency-key': mockIdempotencyKey },
 				params: { building_id: 'building-003' },
 			};
@@ -680,7 +684,7 @@ describe('Building Controller', () => {
 
 		it('should successfully call service layer and return 200 on successful deletion pass', async () => {
 			req = {
-				user: { id: mockUserId },
+				user: { id: mockUserId, roleType:"ADMIN" },
 				headers: { 'idempotency-key': mockIdempotencyKey },
 				params: { building_id: 'building-003' },
 			};
@@ -701,7 +705,7 @@ describe('Building Controller', () => {
 
 		it('should return 403 if the service layer throws an Access Denied violation error', async () => {
 			req = {
-				user: { id: mockUserId },
+				user: { id: mockUserId,roleType:"ADMIN" },
 				headers: { 'idempotency-key': mockIdempotencyKey },
 				params: { building_id: 'building-003' },
 			};
@@ -718,5 +722,21 @@ describe('Building Controller', () => {
 				message: 'Access Denied: User has no permission',
 			});
 		});
+
+		it("should_return_403_if_not_Admin", async () =>{
+			req = {
+				user: { id: mockUserId,roleType:"VIEWER" },
+				headers: { 'idempotency-key': mockIdempotencyKey },
+				params: { building_id: 'building-003' },
+			};
+			(prisma.user.findUnique as jest.Mock).mockResolvedValue({ roleType: 'VIEWER' });
+			await deleteBuildingController(req, res);
+			//assert
+			expect(res.status).toHaveBeenCalledWith(403);
+			expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+				status: 'error',
+				message: "You do not have permission to delete a building, submit a support ticket"
+			}));
+		})
 	});
 });

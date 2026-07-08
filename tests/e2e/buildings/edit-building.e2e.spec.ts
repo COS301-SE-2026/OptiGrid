@@ -6,6 +6,7 @@ type E2EUser = {
   email: string;
   password: string;
   name: string;
+  roleType: string;
 };
 
 type BuildingSeed = {
@@ -25,6 +26,7 @@ function buildUniqueUser(): E2EUser {
     email: `edit-building-e2e-${suffix}@optigrid.test`,
     password: "StrongPass123!",
     name: "Avery Building",
+    roleType: "ADMIN",
   };
 }
 
@@ -37,6 +39,7 @@ async function createUserInCore(
       email: user.email,
       password: user.password,
       name: user.name,
+      roleType: user.roleType,
     },
   });
 
@@ -141,9 +144,9 @@ test.describe("Edit building", () => {
       hasText: originalBuilding.name,
     });
     await expect(originalRow).toBeVisible();
-    await originalRow
-      .getByRole("link", { name: `Edit ${originalBuilding.name}` })
-      .click();
+      await originalRow
+        .getByRole("link", { name: "Edit", exact: true })
+        .click();
 
     await expect(page).toHaveURL(/\/buildings\/[^/]+\/edit$/);
     await expect(page.getByRole("heading", { name: "Edit Building" })).toBeVisible();

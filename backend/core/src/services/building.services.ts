@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { Building, BuildingType } from '@prisma/client';
+import { Building, BuildingType, LifecycleState } from '@prisma/client';
 import { queryTotalKwh } from '../lib/influx';
 import crypto from 'crypto';
 import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
@@ -21,6 +21,10 @@ export interface buildingPayload {
   nominal_voltage?: number;
   max_current_threshold?: number;
   metadata?: Record<string, unknown>;
+  latitude?: number;
+  longitude?: number;
+  lifecycle_state?: LifecycleState;
+  geohash?: string;
 }
 
 export interface updateBuildingPayload {
@@ -30,6 +34,13 @@ export interface updateBuildingPayload {
   physical_address?: string;
   timezone?: string;
   max_occupancy?: number;
+  latitude ?: number;
+  longitude?: number;
+  nominal_voltage?: number;
+  max_current_threshold?: number;
+  metadata?: Record<string, unknown>;
+  lifecycle_state?: LifecycleState;
+  geohash?: string;
 }
 
 function generateHardwareAuthToken(buildingId: string): string {
@@ -56,6 +67,8 @@ export const createBuilding = async (
         physical_address: payload.physical_address,
         timezone: payload.timezone || 'UTC',
         max_occupancy: payload.max_occupancy,
+        latitude: payload.latitude,
+        longitude: payload.longitude,
         nominal_voltage: payload.nominal_voltage ?? 230,
         max_current_threshold: payload.max_current_threshold ?? 60,
         lifecycle_state: 'PROVISIONING',
@@ -79,29 +92,13 @@ export const createBuilding = async (
       },
     });
 
-    // we try to await this and not set it immediately
-    //this way prisma transaction rolls back n no supabase isseu arise
-    try  {
-      await queueBuildingProvisioning(
-        newBuilding.building_id,
-        newBuilding.building_name,
-        payload.nominal_voltage ?? 230,
-        payload.max_current_threshold ?? 60,
-        finalHardwareAuthToken,
-        payload.metadata
-      );
-    }
-     catch (error:any) {
-      throw new Error(`Failed to queue provisioning for building ${newBuilding.building_id}:`, error);
-    }
-
     return {
       ...newBuilding,
       hardware_auth_token: finalHardwareAuthToken,
       nominal_voltage: payload.nominal_voltage ?? 230,
       max_current_threshold: payload.max_current_threshold ?? 60,
-      lifecycle_state: 'ACTIVE',
-      message: 'Building created. Infrastructure provisioning queued asynchronously.'
+      lifecycle_state: 'PROVISIONING',
+      message: 'Building created. Waiting for admin and hardware provisioning.'
     };
   });
 };
@@ -125,20 +122,48 @@ export const updateBuildingService = async (
   userId: string,
   buildingId: string,
   payload: updateBuildingPayload,
+  role: string = "VIEWER",
 ) => {
-  const accessRecord = await prisma.userBuildingAccess.findUnique({
-    where: {
-      user_id_building_id: {
-        user_id: userId,
-        building_id: buildingId,
+  if(role !== "ADMIN" && role !== "Admin") {
+    const accessRecord = await prisma.userBuildingAccess.findUnique({
+      where: {
+        user_id_building_id: {
+          user_id: userId,
+          building_id: buildingId,
+        },
       },
-    },
+    });
+
+    if (!accessRecord) {
+      throw new Error('Access Denied: You do not have permission to update this building.');
+    }
+  }
+  
+
+  const exists = await prisma.building.findUnique({
+    where: { building_id: buildingId},
   });
 
-  if (!accessRecord) {
-    throw new Error('Access Denied: You do not have permission to update this building.');
-  }
+  if(!exists) throw new Error("Building does not exist");
 
+  let buildingState = payload.lifecycle_state;
+  if(payload.lifecycle_state === "ACTIVE" && exists.lifecycle_state !== "ACTIVE") {
+    try {
+      await queueBuildingProvisioning(
+        exists.building_id,
+        payload.building_name || exists.building_name,
+        payload.nominal_voltage ?? exists.nominal_voltage ?? 230,
+        payload.max_current_threshold ?? exists.max_current_threshold ?? 60,
+        exists.hardware_auth_token!,
+        payload.metadata
+      );
+      buildingState = "ACTIVE"
+    }
+    catch(error:any) {
+      buildingState = "PROVISIONING_FAILED";
+      console.error(`Provisioning failed due to unexpected errors`, error);
+    }
+  }
   return prisma.building.update({
     where: {
       building_id: buildingId,
@@ -150,6 +175,12 @@ export const updateBuildingService = async (
       ...(payload.physical_address !== undefined ? { physical_address: payload.physical_address } : {}),
       ...(payload.timezone !== undefined ? { timezone: payload.timezone } : {}),
       ...(payload.max_occupancy !== undefined ? { max_occupancy: payload.max_occupancy } : {}),
+      ...(payload.latitude !== undefined ? {latitude: payload.latitude} : {}),
+      ...(payload.longitude !== undefined ? {longitude: payload.longitude} : {}),
+      ...(payload.nominal_voltage !== undefined ? {nominal_voltage: payload.nominal_voltage} : {}),
+      ...(payload.max_current_threshold !== undefined ? {max_current_threshold: payload.max_current_threshold} : {}),
+      ...(buildingState !== undefined ? {lifecycle_state: buildingState} : {}),
+      ...(payload.geohash !== undefined ? {geohash: payload.geohash} : {}),
     },
   });
 };
@@ -237,19 +268,26 @@ export const compareBuildingsService = async (
   };
 };
 
-export const deleteBuildingService = async (userId: string, buildingId: string) => {
-  //verify user has access to this building
-  const accessRecord = await prisma.userBuildingAccess.findUnique({
-    where: {
-      user_id_building_id: {
-        user_id: userId,
-        building_id: buildingId,
-      },
-    },
-  });
+export const deleteBuildingService = async (
+  userId: string, 
+  buildingId: string,
+  role: string = "VIEWER",
+) => {
 
-  if (!accessRecord) {
-    throw new Error("Access Denied: You do not have permission to delete the buidling.")
+  if(role !== "ADMIN" && role !== "Admin") {
+    //verify user has access to this building
+    const accessRecord = await prisma.userBuildingAccess.findUnique({
+      where: {
+        user_id_building_id: {
+          user_id: userId,
+          building_id: buildingId,
+        },
+      },
+    });
+
+    if (!accessRecord) {
+      throw new Error("Access Denied: You do not have permission to delete the buidling.")
+    }
   }
 
   //deleting building

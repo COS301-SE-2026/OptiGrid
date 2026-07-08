@@ -38,6 +38,7 @@ describe('User Authentication Service - Login', () => {
         email: 'test@testing.com',
         firstName: 'Test',
         lastName: 'User',
+        roleType: "VIEWER"
     };
 
     beforeEach(() => {
@@ -90,6 +91,7 @@ describe('User Authentication Service - Login', () => {
                 email: true,
                 firstName: true,
                 lastName: true,
+                roleType: true,
             },
         });
         expect(result).toEqual({
@@ -122,6 +124,7 @@ describe('User Authentication Service - Login', () => {
             email: 'test@testing.com',
             firstName: '',
             lastName: '',
+            roleType: "VIEWER",
         };
         mockSignInWithPassword.mockResolvedValue({
             data: {
@@ -151,17 +154,20 @@ describe('User Authentication Service - Login', () => {
                 email: 'test@testing.com',
                 firstName: '',
                 lastName: '',
+                roleType: "VIEWER"
             },
             update: {
                 email: 'test@testing.com',
                 firstName: '',
                 lastName: '',
+                roleType:"VIEWER"
             },
             select: {
                 userId: true,
                 email: true,
                 firstName: true,
                 lastName: true,
+                roleType: true,
             },
         });
     });
