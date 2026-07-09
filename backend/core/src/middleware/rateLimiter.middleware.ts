@@ -5,6 +5,9 @@ export const rateLimiter = (
 capacity: number,
 refillRate: number) => {//refillrate is in seconds
     return async (req:Request, resp: Response, nextFunc: NextFunction) : Promise<void> => {
+        //disbale rate limitng in e2e test causing it to fail
+        if(process.env.DISABLE_RATE_LIMIT === "true") return nextFunc();
+
         const id = req.ip || req.socket.remoteAddress || "unknown";
         const routes = req.baseUrl || req.path; //allows for diff buckets for diff endpoints
         const key = `rateLimit:${routes}-${id}`;

@@ -218,6 +218,8 @@ jobs:
 
       - name: Run bottom-up local suite
         run: pnpm run test:bottom-up:local
+        env:
+          DISABLE_RATE_LIMIT: "true"
 
   e2e:
     name: E2E (Playwright + Supabase)
@@ -265,3 +267,5 @@ jobs:
 
       - name: Run Playwright E2E tests
         run: pnpm run test:e2e:supabase
+        env:
+          DISABLE_RATE_LIMIT: "true"
