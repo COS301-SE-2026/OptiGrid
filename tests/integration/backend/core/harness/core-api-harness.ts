@@ -53,11 +53,12 @@ const injectSessionCookieUser: RequestHandler = (req, _res, next) => {
 			const prisma = (await import('../../../../../backend/core/src/lib/prisma')).default;
 			const profile = await prisma.user.findUnique({
 				where: { userId },
-				select: { tenantId: true },
+				select: { tenantId: true, roleType: true },
 			});
 
 			req.user = {
 				id: userId,
+				roleType: profile?.roleType ?? 'VIEWER',
 				user_metadata: { tenant_id: profile?.tenantId ?? '' },
 			};
 		} catch {
