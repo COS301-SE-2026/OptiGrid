@@ -85,7 +85,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [managers, setManagers] = useState<Manager[]>(mockManagers);
   const [lifecycleFilter, setLifecycleFilter] = useState<string>("all");
-  const [userFilter, setUserFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
   const [formError, setFormError] = useState<string>("");
@@ -102,29 +102,18 @@ export default function AdminPage() {
       if (lifecycleFilter !== "all" && building.state !== lifecycleFilter) {
         return false;
       }
-
-      if (userFilter.trim()) {
-        const query = userFilter.trim().toLowerCase();
-        const userMatch = building.user_id
-          ? users
-              .find((u) => u.user_id === building.user_id)
-              ?.first_name.toLowerCase()
-              .includes(query) || false
-          : false;
-        const managerMatch = building.manager_id
-          ? managers
-              .find((m) => m.manager_id === building.manager_id)
-              ?.name.toLowerCase()
-              .includes(query) || false
-          : false;
-        if (!userMatch && !managerMatch) {
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        if (!building.building_name.toLowerCase().includes(query)) {
           return false;
         }
+
+      
       }
 
       return true;
     });
-  }, [buildings, lifecycleFilter, userFilter, users, managers]);
+  }, [buildings, lifecycleFilter,searchQuery]);
 
   const stats = useMemo(() => {
     const total = buildings.length;
@@ -338,9 +327,9 @@ export default function AdminPage() {
                 </label>
                 <input
                   type="text"
-                  value={userFilter}
-                  onChange={(e) => setUserFilter(e.target.value)}
-                  placeholder="User or manager name"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="building name..."
                   className="input"
                   style={{ flex: 1 }}
                 />
@@ -349,7 +338,7 @@ export default function AdminPage() {
               <button
                 onClick={() => {
                   setLifecycleFilter("all");
-                  setUserFilter("");
+                  setSearchQuery("");
                 }}
                 className="btn btn-secondary"
               >
