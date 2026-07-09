@@ -124,7 +124,8 @@ export const updateBuildingService = async (
   payload: updateBuildingPayload,
   role: string = "VIEWER",
 ) => {
-  if(role !== "ADMIN" && role !== "Admin") {
+  // admins bypass the per-building access check but everyone else must own the building
+  if(role !== "ADMIN") {
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
         user_id_building_id: {
@@ -274,7 +275,7 @@ export const deleteBuildingService = async (
   role: string = "VIEWER",
 ) => {
 
-  if(role !== "ADMIN" && role !== "Admin") {
+  if(role !== "ADMIN") {
     //verify user has access to this building
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
