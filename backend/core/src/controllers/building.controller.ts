@@ -28,10 +28,10 @@ export const createBuildingController = async (req: Request, res: Response) => {
     const userId = req.user.id;
     const tenantId = toUuidOrUndefined(req.user.user_metadata?.tenant_id);
     const idempotencyKey = req.headers['idempotency-key'] as string;
-    const cachedResponse = await checkIdempotencyKey(idempotencyKey);
 
     //handle missing key and already requested scenarios
     if (!idempotencyKey) return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
+    const cachedResponse = await checkIdempotencyKey(userId, idempotencyKey);
     if (cachedResponse) {
         return res.status(200).json(cachedResponse);
     }
@@ -46,7 +46,7 @@ export const createBuildingController = async (req: Request, res: Response) => {
       status: 'success',
       data: building
     };
-    await saveIdempotencyKey(idempotencyKey, successResponse);
+    await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     res.status(201).json(successResponse);
 
   } catch (error: any) {
@@ -90,7 +90,7 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
     const idempotencyKey = Array.isArray(idempotencyHeader) ? idempotencyHeader[0] : idempotencyHeader;
 
     if (!idempotencyKey) return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
-    const cachedResponse = await checkIdempotencyKey(idempotencyKey);
+    const cachedResponse = await checkIdempotencyKey(userId, idempotencyKey);
     if (cachedResponse) return res.status(200).json(cachedResponse);
 
     const validatedQuery = compareBuildingsSchema.parse(req.query);
@@ -108,7 +108,7 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
     };
 
     // here we save to redis
-    await saveIdempotencyKey(idempotencyKey, successResponse);
+    await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     return res.status(200).json(successResponse);
 
   } 
@@ -162,7 +162,7 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
     }
 
-    const cachedResponse = await checkIdempotencyKey(idempotencyKey);
+    const cachedResponse = await checkIdempotencyKey(userId, idempotencyKey);
     if (cachedResponse) {
       return res.status(200).json(cachedResponse);
     }
@@ -179,7 +179,7 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
     };
 
     //store in redis cache cache before responding
-    await saveIdempotencyKey(idempotencyKey, successResponse);
+    await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     return res.status(200).json(successResponse);
 
   } catch (error: any) {

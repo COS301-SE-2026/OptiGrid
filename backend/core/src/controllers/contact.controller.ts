@@ -6,9 +6,11 @@ import { checkIdempotencyKey, saveIdempotencyKey } from "../services/idempotency
 export const handleSubmit = async (req: Request, resp: Response): Promise<void> => {
     try{
         //added for idempotency key, hits redis cache
+        // this endpoint is public (no login required so no user id) so idempotency keys live under a fixed "contact" namespace 
+        // to keep them separate from per-user building keys
         const key = req.headers["idempotency-key"] as string;
         if(key) {
-            const cachedResp = await checkIdempotencyKey(key);
+            const cachedResp = await checkIdempotencyKey("contact", key);
             if(cachedResp) {
                 resp.status(200).json(cachedResp);
                 return;
@@ -22,7 +24,7 @@ export const handleSubmit = async (req: Request, resp: Response): Promise<void> 
             id: out?.id
         };
         
-        if(key) await saveIdempotencyKey(key, load);
+        if(key) await saveIdempotencyKey("contact", key, load);
         resp.status(200).json(load);
     }
     catch (error: any) {
