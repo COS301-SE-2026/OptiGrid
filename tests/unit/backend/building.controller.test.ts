@@ -115,12 +115,13 @@ describe('Building Controller', () => {
 				status: 'success',
 				data: mockBuilding,
 			});
-			expect(mockedCheckIdempotencyKey).toHaveBeenCalledWith(mockIdempotencyKey);
+			expect(mockedCheckIdempotencyKey).toHaveBeenCalledWith(mockUserId, mockIdempotencyKey);
 			expect(mockedCreateBuilding).toHaveBeenCalledWith(mockUserId, {
 				...payload,
 				tenant_id: mockTenantId,
 			});
 			expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(
+				mockUserId,
 				mockIdempotencyKey,
 				expect.objectContaining({
 					status: 'success',
@@ -465,6 +466,7 @@ describe('Building Controller', () => {
 					data: comparisonPayload,
 				});
 				expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(
+					mockUserId,
 					mockIdempotencyKey,
 					expect.objectContaining({
 						status: 'success',
@@ -700,7 +702,7 @@ describe('Building Controller', () => {
 				status: 'success',
 				message: 'Building successfully deleted',
 			});
-			expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(mockIdempotencyKey, expect.any(Object));
+			expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(mockUserId, mockIdempotencyKey, expect.any(Object));
 		});
 
 		it('should return 403 if the service layer throws an Access Denied violation error', async () => {
