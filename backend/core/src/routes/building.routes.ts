@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { compareBuildingsController, createBuildingController, deleteBuildingController, listBuildingsController, updateBuildingController } from '../controllers/building.controller';
+import { compareBuildingsController, createBuildingController, deleteBuildingController, getBuildingEnergyConsumptionController, listBuildingsController, updateBuildingController } from '../controllers/building.controller';
 
 const router = Router();
 
@@ -164,6 +164,7 @@ const router = Router();
  */
 router.get('/', listBuildingsController);
 router.post('/', createBuildingController);
+router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
 /**
  * @swagger
  * /api/buildings/{building_id}:

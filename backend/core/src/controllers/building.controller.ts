@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { createBuilding, compareBuildingsService, deleteBuildingService, listBuildingsForUser, updateBuildingService } from '../services/building.services';
+import { createBuilding, compareBuildingsService, deleteBuildingService, getBuildingEnergyConsumptionDetails, listBuildingsForUser, updateBuildingService } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
-import { compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import { buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 import prisma from '../lib/prisma';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -78,6 +78,48 @@ export const listBuildingsController = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('listBuildingsController error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+export const getBuildingEnergyConsumptionController = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+
+    const { building_id } = buildingEnergyConsumptionParamsSchema.parse(req.params);
+    const { time_range } = buildingEnergyConsumptionQuerySchema.parse(req.query);
+
+    const details = await getBuildingEnergyConsumptionDetails(req.user.id, building_id, time_range);
+    return res.status(200).json({
+      status: 'success',
+      data: details,
+    });
+  } catch (error: any) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid request parameters',
+        details: error.errors,
+      });
+    }
+
+    if (error.message?.includes('Access Denied')) {
+      return res.status(403).json({
+        status: 'error',
+        message: error.message,
+      });
+    }
+
+    if (error.message === 'Building not found') {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Building not found',
+      });
+    }
+
+    console.error('getBuildingEnergyConsumptionController error:', error);
     return res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
