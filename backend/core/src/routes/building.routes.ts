@@ -164,6 +164,107 @@ const router = Router();
  */
 router.get('/', listBuildingsController);
 router.post('/', createBuildingController);
+/**
+ * @swagger
+ * /api/buildings/{building_id}/energy-consumption:
+ *   get:
+ *     summary: View building energy consumption details
+ *     description: Returns detailed energy consumption metrics for a single building over a selected time range.
+ *     tags:
+ *       - Buildings
+ *     parameters:
+ *       - name: building_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Building identifier to retrieve energy details for
+ *       - name: time_range
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [7d, 30d, 90d, 1y]
+ *           default: 30d
+ *         description: Time range used when calculating consumption metrics
+ *     responses:
+ *       200:
+ *         description: Building energy consumption details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     building_id:
+ *                       type: string
+ *                       format: uuid
+ *                     building_name:
+ *                       type: string
+ *                       example: Main Campus
+ *                     building_type:
+ *                       type: string
+ *                       nullable: true
+ *                     timezone:
+ *                       type: string
+ *                       nullable: true
+ *                       example: Africa/Johannesburg
+ *                     square_footage:
+ *                       type: number
+ *                       nullable: true
+ *                     lifecycle_state:
+ *                       type: string
+ *                     time_range:
+ *                       type: string
+ *                       example: 30d
+ *                     total_kwh:
+ *                       type: number
+ *                       example: 1234.56
+ *                     average_daily_kwh:
+ *                       type: number
+ *                       example: 41.15
+ *                     peak_usage_times:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           timestamp:
+ *                             type: string
+ *                             format: date-time
+ *                           kwh:
+ *                             type: number
+ *                     total_cost_zar:
+ *                       type: number
+ *                     total_cost_usd:
+ *                       type: number
+ *                     cost_per_kwh:
+ *                       type: number
+ *                     eui:
+ *                       type: number
+ *                       nullable: true
+ *                     total_anomaly_alerts:
+ *                       type: number
+ *                       nullable: true
+ *                     cost_saved_by_recommendations_zar:
+ *                       type: number
+ *                       nullable: true
+ *       400:
+ *         description: Invalid request parameters
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Building not found
+ *       500:
+ *         description: Internal server error
+ */
 router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
 /**
  * @swagger
