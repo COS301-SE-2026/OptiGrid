@@ -8,6 +8,7 @@ const navigation = [
     { label: "Compare", href: "/compare" },
     { label: "Live", href: "/realtime" },
     { label: "Forecast", href: "/forecast" },
+    { label: "admin", href: "/admin" },
 ];
 
 export function NavLinks() {
