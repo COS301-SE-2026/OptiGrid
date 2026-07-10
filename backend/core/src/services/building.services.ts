@@ -303,3 +303,14 @@ export const deleteBuildingService = async (
 
   return deletedBuidling;
 };
+
+export const getAllBuildings = async (lifecycle_state?: LifecycleState) => {
+  return prisma.building.findMany({
+    where: {
+      ...(lifecycle_state !== undefined ? { lifecycle_state} : {}),
+    },
+    orderBy: {
+      created_at: "desc"
+    },
+  });
+};

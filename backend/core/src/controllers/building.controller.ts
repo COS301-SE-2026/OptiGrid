@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
-import { createBuilding, compareBuildingsService, deleteBuildingService, listBuildingsForUser, updateBuildingService } from '../services/building.services';
+import { createBuilding, compareBuildingsService, deleteBuildingService, listBuildingsForUser, updateBuildingService, getAllBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
-import { compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import { compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema,adminBuildingsSchema } from '../validation/building.validation';
+import prisma from '../lib/prisma';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -56,7 +57,7 @@ export const createBuildingController = async (req: Request, res: Response) => {
         status: 'error',
         message: 'Invalid request payload',
         details: error.errors
-      })
+      });
     }
     console.error('createBuildingController error:', error);
     res.status(500).json({ status: 'error', message: 'Internal server error' });
@@ -234,3 +235,53 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     return res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
+
+export const getAllBuildingsController = async (req:Request, resp: Response) => {
+  try {
+    // enforce strict authentication check
+    if (!req.user) {
+      return resp.status(401).json({ 
+        status: 'error', 
+        message: 'Unauthorized' 
+      });
+    }
+    //enfore rbac
+   let role= req.user.roleType || req.user.user_metadata?.roleType;
+    if(role !=="ADMIN" && role !== "Admin"){
+      const dbUser = await prisma.user.findUnique({
+        where:{ userId: req.user.id},
+        select: {roleType: true}
+      });
+      role = dbUser?.roleType || "VIEWER"
+    }
+    if(role !== "ADMIN" && role !== "Admin") {
+      return resp.status(403).json({
+        status: "error",
+        message: "You do not have enough permission"
+      })
+    }
+    const userId = req.user.id;
+
+    const validated = adminBuildingsSchema.parse(req.query);
+    const buildings = await getAllBuildings(validated.lifecycle_state);
+
+    return resp.status(200).json({
+      status: "success",
+      data: buildings,
+    });
+  }
+  catch(error: any) {
+    if(error.name === "ZodError") {
+      return resp.status(400).json({
+        status: 'error',
+        message: 'Invalid request payload',
+        details: error.errors
+      });
+    }
+    //console.error('createBuildingController error:', error);
+    resp.status(500).json({ 
+      status: 'error', 
+      message: 'Internal server error' 
+    });
+  }
+}
