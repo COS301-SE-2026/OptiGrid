@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { createBuilding, compareBuildingsService, deleteBuildingService, listBuildingsForUser, updateBuildingService, getAllBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema,adminBuildingsSchema } from '../validation/building.validation';
-import prisma from '../lib/prisma';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -246,21 +245,13 @@ export const getAllBuildingsController = async (req:Request, resp: Response) => 
       });
     }
     //enfore rbac
-   let role= req.user.roleType || req.user.user_metadata?.roleType;
-    if(role !=="ADMIN" && role !== "Admin"){
-      const dbUser = await prisma.user.findUnique({
-        where:{ userId: req.user.id},
-        select: {roleType: true}
-      });
-      role = dbUser?.roleType || "VIEWER"
-    }
-    if(role !== "ADMIN" && role !== "Admin") {
+    const role = req.user.roleType;
+    if(role !== "ADMIN") {
       return resp.status(403).json({
         status: "error",
         message: "You do not have enough permission"
       })
     }
-    const userId = req.user.id;
 
     const validated = adminBuildingsSchema.parse(req.query);
     const buildings = await getAllBuildings(validated.lifecycle_state);
