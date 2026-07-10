@@ -43,7 +43,7 @@ const router = Router();
  *               timezone:
  *                 type: string
  *                 description: Timezone for the building (optional)
- *                 example: "Johannesburg/Africa"
+ *                 example: "Africa/Johannesburg"
  *               max_occupancy:
  *                 type: integer
  *                 description: Maximum occupancy capacity (optional)
@@ -51,7 +51,19 @@ const router = Router();
  *               physical_address:
  *                 type: string
  *                 description: Physical address of the building (5-500 characters, optional)
- *                 example: "123 Main Street, New York, NY 10001"
+ *                 example: "123 Main Street, Johannesburg"
+ *               latitude:
+ *                 type: number
+ *                 description: Latitude coordinate of the building (-90 to 90, optional)
+ *                 example: 15.23456
+ *               longitude: 
+ *                 type: number
+ *                 description: Longitude coordinate of the building(-180 to 180, optional)
+ *                 example: -30.768997
+ *               geohash:
+ *                 type: string
+ *                 description: Geohash to speed up the query process(max 10 char, optional)
+ *                 example: "abcdefgh"
  *             required:
  *               - building_name
  *           examples:
@@ -63,9 +75,12 @@ const router = Router();
  *                 building_name: "Corporate Headquarters"
  *                 building_type: "OFFICE"
  *                 square_footage: 75000
- *                 timezone: "America/Chicago"
+ *                 timezone: "Africa/Johannesburg"
  *                 max_occupancy: 300
- *                 physical_address: "456 Corporate Drive, Chicago, IL 60601"
+ *                 physical_address: "456 Corporate Drive, Johannesburg"
+ *                 latitude: 30.1234
+ *                 longitude: -40.4321
+ *                 geohash: "abcdefgh"
  *     responses:
  *       201:
  *         description: Building created successfully
@@ -102,6 +117,12 @@ const router = Router();
  *                     created_at:
  *                       type: string
  *                       format: date-time
+ *                     latitude: 
+ *                       type: number
+ *                     longitude:
+ *                       type: number
+ *                     geohash:
+ *                       type: string
  *       400:
  *         description: Bad request - Missing idempotency key or validation error
  *         content:

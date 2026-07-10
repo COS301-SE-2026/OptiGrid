@@ -23,6 +23,8 @@ export default defineConfig({
       },
       reuseExistingServer: false,
       timeout: 180_000,
+      stdout: "pipe",
+      stderr: "pipe",
     },
   ],
   use: {

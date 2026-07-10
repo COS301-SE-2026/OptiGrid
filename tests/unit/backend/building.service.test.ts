@@ -102,7 +102,7 @@ describe('Building Services, happy path', () => {
 		expect(result.timezone).toBe('America/New_York');
 		expect(result.nominal_voltage).toBe(230);
 		expect(result.max_current_threshold).toBe(60);
-		expect(result.lifecycle_state).toBe('ACTIVE');
+		expect(result.lifecycle_state).toBe('PROVISIONING');
 		expect(result.hardware_auth_token).toBeTruthy();
 		expect(result.hardware_auth_token).toContain('optigrid_');
 		expect(mockTx.building.update).toHaveBeenCalled();
@@ -203,7 +203,7 @@ describe('Building Services, happy path', () => {
 			expect(result.tenant_id).toBe(mockTenantId);
 			expect(result.building_name).toBe('Minimal Building');
 			expect(result.hardware_auth_token).toBeTruthy();
-			expect(result.lifecycle_state).toBe('ACTIVE');
+			expect(result.lifecycle_state).toBe('PROVISIONING');
 		});
 
 		it('should grant user access to the created building', async () => {

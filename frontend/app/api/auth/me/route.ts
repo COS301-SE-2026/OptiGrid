@@ -15,6 +15,7 @@ export async function GET() {
             email: session.email,
             firstName: session.firstName,
             lastName: session.lastName,
+            roleType: session.roleType,
         },
         { status: 200 },
     );
