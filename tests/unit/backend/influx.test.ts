@@ -50,4 +50,45 @@ describe('Influx usage queries', () => {
         expect(iterateRows.mock.calls[0][0]).toContain('from(bucket: "building-abc")');
         expect(iterateRows.mock.calls[1][0]).toContain('from(bucket: "EnergyData")');
     });
+
+    it('returns_usage_details_with_peak_usage_times', async () => {
+        iterateRows
+            .mockImplementationOnce(async function* () {
+                yield {
+                    values: [],
+                    tableMeta: {
+                        toObject: () => ({ _field: 'usage_kwh', _value: 100 }),
+                    },
+                };
+                yield {
+                    values: [],
+                    tableMeta: {
+                        toObject: () => ({ _field: 'cost_zar', _value: 240 }),
+                    },
+                };
+            })
+            .mockImplementationOnce(async function* () {
+                yield {
+                    values: [],
+                    tableMeta: {
+                        toObject: () => ({ _time: '2026-07-10T08:00:00Z', _value: 55.5 }),
+                    },
+                };
+            });
+
+        const { queryUsageDetails } = await import('../../../backend/core/src/lib/influx');
+
+        await expect(queryUsageDetails('abc', '7d')).resolves.toEqual({
+            total_kwh: 100,
+            total_cost_usd: 0,
+            total_cost_zar: 240,
+            peak_usage_times: [
+                { timestamp: '2026-07-10T08:00:00Z', kwh: 55.5 },
+            ],
+        });
+
+        expect(iterateRows).toHaveBeenCalledTimes(2);
+        expect(iterateRows.mock.calls[1][0]).toContain('aggregateWindow(every: 1h');
+        expect(iterateRows.mock.calls[1][0]).toContain('limit(n: 5)');
+    });
 });
