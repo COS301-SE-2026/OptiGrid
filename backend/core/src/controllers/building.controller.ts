@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createBuilding, compareBuildingsService, deleteBuildingService, listBuildingsForUser, updateBuildingService, getAllAdminBuildings } from '../services/building.services';
+import { createBuilding, compareBuildingsService, deleteBuildingService, listBuildingsForUser, updateBuildingService, getAllBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema,adminBuildingsSchema } from '../validation/building.validation';
 import prisma from '../lib/prisma';
@@ -278,7 +278,7 @@ export const getAllBuildingsController = async (req:Request, resp: Response) => 
     const userId = req.user.id;
 
     const validated = adminBuildingsSchema.parse(req.query);
-    const buildings = await getAllAdminBuildings(validated.lifecycle_state);
+    const buildings = await getAllBuildings(validated.lifecycle_state);
 
     return resp.status(200).json({
       status: "success",

@@ -1,5 +1,12 @@
 import { Request, Response } from 'express';
 import prisma from '../../../backend/core/src/lib/prisma';
+import { createBuildingController, deleteBuildingController, getAllBuildingsController } from '../../../backend/core/src/controllers/building.controller';
+import { createBuilding, deleteBuildingService } from '../../../backend/core/src/services/building.services';
+import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
+import { createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
+import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
+import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
 
 // Mock Prisma before importing
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -22,14 +29,6 @@ jest.mock('../../../backend/core/src/services/building.services');
 jest.mock('../../../backend/core/src/services/idempotency.services');
 jest.mock('../../../backend/core/src/validation/building.validation');
 
-import { createBuildingController, deleteBuildingController, getAllBuildingsController } from '../../../backend/core/src/controllers/building.controller';
-import { createBuilding, deleteBuildingService } from '../../../backend/core/src/services/building.services';
-import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
-import { createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
-import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
-import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
-import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
-
 const mockedCreateBuilding = createBuilding as jest.MockedFunction<typeof createBuilding>;
 const mockedCheckIdempotencyKey = checkIdempotencyKey as jest.MockedFunction<typeof checkIdempotencyKey>;
 const mockedSaveIdempotencyKey = saveIdempotencyKey as jest.MockedFunction<typeof saveIdempotencyKey>;
@@ -37,13 +36,16 @@ const mockedCreateBuildingSchema = createBuildingSchema as jest.Mocked<typeof cr
 const mockedCompareBuildingsService = (buildingServicesModule as any).compareBuildingsService as jest.Mock;
 const mockedDeleteBuildingService = deleteBuildingService as jest.MockedFunction<typeof deleteBuildingService>;
 const mockedDeleteBuildingSchema = deleteBuildingSchema as any;
+
 const mockedCompareBuildingsSchema = (buildingValidationModule as any).compareBuildingsSchema as {
 	parse: jest.Mock;
 };
+
 const compareBuildingsController = (buildingControllerModule as any).compareBuildingsController as (
 	req: Request,
 	res: Response,
 ) => Promise<void>;
+
 const mockedAdminBuildingsSchema = (buildingValidationModule as any).
 
 describe('Building Controller', () => {
