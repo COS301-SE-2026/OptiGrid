@@ -1,5 +1,12 @@
 import { Request, Response } from 'express';
 import prisma from '../../../backend/core/src/lib/prisma';
+import { createBuildingController, deleteBuildingController, getAllBuildingsController } from '../../../backend/core/src/controllers/building.controller';
+import { createBuilding, deleteBuildingService, getAllBuildings } from '../../../backend/core/src/services/building.services';
+import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
+import { createBuildingSchema, deleteBuildingSchema, adminBuildingsSchema } from '../../../backend/core/src/validation/building.validation';
+import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
+import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
+import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
 
 // Mock Prisma before importing
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -22,17 +29,6 @@ jest.mock('../../../backend/core/src/services/building.services');
 jest.mock('../../../backend/core/src/services/idempotency.services');
 jest.mock('../../../backend/core/src/validation/building.validation');
 
-import { createBuildingController } from '../../../backend/core/src/controllers/building.controller';
-import { createBuilding } from '../../../backend/core/src/services/building.services';
-import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
-import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
-import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
-import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
-import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
-import { deleteBuildingController } from '../../../backend/core/src/controllers/building.controller';
-import { deleteBuildingService } from '../../../backend/core/src/services/building.services'
-import { deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
-
 const mockedCreateBuilding = createBuilding as jest.MockedFunction<typeof createBuilding>;
 const mockedCheckIdempotencyKey = checkIdempotencyKey as jest.MockedFunction<typeof checkIdempotencyKey>;
 const mockedSaveIdempotencyKey = saveIdempotencyKey as jest.MockedFunction<typeof saveIdempotencyKey>;
@@ -40,13 +36,20 @@ const mockedCreateBuildingSchema = createBuildingSchema as jest.Mocked<typeof cr
 const mockedCompareBuildingsService = (buildingServicesModule as any).compareBuildingsService as jest.Mock;
 const mockedDeleteBuildingService = deleteBuildingService as jest.MockedFunction<typeof deleteBuildingService>;
 const mockedDeleteBuildingSchema = deleteBuildingSchema as any;
+
 const mockedCompareBuildingsSchema = (buildingValidationModule as any).compareBuildingsSchema as {
 	parse: jest.Mock;
 };
+
 const compareBuildingsController = (buildingControllerModule as any).compareBuildingsController as (
 	req: Request,
 	res: Response,
 ) => Promise<void>;
+//get all builidngs for admin
+const mockedAdminBuildingsSchema = (buildingValidationModule as any).adminBuildingsSchema as {
+	parse: jest.Mock;
+};
+const mockedAllBuildingsService = (buildingServicesModule as any).getAllBuildings as jest.Mock;
 
 describe('Building Controller', () => {
 	const mockUserId = 'user-123';
@@ -739,4 +742,120 @@ describe('Building Controller', () => {
 			}));
 		})
 	});
+});
+
+describe("Get All Buildings for Admin - COntroller tests", () => {
+	let req: any;
+	let resp: any;
+	beforeEach(() => {
+		resp = {
+			status: jest.fn().mockReturnThis(),
+			json: jest.fn(),
+		};
+	});
+
+	it("should_fetch_all_builings_successfully", async () => {
+		req = {
+			user: {
+				id: "admin",
+				roleType: "ADMIN",
+			},
+			query: {},
+		};
+
+		const buildings = [
+			{
+				building_id: "building-123",
+				lifecycle_state: "PROVISIONING"
+			},
+			{
+				building_id: "building-1234",
+				lifecycle_state: "ACTIVE"
+			},
+		];
+		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
+		mockedAllBuildingsService.mockResolvedValue(buildings);
+
+		//act
+		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
+		//assert
+		expect(resp.status).toHaveBeenCalledWith(200);
+		expect(resp.json).toHaveBeenCalledWith({
+			status: "success",
+			data: buildings,
+		});
+	});
+
+	it("should_fetch_all_matching_buildings_if_filter_applied", async () => {
+		req = {
+			user: {
+				id: "admin",
+				roleType: "ADMIN",
+			},
+			query: {
+				lifecycle_state: "PROVISIONING"
+			},
+		};
+		const buildings = [
+			{
+				building_id: "building-123",
+				lifecycle_state: "PROVISIONING"
+			},
+			{
+				building_id: "building-1234",
+				lifecycle_state: "ACTIVE"
+			},
+		];
+		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
+		mockedAllBuildingsService.mockResolvedValue(buildings);
+
+		//act
+		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
+		//assert
+		expect(resp.status).toHaveBeenCalledWith(200);
+		expect(resp.json).toHaveBeenCalledWith({
+			status: "success",
+			data: buildings,
+		});
+	});
+
+	it("should_return_403_if_user_not_admin", async () => {
+		req = {
+			user: {
+				id: "admin",
+				roleType: "VIEWER",
+			},
+			query: {},
+		};
+		(prisma.user.findUnique as jest.Mock).mockResolvedValue({
+			roleType: "VIEWER"
+		});
+		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
+		expect(resp.status).toHaveBeenCalledWith(403);
+		expect(resp.json).toHaveBeenCalledWith({
+			status: "error",
+			message: "You do not have enough permission",
+		});
+	});
+
+	it("should_return_500_for_internal_server_error", async () =>{
+		req = {
+			user: {
+				id: "admin",
+				roleType: "ADMIN",
+			},
+			query: {},
+		};
+		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
+		mockedAllBuildingsService.mockRejectedValue(new Error("No connection"));
+
+		//act
+		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
+		//assert
+		expect(resp.status).toHaveBeenCalledWith(500);
+		expect(resp.json).toHaveBeenCalledWith({
+			status: "error",
+			message: "Internal server error",
+		});
+	})
 });
