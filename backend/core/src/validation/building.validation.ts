@@ -80,9 +80,7 @@ export const updateBuildingSchema = z.object({
 });
 
 export const adminBuildingsSchema = z.object({
-    lifecycle_state = z.nativeEnum(LifecycleState)
+    lifecycle_state: z.nativeEnum(LifecycleState)
     .optional(),
 }).strict();
-
-export interface AdminBuildingQuery { lifecycle_state?.: LifecycleState;}
 

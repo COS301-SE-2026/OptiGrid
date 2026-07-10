@@ -744,8 +744,8 @@ describe("Get All Buildings for Admin - COntroller tests", () => {
 	let resp: any;
 	beforeEach(() => {
 		resp = {
-			status: jest.fn().mockReturnThis();
-			json: jest.fn();
+			status: jest.fn().mockReturnThis(),
+			json: jest.fn(),
 		};
 	});
 
