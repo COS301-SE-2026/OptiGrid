@@ -65,7 +65,7 @@ def seed_calculated_buildings(building_ids: list, days_back: int = 14):
         current_time += timedelta(hours=1)
         
         # flushing the points buffer to influx when it gets too large
-        if len(points_buffer >= 1000):
+        if len(points_buffer) >= 1000:
             write_api.write(bucket=INFLUXDB_BUCKET, record=points_buffer)
             total_points += len(points_buffer)
             points_buffer = []
@@ -82,6 +82,11 @@ def seed_calculated_buildings(building_ids: list, days_back: int = 14):
 
 if __name__ == "__main__":
     current_buildings = [
-        
+        "f3df9051-99b4-468f-8253-c5a821fe59e7",
+        "50a61dd2-66cc-4eea-a236-df2ad5307c43",
+        "6ea1d4d8-ca58-4aca-9820-54e19e005995",
+        "ccf876ce-a06d-4c09-ae93-210b8e75f028",
+        "06be3e23-2590-4939-808a-9a563064f51b",
+        "50a635ea-847b-4121-8305-50fdbc9801b2"
     ]
     seed_calculated_buildings(building_ids=current_buildings, days_back=14)
