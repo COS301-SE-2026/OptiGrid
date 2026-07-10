@@ -592,8 +592,8 @@ describe('deleteBuildingService', () => {
 
     beforeEach(() => {
         // prepare mock chains for your prisma service properties
-        (mockedPrisma as any).userBuildingAccess = { findUnique: jest.fn() };
-        (mockedPrisma as any).building = { delete: jest.fn() };
+        mockedPrisma.userBuildingAccess.findUnique = jest.fn() ;
+        mockedPrisma.building.delete =  jest.fn();
     });
 
     it('should successfully delete a building if user has valid access', async () => {
@@ -632,6 +632,10 @@ describe('deleteBuildingService', () => {
 });
 
 describe("Get All Buildings Services Test", () => {
+	beforeEach(() => {
+		if(!mockedPrisma.building) (mockedPrisma as any).buidling = {};
+		mockedPrisma.building.findMany = jest.fn();
+	})
 	it("should_fetch_all_buildings-succesfully",async () =>{
 		const buildings = [
 			{
@@ -652,7 +656,7 @@ describe("Get All Buildings Services Test", () => {
 		expect(prisma.building.findMany).toHaveBeenCalledTimes(1);
 		expect(prisma.building.findMany).toHaveBeenCalledWith({
 			where: {},
-			orederBy: {
+			orderBy: {
 				created_at: 'desc',
 			},
 		});
@@ -679,7 +683,7 @@ describe("Get All Buildings Services Test", () => {
 			where: {
 				lifecycle_state: "ACTIVE"
 			},
-			orederBy: {
+			orderBy: {
 				created_at: 'desc',
 			},
 		});

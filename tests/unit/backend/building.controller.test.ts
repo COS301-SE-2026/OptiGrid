@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import prisma from '../../../backend/core/src/lib/prisma';
 import { createBuildingController, deleteBuildingController, getAllBuildingsController } from '../../../backend/core/src/controllers/building.controller';
-import { createBuilding, deleteBuildingService } from '../../../backend/core/src/services/building.services';
+import { createBuilding, deleteBuildingService, getAllBuildings } from '../../../backend/core/src/services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
-import { createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import { createBuildingSchema, deleteBuildingSchema, adminBuildingsSchema } from '../../../backend/core/src/validation/building.validation';
 import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
 import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
 import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
@@ -45,8 +45,11 @@ const compareBuildingsController = (buildingControllerModule as any).compareBuil
 	req: Request,
 	res: Response,
 ) => Promise<void>;
-
-const mockedAdminBuildingsSchema = (buildingValidationModule as any).
+//get all builidngs for admin
+const mockedAdminBuildingsSchema = (buildingValidationModule as any).adminBuildingsSchema as {
+	parse: jest.Mock;
+};
+const mockedAllBuildingsService = (buildingServicesModule as any).getAllBuildings as jest.Mock;
 
 describe('Building Controller', () => {
 	const mockUserId = 'user-123';
@@ -771,12 +774,12 @@ describe("Get All Buildings for Admin - COntroller tests", () => {
 			},
 		];
 		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
-		mockedAdminBuildingService.mockResolvedValue(buildings);
+		mockedAllBuildingsService.mockResolvedValue(buildings);
 
 		//act
 		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
 		//assert
-		expect(resp.status).toBe(200);
+		expect(resp.status).toHaveBeenCalledWith(200);
 		expect(resp.json).toHaveBeenCalledWith({
 			status: "success",
 			data: buildings,
@@ -804,12 +807,12 @@ describe("Get All Buildings for Admin - COntroller tests", () => {
 			},
 		];
 		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
-		mockedAdminBuildingService.mockResolvedValue(buildings);
+		mockedAllBuildingsService.mockResolvedValue(buildings);
 
 		//act
 		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
 		//assert
-		expect(resp.status).toBe(200);
+		expect(resp.status).toHaveBeenCalledWith(200);
 		expect(resp.json).toHaveBeenCalledWith({
 			status: "success",
 			data: buildings,
@@ -828,7 +831,7 @@ describe("Get All Buildings for Admin - COntroller tests", () => {
 			roleType: "VIEWER"
 		});
 		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
-		expect(resp.status).toBe(403);
+		expect(resp.status).toHaveBeenCalledWith(403);
 		expect(resp.json).toHaveBeenCalledWith({
 			status: "error",
 			message: "You do not have enough permission",
@@ -844,15 +847,15 @@ describe("Get All Buildings for Admin - COntroller tests", () => {
 			query: {},
 		};
 		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
-		mockedAdminBuildingService.mockRejectedValue(new Error("No connection"));
+		mockedAllBuildingsService.mockRejectedValue(new Error("No connection"));
 
 		//act
 		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
 		//assert
-		expect(resp.status).toBe(500);
+		expect(resp.status).toHaveBeenCalledWith(500);
 		expect(resp.json).toHaveBeenCalledWith({
 			status: "error",
-			message: "Internal Server Error",
+			message: "Internal server error",
 		});
 	})
 });
