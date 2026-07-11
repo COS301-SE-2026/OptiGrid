@@ -28,10 +28,11 @@ export const reqRole = (roleAllowed: UserRole[]) => {
 
 export const reqBuildAccess = async (req: Request, resp: Response, nextFunc: NextFunction) => {
     try {
-        const user = (req as any).user;
-        const {buildingId} = req.params;
+        const user = req.user;
+        //support both buildingId and building_id route param styles
+        const buildingId = req.params.buildingId ?? req.params.building_id;
 
-        if(!user || !user.userId) {
+        if(!user || !user.id) {
             return resp.status(401).json({
                 success: false,
                 error: "Unauthorised"
@@ -51,7 +52,7 @@ export const reqBuildAccess = async (req: Request, resp: Response, nextFunc: Nex
         const haveAccess = await prisma.userBuildingAccess.findUnique({
             where: {
                 user_id_building_id: {
-                    user_id: user.userId,
+                    user_id: user.id,
                     building_id: buildingId
                 },
             },

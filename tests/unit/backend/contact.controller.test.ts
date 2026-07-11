@@ -42,7 +42,8 @@ describe("Contact-Us page Controller", () => {
         (contactService.sendMail as jest.Mock).mockResolvedValue({id: "email-111"});
         await handleSubmit(req as Request, resp as Response);
         //assert
-        expect(checkIdempotencyKey).toHaveBeenCalledWith("test-123")
+        expect(checkIdempotencyKey).toHaveBeenCalledWith("contact", "test-123")
+        expect(saveIdempotencyKey).toHaveBeenCalledWith("contact", "test-123", expect.any(Object));
         expect(contactService.sendMail).toHaveBeenCalledWith(req.body);
         expect(mockstatus).toHaveBeenCalledWith(200);
         expect(json).toHaveBeenCalledWith({
@@ -95,7 +96,7 @@ describe("Contact-Us page Controller", () => {
         (checkIdempotencyKey as jest.Mock).mockResolvedValue(cached);
         await handleSubmit(req as Request, resp as Response);
         //assert
-        expect(checkIdempotencyKey).toHaveBeenCalledWith("test-duplicate-123");
+        expect(checkIdempotencyKey).toHaveBeenCalledWith("contact", "test-duplicate-123");
         expect(contactService.sendMail).not.toHaveBeenCalled();
         expect(saveIdempotencyKey).not.toHaveBeenCalled();
         expect(mockstatus).toHaveBeenCalledWith(200);

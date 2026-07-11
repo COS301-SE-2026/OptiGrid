@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { createBuilding, compareBuildingsService, deleteBuildingService, listBuildingsForUser, updateBuildingService, getAllBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema,adminBuildingsSchema } from '../validation/building.validation';
-import prisma from '../lib/prisma';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -26,14 +25,13 @@ export const createBuildingController = async (req: Request, res: Response) => {
         });
     }
 
-    const role= req.user.roleType || req.user.user_metadata?.roleType || "VIEWER";
     const userId = req.user.id;
     const tenantId = toUuidOrUndefined(req.user.user_metadata?.tenant_id);
     const idempotencyKey = req.headers['idempotency-key'] as string;
-    const cachedResponse = await checkIdempotencyKey(idempotencyKey);
 
     //handle missing key and already requested scenarios
     if (!idempotencyKey) return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
+    const cachedResponse = await checkIdempotencyKey(userId, idempotencyKey);
     if (cachedResponse) {
         return res.status(200).json(cachedResponse);
     }
@@ -48,7 +46,7 @@ export const createBuildingController = async (req: Request, res: Response) => {
       status: 'success',
       data: building
     };
-    await saveIdempotencyKey(idempotencyKey, successResponse);
+    await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     res.status(201).json(successResponse);
 
   } catch (error: any) {
@@ -92,7 +90,7 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
     const idempotencyKey = Array.isArray(idempotencyHeader) ? idempotencyHeader[0] : idempotencyHeader;
 
     if (!idempotencyKey) return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
-    const cachedResponse = await checkIdempotencyKey(idempotencyKey);
+    const cachedResponse = await checkIdempotencyKey(userId, idempotencyKey);
     if (cachedResponse) return res.status(200).json(cachedResponse);
 
     const validatedQuery = compareBuildingsSchema.parse(req.query);
@@ -110,7 +108,7 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
     };
 
     // here we save to redis
-    await saveIdempotencyKey(idempotencyKey, successResponse);
+    await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     return res.status(200).json(successResponse);
 
   } 
@@ -148,16 +146,9 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
         message: 'Unauthorized' 
       });
     }
-    //enfore rbac
-   let role= req.user.roleType || req.user.user_metadata?.roleType;
-    if(role !=="ADMIN" && role !== "Admin"){
-      const dbUser = await prisma.user.findUnique({
-        where:{ userId: req.user.id},
-        select: {roleType: true}
-      });
-      role = dbUser?.roleType || "VIEWER"
-    }
-    if(role !== "ADMIN" && role !== "Admin") {
+    //enforce rbac where the  roleType is the role set by the auth middleware which is verified by DB 
+    const role = req.user.roleType;
+    if(role !== "ADMIN") {
       return res.status(403).json({
         status: "error",
         message: "You do not have permission to delete a building, submit a support ticket"
@@ -171,7 +162,7 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
     }
 
-    const cachedResponse = await checkIdempotencyKey(idempotencyKey);
+    const cachedResponse = await checkIdempotencyKey(userId, idempotencyKey);
     if (cachedResponse) {
       return res.status(200).json(cachedResponse);
     }
@@ -188,7 +179,7 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
     };
 
     //store in redis cache cache before responding
-    await saveIdempotencyKey(idempotencyKey, successResponse);
+    await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     return res.status(200).json(successResponse);
 
   } catch (error: any) {
@@ -209,16 +200,9 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
-    //enforce rbac
-    let role= req.user.roleType || req.user.user_metadata?.roleType;
-    if(role !=="ADMIN" && role !== "Admin" && role !== "BUILDING_MANAGER" && role !== "Building_Manager"){
-      const dbUser = await prisma.user.findUnique({
-        where:{ userId: req.user.id},
-        select: {roleType: true}
-      });
-      role = dbUser?.roleType || "VIEWER"
-    }
-    if(role !=="ADMIN" && role !== "Admin" && role !== "BUILDING_MANAGER" && role !== "Building_Manager") {
+    //enforce rbac so the roleType is the DB-verified role set by the auth middleware
+    const role = req.user.roleType;
+    if(role !== "ADMIN" && role !== "BUILDING_MANAGER") {
       return res.status(403).json({
         status: "error",
         message: "You do not have permission to edit the building"
@@ -261,21 +245,13 @@ export const getAllBuildingsController = async (req:Request, resp: Response) => 
       });
     }
     //enfore rbac
-   let role= req.user.roleType || req.user.user_metadata?.roleType;
-    if(role !=="ADMIN" && role !== "Admin"){
-      const dbUser = await prisma.user.findUnique({
-        where:{ userId: req.user.id},
-        select: {roleType: true}
-      });
-      role = dbUser?.roleType || "VIEWER"
-    }
-    if(role !== "ADMIN" && role !== "Admin") {
+    const role = req.user.roleType;
+    if(role !== "ADMIN") {
       return resp.status(403).json({
         status: "error",
         message: "You do not have enough permission"
       })
     }
-    const userId = req.user.id;
 
     const validated = adminBuildingsSchema.parse(req.query);
     const buildings = await getAllBuildings(validated.lifecycle_state);

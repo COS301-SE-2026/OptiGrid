@@ -34,7 +34,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         //arrange
         req = {
             user: {
-                userId: "user-123",
+                id: "user-123",
                 roleType: UserRole.ADMIN
             } 
         } as any;
@@ -50,7 +50,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         //arrange
         req = {
             user: {
-                userId: "user-123",
+                id: "user-123",
                 roleType: UserRole.BUILDING_MANAGER
             } 
         } as any;
@@ -67,7 +67,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         //arrange
         req = {
             user: {
-                userId: "user-123",
+                id: "user-123",
                 roleType: UserRole.VIEWER
             } 
         } as any;
@@ -102,7 +102,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
          //arrange
         req = {
             user: {
-                userId: "user-123",
+                id: "user-123",
                 roleType: UserRole.ADMIN
             } ,
             params: {
@@ -120,7 +120,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         //arrange
         req = {
             user: {
-                userId: "user-123",
+                id: "user-123",
                 roleType: UserRole.VIEWER
             } ,
             params: {
@@ -148,7 +148,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         //arrange
         req = {
             user: {
-                userId: "user-123",
+                id: "user-123",
                 roleType: UserRole.VIEWER
             } ,
             params: {}
@@ -168,7 +168,7 @@ describe("Role Based Access Control (RBAC) Unit Tests", () => {
         //arrange
         req = {
             user: {
-                userId: "user-123",
+                id: "user-123",
                 roleType: UserRole.VIEWER
             } ,
             params: {
