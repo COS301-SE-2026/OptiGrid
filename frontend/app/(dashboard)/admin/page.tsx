@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 
 type lifecycle_state = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED" | "INACTIVE";
@@ -204,6 +204,68 @@ export default function AdminPage() {
     };
     return classes[state] || "badge-warning";
   };
+  //integration logic for fetching buildings
+  useEffect(() => {
+    const getBuildings = async () => {
+      try {
+        const resp = await fetch("/api/admin/buildings");
+        const data = await resp.json();
+
+        if(data.status === "success") {
+          const viewers: User[] = [];
+          const managers: Manager[] = [];
+          const buildings = data.data.map((building: any) => {
+            let viewerId = null;
+            let managerId = null;
+
+            if(building.auth_users && building.auth_users.length > 0) {
+              building.auth_users.forEach((link:any) => {
+                const auth_user = link.user;
+                if(!auth_user) return;
+
+                if(auth_user.roleType === "VIEWER") {
+                  viewerId = auth_user.userId;
+                  if(!viewers.find(existing => existing.user_id === auth_user.userId)) {
+                    viewers.push({
+                      user_id: auth_user.userId,
+                      first_name: auth_user.name,
+                      email: auth_user.email
+                    });
+                  }
+                }
+                else if( auth_user.roleType === "BUILDING_MANAGER") {
+                  managerId = auth_user.userId;
+                  if(!managers.find(existing => existing.manager_id === auth_user.userId)) {
+                    managers.push({
+                      manager_id: auth_user.userId,
+                      name: auth_user.name,
+                      email: auth_user.email
+                    });
+                  }
+                }
+              });
+            }
+            return {
+              ...building,
+              state: building.lifecycle_state ? building.lifecycle_state : "PROVISIONING",
+              user_id: viewerId,
+              manager_id: managerId
+            };
+          });
+          setBuildings(buildings);
+          setUsers(viewers);
+          setManagers(managers);
+        }
+        else {
+          console.error("Failed to fecth building:", data.message);
+        }
+      }
+      catch(error) {
+        console.error("Internal Server Error when fetching buildings: ", error);
+      }
+    };
+    getBuildings();
+  }, []);
  
 
   return (
