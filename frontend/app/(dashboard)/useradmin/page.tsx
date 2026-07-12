@@ -80,9 +80,7 @@ export default function UserManagementPage() {
   const [modalAction, setModalAction] = useState<"assign" | "remove" | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string>("")
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>("")
-  const [toastMessage, setToastMessage] = useState<string>("")
-  const [showToast, setShowToast] = useState<boolean>(false)
-
+  
     const getUserBuildingCount = (userId: string) => {
     const user = users.find(u => u.user_id === userId)
     return user ? user.building_ids.length : 0
@@ -103,8 +101,50 @@ export default function UserManagementPage() {
       case 'manager': return 'Manager'
       default: return 'User'
     }
-    
+
   }
+
+   const filteredUsers = useMemo(() => {
+    let result = [...users]
+
+    
+    if (roleFilter !== 'all') {
+      result = result.filter(u => u.role_type === roleFilter)
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      result = result.filter(u =>
+        u.first_name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q)
+      )
+    }
+   
+    switch (sortFilter) {
+      case 'latest':
+        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        break
+      case 'oldest':
+        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        break
+      
+      case 'name_asc':
+        result.sort((a, b) => a.first_name.localeCompare(b.first_name))
+        break
+      case 'name_desc':
+        result.sort((a, b) => b.first_name.localeCompare(a.first_name))
+        break
+      default:
+        break
+    }
+
+    return result
+  }, [users, roleFilter, sortFilter, searchQuery])
+
+
+
+
+  
 
 
 
