@@ -37,7 +37,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                         <div className="dashboard-avatar">{initials}</div>
                         <span>{displayName}</span>
                     </div>
-                    <NavLinks />
+                    <NavLinks role={user.roleType} />
                     <div className="dashboard-utility">
                         <Link href="/help" className="dashboard-link">Help Centre</Link>
                         <Link href="/contact" className="dashboard-link">Contact Us</Link>
