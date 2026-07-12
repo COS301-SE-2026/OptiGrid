@@ -76,10 +76,12 @@ export default function UserManagementPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [sortFilter, setSortFilter] = useState<string>("latest")
   const [searchQuery, setSearchQuery] = useState<string>("")
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
-  const [modalAction, setModalAction] = useState<"assign" | "remove" | null>(null)
+  const [isActionOpen, setIsActionOpen] = useState<boolean>(false)
+  const [Action, setAction] = useState<"assign" | "remove" | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string>("")
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>("")
+    const [Message, setMessage] = useState<string>("")
+  const [showMessagepop, setShow] = useState<boolean>(false)
   
     const getUserBuildingCount = (userId: string) => {
     const user = users.find(u => u.user_id === userId)
@@ -142,11 +144,132 @@ export default function UserManagementPage() {
   }, [users, roleFilter, sortFilter, searchQuery])
 
 
+  const stats = useMemo(() => {
+    const total = users.length
+    const admins = users.filter(u => u.role_type === 'admin').length
+    const managers = users.filter(u => u.role_type === 'manager').length
+    const regularUsers = users.filter(u => u.role_type === 'user').length
+    return { total, admins, managers, regularUsers, totalBuildings: buildings.length }
+  }, [users, buildings])
 
 
+  const showMessage = (message: string) => {
+    setMessage(message)
+    setShow(true)
+    setTimeout(() => setShow(false), 2800)
+  }
+
+
+const Assign = (userId: string) => {
+    setAction('assign')
+    setSelectedUserId(userId)
+    const user = users.find(u => u.user_id === userId)
+    setAction('assign')
+    setIsActionOpen(true)
+  }
+
+const Remove = (userId: string) => {
+    setAction('remove')
+    setSelectedUserId(userId)
+    setIsActionOpen(true)
+  }
+
+  const close = () => {
+    setIsActionOpen(false)
+    setAction(null)
+    setSelectedUserId('')
+    setSelectedBuildingId('')
+  }
+
+const confirmAction = () => {
+    if (!selectedBuildingId) {
+      showMessage('Please select a building')
+      return
+    }
+
+    const user = users.find(u => u.user_id === selectedUserId)
+    if (!user) {
+      showMessage('User not found')
+      return
+    }
+
+    if (Action === 'assign') {
+      if (!user.building_ids.includes(selectedBuildingId)) {
+        setUsers(prev =>
+          prev.map(u =>
+            u.user_id === selectedUserId
+              ? { ...u, building_ids: [...u.building_ids, selectedBuildingId] }
+              : u
+          )
+        )
+        const buildingName = buildings.find(b => b.building_id === selectedBuildingId)?.building_name
+        showMessage(`Assigned ${buildingName} to ${user.first_name}`)
+      } else {
+        showMessage('Building already assigned')
+      }
+    } else if (Action === 'remove') {
+      const idx = user.building_ids.indexOf(selectedBuildingId)
+      if (idx > -1) {
+        setUsers(prev =>
+          prev.map(u =>
+            u.user_id === selectedUserId
+              ? { ...u, building_ids: u.building_ids.filter(id => id !== selectedBuildingId) }
+              : u
+          )
+        )
+        const buildingName = buildings.find(b => b.building_id === selectedBuildingId)?.building_name
+        showMessage(`Removed ${buildingName} from ${user.first_name}`)
+      } else {
+        showMessage('Building not found')
+      }
+    }
+
+    close()
+  }
   
+  
+    const assignManager = (userId: string) => {
+    const user = users.find(u => u.user_id === userId)
+    if (!user) return
+
+    if (user.role_type === 'admin') {
+      showMessage('Cannot change admin')
+      return
+    }
+
+    setUsers(prev =>
+      prev.map(u =>
+        u.user_id === userId
+          ? { ...u, role_type: u.role_type === 'manager' ? 'user' : 'manager' }
+          : u
+      )
+    )
+    showMessage(`${user.first_name} is now ${user.role_type === 'manager' ? 'a user' : 'a manager'}`)
+  }
+
+  const deleteUser = (userId: string) => {
+    const user = users.find(u => u.user_id === userId)
+    if (!user) return
+
+    if (user.role_type === 'admin') {
+      showMessage('Cannot delete admin users')
+      return
+    }
+
+    if (!confirm(`Delete ${user.first_name} permanently? This action cannot be undone.`)) return
+
+    setUsers(prev => prev.filter(u => u.user_id !== userId))
+    showMessage(`${user.first_name} deleted successfully`)
+  }
 
 
+
+  const resetFilters = () => {
+    setRoleFilter('all')
+    setSortFilter('latest')
+    setSearchQuery('')
+    showMessage('Filters reset')
+  }
 
 }
 
