@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     }
     const {searchParams} = new URL(req.url);
     const state= searchParams.get("lifecycle_state");
-    const url = state ? `${CORE_URL}/api/admin/buildings?lifecycle_state=${state}` : `${CORE_URL}/api/admin/buildings`;;
+    const url = state ? `${CORE_URL}/api/admin?lifecycle_state=${state}` : `${CORE_URL}/api/admin`;
 
     try {
         const resp = await fetch(url, {

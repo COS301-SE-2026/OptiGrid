@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import { compareBuildingsController, createBuildingController, deleteBuildingController, listBuildingsController, updateBuildingController } from '../controllers/building.controller';
+import { compareBuildingsController, createBuildingController, deleteBuildingController, listBuildingsController, updateBuildingController, getAllBuildingsController } from '../controllers/building.controller';
 
 const router = Router();
+
+router.get('/', getAllBuildingsController);
 
 /**
  * @swagger

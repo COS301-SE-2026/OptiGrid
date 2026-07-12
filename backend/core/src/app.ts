@@ -50,7 +50,8 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use("/api/analytics", authenticateRequest, homeRate,analyticsRoutes);
 	app.use("/api/buildings", authenticateRequest, normalRate, buildingRoutes);
 	app.use("/api/preferences", authenticateRequest, normalRate, userPreferencesRoutes);
-	app.use("/api/contact", strictRate,contactRoutes)
+	app.use("/api/contact", strictRate,contactRoutes);
+	app.use("/api/admin/", authenticateRequest, normalRate, buildingRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });

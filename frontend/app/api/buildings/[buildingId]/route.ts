@@ -22,13 +22,13 @@ const ALLOWED_BUILDING_FIELDS = [
 	"timezone",
 ] as const;
 
-type ForwardHeaderOptions = {
+export type ForwardHeaderOptions = {
 	includeContentType?: boolean;
 	includeIdempotency?: boolean;
 	idempotencyPrefix?: string;
 };
 
-function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
+export function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
 	if (!cookieHeader) {
 		return null;
 	}
@@ -65,7 +65,7 @@ function sanitizeBuildingPayload(payload: UpdateBuildingPayload): Record<string,
 	return sanitized;
 }
 
-function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {
+export function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {
 	const { includeContentType = false, includeIdempotency = false, idempotencyPrefix } = options;
 	const headers = new Headers();
 	const authorization = request.headers.get("authorization");

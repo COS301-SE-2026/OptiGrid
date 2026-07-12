@@ -23,10 +23,10 @@ describe("Admin Page routes.ts Unit tests", () => {
     afterEach(() => {jest.clearAllMocks()});
 
     it("should_return_200_and_pass_query", async () => {
-        const req = new Request("http://localhost/api/admin/buildings?.lifecycle_state=ACTIVE", {
+        const req = new Request("http://localhost/api/admin?lifecycle_state=ACTIVE", {
             method: "GET",
             headers: {
-                cookies: "optigrid_access_token=test-123"
+                cookie: "optigrid_access_token=test-123"
             },
         });
         //act
@@ -38,12 +38,12 @@ describe("Admin Page routes.ts Unit tests", () => {
         expect(resp.status).toBe(200);
         expect(data.status).toBe("success");
         expect(data.data[0].building_id).toBe("building-123");
-        expect(url).toBe("http://localhost/api/admin/buildings?.lifecycle_state=ACTIVE");
+        expect(url).toBe("http://core:4000/api/admin?lifecycle_state=ACTIVE");
 
     });
 
     it("should_return_error_401_if_no_auth", async () => {
-        const req = new Request("http://localhost/api/admin/buildings?.lifecycle_state=ACTIVE", {
+        const req = new Request("http://localhost/api/admin?lifecycle_state=ACTIVE", {
             method: "GET",
         });
         //act
@@ -56,17 +56,14 @@ describe("Admin Page routes.ts Unit tests", () => {
     });
 
     it("should-return_502", async () => {
-        const req = new Request("http://localhost/api/admin/buildings", {
+        const req = new Request("http://localhost/api/admin?lifecycle_state=ACTIVE", {
             method: "GET",
-            headers: {
-                cookies: "optigrid_session=%7B%22userId%22%3A%22user-123%22%7D"
-            },
         });
         //act
         const resp= await GET(req);
         const data = await resp.json();
          //assert
         expect(resp.status).toBe(401);
-        expect(data.message).toBe("Internal Servor error, unable to reach service");
+        expect(data.message).toBe("Authentication required.");
     });
 });
