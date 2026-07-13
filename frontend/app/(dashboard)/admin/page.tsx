@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 
 type lifecycle_state = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED" | "INACTIVE";
@@ -27,19 +28,20 @@ interface Manager {
 
 
 export default function AdminPage() {
+  const router = useRouter();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [lifecycleFilter, setLifecycleFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
-  const [formError, setFormError] = useState<string>("");
+  // const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  // const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
+  // const [formError, setFormError] = useState<string>("");
 
-  const [formName, setFormName] = useState<string>("");
-  const [formState, setFormState] = useState<lifecycle_state>("PROVISIONING");
-  const [formUserName, setFormUserName] = useState<string>("");
-  const [formManagerName, setFormManagerName] = useState<string>("");
+  // const [formName, setFormName] = useState<string>("");
+  // const [formState, setFormState] = useState<lifecycle_state>("PROVISIONING");
+  // const [formUserName, setFormUserName] = useState<string>("");
+  // const [formManagerName, setFormManagerName] = useState<string>("");
 
 
 
@@ -73,15 +75,7 @@ export default function AdminPage() {
   }, [buildings]);
 
   const handleeditbuilding = (building: Building) => {
-    setEditingBuilding(building);
-    setFormName(building.building_name);
-    setFormState(building.state);
-    setFormError("");
-    setIsModalOpen(true);
-    const user = users.find((u) => u.user_id === building.user_id);
-    setFormUserName(user ? user.first_name : "");
-    const manager = managers.find((m) => m.manager_id === building.manager_id);
-    setFormManagerName(manager ? manager.name : "");
+    router.push(`/buildings/${building.building_id}/edit`)
   };
   //integration logic to delte building
   const handledeletebuilding = async (id: string) => {
@@ -100,77 +94,6 @@ export default function AdminPage() {
       alert("Servor error when deleting building");
     }
     
-  };
-
-  const handlesavebuilding = () => {
-    if (!formName.trim()) {
-      setFormError("Building name is required");
-      return;
-    }
-
-    if (
-      formName.trim().toLowerCase() === formUserName.trim().toLowerCase() &&
-      formUserName.trim()
-    ) {
-      setFormError("Building name and user name cannot be the same");
-      return;
-    }
-
-    setFormError("");
-
-    let user_id: string | null = null;
-    if (formUserName.trim()) {
-      const existingUser = users.find(
-        (u) => u.first_name.toLowerCase() === formUserName.trim().toLowerCase()
-      );
-      if (existingUser) {
-        user_id = existingUser.user_id;
-      } else {
-        const newUser: User = {
-          user_id: `m${Date.now()}`,
-          first_name: formUserName.trim(),
-          email: `${formUserName.trim().toLowerCase().replace(/\s/g, ".")}@example.com`,
-        };
-        setUsers((prev) => [...prev, newUser]);
-        user_id = newUser.user_id;
-      }
-    }
-
-    let manager_id: string | null = null;
-    if (formManagerName.trim()) {
-      const existingManager = managers.find(
-        (m) => m.name.toLowerCase() === formManagerName.trim().toLowerCase()
-      );
-      if (existingManager) {
-        manager_id = existingManager.manager_id;
-      } else {
-        const newManager: Manager = {
-          manager_id: `m${Date.now()}`,
-          name: formManagerName.trim(),
-          email: `${formManagerName.trim().toLowerCase().replace(/\s/g, ".")}@example.com`,
-        };
-        setManagers((prev) => [...prev, newManager]);
-        manager_id = newManager.manager_id;
-      }
-    }
-
-    if (editingBuilding) {
-      setBuildings((prev) =>
-        prev.map((b) =>
-          b.building_id === editingBuilding.building_id
-            ? {
-                ...b,
-                building_name: formName.trim(),
-                state: formState,
-                user_id: user_id,
-                manager_id: manager_id,
-              }
-            : b
-        )
-      );
-    }
-
-    setIsModalOpen(false);
   };
 
   const getusername = (user_id: string | null) => {
@@ -467,101 +390,6 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
-
-      
-      {isModalOpen && (
-        <div
-          className="modal-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "var(--space-4)",
-           
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-        >
-          <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
-            <h2 style={{ marginBottom: "var(--space-4)" }}>Edit Building</h2>
-
-            <div style={{ display: "grid", gap: "var(--space-4)" }}>
-              <div>
-                <label className="label">Building Name</label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="input"
-                  style={formError ? { borderColor: "var(--brand-danger)" } : {}}
-                  placeholder="sandtonhq"
-                />
-                {formError && (
-                  <p style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
-                    {formError}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="label">Lifecycle State</label>
-                <select
-                  value={formState}
-                  onChange={(e) => setFormState(e.target.value as lifecycle_state)}
-                  className="select"
-                >
-                  <option value="PROVISIONING">PROVISIONING</option>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="PROVISIONING_FAILED">PROVISIONING_FAILED</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="label">Assign User</label>
-                <input
-                  type="text"
-                  value={formUserName}
-                  onChange={(e) => setFormUserName(e.target.value)}
-                  className="input"
-                  placeholder="Enter user name"
-                />
-              </div>
-
-              <div>
-                <label className="label">Assign Manager</label>
-                <input
-                  type="text"
-                  value={formManagerName}
-                  onChange={(e) => setFormManagerName(e.target.value)}
-                  className="input"
-                  placeholder="Enter manager name"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-5)" }}>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="btn btn-secondary"
-                style={{ flex: 1 }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlesavebuilding}
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-              >
-                Update
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
