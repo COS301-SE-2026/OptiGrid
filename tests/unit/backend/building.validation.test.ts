@@ -2,6 +2,7 @@ import { BuildingType } from '@prisma/client';
 import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
 import { compareBuildingsSchema } from '../../../backend/core/src/validation/building.validation';
 import { deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import { buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema } from '../../../backend/core/src/validation/building.validation';
 
 describe('building validation', () => {
 	it('accepts_a_valid_building_payload', () => {
@@ -146,6 +147,22 @@ describe('compareBuildings validation', () => {
 
 		// act and assert
 		expect(() => compareBuildingsSchema.parse(payload)).toThrow();
+	});
+});
+
+describe('building energy consumption validation', () => {
+	it('accepts_valid_params_and_defaults_the_time_range', () => {
+		const params = {
+			building_id: '11111111-1111-1111-1111-111111111111',
+		};
+
+		expect(buildingEnergyConsumptionParamsSchema.parse(params)).toEqual(params);
+		expect(buildingEnergyConsumptionQuerySchema.parse({})).toEqual({ time_range: '30d' });
+	});
+
+	it('rejects_invalid_building_id_and_time_range', () => {
+		expect(() => buildingEnergyConsumptionParamsSchema.parse({ building_id: 'not-a-uuid' })).toThrow();
+		expect(() => buildingEnergyConsumptionQuerySchema.parse({ time_range: '14d' })).toThrow();
 	});
 });
 
