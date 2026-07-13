@@ -85,7 +85,7 @@ export async function authenticateRequest(req: Request, res: Response, next: Nex
 
 		const profile = await prisma.user.findUnique({
 			where: { userId: data.user.id },
-			select: { tenantId: true },
+			select: { tenantId: true, roleType: true },
 		});
 
 		//the tenant_id must come from our own DB only. so because supabase user_metadata is client-writable, we cannot trust it as users can self-assign a tenant
@@ -96,6 +96,9 @@ export async function authenticateRequest(req: Request, res: Response, next: Nex
 
 		req.user = {
 			id: data.user.id,
+			//now the roleType is resolved from our own DB only and never from user_metadata because 
+			// otherwise a user could set their role as ADMIN and bypass the ownership checks (IDOR)
+			roleType: profile?.roleType ?? "VIEWER",
 			user_metadata: userMetadata,
 		};
 

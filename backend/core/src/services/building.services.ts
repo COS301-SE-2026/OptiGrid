@@ -216,7 +216,8 @@ export const updateBuildingService = async (
   payload: updateBuildingPayload,
   role: string = "VIEWER",
 ) => {
-  if(role !== "ADMIN" && role !== "Admin") {
+  // admins bypass the per-building access check but everyone else must own the building
+  if(role !== "ADMIN") {
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
         user_id_building_id: {
@@ -366,7 +367,7 @@ export const deleteBuildingService = async (
   role: string = "VIEWER",
 ) => {
 
-  if(role !== "ADMIN" && role !== "Admin") {
+  if(role !== "ADMIN") {
     //verify user has access to this building
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
@@ -393,4 +394,15 @@ export const deleteBuildingService = async (
   await deleteInfluxBucket(buildingId);
 
   return deletedBuidling;
+};
+
+export const getAllBuildings = async (lifecycle_state?: LifecycleState) => {
+  return prisma.building.findMany({
+    where: {
+      ...(lifecycle_state !== undefined ? { lifecycle_state} : {}),
+    },
+    orderBy: {
+      created_at: "desc"
+    },
+  });
 };

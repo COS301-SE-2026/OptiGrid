@@ -88,3 +88,9 @@ export const updateBuildingSchema = z.object({
 }).strict().refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required to update a building",
 });
+
+export const adminBuildingsSchema = z.object({
+    lifecycle_state: z.nativeEnum(LifecycleState)
+    .optional(),
+}).strict();
+
