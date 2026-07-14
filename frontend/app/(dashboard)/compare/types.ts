@@ -29,11 +29,21 @@ export type ComparisonBuilding = {
     cost_per_kwh: number;
 };
 
+export type ComparisonSeriesPoint = {
+    timestamp: string;
+    kwh: number;
+    cost_zar: number;
+};
+
 export type ComparisonData = {
     time_range: string;
     mostEfficient: string | null;
     buildingA: ComparisonBuilding;
     buildingB: ComparisonBuilding;
+    series?: {
+        buildingA: ComparisonSeriesPoint[];
+        buildingB: ComparisonSeriesPoint[];
+    };
 };
 
 export type ComparisonResponse = {
