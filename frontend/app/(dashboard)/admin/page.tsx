@@ -109,13 +109,14 @@ export default function AdminPage() {
   };
 
   const getstatelabel = (state: lifecycle_state) => {
-    const labels = {
+    const status= state?.toLowerCase() ||"provisioning";
+    const labels: Record<string, string> = {
       active: "ACTIVE",
       inactive: "INACTIVE",
       provisioning: "PROVISIONING",
       provisioning_failed: "PROVISIONING_FAILED",
     };
-    return labels[state] || "PROVISIONING";
+    return labels[status] || "PROVISIONING";
   };
 
   const getStateBadgeClass = (state: lifecycle_state) => {
@@ -141,8 +142,8 @@ export default function AdminPage() {
             let viewerId = null;
             let managerId = null;
 
-            if(building.auth_users && building.auth_users.length > 0) {
-              building.auth_users.forEach((link:any) => {
+            if(building.authorized_users && building.authorized_users.length > 0) {
+              building.authorized_users.forEach((link:any) => {
                 const auth_user = link.user;
                 if(!auth_user) return;
 
@@ -151,7 +152,7 @@ export default function AdminPage() {
                   if(!viewers.find(existing => existing.user_id === auth_user.userId)) {
                     viewers.push({
                       user_id: auth_user.userId,
-                      first_name: auth_user.name,
+                      first_name: auth_user.firstName,
                       email: auth_user.email
                     });
                   }
@@ -161,7 +162,7 @@ export default function AdminPage() {
                   if(!managers.find(existing => existing.manager_id === auth_user.userId)) {
                     managers.push({
                       manager_id: auth_user.userId,
-                      name: auth_user.name,
+                      name: auth_user.firstName,
                       email: auth_user.email
                     });
                   }
@@ -331,8 +332,8 @@ export default function AdminPage() {
                 <thead>
                   <tr>
                     <th>Building</th>
-                    <th>Lifecycle</th>
-                    <th>Assigned User</th>
+                    <th>Building State</th>
+                    <th>Viewer</th>
                     <th>Manager</th>
                     <th>Actions</th>
                   </tr>
