@@ -267,7 +267,7 @@ router.post('/', createBuildingController);
  *       500:
  *         description: Internal server error
  */
-router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
+// router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
 /**
  * @swagger
  * /api/buildings/{building_id}:
