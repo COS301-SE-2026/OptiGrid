@@ -128,13 +128,6 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
 
-    const idempotencyHeader = req.headers['idempotency-key'];
-    const idempotencyKey = Array.isArray(idempotencyHeader) ? idempotencyHeader[0] : idempotencyHeader;
-
-    if (!idempotencyKey) return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
-    const cachedResponse = await checkIdempotencyKey(userId, idempotencyKey);
-    if (cachedResponse) return res.status(200).json(cachedResponse);
-
     const validatedQuery = compareBuildingsSchema.parse(req.query);
 
     // we give the data to the service layer to handle
@@ -149,8 +142,6 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
       data: comparisonData
     };
 
-    // here we save to redis
-    await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     return res.status(200).json(successResponse);
 
   } 

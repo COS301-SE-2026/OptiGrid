@@ -11,7 +11,7 @@ const org = process.env.INFLUXDB_ORG || process.env.INFLUX_ORG || 'optigrid';
 const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'energy_data';
 
 const allowedTimeRanges = new Set(['7d', '30d', '90d', '1y']);
-const telemetryMeasurements = ['energy_consumption', 'building_energy_usage'];
+const telemetryMeasurements = ['energy_consumption', 'building_energy_usage', 'energy_telemetry'];
 const usageFields = ['usage', 'usage_kwh'];
 const costFields = ['cost_usd', 'cost_zar'];
 const telemetryFields = [...usageFields, ...costFields];
@@ -31,6 +31,12 @@ export type UsageDetails = UsageTotals & {
     peak_usage_times: PeakUsageTime[];
 };
 
+export type UsageSeriesPoint = {
+    timestamp: string;
+    kwh: number;
+    cost_zar: number;
+};
+
 function fluxString(value: string): string {
     return JSON.stringify(value);
 }
@@ -45,6 +51,17 @@ function normalizeTimeRange(timeRange: string): string {
     }
 
     return timeRange;
+}
+
+function seriesWindowFor(timeRange: string): string {
+    const windows: Record<string, string> = {
+        '7d': '1h',
+        '30d': '1d',
+        '90d': '1d',
+        '1y': '1w',
+    };
+
+    return windows[normalizeTimeRange(timeRange)];
 }
 
 function toFiniteNumber(value: unknown): number | null {
@@ -161,6 +178,54 @@ async function queryBucketUsageDetails(
     };
 }
 
+async function queryBucketUsageSeries(
+    queryApi: any,
+    buildingId: string,
+    timeRange: string,
+    bucketName: string,
+): Promise<UsageSeriesPoint[]> {
+    const fluxQuery = `
+        from(bucket: ${fluxString(bucketName)})
+        |> range(start: -${timeRange})
+        |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
+        |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
+        |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(telemetryFields)}))
+        |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: sum, createEmpty: false)
+        |> keep(columns: ["_time", "_field", "_value"])
+    `;
+
+    const points = new Map<string, { kwh: number; costZar: number; costUsd: number }>();
+
+    for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
+        const rowObject = tableMeta.toObject(values);
+        const timestamp = rowObject._time ? String(rowObject._time) : null;
+        const field = String(rowObject._field);
+        const value = toFiniteNumber(rowObject._value);
+
+        if (!timestamp || value === null) {
+            continue;
+        }
+
+        const point = points.get(timestamp) ?? { kwh: 0, costZar: 0, costUsd: 0 };
+        if (usageFields.includes(field)) {
+            point.kwh += value;
+        } else if (field === 'cost_zar') {
+            point.costZar += value;
+        } else if (field === 'cost_usd') {
+            point.costUsd += value;
+        }
+        points.set(timestamp, point);
+    }
+
+    return Array.from(points.entries())
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([timestamp, point]) => ({
+            timestamp,
+            kwh: point.kwh,
+            cost_zar: point.costZar > 0 ? point.costZar : point.costUsd,
+        }));
+}
+
 // Query InfluxDB for total energy and cost for a building over a validated range.
 export const queryUsage = async (buildingId: string, timeRange: string): Promise<UsageTotals> => {
     if (!InfluxDB) {
@@ -212,6 +277,34 @@ export const queryUsageDetails = async (buildingId: string, timeRange: string): 
 
     console.error(`[InfluxDB] Failed to query detailed energy usage for building ${buildingId}:`, lastError);
     throw new Error('Internal server error, failed to retrieve detailed telemetry from InfluxDB');
+};
+
+// Query an aggregated telemetry series for a building. The selected range determines
+// the window size so comparison charts stay readable for both short and long periods.
+export const queryUsageSeries = async (buildingId: string, timeRange: string): Promise<UsageSeriesPoint[]> => {
+    if (!InfluxDB) {
+        return [];
+    }
+
+    const normalizedRange = normalizeTimeRange(timeRange);
+    const influxClient = new InfluxDB({ url, token });
+    const queryApi = influxClient.getQueryApi(org);
+    const bucketsToTry = uniqueBuckets(buildingId);
+    let lastError: unknown;
+
+    for (const bucketName of bucketsToTry) {
+        try {
+            return await queryBucketUsageSeries(queryApi, buildingId, normalizedRange, bucketName);
+        } catch (error: any) {
+            lastError = error;
+            if (!isMissingBucketError(error)) {
+                break;
+            }
+        }
+    }
+
+    console.error(`[InfluxDB] Failed to query telemetry series for building ${buildingId}:`, lastError);
+    throw new Error('Internal server error, failed to retrieve time-series telemetry from InfluxDB');
 };
 
 export const queryTotalKwh = queryUsage;

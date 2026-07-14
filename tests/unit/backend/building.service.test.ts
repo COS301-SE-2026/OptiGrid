@@ -29,6 +29,7 @@ jest.mock('../../../backend/core/src/lib/influx', () => ({
 	__esModule: true,
 	queryTotalKwh: jest.fn(),
 	queryUsageDetails: jest.fn(),
+	queryUsageSeries: jest.fn(),
 }));
 
 // Mock provisioning service to avoid actual InfluxDB calls in tests
@@ -41,6 +42,7 @@ jest.mock('../../../backend/core/src/services/provisioning.service', () => ({
 const mockedInflux = require('../../../backend/core/src/lib/influx') as {
 	queryTotalKwh: jest.Mock;
 	queryUsageDetails: jest.Mock;
+	queryUsageSeries: jest.Mock;
 };
 
 describe('Building Services, happy path', () => {

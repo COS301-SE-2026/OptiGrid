@@ -423,7 +423,7 @@ describe('Building Controller', () => {
 		});
 
 		describe('compareBuildingsController', () => {
-			it('should_return_200_with_comparison_payload_and_save_idempotent_response', async () => {
+			it('should_return_200_with_the_current_comparison_payload', async () => {
 				//arrange
 				const validatedQuery = {
 					building_id_a: '11111111-1111-1111-1111-111111111111',
@@ -458,9 +458,7 @@ describe('Building Controller', () => {
 					json: jest.fn(),
 				} as any;
 				mockedCompareBuildingsSchema.parse = jest.fn().mockReturnValue(validatedQuery);
-				mockedCheckIdempotencyKey.mockResolvedValue(null);
 				mockedCompareBuildingsService.mockResolvedValue(comparisonPayload);
-				mockedSaveIdempotencyKey.mockResolvedValue(undefined);
 
 				//act
 				await compareBuildingsController(req, res);
@@ -471,93 +469,6 @@ describe('Building Controller', () => {
 					status: 'success',
 					data: comparisonPayload,
 				});
-				expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(
-					mockUserId,
-					mockIdempotencyKey,
-					expect.objectContaining({
-						status: 'success',
-						data: comparisonPayload,
-					}),
-				);
-			});
-
-			it('should_return_200_with_cached_response_and_not_call_service', async () => {
-				//arrange
-				const cachedResponse = {
-					status: 'success',
-					data: {
-						buildingA: { building_id: '11111111-1111-1111-1111-111111111111', eui: 4 },
-						buildingB: { building_id: '22222222-2222-2222-2222-222222222222', eui: 3 },
-						mostEfficient: '22222222-2222-2222-2222-222222222222',
-					},
-				};
-				const req = {
-					user: {
-						id: mockUserId,
-						user_metadata: {
-							tenant_id: mockTenantId,
-						},
-					},
-					headers: {
-						'idempotency-key': mockIdempotencyKey,
-					},
-					query: {
-						building_id_a: '11111111-1111-1111-1111-111111111111',
-						building_id_b: '22222222-2222-2222-2222-222222222222',
-						time_range: '7d',
-					},
-				} as any;
-				const res = {
-					status: jest.fn().mockReturnThis(),
-					json: jest.fn(),
-				} as any;
-				mockedCheckIdempotencyKey.mockResolvedValue(cachedResponse as any);
-
-				//act
-				await compareBuildingsController(req, res);
-
-				//assert
-				expect(res.status).toHaveBeenCalledWith(200);
-				expect(res.json).toHaveBeenCalledWith(cachedResponse);
-				expect(mockedCompareBuildingsService).not.toHaveBeenCalled();
-				expect(mockedSaveIdempotencyKey).not.toHaveBeenCalled();
-			});
-
-			it('should_return_400_when_idempotency_key_header_is_missing', async () => {
-				//arrange
-				const req = {
-					user: {
-						id: mockUserId,
-						user_metadata: {
-							tenant_id: mockTenantId,
-						},
-					},
-					headers: {},
-					query: {
-						building_id_a: '11111111-1111-1111-1111-111111111111',
-						building_id_b: '22222222-2222-2222-2222-222222222222',
-						time_range: '30d',
-					},
-				} as any;
-
-				const res = {
-					status: jest.fn().mockReturnThis(),
-					json: jest.fn(),
-				} as any;
-
-				mockedCheckIdempotencyKey.mockResolvedValue(null);
-
-				//act
-				await compareBuildingsController(req, res);
-
-				//assert
-				expect(res.status).toHaveBeenCalledWith(400);
-				expect(res.json).toHaveBeenCalledWith({
-					status: 'error',
-					message: 'Idempotency-Key header is required',
-				});
-				expect(mockedCheckIdempotencyKey).not.toHaveBeenCalled();
-				expect(mockedCompareBuildingsService).not.toHaveBeenCalled();
 			});
 
 			it('should_return_401_when_user_is_missing', async () => {
@@ -587,7 +498,6 @@ describe('Building Controller', () => {
 					status: 'error',
 					message: 'Unauthorized',
 				});
-				expect(mockedCheckIdempotencyKey).not.toHaveBeenCalled();
 				expect(mockedCompareBuildingsService).not.toHaveBeenCalled();
 			});
 
@@ -616,7 +526,6 @@ describe('Building Controller', () => {
 					json: jest.fn(),
 				} as any;
 				mockedCompareBuildingsSchema.parse = jest.fn().mockReturnValue(validatedQuery);
-				mockedCheckIdempotencyKey.mockResolvedValue(null);
 				mockedCompareBuildingsService.mockRejectedValue(new Error('Unexpected failure'));
 
 				//act
@@ -628,7 +537,6 @@ describe('Building Controller', () => {
 					status: 'error',
 					message: 'Internal server error',
 				});
-				expect(mockedSaveIdempotencyKey).not.toHaveBeenCalled();
 			});
 		});
 	});

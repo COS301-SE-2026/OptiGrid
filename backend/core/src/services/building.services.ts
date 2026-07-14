@@ -1,6 +1,6 @@
 import prisma from '../lib/prisma';
 import { Building, BuildingType, LifecycleState } from '@prisma/client';
-import { PeakUsageTime, queryTotalKwh, queryUsageDetails } from '../lib/influx';
+import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries } from '../lib/influx';
 import crypto from 'crypto';
 import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
 
@@ -306,9 +306,11 @@ export const compareBuildingsService = async (
   if (!buildingA || !buildingB) throw new Error('Building not found');
 
   // then we get data from influx for both buildings in parallel
-  const [influxA, influxB] = await Promise.all([
+  const [influxA, influxB, seriesA, seriesB] = await Promise.all([
     queryTotalKwh(buildingId_1, timeRange),
-    queryTotalKwh(buildingId_2, timeRange)
+    queryTotalKwh(buildingId_2, timeRange),
+    queryUsageSeries(buildingId_1, timeRange),
+    queryUsageSeries(buildingId_2, timeRange),
   ]);
 
   // we calculate metrics such as EUI, cost per sq ft and cost per kwh, ensuring no division by 0
@@ -357,7 +359,11 @@ export const compareBuildingsService = async (
     time_range: timeRange,
     mostEfficient,
     buildingA: metricsA,
-    buildingB: metricsB
+    buildingB: metricsB,
+    series: {
+      buildingA: seriesA ?? [],
+      buildingB: seriesB ?? [],
+    },
   };
 };
 
