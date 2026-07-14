@@ -23,7 +23,7 @@ describe("Admin Page routes.ts Unit tests", () => {
     afterEach(() => {jest.clearAllMocks()});
 
     it("should_return_200_and_pass_query", async () => {
-        const req = new Request("http://localhost/api/admin?lifecycle_state=ACTIVE", {
+        const req = new Request("http://localhost/api/buildings/admin?lifecycle_state=ACTIVE", {
             method: "GET",
             headers: {
                 cookie: "optigrid_access_token=test-123"
@@ -38,12 +38,12 @@ describe("Admin Page routes.ts Unit tests", () => {
         expect(resp.status).toBe(200);
         expect(data.status).toBe("success");
         expect(data.data[0].building_id).toBe("building-123");
-        expect(url).toBe("http://core:4000/api/admin?lifecycle_state=ACTIVE");
+        expect(url).toBe("http://core:4000/api/buildings/admin?lifecycle_state=ACTIVE");
 
     });
 
     it("should_return_error_401_if_no_auth", async () => {
-        const req = new Request("http://localhost/api/admin?lifecycle_state=ACTIVE", {
+        const req = new Request("http://localhost/api/buildings/admin?lifecycle_state=ACTIVE", {
             method: "GET",
         });
         //act
@@ -56,7 +56,7 @@ describe("Admin Page routes.ts Unit tests", () => {
     });
 
     it("should-return_502", async () => {
-        const req = new Request("http://localhost/api/admin?lifecycle_state=ACTIVE", {
+        const req = new Request("http://localhost/api/buildings/admin?lifecycle_state=ACTIVE", {
             method: "GET",
         });
         //act

@@ -37,9 +37,9 @@ describe("Get all buildings and manage state for admin and building manager", ()
 
         try {
             await client.query(
-                `insert into tenats (tenant_id, company_name)
-                values ($1, $2)
-                on conlict (tenant_id) do nothing`,
+                `INSERT into tenants (tenant_id, company_name)
+                VALUES ($1, $2)
+                ON CONFLICT (tenant_id) DO NOTHING`,
                 [tenantId, 'Test'],
             );
             await insertIntegrationUsers(client, [
@@ -58,7 +58,7 @@ describe("Get all buildings and manage state for admin and building manager", ()
                 },
             ]);
             await client.query(
-                `UPDATE users SET role_type = "ADMIN" 
+                `UPDATE users SET role_type = 'Admin'
                 WHERE user_id= $1`, [adminUserId] 
             );
         }
@@ -76,7 +76,7 @@ describe("Get all buildings and manage state for admin and building manager", ()
     async function building({
         buildingId = uuidv4(),
         name,
-        lifecycle_state= "PROVISIONING",
+        lifecycle_state= 'provisioning',
         created_at = new Date().toISOString(),
     } : {
         buildingId?: string;
@@ -101,7 +101,7 @@ describe("Get all buildings and manage state for admin and building manager", ()
                     lifecycle_state,
                     created_at
                 ) 
-                    values ($1, $2, $3, "Commercial", 230, 60, $4, $5)`,
+                    values ($1, $2, $3, 'Commercial', 230, 60, $4, $5)`,
                     [buildingId, tenantId, name, lifecycle_state, created_at],
             );
         } 
@@ -119,7 +119,7 @@ describe("Get all buildings and manage state for admin and building manager", ()
             name: "admin 2"
         });
 
-        const resp = await req(harness.app).get("/api/admin/buildings")
+        const resp = await req(harness.app).get("/api/buildings/admin/")
         .set(adminHeader);
 
         expect(resp.status).toBe(200);
@@ -133,17 +133,17 @@ describe("Get all buildings and manage state for admin and building manager", ()
         });
         await building({
             name: "admin 2",
-            lifecycle_state: "ACTIVE"
+            lifecycle_state: 'active'
         });
 
-        const resp = await req(harness.app).get("/api/admin/buildings?lifecycle_state=ACTIVE")
+        const resp = await req(harness.app).get("/api/buildings/admin?lifecycle_state=ACTIVE")
         .set(adminHeader);
 
         expect(resp.status).toBe(200);
         expect(resp.body.status).toBe("success");
         expect(resp.body.data).toHaveLength(1);
         expect(resp.body.data[0].building_name).toBe('admin 2');
-        expect(resp.body.data[0].lifecycle_stae).toBe('ACTIVE');
+        expect(resp.body.data[0].lifecycle_state).toBe('ACTIVE');
     });
 
     it("should_return_400_if_invalid_state_provided", async () => {
@@ -152,10 +152,10 @@ describe("Get all buildings and manage state for admin and building manager", ()
         });
         await building({
             name: "admin 2",
-            lifecycle_state: "ACTIVE"
+            lifecycle_state: "active"
         });
 
-        const resp = await req(harness.app).get("/api/admin/buildings?lifecycle_state=Wrong")
+        const resp = await req(harness.app).get("/api/buildings/admin?lifecycle_state=Wrong")
         .set(adminHeader);
 
         expect(resp.status).toBe(400);
@@ -165,11 +165,11 @@ describe("Get all buildings and manage state for admin and building manager", ()
     });
 
     it("should_return_a_403_error_if_not_admin", async () => {
-        const resp = await req(harness.app).get("/api/admin/buildings")
+        const resp = await req(harness.app).get("/api/buildings/admin/")
         .set(normalHeader);
 
         expect(resp.status).toBe(403);
         expect(resp.body.status).toBe("error");
-        expect(resp.body.message).toBe("You do not have enough permisssion");
+        expect(resp.body.message).toBe("You do not have enough permission");
     });
 });

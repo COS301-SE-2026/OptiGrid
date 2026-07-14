@@ -132,7 +132,7 @@ export default function AdminPage() {
   useEffect(() => {
     const getBuildings = async () => {
       try {
-        const resp = await fetch("/api/admin/");
+        const resp = await fetch("/api/buildings/admin/");
         const data = await resp.json();
 
         if(data.status === "success") {

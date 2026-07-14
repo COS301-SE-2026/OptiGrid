@@ -3,7 +3,7 @@ import { compareBuildingsController, createBuildingController, deleteBuildingCon
 
 const router = Router();
 
-router.get('/', getAllBuildingsController);
+router.get('/admin', getAllBuildingsController);
 
 /**
  * @swagger
