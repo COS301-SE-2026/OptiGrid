@@ -8,8 +8,10 @@ const navigation = [
     { label: "Compare", href: "/compare" },
     { label: "Live", href: "/realtime" },
     { label: "Forecast", href: "/forecast" },
-    { label: "admin", href: "/admin" },
-    { label: "user admin", href:"/useradmin"},
+    { label: "Admin", href: "/admin", roles: ["ADMIN"] },
+    { label: "Manage", href: "/manager", roles: ["BUILDING_MANAGER"] },
+    { label: "User Admin", href: "/useradmin", roles: ["ADMIN"] },
+    
 ];
 
 export function NavLinks() {
