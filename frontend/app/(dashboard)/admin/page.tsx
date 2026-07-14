@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 
 
 type lifecycle_state = "provisioning" | "active" | "failed" | "inactive";
@@ -276,6 +277,9 @@ export default function AdminPage() {
                 {buildings.length} buildings total
               </div>
             </div>
+            <Link href="useradmin" className="btn btn-primary">
+    Manage Users
+  </Link>
           </div>
 
           
