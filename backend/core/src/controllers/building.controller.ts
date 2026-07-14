@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, listBuildingsForUser, updateBuildingService } from '../services/building.services';
+import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, getPortfolioConsumption, listBuildingsForUser, updateBuildingService } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { adminBuildingsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 
@@ -76,6 +76,23 @@ export const listBuildingsController = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('listBuildingsController error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+export const getPortfolioConsumptionController = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+
+    const portfolioConsumption = await getPortfolioConsumption(req.user.id);
+    return res.status(200).json({
+      status: 'success',
+      data: portfolioConsumption,
+    });
+  } catch (error) {
+    console.error('getPortfolioConsumptionController error:', error);
     return res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
