@@ -9,6 +9,7 @@ const navigation = [
     { label: "Live", href: "/realtime" },
     { label: "Forecast", href: "/forecast" },
     { label: "admin", href: "/admin" },
+    { label: "user admin", href:"/useradmin"},
 ];
 
 export function NavLinks() {
