@@ -502,5 +502,10 @@ export const getAllBuildings = async (lifecycle_state?: LifecycleState) => {
     orderBy: {
       created_at: "desc"
     },
+    include: {
+      authorized_users: {
+        include: { user: true}
+      }
+    }
   });
 };

@@ -43,6 +43,7 @@ enum LifecycleState {
   PROVISIONING        @map("provisioning")
   ACTIVE              @map("active")
   PROVISIONING_FAILED @map("provisioning_failed")
+  INACTIVE            @map("inactive")
 
   @@map("lifecycle_state")
 }

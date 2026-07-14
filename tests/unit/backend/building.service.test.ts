@@ -777,6 +777,11 @@ describe("Get All Buildings Services Test", () => {
 			orderBy: {
 				created_at: 'desc',
 			},
+			include: {
+				authorized_users: {
+					include: {user:true},
+				},
+			},
 		});
 	});
 
@@ -803,6 +808,11 @@ describe("Get All Buildings Services Test", () => {
 			},
 			orderBy: {
 				created_at: 'desc',
+			},
+			include: {
+				authorized_users: {
+					include: {user:true},
+				},
 			},
 		});
 	});
