@@ -50,7 +50,12 @@ def emulate_sensor():
         "6ea1d4d8-ca58-4aca-9820-54e19e005995",
         "ccf876ce-a06d-4c09-ae93-210b8e75f028",
         "06be3e23-2590-4939-808a-9a563064f51b",
-        "50a635ea-847b-4121-8305-50fdbc9801b2"
+        "50a635ea-847b-4121-8305-50fdbc9801b2",
+        # Buildings assigned to the test account.
+        "21895355-69be-4bed-add7-d10340b13cfa",  # Spar 2.0
+        "23fe0a04-a7aa-4306-9e1f-d4301b1fc66c",  # Spar 2.0
+        "b68ba0b8-8c46-48d8-9470-7a2297bfb468",  # SSpar 2.0
+        "9e95afa2-797b-4ff8-a3b2-b4753692f96a",  # UP
     ]
     print("IoT Hardware Emulator Started.")
     while True:
