@@ -65,6 +65,22 @@ type ConsumptionPoint = {
     kwh: number;
 };
 
+type PortfolioConsumption = {
+    daily: Array<{
+        date: string;
+        kwh: number;
+        cost_zar: number;
+    }>;
+    today_kwh_by_building: Record<string, number | null>;
+    estimated_cost_zar: number | null;
+    active_alerts: number;
+};
+
+type PortfolioConsumptionResponse = {
+    data?: PortfolioConsumption;
+    message?: string;
+};
+
 function formatNumberMetric(value: unknown): string {
     if (typeof value === "number" && Number.isFinite(value)) {
         return value.toLocaleString();
@@ -171,16 +187,19 @@ async function fetchBuildings(): Promise<Building[]> {
         .filter((building) => building.id.length > 0);
 }
 
-// Placeholder until telemetry summary endpoint is available.
-const MOCK_CONSUMPTION: ConsumptionPoint[] = [
-    { day: "Mon", kwh: 3800 },
-    { day: "Tue", kwh: 4100 },
-    { day: "Wed", kwh: 3950 },
-    { day: "Thu", kwh: 4300 },
-    { day: "Fri", kwh: 4182 },
-    { day: "Sat", kwh: 2800 },
-    { day: "Sun", kwh: 2600 },
-];
+async function fetchPortfolioConsumption(): Promise<PortfolioConsumption> {
+    const response = await fetch("/api/buildings/portfolio-consumption", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+    });
+    const payload = (await response.json().catch(() => ({}))) as PortfolioConsumptionResponse;
+    if (!response.ok || !payload.data) {
+        throw new Error(payload.message || "Unable to load portfolio telemetry.");
+    }
+
+    return payload.data;
+}
 
 function PencilIcon() {
     return (
@@ -292,10 +311,12 @@ export default function DashboardPage() {
         queryFn: fetchBuildings,
     });
 
-    const { data: consumption, isLoading: consumptionLoading } = useQuery({
+    const {
+        data: portfolioConsumption,
+        isLoading: consumptionLoading,
+    } = useQuery({
         queryKey: ["portfolio-consumption"],
-        queryFn: (): Promise<ConsumptionPoint[]> =>
-            Promise.resolve(MOCK_CONSUMPTION),
+        queryFn: fetchPortfolioConsumption,
     });
 
     const deleteBuildingMutation = useMutation({
@@ -335,13 +356,21 @@ export default function DashboardPage() {
         .join("")
         .toUpperCase() || "U";
 
+    const buildingsWithTelemetry = buildings.map((building) => ({
+        ...building,
+        todayKwh: portfolioConsumption?.today_kwh_by_building[building.id] ?? null,
+    }));
+    const consumption: ConsumptionPoint[] = (portfolioConsumption?.daily ?? []).map((point) => ({
+        day: new Date(`${point.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "short" }),
+        kwh: point.kwh,
+    }));
     const summary: PortfolioSummary = {
-        buildings: buildings.length,
-        todayUsageKwh: buildings.some((b) => b.todayKwh !== null)
-            ? buildings.reduce((total, b) => total + (b.todayKwh ?? 0), 0)
+        buildings: buildingsWithTelemetry.length,
+        todayUsageKwh: buildingsWithTelemetry.some((building) => building.todayKwh !== null)
+            ? buildingsWithTelemetry.reduce((total, building) => total + (building.todayKwh ?? 0), 0)
             : null,
-        estimatedCostRands: null,
-        activeAlerts: buildings.filter((b) => b.status !== "Normal").length,
+        estimatedCostRands: portfolioConsumption?.estimated_cost_zar ?? null,
+        activeAlerts: portfolioConsumption?.active_alerts ?? 0,
     };
 
     const minutesAgo = dataUpdatedAt
@@ -474,7 +503,7 @@ export default function DashboardPage() {
                             {buildingsErrorDetails?.message || "Unable to load buildings right now."}
                         </p>
                     </div>
-                ) : buildings.length === 0 ? (
+                ) : buildingsWithTelemetry.length === 0 ? (
                     <div className="card dashboard-empty">
                         <p className="text-muted">No buildings yet.</p>
                         <Link
@@ -497,7 +526,7 @@ export default function DashboardPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {buildings.map((building) => (
+                                {buildingsWithTelemetry.map((building) => (
                                     <tr key={building.id}
                                     onClick={() => router.push(`/buildings/${building.id}/view`)}
 
