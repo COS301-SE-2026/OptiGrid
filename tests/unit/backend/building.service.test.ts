@@ -7,6 +7,8 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	__esModule: true,
 	default: {
 		$transaction: jest.fn(),
+		$queryRaw: jest.fn(),
+		$queryRawUnsafe: jest.fn(),
 		building: {
 			findMany: jest.fn(),
 		},
@@ -15,6 +17,8 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 
 const mockedPrisma = prisma as unknown as {
     $transaction: jest.Mock;
+	$queryRaw: jest.Mock;
+	$queryRawUnsafe: jest.Mock;
     userBuildingAccess: {
         findUnique: jest.Mock;
     };
@@ -489,6 +493,15 @@ describe('getBuildingEnergyConsumptionDetails', () => {
 	beforeEach(() => {
 		(mockedPrisma as any).userBuildingAccess = { findUnique: jest.fn() };
 		(mockedPrisma as any).building = { findUnique: jest.fn() };
+		(mockedPrisma as any).$queryRaw = jest.fn().mockResolvedValue([{ count: 2 }]);
+		(mockedPrisma as any).$queryRawUnsafe = jest
+			.fn()
+			.mockResolvedValueOnce([
+				{ column_name: 'building_id' },
+				{ column_name: 'status' },
+				{ column_name: 'estimated_monthly_savings' },
+			])
+			.mockResolvedValueOnce([{ total: 350.456 }]);
 	});
 
 	afterEach(() => {
@@ -530,12 +543,40 @@ describe('getBuildingEnergyConsumptionDetails', () => {
 			total_cost_usd: 45,
 			cost_per_kwh: 2,
 			eui: 0.75,
-			total_anomaly_alerts: null,
-			cost_saved_by_recommendations_zar: null,
+			total_anomaly_alerts: 2,
+			cost_saved_by_recommendations_zar: 350.46,
 		});
 		expect(result.peak_usage_times).toEqual([
 			{ timestamp: '2026-07-10T08:00:00Z', kwh: 120.35 },
 		]);
+	});
+
+	it('returns_null_supplemental_metrics_when_tables_are_unavailable', async () => {
+		(mockedPrisma as any).userBuildingAccess.findUnique.mockResolvedValue({
+			user_id: mockUserId,
+			building_id: mockBuildingId,
+		});
+		(mockedPrisma as any).building.findUnique.mockResolvedValue({
+			building_id: mockBuildingId,
+			building_name: 'Energy Tower',
+			building_type: 'Commercial',
+			timezone: 'Africa/Johannesburg',
+			square_footage: 1200,
+			lifecycle_state: 'ACTIVE',
+		});
+		mockedInflux.queryUsageDetails.mockResolvedValue({
+			total_kwh: 900,
+			total_cost_usd: 45,
+			total_cost_zar: 1800,
+			peak_usage_times: [],
+		});
+		(mockedPrisma as any).$queryRaw = jest.fn().mockRejectedValue(Object.assign(new Error('relation "anomalies" does not exist'), { code: '42P01' }));
+		(mockedPrisma as any).$queryRawUnsafe = jest.fn().mockRejectedValue(Object.assign(new Error('relation "optimisation_recommendations" does not exist'), { code: '42P01' }));
+
+		const result = await getBuildingEnergyConsumptionDetails(mockUserId, mockBuildingId, '30d');
+
+		expect(result.total_anomaly_alerts).toBeNull();
+		expect(result.cost_saved_by_recommendations_zar).toBeNull();
 	});
 
 	it('throws_access_denied_when_the_user_has_no_building_access', async () => {
