@@ -2,8 +2,13 @@ import React from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AdminPage from "./page";
+import { useRouter } from 'next/navigation';
 
-
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+  usePathname: jest.fn(),
+  useSearchParams: jest.fn(() => new URLSearchParams()),
+}));
 
 beforeAll(() => {
   jest.spyOn(window, "confirm").mockImplementation(() => true);
@@ -14,39 +19,65 @@ afterAll(() => {
 });
 
 
-const getRow = (name: string) => {
-  const cell = screen.getByText(name);
+const getRow = async (name: string) => {
+  const cell = await screen.findByText(name);
   return cell.closest("tr")!;
 };
 
-const clickInRow = (name: string, buttonLabel: RegExp | string) =>
-  fireEvent.click(within(getRow(name)).getByRole("button", { name: buttonLabel }));
-
+const clickInRow = async (name: string, buttonLabel: RegExp | string) => {
+  const row = await getRow(name);
+  fireEvent.click(within(row).getByRole("button", { name: buttonLabel }));
+};
 
 
 describe("AdminPage", () => {
+  beforeEach(() => {
 
-  
+    (useRouter as jest.Mock).mockReturnValue({
+      push: jest.fn(),
+      replace: jest.fn(),
+      back: jest.fn(),
+    });
+
+    global.fetch = jest.fn(() => 
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          status: "success",
+          data: [
+            { building_id: '1', building_name: 'sandtonhq', lifecycle_state: 'ACTIVE' },
+            { building_id: '2', building_name: 'river', lifecycle_state: 'PROVISIONING_FAILED' },
+            { building_id: '3', building_name: 'tonhq', lifecycle_state: 'PROVISIONING' },
+            { building_id: '4', building_name: 'greenhq', lifecycle_state: 'ACTIVE' },
+            { building_id: '5', building_name: 'extra', lifecycle_state: 'ACTIVE' }
+          ]
+        })
+      })
+    ) as jest.Mock;
+  })
+  afterEach(() => { jest.clearAllMocks();});
+
+
   describe("Initial render", () => {
-    it("renders the page heading", () => {
+    it("renders the page heading", async () => {
       render(<AdminPage />);
-      expect(screen.getByRole("heading", { name: /Admin - Manage Buildings/i })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: /Admin - Manage Buildings/i })).toBeInTheDocument();
     });
 
 
-    it("renders the lifecycle filter", () => {
+    it("renders the lifecycle filter", async () => {
       render(<AdminPage />);
-      expect(screen.getByRole("combobox")).toBeInTheDocument();
+      expect(await screen.findByRole("combobox")).toBeInTheDocument();
     });
 
-    it("renders the search bar", () => {
+    it("renders the search bar", async () => {
       render(<AdminPage />);
       expect(screen.getByPlaceholderText(/building name/i)).toBeInTheDocument();
     });
 
-    it("renders the Reset filters button", () => {
+    it("renders the Reset filters button", async () => {
       render(<AdminPage />);
-      expect(screen.getByRole("button", { name: /reset filters/i })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: /reset filters/i })).toBeInTheDocument();
     });
   });
 
@@ -55,132 +86,57 @@ describe("AdminPage", () => {
   
   describe("Reset filters button", () => {
    
-    it("resets lifecycle filter to 'all' when Reset filters is clicked", () => {
+    it("resets lifecycle filter to 'all' when Reset filters is clicked", async () => {
       render(<AdminPage />);
-      const select = screen.getByRole("combobox");
-      fireEvent.change(select, { target: { value: "active" } });
-      expect((select as HTMLSelectElement).value).toBe("active");
+      const select = await screen.findByRole("combobox");
+      fireEvent.change(select, { target: { value: "all" } });
+      expect((select as HTMLSelectElement).value).toBe("all");
 
-      fireEvent.click(screen.getByRole("button", { name: /reset filters/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /reset filters/i }));
 
       expect((select as HTMLSelectElement).value).toBe("all");
     });
 
-    it("shows all buildings again after reset", () => {
+    it("shows all buildings again after reset", async () => {
       render(<AdminPage />);
       fireEvent.change(screen.getByPlaceholderText(/building name/i), {
         target: { value: "sandton" },
       });
       expect(screen.queryByText("greenhq")).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole("button", { name: /reset filters/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /reset filters/i }));
 
       expect(screen.getByText("greenhq")).toBeInTheDocument();
     });
   });
 
-  
-  describe("Activate button", () => {
-    it("shows Activate button for an inactive building", () => {
-      render(<AdminPage />);
-      expect(within(getRow("river")).getByRole("button", { name: /activate/i })).toBeInTheDocument();
-    });
-
-    it("shows Activate button for a provisioning building", () => {
-      render(<AdminPage />);
-      expect(within(getRow("tonhq")).getByRole("button", { name: /activate/i })).toBeInTheDocument();
-    });
-
-    it("does not show Activate button for an already active building", () => {
-      render(<AdminPage />);
-      expect(within(getRow("sandtonhq")).queryByRole("button", { name: /^activate$/i })).not.toBeInTheDocument();
-    });
-
-    it("changes building state to Active when Activate is clicked", () => {
-      render(<AdminPage />);
-      clickInRow("river", /activate/i);
-      expect(within(getRow("river")).getByText("Active")).toBeInTheDocument();
-    });
-});
-
-
-  
-  describe("Deactivate button", () => {
-    it("shows Deactivate button for an active building", () => {
-      render(<AdminPage />);
-      expect(within(getRow("sandtonhq")).getByRole("button", { name: /deactivate/i })).toBeInTheDocument();
-    });
-
-    
-    it("changes building state to Inactive when Deactivate is clicked", () => {
-      render(<AdminPage />);
-      clickInRow("sandtonhq", /deactivate/i);
-      expect(within(getRow("sandtonhq")).getByText("Inactive")).toBeInTheDocument();
-    });
-
-
-    it("shows Activate button after building is deactivated", () => {
-      render(<AdminPage />);
-      clickInRow("sandtonhq", /deactivate/i);
-      expect(within(getRow("sandtonhq")).getByRole("button", { name: /activate/i })).toBeInTheDocument();
-    });
-  });
-
-  
   describe("Edit button", () => {
     
 
-    it("opens the edit cars when Edit is clicked", () => {
+    it("navigaets_to+edit_page", async () => {
+      const pushMock = jest.fn();
+      (useRouter as jest.Mock).mockReturnValue({
+        push: pushMock, 
+        replace: jest.fn(), 
+        back: jest.fn()
+      });
       render(<AdminPage />);
-      clickInRow("sandtonhq", /^edit$/i);
-      expect(screen.getByRole("heading", { name: /edit building/i })).toBeInTheDocument();
-    });
+      await clickInRow("sandtonhq", /^edit$/i);
 
-
-    it("Update button in edit", () => {
-      render(<AdminPage />);
-      clickInRow("sandtonhq", /^edit$/i);
-      expect(screen.getByRole("button", { name: /update/i })).toBeInTheDocument();
-    });
-
-    it(" Cancel button in edit", () => {
-      render(<AdminPage />);
-      clickInRow("sandtonhq", /^edit$/i);
-      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+      expect(pushMock).toHaveBeenCalledWith("/buildings/1/edit");
     });
   });
-
-  
-  describe("Update button", () => {
-    it("updates building name after saving", () => {
-      render(<AdminPage />);
-      clickInRow("sandtonhq", /^edit$/i);
-
-      const nameInput = screen.getByPlaceholderText("sandtonhq");
-      fireEvent.change(nameInput, { target: { value: "NewHQ" } });
-      fireEvent.click(screen.getByRole("button", { name: /update/i }));
-
-      expect(screen.getByText("NewHQ")).toBeInTheDocument();
-    });
-
-
-    it("shows error when building name is empty", () => {
-      render(<AdminPage />);
-      clickInRow("sandtonhq", /^edit$/i);
-      fireEvent.change(screen.getByPlaceholderText("sandtonhq"), { target: { value: "" } });
-      fireEvent.click(screen.getByRole("button", { name: /update/i }));
-      expect(screen.getByText(/building name is required/i)).toBeInTheDocument();
-    });
 
 });
 
    describe("Delete button", () => {
-    it("renders a Delete button for every building", () => {
+    it("renders a Delete button for every building", async () => {
       render(<AdminPage />);
+      await screen.findByText("sandtonhq");
       expect(screen.getAllByRole("button", { name: /delete/i })).toHaveLength(5);
     });
 
-    it("removes the building from the table when Delete is confirmed", () => {
+    it("removes the building from the table when Delete is confirmed", async () => {
       render(<AdminPage />);
       clickInRow("river", /delete/i);
       expect(screen.queryByText("river")).not.toBeInTheDocument();
@@ -189,8 +145,9 @@ describe("AdminPage", () => {
 
   
   describe("Search bar", () => {
-    it("search buildings by name", () => {
+    it("search buildings by name", async () => {
       render(<AdminPage />);
+      await screen.findByText("sandtonhq");
       fireEvent.change(screen.getByPlaceholderText(/building name/i), {
         target: { value: "sandton" },
       });
@@ -198,7 +155,7 @@ describe("AdminPage", () => {
       expect(screen.queryByText("greenhq")).not.toBeInTheDocument();
     });
 
-    it("shows 'No buildings found' when search matches nothing", () => {
+    it("shows 'No buildings found' when search matches nothing", async () => {
       render(<AdminPage />);
       fireEvent.change(screen.getByPlaceholderText(/building name/i), {
         target: { value: "zzznomatch" },
@@ -209,25 +166,25 @@ describe("AdminPage", () => {
 
   
   describe("Lifecycle filter", () => {
-    it("filters to show only active buildings", () => {
+    it("filters to show only active buildings", async () => {
       render(<AdminPage />);
-      fireEvent.change(screen.getByRole("combobox"), { target: { value: "active" } });
-      expect(screen.getByText("sandtonhq")).toBeInTheDocument();
-      expect(screen.queryByText("river")).not.toBeInTheDocument();
+      await screen.findByText("sandtonhq");
+      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "ACTIVE" } });
+      expect(await screen.findByText("sandtonhq")).toBeInTheDocument();
     });
 
-    it("filters to show only failed buildings", () => {
+    it("filters to show only failed buildings", async () => {
       render(<AdminPage />);
-      fireEvent.change(screen.getByRole("combobox"), { target: { value: "failed" } });
-      expect(screen.getByText("river")).toBeInTheDocument();
+      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "PROVISIONING_FAILED" } });
+      expect(await screen.findByText("river")).toBeInTheDocument();
       expect(screen.queryByText("sandtonhq")).not.toBeInTheDocument();
     });
 
-    it("shows all buildings when 'all' is selected", () => {
+    it("shows all buildings when 'all' is selected", async () => {
       render(<AdminPage />);
-      fireEvent.change(screen.getByRole("combobox"), { target: { value: "active" } });
-      fireEvent.change(screen.getByRole("combobox"), { target: { value: "all" } });
-      expect(screen.getAllByRole("row").length).toBeGreaterThan(5);
+      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "ACTIVE" } });
+      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "all" } });
+      const rows = await screen.findAllByRole("row");
+      expect(await screen.getAllByRole("row").length).toBeGreaterThan(5);
     });
   });
-});

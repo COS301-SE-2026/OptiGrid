@@ -13,6 +13,11 @@ type BuildingRecord = {
     latitude?: number | null;
     longitude?: number | null;
     geohash?: string | null;
+    building_type?: string | null;
+    nominal_voltage?: number | null;
+    max_current_threshold?: number | null;
+    hardware_auth_token?: string | null;
+    lifecycle_state?: string | null; 
 };
 
 type BuildingResponse = {
@@ -29,6 +34,10 @@ type UpdatePayload = {
     latitude?: number;
     longitude?: number;
     geohash?: string;
+    building_type?: string | null;
+    nominal_voltage?: number | null;
+    max_current_threshold?: number | null;
+    lifecycle_state?: string | null;
 };
 
 function toNumber(value: string): number | undefined {
@@ -54,10 +63,14 @@ export default function EditBuildingPage({
     const [success, setSuccess] = useState(false);
     const [form, setForm] = useState({
         building_name: "",
+        building_type: "Residential",
         physical_address: "",
         square_footage: "",
         timezone: "UTC",
         max_occupancy: "",
+        nominal_voltage: "230",
+        max_current_threshold: "60",
+        lifecycle_state: "PROVISIONING",
         latitude: "",
         longitude: "",
         geohash: "",
@@ -95,6 +108,7 @@ export default function EditBuildingPage({
                 if (isMounted) {
                     setForm({
                         building_name: building.building_name ?? "",
+                        building_type: building.building_type ?? "Residential",
                         physical_address: building.physical_address ?? "",
                         square_footage: building.square_footage ? String(building.square_footage) : "",
                         timezone: building.timezone ?? "UTC",
@@ -102,6 +116,9 @@ export default function EditBuildingPage({
                             typeof building.max_occupancy === "number"
                                 ? String(building.max_occupancy)
                                 : "",
+                        nominal_voltage: building.nominal_voltage != null ? String(building.nominal_voltage) : "230",
+                        max_current_threshold: building.max_current_threshold != null ? String(building.max_current_threshold) : "60",
+                        lifecycle_state: building.lifecycle_state ?? "PROVISIONING",
                         latitude: building.latitude != null ? String(building.latitude) : "",
                         longitude: building.longitude != null ? String(building.longitude) : "",
                         geohash: building.geohash ?? "",
@@ -135,10 +152,14 @@ export default function EditBuildingPage({
 
         const payload: UpdatePayload = {
             building_name: form.building_name.trim(),
+            building_type: form.building_type.trim() ||undefined,
             physical_address: form.physical_address.trim() || undefined,
             timezone: form.timezone.trim() || undefined,
             square_footage: toNumber(form.square_footage),
             max_occupancy: toNumber(form.max_occupancy),
+            nominal_voltage: toNumber(form.nominal_voltage),
+            max_current_threshold: toNumber(form.max_current_threshold),
+            lifecycle_state: form.lifecycle_state.trim() || undefined,
             latitude: toNumber(form.latitude),
             longitude: toNumber(form.longitude),
             geohash: form.geohash.trim() || undefined,
@@ -202,23 +223,47 @@ export default function EditBuildingPage({
 
     return (
         <div className="card">
-            <h1 className="dashboard-title">Edit Building</h1>
+            <h1 className="dashboard-title">Edit Building Details</h1>
             <p className="dashboard-subtitle">Update the building profile details.</p>
 
             <form onSubmit={handleSubmit} style={{ marginTop: "16px", display: "grid", gap: "12px" }}>
-                <div>
-                    <label className="label" htmlFor="building_name">Building name</label>
-                    <input
-                        id="building_name"
-                        className="input"
-                        value={form.building_name}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, building_name: event.target.value }))
-                        }
-                        required
-                    />
+                <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+                    <div>
+                        <label className="label" htmlFor="building_name">Building name</label>
+                        <input
+                            id="building_name"
+                            className="input"
+                            value={form.building_name}
+                            onChange={(event) =>
+                                setForm((prev) => ({ ...prev, building_name: event.target.value }))
+                            }
+                            required
+                        />
+                    </div>
+                    {/* added building type change*/}
+                    <div>
+                        <label className="label" htmlFor="building_type">Building Type</label>
+                        <select 
+                            id="building_type"
+                            className="input"
+                            value={form.building_type}
+                            onChange={(event) =>
+                                setForm((prev) => ({
+                                    ...prev, building_type: event.target.value
+                                }))
+                            }>
+                        <option value="Residential">Residential</option>
+                        <option value="Commercial">Commercial</option>
+                        <option value="Industrial">Industrial</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Construction">Construction</option>
+                        <option value="Mixed_Use">Mixed_Use</option>   
+                        <option value="ShoppingCentre">ShoppingCentre</option>
+                        <option value="Other">Other</option>
+                        </select>
+                    </div>
                 </div>
-
+            
                 <div>
                     <label className="label" htmlFor="physical_address">Address</label>
                     <textarea
@@ -232,34 +277,68 @@ export default function EditBuildingPage({
                     />
                 </div>
 
-                <div style={{ display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                    <div>
-                        <label className="label" htmlFor="square_footage">Square footage</label>
-                        <input
-                            id="square_footage"
-                            className="input"
-                            value={form.square_footage}
-                            onChange={(event) =>
-                                setForm((prev) => ({ ...prev, square_footage: event.target.value }))
-                            }
-                            inputMode="numeric"
-                        />
-                    </div>
-                    <div>
-                        <label className="label" htmlFor="max_occupancy">Max occupancy</label>
-                        <input
-                            id="max_occupancy"
-                            className="input"
-                            value={form.max_occupancy}
-                            onChange={(event) =>
-                                setForm((prev) => ({ ...prev, max_occupancy: event.target.value }))
-                            }
-                            inputMode="numeric"
-                        />
-                    </div>
+            <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+                <div>
+                    <label className="label" htmlFor="square_footage">Square footage</label>
+                    <input
+                        id="square_footage"
+                        className="input"
+                        value={form.square_footage}
+                        onChange={(event) =>
+                            setForm((prev) => ({ ...prev, square_footage: event.target.value }))
+                        }
+                        inputMode="numeric"
+                    />
                 </div>
 
                 <div>
+                    <label className="label" htmlFor="max_occupancy">Max occupancy</label>
+                    <input
+                        id="max_occupancy"
+                        className="input"
+                        value={form.max_occupancy}
+                        onChange={(event) =>
+                            setForm((prev) => ({ ...prev, max_occupancy: event.target.value }))
+                        }
+                        inputMode="numeric"
+                    />
+                </div>
+            </div>
+
+            {/* add nominal voltage and max current threshold*/}
+            <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+                <div>
+                    <label className="label" htmlFor="nominal_voltage"> Nominal Voltage</label>
+                    <input 
+                        id="nominal_voltage"
+                        className="input" 
+                        value={form.nominal_voltage}
+                        onChange={(event) => 
+                            setForm((prev) => ({
+                                ...prev, nominal_voltage:event.target.value
+                            }))
+                        }
+                        inputMode="numeric">
+                    </input>
+                </div>
+                <div>
+                    <label className="label" htmlFor="max_current_threshold">Max Current Threshold</label>
+                    <input 
+                        id="max_current_threshold"
+                        className="input" 
+                        value={form.max_current_threshold}
+                        onChange={(event) => 
+                            setForm((prev) => ({
+                                ...prev, max_current_threshold:event.target.value
+                            }))
+                        }
+                        inputMode="numeric">
+                    </input>
+                </div>
+            </div>
+
+            <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+                 <div>
                     <label className="label" htmlFor="timezone">Timezone</label>
                     <input
                         id="timezone"
@@ -270,6 +349,25 @@ export default function EditBuildingPage({
                         }
                     />
                 </div>
+                <div>
+                    <label className="label" htmlFor="lifecycle_state">Building State</label>
+                    <select 
+                        id="building_type"
+                        className="input"
+                        value={form.lifecycle_state}
+                        onChange={(event) =>
+                            setForm((prev) => ({
+                                ...prev, lifecycle_state: event.target.value
+                            }))
+                        }>
+                    <option value="PROVISIONING">Provisioning</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="PROVISIONING_FAILED">Provisioning Failed</option>
+                    <option value="INACTIVE">Inactive</option>
+                    </select>
+                </div>
+            </div>    
+               
                 <div style={
                     {
                      display: "grid",

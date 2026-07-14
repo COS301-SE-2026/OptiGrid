@@ -19,16 +19,19 @@ const ALLOWED_BUILDING_FIELDS = [
 	"physical_address",
 	"square_footage",
 	"max_occupancy",
+	"nominal_voltage",
+	"max_current_thresold",
+	"lifecycle_state",
 	"timezone",
 ] as const;
 
-type ForwardHeaderOptions = {
+export type ForwardHeaderOptions = {
 	includeContentType?: boolean;
 	includeIdempotency?: boolean;
 	idempotencyPrefix?: string;
 };
 
-function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
+ function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
 	if (!cookieHeader) {
 		return null;
 	}
@@ -65,7 +68,7 @@ function sanitizeBuildingPayload(payload: UpdateBuildingPayload): Record<string,
 	return sanitized;
 }
 
-function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {
+ function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {
 	const { includeContentType = false, includeIdempotency = false, idempotencyPrefix } = options;
 	const headers = new Headers();
 	const authorization = request.headers.get("authorization");

@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import { compareBuildingsController, createBuildingController, deleteBuildingController, getBuildingEnergyConsumptionController, listBuildingsController, updateBuildingController } from '../controllers/building.controller';
+import { compareBuildingsController, createBuildingController, deleteBuildingController, listBuildingsController, updateBuildingController, getAllBuildingsController } from '../controllers/building.controller';
 
 const router = Router();
+
+router.get('/admin', getAllBuildingsController);
 
 /**
  * @swagger
@@ -265,7 +267,7 @@ router.post('/', createBuildingController);
  *       500:
  *         description: Internal server error
  */
-router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
+// router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
 /**
  * @swagger
  * /api/buildings/{building_id}:
