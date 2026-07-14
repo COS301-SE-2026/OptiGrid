@@ -84,11 +84,6 @@ export default function UserManagementPage() {
   const [Action, setAction] = useState<"assign" | "remove" | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>("");
-  const [Message, setMessage] = useState<string>("");
-  const [showMessagepop, setShow] = useState<boolean>(false);
-
-  
-
 
   const getUserBuildingNames = (userId: string) => {
     const user = users.find((u) => u.user_id === userId);
@@ -108,7 +103,6 @@ export default function UserManagementPage() {
     );
   };
 
-  
   const getBuildingOwner = (buildingId: string) => {
     const owner = users.find((u) => u.building_ids.includes(buildingId));
     return owner ? owner.first_name : null;
@@ -209,12 +203,6 @@ export default function UserManagementPage() {
     return { total, admins, managers, regularUsers, totalBuildings: buildings.length };
   }, [users, buildings]);
 
-  const showMessage = (message: string) => {
-    setMessage(message);
-    setShow(true);
-    setTimeout(() => setShow(false), 2800);
-  };
-
   const Assign = (userId: string) => {
     setAction("assign");
     setSelectedUserId(userId);
@@ -236,31 +224,22 @@ export default function UserManagementPage() {
 
   const confirmAction = () => {
     if (!selectedBuildingId) {
-      showMessage("Please select a building");
+      close();
       return;
     }
 
     const user = users.find((u) => u.user_id === selectedUserId);
     if (!user) {
-      showMessage("User not found");
+      close();
       return;
     }
 
     if (Action === "assign") {
-      
       if (user.role_type === "user" && isBuildingAssignedToUser(selectedBuildingId, selectedUserId)) {
-        const owner = getBuildingOwner(selectedBuildingId);
-        const buildingName = buildings.find(
-          (b) => b.building_id === selectedBuildingId
-        )?.building_name;
-        showMessage(
-          `Building "${buildingName}" is already assigned to ${owner}`
-        );
         close();
         return;
       }
 
-      
       if (!user.building_ids.includes(selectedBuildingId)) {
         setUsers((prev) =>
           prev.map((u) =>
@@ -269,12 +248,6 @@ export default function UserManagementPage() {
               : u
           )
         );
-        const buildingName = buildings.find(
-          (b) => b.building_id === selectedBuildingId
-        )?.building_name;
-        showMessage(`Assigned ${buildingName} to ${user.first_name}`);
-      } else {
-        showMessage("Building already assigned to this user");
       }
     } else if (Action === "remove") {
       const idx = user.building_ids.indexOf(selectedBuildingId);
@@ -291,12 +264,6 @@ export default function UserManagementPage() {
               : u
           )
         );
-        const buildingName = buildings.find(
-          (b) => b.building_id === selectedBuildingId
-        )?.building_name;
-        showMessage(`Removed ${buildingName} from ${user.first_name}`);
-      } else {
-        showMessage("Building not found for this user");
       }
     }
 
@@ -308,47 +275,32 @@ export default function UserManagementPage() {
     if (!user) return;
 
     if (user.role_type === "admin") {
-      showMessage("Cannot delete admin users");
       return;
     }
 
-    if (
-      !confirm(
-        `Delete ${user.first_name} permanently? This action cannot be undone.`
-      )
-    )
-      return;
+    if (!confirm(`Delete ${user.first_name} permanently? This action cannot be undone.`)) return;
 
     setUsers((prev) => prev.filter((u) => u.user_id !== userId));
-    showMessage(`${user.first_name} deleted successfully`);
   };
 
   const deleteManager = (userId: string) => {
     const user = users.find((u) => u.user_id === userId);
     if (!user) return;
 
-    if (
-      !confirm(
-        `Delete manager ${user.first_name} permanently? This action cannot be undone.`
-      )
-    )
-      return;
+    if (!confirm(`Delete manager ${user.first_name} permanently? This action cannot be undone.`)) return;
 
     setUsers((prev) => prev.filter((u) => u.user_id !== userId));
-    showMessage(`Manager ${user.first_name} deleted successfully`);
   };
 
   const resetFilters = () => {
     setSortFilter("latest");
     setSearchQuery("");
-    showMessage("Filters reset");
   };
 
   return (
     <div className="dashboard-page">
       <div className="dashboard-shell">
         <div className="dashboard-main">
-        
           <div className="dashboard-header">
             <div>
               <h1 className="dashboard-title">User Management</h1>
@@ -392,7 +344,6 @@ export default function UserManagementPage() {
               </div>
             </div>
           </div>
-
 
           <div className="card" style={{ marginBottom: "var(--space-5)" }}>
             <div
@@ -454,7 +405,6 @@ export default function UserManagementPage() {
             </div>
           </div>
 
-          
           <h3 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)" }}>Users</h3>
           <div className="card" style={{ overflow: "hidden", padding: 0, marginBottom: "var(--space-5)" }}>
             <div style={{ overflow: "auto" }}>
@@ -526,9 +476,7 @@ export default function UserManagementPage() {
                                       ? "var(--brand-ink-muted)"
                                       : "var(--brand-primary)",
                                   color: "white",
-                                  
                                 }}
-                                
                               >
                                 Assign
                               </button>
@@ -540,7 +488,6 @@ export default function UserManagementPage() {
                                   padding: "4px 12px",
                                   backgroundColor: buildingCount > 0 ? "var(--brand-warning)" : "var(--brand-ink-muted)",
                                   color: "white",
-                                  
                                 }}
                                 disabled={buildingCount === 0}
                                 title={
@@ -557,7 +504,6 @@ export default function UserManagementPage() {
                                 style={{
                                   fontSize: "var(--fs-small)",
                                   padding: "4px 12px",
-                                  
                                 }}
                                 disabled={user.role_type === "admin"}
                               >
@@ -574,7 +520,6 @@ export default function UserManagementPage() {
             </div>
           </div>
 
-          
           <h3 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)" }}>Managers</h3>
           <div className="card" style={{ overflow: "hidden", padding: 0, marginBottom: "var(--space-5)" }}>
             <div style={{ overflow: "auto" }}>
@@ -653,7 +598,6 @@ export default function UserManagementPage() {
                                   padding: "4px 12px",
                                   backgroundColor: buildingCount > 0 ? "var(--brand-warning)" : "var(--brand-ink-muted)",
                                   color: "white",
-                                  
                                 }}
                                 disabled={buildingCount === 0}
                                 title={
@@ -695,7 +639,6 @@ export default function UserManagementPage() {
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "var(--space-4)",
-                
               }}
               onClick={(e) => {
                 if (e.target === e.currentTarget) close();
@@ -720,11 +663,9 @@ export default function UserManagementPage() {
                   >
                     <option value="">Select a building...</option>
                     {Action === "assign" ? (
-                
                       (() => {
                         const user = users.find((u) => u.user_id === selectedUserId);
                         if (user?.role_type === "manager") {
-                
                           return buildings
                             .filter(
                               (b) =>
@@ -738,7 +679,6 @@ export default function UserManagementPage() {
                               </option>
                             ));
                         } else {
-                
                           return buildings
                             .filter(
                               (b) =>
@@ -755,7 +695,6 @@ export default function UserManagementPage() {
                         }
                       })()
                     ) : (
-                      
                       buildings
                         .filter((b) =>
                           users
