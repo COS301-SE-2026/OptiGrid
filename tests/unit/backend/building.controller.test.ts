@@ -1,5 +1,12 @@
 import { Request, Response } from 'express';
 import prisma from '../../../backend/core/src/lib/prisma';
+import { createBuildingController, deleteBuildingController, getAllBuildingsController, getBuildingEnergyConsumptionController } from '../../../backend/core/src/controllers/building.controller';
+import { createBuilding, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails } from '../../../backend/core/src/services/building.services';
+import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
+import { adminBuildingsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
+import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
+import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
 
 // Mock Prisma before importing
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -22,31 +29,30 @@ jest.mock('../../../backend/core/src/services/building.services');
 jest.mock('../../../backend/core/src/services/idempotency.services');
 jest.mock('../../../backend/core/src/validation/building.validation');
 
-import { createBuildingController } from '../../../backend/core/src/controllers/building.controller';
-import { createBuilding } from '../../../backend/core/src/services/building.services';
-import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
-import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
-import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
-import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
-import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
-import { deleteBuildingController } from '../../../backend/core/src/controllers/building.controller';
-import { deleteBuildingService } from '../../../backend/core/src/services/building.services'
-import { deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
-
 const mockedCreateBuilding = createBuilding as jest.MockedFunction<typeof createBuilding>;
+const mockedGetBuildingEnergyConsumptionDetails = getBuildingEnergyConsumptionDetails as jest.MockedFunction<typeof getBuildingEnergyConsumptionDetails>;
 const mockedCheckIdempotencyKey = checkIdempotencyKey as jest.MockedFunction<typeof checkIdempotencyKey>;
 const mockedSaveIdempotencyKey = saveIdempotencyKey as jest.MockedFunction<typeof saveIdempotencyKey>;
 const mockedCreateBuildingSchema = createBuildingSchema as jest.Mocked<typeof createBuildingSchema>;
+const mockedBuildingEnergyConsumptionParamsSchema = buildingEnergyConsumptionParamsSchema as any;
+const mockedBuildingEnergyConsumptionQuerySchema = buildingEnergyConsumptionQuerySchema as any;
 const mockedCompareBuildingsService = (buildingServicesModule as any).compareBuildingsService as jest.Mock;
 const mockedDeleteBuildingService = deleteBuildingService as jest.MockedFunction<typeof deleteBuildingService>;
 const mockedDeleteBuildingSchema = deleteBuildingSchema as any;
+
 const mockedCompareBuildingsSchema = (buildingValidationModule as any).compareBuildingsSchema as {
 	parse: jest.Mock;
 };
+
 const compareBuildingsController = (buildingControllerModule as any).compareBuildingsController as (
 	req: Request,
 	res: Response,
 ) => Promise<void>;
+//get all builidngs for admin
+const mockedAdminBuildingsSchema = (buildingValidationModule as any).adminBuildingsSchema as {
+	parse: jest.Mock;
+};
+const mockedAllBuildingsService = (buildingServicesModule as any).getAllBuildings as jest.Mock;
 
 describe('Building Controller', () => {
 	const mockUserId = 'user-123';
@@ -115,12 +121,13 @@ describe('Building Controller', () => {
 				status: 'success',
 				data: mockBuilding,
 			});
-			expect(mockedCheckIdempotencyKey).toHaveBeenCalledWith(mockIdempotencyKey);
+			expect(mockedCheckIdempotencyKey).toHaveBeenCalledWith(mockUserId, mockIdempotencyKey);
 			expect(mockedCreateBuilding).toHaveBeenCalledWith(mockUserId, {
 				...payload,
 				tenant_id: mockTenantId,
 			});
 			expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(
+				mockUserId,
 				mockIdempotencyKey,
 				expect.objectContaining({
 					status: 'success',
@@ -465,6 +472,7 @@ describe('Building Controller', () => {
 					data: comparisonPayload,
 				});
 				expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(
+					mockUserId,
 					mockIdempotencyKey,
 					expect.objectContaining({
 						status: 'success',
@@ -624,6 +632,144 @@ describe('Building Controller', () => {
 			});
 		});
 	});
+	describe('getBuildingEnergyConsumptionController', () => {
+		const energyBuildingId = '11111111-1111-1111-1111-111111111111';
+
+		it('should_return_200_with_building_energy_consumption_details', async () => {
+			const details = {
+				building_id: energyBuildingId,
+				building_name: 'Energy Tower',
+				time_range: '30d',
+				total_kwh: 900,
+				average_daily_kwh: 30,
+				peak_usage_times: [],
+				total_cost_zar: 1800,
+				total_cost_usd: 45,
+				cost_per_kwh: 2,
+				eui: 0.75,
+				total_anomaly_alerts: null,
+				cost_saved_by_recommendations_zar: null,
+			};
+			const req = {
+				user: { id: mockUserId },
+				params: { building_id: energyBuildingId },
+				query: { time_range: '30d' },
+			} as any;
+			const res = {
+				status: jest.fn().mockReturnThis(),
+				json: jest.fn(),
+			} as any;
+
+			mockedBuildingEnergyConsumptionParamsSchema.parse.mockReturnValue({ building_id: energyBuildingId });
+			mockedBuildingEnergyConsumptionQuerySchema.parse.mockReturnValue({ time_range: '30d' });
+			mockedGetBuildingEnergyConsumptionDetails.mockResolvedValue(details as any);
+
+			await getBuildingEnergyConsumptionController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'success',
+				data: details,
+			});
+			expect(mockedGetBuildingEnergyConsumptionDetails).toHaveBeenCalledWith(mockUserId, energyBuildingId, '30d');
+		});
+
+		it('should_return_401_when_user_is_missing', async () => {
+			const req = {
+				user: null,
+				params: { building_id: energyBuildingId },
+				query: { time_range: '30d' },
+			} as any;
+			const res = {
+				status: jest.fn().mockReturnThis(),
+				json: jest.fn(),
+			} as any;
+
+			await getBuildingEnergyConsumptionController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(401);
+			expect(res.json).toHaveBeenCalledWith({ status: 'error', message: 'Unauthorized' });
+			expect(mockedGetBuildingEnergyConsumptionDetails).not.toHaveBeenCalled();
+		});
+
+		it('should_return_400_when_params_are_invalid', async () => {
+			const zodError = Object.assign(new Error('Invalid params'), {
+				name: 'ZodError',
+				errors: [{ message: 'building_id must be a valid UUID' }],
+			});
+			const req = {
+				user: { id: mockUserId },
+				params: { building_id: 'not-a-uuid' },
+				query: {},
+			} as any;
+			const res = {
+				status: jest.fn().mockReturnThis(),
+				json: jest.fn(),
+			} as any;
+
+			mockedBuildingEnergyConsumptionParamsSchema.parse.mockImplementation(() => {
+				throw zodError;
+			});
+
+			await getBuildingEnergyConsumptionController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(400);
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'error',
+				message: 'Invalid request parameters',
+				details: zodError.errors,
+			});
+			expect(mockedGetBuildingEnergyConsumptionDetails).not.toHaveBeenCalled();
+		});
+
+		it('should_return_403_when_service_denies_access', async () => {
+			const req = {
+				user: { id: mockUserId },
+				params: { building_id: energyBuildingId },
+				query: { time_range: '7d' },
+			} as any;
+			const res = {
+				status: jest.fn().mockReturnThis(),
+				json: jest.fn(),
+			} as any;
+
+			mockedBuildingEnergyConsumptionParamsSchema.parse.mockReturnValue({ building_id: energyBuildingId });
+			mockedBuildingEnergyConsumptionQuerySchema.parse.mockReturnValue({ time_range: '7d' });
+			mockedGetBuildingEnergyConsumptionDetails.mockRejectedValue(new Error('Access Denied: You do not have permission to view this building.'));
+
+			await getBuildingEnergyConsumptionController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(403);
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'error',
+				message: 'Access Denied: You do not have permission to view this building.',
+			});
+		});
+
+		it('should_return_404_when_building_is_missing', async () => {
+			const req = {
+				user: { id: mockUserId },
+				params: { building_id: energyBuildingId },
+				query: { time_range: '90d' },
+			} as any;
+			const res = {
+				status: jest.fn().mockReturnThis(),
+				json: jest.fn(),
+			} as any;
+
+			mockedBuildingEnergyConsumptionParamsSchema.parse.mockReturnValue({ building_id: energyBuildingId });
+			mockedBuildingEnergyConsumptionQuerySchema.parse.mockReturnValue({ time_range: '90d' });
+			mockedGetBuildingEnergyConsumptionDetails.mockRejectedValue(new Error('Building not found'));
+
+			await getBuildingEnergyConsumptionController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(404);
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'error',
+				message: 'Building not found',
+			});
+		});
+	});
 	describe('deleteBuildingController', () => {
 		const mockUserId = 'user-123';
 		const mockIdempotencyKey = 'test-idempotency-key';
@@ -700,7 +846,7 @@ describe('Building Controller', () => {
 				status: 'success',
 				message: 'Building successfully deleted',
 			});
-			expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(mockIdempotencyKey, expect.any(Object));
+			expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(mockUserId, mockIdempotencyKey, expect.any(Object));
 		});
 
 		it('should return 403 if the service layer throws an Access Denied violation error', async () => {
@@ -739,4 +885,120 @@ describe('Building Controller', () => {
 			}));
 		})
 	});
+});
+
+describe("Get All Buildings for Admin - COntroller tests", () => {
+	let req: any;
+	let resp: any;
+	beforeEach(() => {
+		resp = {
+			status: jest.fn().mockReturnThis(),
+			json: jest.fn(),
+		};
+	});
+
+	it("should_fetch_all_builings_successfully", async () => {
+		req = {
+			user: {
+				id: "admin",
+				roleType: "ADMIN",
+			},
+			query: {},
+		};
+
+		const buildings = [
+			{
+				building_id: "building-123",
+				lifecycle_state: "PROVISIONING"
+			},
+			{
+				building_id: "building-1234",
+				lifecycle_state: "ACTIVE"
+			},
+		];
+		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
+		mockedAllBuildingsService.mockResolvedValue(buildings);
+
+		//act
+		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
+		//assert
+		expect(resp.status).toHaveBeenCalledWith(200);
+		expect(resp.json).toHaveBeenCalledWith({
+			status: "success",
+			data: buildings,
+		});
+	});
+
+	it("should_fetch_all_matching_buildings_if_filter_applied", async () => {
+		req = {
+			user: {
+				id: "admin",
+				roleType: "ADMIN",
+			},
+			query: {
+				lifecycle_state: "PROVISIONING"
+			},
+		};
+		const buildings = [
+			{
+				building_id: "building-123",
+				lifecycle_state: "PROVISIONING"
+			},
+			{
+				building_id: "building-1234",
+				lifecycle_state: "ACTIVE"
+			},
+		];
+		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
+		mockedAllBuildingsService.mockResolvedValue(buildings);
+
+		//act
+		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
+		//assert
+		expect(resp.status).toHaveBeenCalledWith(200);
+		expect(resp.json).toHaveBeenCalledWith({
+			status: "success",
+			data: buildings,
+		});
+	});
+
+	it("should_return_403_if_user_not_admin", async () => {
+		req = {
+			user: {
+				id: "admin",
+				roleType: "VIEWER",
+			},
+			query: {},
+		};
+		(prisma.user.findUnique as jest.Mock).mockResolvedValue({
+			roleType: "VIEWER"
+		});
+		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
+		expect(resp.status).toHaveBeenCalledWith(403);
+		expect(resp.json).toHaveBeenCalledWith({
+			status: "error",
+			message: "You do not have enough permission",
+		});
+	});
+
+	it("should_return_500_for_internal_server_error", async () =>{
+		req = {
+			user: {
+				id: "admin",
+				roleType: "ADMIN",
+			},
+			query: {},
+		};
+		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
+		mockedAllBuildingsService.mockRejectedValue(new Error("No connection"));
+
+		//act
+		await (buildingControllerModule as any).getAllBuildingsController(req,resp);
+		//assert
+		expect(resp.status).toHaveBeenCalledWith(500);
+		expect(resp.json).toHaveBeenCalledWith({
+			status: "error",
+			message: "Internal server error",
+		});
+	})
 });

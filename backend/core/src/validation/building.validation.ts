@@ -49,6 +49,16 @@ export const deleteBuildingSchema = z.object({
     building_id: z.string().min(1, "Building ID is required")
 });
 
+export const buildingEnergyConsumptionParamsSchema = z.object({
+    building_id: z.string().regex(/^[0-9a-fA-F-]{36}$/, "building_id must be a valid UUID"),
+}).strict();
+
+export const buildingEnergyConsumptionQuerySchema = z.object({
+    time_range: z.enum(['7d', '30d', '90d', '1y']).default('30d'),
+}).strict();
+
+export type BuildingEnergyConsumptionQuery = z.infer<typeof buildingEnergyConsumptionQuerySchema>;
+
 export const updateBuildingSchema = z.object({
     building_name: z.string()
         .min(2, "Building name must be at least 2 characters")
@@ -78,3 +88,9 @@ export const updateBuildingSchema = z.object({
 }).strict().refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required to update a building",
 });
+
+export const adminBuildingsSchema = z.object({
+    lifecycle_state: z.nativeEnum(LifecycleState)
+    .optional(),
+}).strict();
+

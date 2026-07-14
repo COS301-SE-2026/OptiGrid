@@ -22,6 +22,15 @@ export type UsageTotals = {
     total_cost_zar: number;
 };
 
+export type PeakUsageTime = {
+    timestamp: string;
+    kwh: number;
+};
+
+export type UsageDetails = UsageTotals & {
+    peak_usage_times: PeakUsageTime[];
+};
+
 function fluxString(value: string): string {
     return JSON.stringify(value);
 }
@@ -45,6 +54,16 @@ function toFiniteNumber(value: unknown): number | null {
 
 function uniqueBuckets(buildingId: string): string[] {
     return Array.from(new Set([`building-${buildingId}`, bucket].filter(Boolean)));
+}
+
+function isMissingBucketError(error: any): boolean {
+    const message = String(error?.message || error?.body || '');
+    return (
+        error?.statusCode === 404 ||
+        error?.code === 'not found' ||
+        message.includes('can not find the bucket') ||
+        message.includes('could not find bucket')
+    );
 }
 
 async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: string, bucketName: string) {
@@ -85,6 +104,63 @@ async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: s
     return totals;
 }
 
+async function queryBucketPeakUsage(
+    queryApi: any,
+    buildingId: string,
+    timeRange: string,
+    bucketName: string,
+): Promise<PeakUsageTime[]> {
+    const fluxQuery = `
+        from(bucket: ${fluxString(bucketName)})
+        |> range(start: -${timeRange})
+        |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
+        |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
+        |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(usageFields)}))
+        |> aggregateWindow(every: 1h, fn: sum, createEmpty: false)
+        |> group(columns: ["_time"])
+        |> sum(column: "_value")
+        |> group()
+        |> sort(columns: ["_value"], desc: true)
+        |> limit(n: 5)
+    `;
+
+    const peakUsageTimes: PeakUsageTime[] = [];
+
+    for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
+        const rowObject = tableMeta.toObject(values);
+        const value = toFiniteNumber(rowObject._value);
+        const timestamp = rowObject._time ? String(rowObject._time) : null;
+
+        if (value === null || !timestamp) {
+            continue;
+        }
+
+        peakUsageTimes.push({
+            timestamp,
+            kwh: value,
+        });
+    }
+
+    return peakUsageTimes;
+}
+
+async function queryBucketUsageDetails(
+    queryApi: any,
+    buildingId: string,
+    timeRange: string,
+    bucketName: string,
+): Promise<UsageDetails> {
+    const [totals, peakUsageTimes] = await Promise.all([
+        queryBucketTotals(queryApi, buildingId, timeRange, bucketName),
+        queryBucketPeakUsage(queryApi, buildingId, timeRange, bucketName),
+    ]);
+
+    return {
+        ...totals,
+        peak_usage_times: peakUsageTimes,
+    };
+}
+
 // Query InfluxDB for total energy and cost for a building over a validated range.
 export const queryUsage = async (buildingId: string, timeRange: string): Promise<UsageTotals> => {
     if (!InfluxDB) {
@@ -102,7 +178,7 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
             return await queryBucketTotals(queryApi, buildingId, normalizedRange, bucketName);
         } catch (error: any) {
             lastError = error;
-            if (!String(error?.message).includes('can not find the bucket')) {
+            if (!isMissingBucketError(error)) {
                 break;
             }
         }
@@ -110,6 +186,32 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
 
     console.error(`[InfluxDB] Failed to query energy usage for building ${buildingId}:`, lastError);
     throw new Error('Internal server error, failed to retrieve time-series telemetry from InfluxDB');
+};
+
+export const queryUsageDetails = async (buildingId: string, timeRange: string): Promise<UsageDetails> => {
+    if (!InfluxDB) {
+        return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [] };
+    }
+
+    const normalizedRange = normalizeTimeRange(timeRange);
+    const influxClient = new InfluxDB({ url, token });
+    const queryApi = influxClient.getQueryApi(org);
+    const bucketsToTry = uniqueBuckets(buildingId);
+    let lastError: unknown;
+
+    for (const bucketName of bucketsToTry) {
+        try {
+            return await queryBucketUsageDetails(queryApi, buildingId, normalizedRange, bucketName);
+        } catch (error: any) {
+            lastError = error;
+            if (!isMissingBucketError(error)) {
+                break;
+            }
+        }
+    }
+
+    console.error(`[InfluxDB] Failed to query detailed energy usage for building ${buildingId}:`, lastError);
+    throw new Error('Internal server error, failed to retrieve detailed telemetry from InfluxDB');
 };
 
 export const queryTotalKwh = queryUsage;

@@ -1,12 +1,27 @@
 import prisma from '../lib/prisma';
 import { Building, BuildingType, LifecycleState } from '@prisma/client';
-import { queryTotalKwh } from '../lib/influx';
+import { PeakUsageTime, queryTotalKwh, queryUsageDetails } from '../lib/influx';
 import crypto from 'crypto';
 import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
 
 function toFiniteNumber(value: unknown, fallback = 0): number {
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function roundMetric(value: number): number {
+  return Number(value.toFixed(2));
+}
+
+function timeRangeToDays(timeRange: string): number {
+  const daysByRange: Record<string, number> = {
+    '7d': 7,
+    '30d': 30,
+    '90d': 90,
+    '1y': 365,
+  };
+
+  return daysByRange[timeRange] ?? 30;
 }
 
 // handle building creation, updating, deletion, and others here
@@ -41,6 +56,25 @@ export interface updateBuildingPayload {
   metadata?: Record<string, unknown>;
   lifecycle_state?: LifecycleState;
   geohash?: string;
+}
+
+export interface BuildingEnergyConsumptionDetails {
+  building_id: string;
+  building_name: string;
+  building_type: BuildingType | null;
+  timezone: string | null;
+  square_footage: number | null;
+  lifecycle_state: LifecycleState;
+  time_range: string;
+  total_kwh: number;
+  average_daily_kwh: number;
+  peak_usage_times: PeakUsageTime[];
+  total_cost_zar: number;
+  total_cost_usd: number;
+  cost_per_kwh: number;
+  eui: number | null;
+  total_anomaly_alerts: number | null;
+  cost_saved_by_recommendations_zar: number | null;
 }
 
 function generateHardwareAuthToken(buildingId: string): string {
@@ -118,13 +152,72 @@ export const listBuildingsForUser = async (userId: string) => {
   });
 };
 
+export const getBuildingEnergyConsumptionDetails = async (
+  userId: string,
+  buildingId: string,
+  timeRange: string,
+): Promise<BuildingEnergyConsumptionDetails> => {
+  const accessRecord = await prisma.userBuildingAccess.findUnique({
+    where: {
+      user_id_building_id: {
+        user_id: userId,
+        building_id: buildingId,
+      },
+    },
+  });
+
+  if (!accessRecord) {
+    throw new Error('Access Denied: You do not have permission to view this building.');
+  }
+
+  const building = await prisma.building.findUnique({
+    where: { building_id: buildingId },
+  });
+
+  if (!building) {
+    throw new Error('Building not found');
+  }
+
+  const usageDetails = await queryUsageDetails(buildingId, timeRange);
+  const totalKwh = toFiniteNumber(usageDetails.total_kwh);
+  const totalCostUsd = toFiniteNumber(usageDetails.total_cost_usd);
+  const rawTotalCostZar = toFiniteNumber(usageDetails.total_cost_zar);
+  const totalCostZar = rawTotalCostZar > 0 ? rawTotalCostZar : totalCostUsd;
+  const sqFt = toFiniteNumber(building.square_footage, 0);
+  const hasSquareFootage = sqFt > 0;
+  const days = timeRangeToDays(timeRange);
+
+  return {
+    building_id: building.building_id,
+    building_name: building.building_name,
+    building_type: building.building_type,
+    timezone: building.timezone,
+    square_footage: hasSquareFootage ? sqFt : null,
+    lifecycle_state: building.lifecycle_state,
+    time_range: timeRange,
+    total_kwh: roundMetric(totalKwh),
+    average_daily_kwh: roundMetric(totalKwh / days),
+    peak_usage_times: usageDetails.peak_usage_times.map((peak) => ({
+      timestamp: peak.timestamp,
+      kwh: roundMetric(peak.kwh),
+    })),
+    total_cost_zar: roundMetric(totalCostZar),
+    total_cost_usd: roundMetric(totalCostUsd),
+    cost_per_kwh: totalKwh > 0 ? roundMetric(totalCostZar / totalKwh) : 0,
+    eui: hasSquareFootage ? roundMetric(totalKwh / sqFt) : null,
+    total_anomaly_alerts: null,
+    cost_saved_by_recommendations_zar: null,
+  };
+};
+
 export const updateBuildingService = async (
   userId: string,
   buildingId: string,
   payload: updateBuildingPayload,
   role: string = "VIEWER",
 ) => {
-  if(role !== "ADMIN" && role !== "Admin") {
+  // admins bypass the per-building access check but everyone else must own the building
+  if(role !== "ADMIN") {
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
         user_id_building_id: {
@@ -274,7 +367,7 @@ export const deleteBuildingService = async (
   role: string = "VIEWER",
 ) => {
 
-  if(role !== "ADMIN" && role !== "Admin") {
+  if(role !== "ADMIN") {
     //verify user has access to this building
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
@@ -301,4 +394,15 @@ export const deleteBuildingService = async (
   await deleteInfluxBucket(buildingId);
 
   return deletedBuidling;
+};
+
+export const getAllBuildings = async (lifecycle_state?: LifecycleState) => {
+  return prisma.building.findMany({
+    where: {
+      ...(lifecycle_state !== undefined ? { lifecycle_state} : {}),
+    },
+    orderBy: {
+      created_at: "desc"
+    },
+  });
 };
