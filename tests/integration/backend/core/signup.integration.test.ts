@@ -60,4 +60,22 @@ describe("Signup integration", () => {
 		expect(secondResponse.status).toBe(400);
 		expect(secondResponse.body.message).toBe("User already exists, please login instead.");
 	});
+
+	it("rejects invalid signup payloads before creating a user", async () => {
+		const response = await request(harness.app).post("/auth/signup").send({
+			email: "not-an-email",
+			password: "weak",
+			name: "Jo",
+		});
+
+		expect(response.status).toBe(400);
+		expect(response.body.message).toBe("Validation error");
+		expect(response.body.errors).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ field: "email" }),
+				expect.objectContaining({ field: "password" }),
+				expect.objectContaining({ field: "name" }),
+			]),
+		);
+	});
 });

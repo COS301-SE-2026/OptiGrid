@@ -1,24 +1,30 @@
 import prisma from '../../../backend/core/src/lib/prisma';
-import { createBuilding, buildingPayload } from '../../../backend/core/src/services/building.services';
+import { createBuilding, buildingPayload, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, getPortfolioConsumption } from '../../../backend/core/src/services/building.services';
 import { BuildingType } from '@prisma/client';
-import { compareBuildingsService } from '../../../backend/core/src/services/building.services';
-import { deleteBuildingService } from '../../../backend/core/src/services/building.services';
-
+import { deleteInfluxBucket } from "../../../backend/core/src/services/provisioning.service"
 // Mock Prisma with 
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	__esModule: true,
 	default: {
 		$transaction: jest.fn(),
+		$queryRaw: jest.fn(),
+		$queryRawUnsafe: jest.fn(),
+		building: {
+			findMany: jest.fn(),
+		},
 	},
 }));
 
 const mockedPrisma = prisma as unknown as {
     $transaction: jest.Mock;
+	$queryRaw: jest.Mock;
+	$queryRawUnsafe: jest.Mock;
     userBuildingAccess: {
         findUnique: jest.Mock;
     };
     building: {
         delete: jest.Mock;
+		findMany: jest.Mock;
     };
 };
 
@@ -26,10 +32,21 @@ const mockedPrisma = prisma as unknown as {
 jest.mock('../../../backend/core/src/lib/influx', () => ({
 	__esModule: true,
 	queryTotalKwh: jest.fn(),
+	queryUsageDetails: jest.fn(),
+	queryUsageSeries: jest.fn(),
+}));
+
+// Mock provisioning service to avoid actual InfluxDB calls in tests
+jest.mock('../../../backend/core/src/services/provisioning.service', () => ({
+	__esModule: true,
+	queueBuildingProvisioning: jest.fn().mockResolvedValue(undefined),
+	deleteInfluxBucket: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockedInflux = require('../../../backend/core/src/lib/influx') as {
 	queryTotalKwh: jest.Mock;
+	queryUsageDetails: jest.Mock;
+	queryUsageSeries: jest.Mock;
 };
 
 describe('Building Services, happy path', () => {
@@ -54,44 +71,53 @@ describe('Building Services, happy path', () => {
 				max_occupancy: 500,
 			};
 
-			const mockBuilding = {
-				building_id: mockBuildingId,
-				tenant_id: mockTenantId,
-				building_name: 'Office Building A',
-				building_type: 'Commercial',
-				square_footage: 50000,
-				physical_address: '123 Main St, City, State 12345',
-				timezone: 'America/New_York',
-				max_occupancy: 500,
-			};
+		const mockBuilding = {
+			building_id: mockBuildingId,
+			tenant_id: mockTenantId,
+			building_name: 'Office Building A',
+			building_type: 'Commercial',
+			square_footage: 50000,
+			physical_address: '123 Main St, City, State 12345',
+			timezone: 'America/New_York',
+			max_occupancy: 500,
+			nominal_voltage: 230,
+			max_current_threshold: 60,
+			lifecycle_state: 'PROVISIONING',
+			hardware_auth_token: null,
+		};
 
-			const mockTransaction = jest.fn(async (callback) => {
-				const mockTx = {
-					building: {
-						create: jest.fn().mockResolvedValue(mockBuilding),
-					},
-					userBuildingAccess: {
-						create: jest.fn().mockResolvedValue({
-							user_id: mockUserId,
-							building_id: mockBuildingId,
-						}),
-					},
-				};
-				return await callback(mockTx);
-			});
+		const mockTx = {
+			building: {
+				create: jest.fn().mockResolvedValue(mockBuilding),
+				update: jest.fn().mockResolvedValue({ ...mockBuilding, hardware_auth_token: 'optigrid_test_token_building-123' }),
+			},
+			userBuildingAccess: {
+				create: jest.fn().mockResolvedValue({
+					user_id: mockUserId,
+					building_id: mockBuildingId,
+				}),
+			},
+		};
 
-			mockedPrisma.$transaction.mockImplementation(mockTransaction);
+		mockedPrisma.$transaction.mockImplementation(async (callback) => {
+			return await callback(mockTx);
+		});
 
-			// Act
-			const result = await createBuilding(mockUserId, payload);
+		// Act
+		const result = await createBuilding(mockUserId, payload);
 
-			// Assert
-			expect(mockedPrisma.$transaction).toHaveBeenCalled();
-			expect(result).toEqual(mockBuilding);
-			expect(result.building_name).toBe('Office Building A');
-			expect(result.building_type).toBe('Commercial');
-			expect(result.square_footage).toBe(50000);
-			expect(result.timezone).toBe('America/New_York');
+		// Assert
+		expect(mockedPrisma.$transaction).toHaveBeenCalled();
+		expect(result.building_name).toBe('Office Building A');
+		expect(result.building_type).toBe('Commercial');
+		expect(result.square_footage).toBe(50000);
+		expect(result.timezone).toBe('America/New_York');
+		expect(result.nominal_voltage).toBe(230);
+		expect(result.max_current_threshold).toBe(60);
+		expect(result.lifecycle_state).toBe('PROVISIONING');
+		expect(result.hardware_auth_token).toBeTruthy();
+		expect(result.hardware_auth_token).toContain('optigrid_');
+		expect(mockTx.building.update).toHaveBeenCalled();
 		});
 
 		it('should_apply_default_building_type_as_"Residential"_and_default_timezone_as_"UTC"', async () => {
@@ -104,7 +130,7 @@ describe('Building Services, happy path', () => {
                 physical_address: '456 Oak Ave, Town, State 54321',
             };
 
-            const mockBuilding = {
+		const mockBuilding = {
                 building_id: mockBuildingId,
                 tenant_id: mockTenantId,
                 building_name: 'House 1',
@@ -113,12 +139,15 @@ describe('Building Services, happy path', () => {
                 physical_address: '456 Oak Ave, Town, State 54321',
                 timezone: 'UTC',              
                 max_occupancy: null,
+                nominal_voltage: 230,
+                max_current_threshold: 60,
             };
 
 			const mockTransaction = jest.fn(async (callback) => {
 				const mockTx = {
 					building: {
 						create: jest.fn().mockResolvedValue(mockBuilding),
+						update: jest.fn().mockResolvedValue({ ...mockBuilding, hardware_auth_token: 'optigrid_test' }),
 					},
 					userBuildingAccess: {
 						create: jest.fn().mockResolvedValue({
@@ -156,12 +185,15 @@ describe('Building Services, happy path', () => {
 				physical_address: null,
 				timezone: 'UTC',
 				max_occupancy: null,
+				nominal_voltage: 230,
+				max_current_threshold: 60,
 			};
 
-			const mockTransaction = jest.fn(async (callback) => {
+		const mockTransaction = jest.fn(async (callback) => {
 				const mockTx = {
 					building: {
 						create: jest.fn().mockResolvedValue(mockBuilding),
+						update: jest.fn().mockResolvedValue({ ...mockBuilding, hardware_auth_token: 'optigrid_test' }),
 					},
 					userBuildingAccess: {
 						create: jest.fn().mockResolvedValue({
@@ -179,9 +211,11 @@ describe('Building Services, happy path', () => {
 			const result = await createBuilding(mockUserId, payload);
 
 			// Assert
-			expect(result).toEqual(mockBuilding);
+			expect(result).toMatchObject(mockBuilding);
 			expect(result.tenant_id).toBe(mockTenantId);
 			expect(result.building_name).toBe('Minimal Building');
+			expect(result.hardware_auth_token).toBeTruthy();
+			expect(result.lifecycle_state).toBe('PROVISIONING');
 		});
 
 		it('should grant user access to the created building', async () => {
@@ -200,6 +234,8 @@ describe('Building Services, happy path', () => {
 				physical_address: null,
 				timezone: 'UTC',
 				max_occupancy: null,
+				nominal_voltage: 230,
+				max_current_threshold: 60,
 			};
 
 			let buildingAccessCreated = false;
@@ -208,6 +244,7 @@ describe('Building Services, happy path', () => {
 				const mockTx = {
 					building: {
 						create: jest.fn().mockResolvedValue(mockBuilding),
+						update: jest.fn().mockResolvedValue({ ...mockBuilding, hardware_auth_token: 'optigrid_test' }),
 					},
 					userBuildingAccess: {
 						create: jest.fn(async ({ data }) => {
@@ -240,18 +277,19 @@ describe('Building Services, happy path', () => {
 					building_name: 'Broken Building',
 				};
 
-				const mockTransaction = jest.fn(async (callback) => {
-					const mockTx = {
-						building: {
-							create: jest.fn().mockRejectedValue(new Error('Failed to create building')),
-						},
-						userBuildingAccess: {
-							create: jest.fn(),
-						},
-					};
+			const mockTransaction = jest.fn(async (callback) => {
+				const mockTx = {
+					building: {
+						create: jest.fn().mockRejectedValue(new Error('Failed to create building')),
+						update: jest.fn(),
+					},
+					userBuildingAccess: {
+						create: jest.fn(),
+					},
+				};
 
-					return await callback(mockTx);
-				});
+				return await callback(mockTx);
+			});
 
 				mockedPrisma.$transaction.mockImplementation(mockTransaction);
 
@@ -282,6 +320,7 @@ describe('Building Services, happy path', () => {
 					const mockTx = {
 						building: {
 							create: jest.fn().mockResolvedValue(mockBuilding),
+							update: jest.fn().mockResolvedValue(mockBuilding),
 						},
 						userBuildingAccess: {
 							create: jest.fn().mockRejectedValue(new Error('Failed to grant building access')),
@@ -333,28 +372,29 @@ describe('Building Services, happy path', () => {
 					max_occupancy: null,
 				};
 
-				const mockTransaction = jest.fn(async (callback) => {
-					const mockTx = {
-						building: {
-							create: jest.fn().mockResolvedValue(mockBuilding),
-						},
-						userBuildingAccess: {
-							create: jest.fn().mockResolvedValue({
-								user_id: mockUserId,
-								building_id: mockBuildingId,
-							}),
-						},
-					};
-					return await callback(mockTx);
-				});
+			const mockTransaction = jest.fn(async (callback) => {
+				const mockTx = {
+					building: {
+						create: jest.fn().mockResolvedValue(mockBuilding),
+						update: jest.fn().mockResolvedValue({ ...mockBuilding, hardware_auth_token: 'optigrid_test' }),
+					},
+					userBuildingAccess: {
+						create: jest.fn().mockResolvedValue({
+							user_id: mockUserId,
+							building_id: mockBuildingId,
+						}),
+					},
+				};
+				return await callback(mockTx);
+			});
 
-				mockedPrisma.$transaction.mockImplementation(mockTransaction);
+			mockedPrisma.$transaction.mockImplementation(mockTransaction);
 
-				// Act
-				const result = await createBuilding(mockUserId, payload);
+			// Act
+			const result = await createBuilding(mockUserId, payload);
 
-				// Assert
-				expect(result.square_footage).toBe(0);
+			// Assert
+			expect(result.square_footage).toBe(0);
 			});
 
 			it('should_handle_zero_max_occupancy', async () => {
@@ -377,19 +417,20 @@ describe('Building Services, happy path', () => {
 				};
 
 				const mockTransaction = jest.fn(async (callback) => {
-					const mockTx = {
-						building: {
-							create: jest.fn().mockResolvedValue(mockBuilding),
-						},
-						userBuildingAccess: {
-							create: jest.fn().mockResolvedValue({
-								user_id: mockUserId,
-								building_id: mockBuildingId,
-							}),
-						},
-					};
-					return await callback(mockTx);
-				});
+				const mockTx = {
+					building: {
+						create: jest.fn().mockResolvedValue(mockBuilding),
+						update: jest.fn().mockResolvedValue({ ...mockBuilding, hardware_auth_token: 'optigrid_test' }),
+					},
+					userBuildingAccess: {
+						create: jest.fn().mockResolvedValue({
+							user_id: mockUserId,
+							building_id: mockBuildingId,
+						}),
+					},
+				};
+				return await callback(mockTx);
+			});
 
 				mockedPrisma.$transaction.mockImplementation(mockTransaction);
 
@@ -423,6 +464,7 @@ describe('Building Services, happy path', () => {
 					const mockTx = {
 						building: {
 							create: jest.fn().mockResolvedValue(mockBuilding),
+							update: jest.fn().mockResolvedValue({ ...mockBuilding, hardware_auth_token: 'optigrid_test' }),
 						},
 						userBuildingAccess: {
 							create: jest.fn().mockResolvedValue({
@@ -444,6 +486,118 @@ describe('Building Services, happy path', () => {
 			});
 		});
     });
+});
+
+describe('getBuildingEnergyConsumptionDetails', () => {
+	const mockUserId = 'user-energy';
+	const mockBuildingId = '11111111-1111-1111-1111-111111111111';
+
+	beforeEach(() => {
+		(mockedPrisma as any).userBuildingAccess = { findUnique: jest.fn() };
+		(mockedPrisma as any).building = { findUnique: jest.fn() };
+		(mockedPrisma as any).$queryRaw = jest.fn().mockResolvedValue([{ count: 2 }]);
+		(mockedPrisma as any).$queryRawUnsafe = jest
+			.fn()
+			.mockResolvedValueOnce([
+				{ column_name: 'building_id' },
+				{ column_name: 'status' },
+				{ column_name: 'estimated_monthly_savings' },
+			])
+			.mockResolvedValueOnce([{ total: 350.456 }]);
+	});
+
+	afterEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it('returns_energy_consumption_metrics_for_an_authorized_building', async () => {
+		(mockedPrisma as any).userBuildingAccess.findUnique.mockResolvedValue({
+			user_id: mockUserId,
+			building_id: mockBuildingId,
+		});
+		(mockedPrisma as any).building.findUnique.mockResolvedValue({
+			building_id: mockBuildingId,
+			building_name: 'Energy Tower',
+			building_type: 'Commercial',
+			timezone: 'Africa/Johannesburg',
+			square_footage: 1200,
+			lifecycle_state: 'ACTIVE',
+		});
+		mockedInflux.queryUsageDetails.mockResolvedValue({
+			total_kwh: 900,
+			total_cost_usd: 45,
+			total_cost_zar: 1800,
+			peak_usage_times: [
+				{ timestamp: '2026-07-10T08:00:00Z', kwh: 120.346 },
+			],
+		});
+
+		const result = await getBuildingEnergyConsumptionDetails(mockUserId, mockBuildingId, '30d');
+
+		expect(mockedInflux.queryUsageDetails).toHaveBeenCalledWith(mockBuildingId, '30d');
+		expect(result).toMatchObject({
+			building_id: mockBuildingId,
+			building_name: 'Energy Tower',
+			time_range: '30d',
+			total_kwh: 900,
+			average_daily_kwh: 30,
+			total_cost_zar: 1800,
+			total_cost_usd: 45,
+			cost_per_kwh: 2,
+			eui: 0.75,
+			total_anomaly_alerts: 2,
+			cost_saved_by_recommendations_zar: 350.46,
+		});
+		expect(result.peak_usage_times).toEqual([
+			{ timestamp: '2026-07-10T08:00:00Z', kwh: 120.35 },
+		]);
+	});
+
+	it('returns_null_supplemental_metrics_when_tables_are_unavailable', async () => {
+		(mockedPrisma as any).userBuildingAccess.findUnique.mockResolvedValue({
+			user_id: mockUserId,
+			building_id: mockBuildingId,
+		});
+		(mockedPrisma as any).building.findUnique.mockResolvedValue({
+			building_id: mockBuildingId,
+			building_name: 'Energy Tower',
+			building_type: 'Commercial',
+			timezone: 'Africa/Johannesburg',
+			square_footage: 1200,
+			lifecycle_state: 'ACTIVE',
+		});
+		mockedInflux.queryUsageDetails.mockResolvedValue({
+			total_kwh: 900,
+			total_cost_usd: 45,
+			total_cost_zar: 1800,
+			peak_usage_times: [],
+		});
+		(mockedPrisma as any).$queryRaw = jest.fn().mockRejectedValue(Object.assign(new Error('relation "anomalies" does not exist'), { code: '42P01' }));
+		(mockedPrisma as any).$queryRawUnsafe = jest.fn().mockRejectedValue(Object.assign(new Error('relation "optimisation_recommendations" does not exist'), { code: '42P01' }));
+
+		const result = await getBuildingEnergyConsumptionDetails(mockUserId, mockBuildingId, '30d');
+
+		expect(result.total_anomaly_alerts).toBeNull();
+		expect(result.cost_saved_by_recommendations_zar).toBeNull();
+	});
+
+	it('throws_access_denied_when_the_user_has_no_building_access', async () => {
+		(mockedPrisma as any).userBuildingAccess.findUnique.mockResolvedValue(null);
+
+		await expect(getBuildingEnergyConsumptionDetails(mockUserId, mockBuildingId, '7d')).rejects.toThrow('Access Denied');
+		expect(mockedInflux.queryUsageDetails).not.toHaveBeenCalled();
+	});
+
+	it('throws_building_not_found_when_access_exists_but_the_building_is_missing', async () => {
+		(mockedPrisma as any).userBuildingAccess.findUnique.mockResolvedValue({
+			user_id: mockUserId,
+			building_id: mockBuildingId,
+		});
+		(mockedPrisma as any).building.findUnique.mockResolvedValue(null);
+
+		await expect(getBuildingEnergyConsumptionDetails(mockUserId, mockBuildingId, '7d')).rejects.toThrow('Building not found');
+		expect(mockedInflux.queryUsageDetails).not.toHaveBeenCalled();
+	});
 });
 
 describe('compareBuildingsService', () => {
@@ -477,6 +631,31 @@ describe('compareBuildingsService', () => {
 		expect(result.buildingA.eui).toBeCloseTo(5);
 		expect(result.buildingB.eui).toBeCloseTo(2);
 		expect(result.mostEfficient).toBe(buildingB);
+	});
+
+	it('uses_normalized_influx_usage_and_cost_totals', async () => {
+		// arrange
+		(mockedPrisma as any).userBuildingAccess = { findFirst: jest.fn() };
+		(mockedPrisma as any).userBuildingAccess.findFirst.mockResolvedValueOnce({ user_id: mockUserId, building_id: buildingA });
+		(mockedPrisma as any).userBuildingAccess.findFirst.mockResolvedValueOnce({ user_id: mockUserId, building_id: buildingB });
+		(mockedPrisma as any).building = {
+			findUnique: jest.fn()
+				.mockResolvedValueOnce({ building_id: buildingA, square_footage: 1000, building_name: 'A Tower' })
+				.mockResolvedValueOnce({ building_id: buildingB, square_footage: 2000, building_name: 'B Plaza' }),
+		};
+		mockedInflux.queryTotalKwh
+			.mockResolvedValueOnce({ total_kwh: 5000, total_cost_usd: 200, total_cost_zar: 3600 })
+			.mockResolvedValueOnce({ total_kwh: 4000, total_cost_usd: 150, total_cost_zar: 0 });
+
+		// act
+		const result = await compareBuildingsService(mockUserId, buildingA, buildingB, '30d');
+
+		// assert
+		expect(result.buildingA.total_kwh).toBe(5000);
+		expect(result.buildingA.total_cost_zar).toBe(3600);
+		expect(result.buildingA.total_cost_usd).toBe(200);
+		expect(result.buildingA.cost_per_kwh).toBe(0.72);
+		expect(result.buildingB.total_cost_zar).toBe(150);
 	});
 
 	it('authorization_error_when_user_has_no_access_and_influx_not_called', async () => {
@@ -527,14 +706,59 @@ describe('compareBuildingsService', () => {
 	});
 });
 
+describe('getPortfolioConsumption', () => {
+	const mockUserId = 'portfolio-user';
+
+	afterEach(() => {
+		jest.useRealTimers();
+	});
+
+	it('aggregates the assigned buildings into daily portfolio telemetry', async () => {
+		jest.useFakeTimers().setSystemTime(new Date('2026-07-14T12:00:00Z'));
+		(mockedPrisma as any).building = {
+			findMany: jest.fn().mockResolvedValue([
+				{ building_id: 'building-a' },
+				{ building_id: 'building-b' },
+			]),
+		};
+		mockedInflux.queryUsageSeries
+			.mockResolvedValueOnce([
+				{ timestamp: '2026-07-14T08:00:00Z', kwh: 100, cost_zar: 0 },
+			])
+			.mockResolvedValueOnce([
+				{ timestamp: '2026-07-14T09:00:00Z', kwh: 50, cost_zar: 25 },
+			]);
+
+		const result = await getPortfolioConsumption(mockUserId);
+
+		expect(mockedPrisma.building.findMany).toHaveBeenCalledWith(expect.objectContaining({
+			where: expect.objectContaining({
+				authorized_users: expect.any(Object),
+			}),
+		}));
+		expect(mockedInflux.queryUsageSeries).toHaveBeenCalledWith('building-a', '7d');
+		expect(mockedInflux.queryUsageSeries).toHaveBeenCalledWith('building-b', '7d');
+		expect(result.today_kwh_by_building).toEqual({
+			'building-a': 100,
+			'building-b': 50,
+		});
+		expect(result.daily.at(-1)).toEqual({
+			date: '2026-07-14',
+			kwh: 150,
+			cost_zar: 25,
+		});
+		expect(result.estimated_cost_zar).toBe(25);
+	});
+});
+
 describe('deleteBuildingService', () => {
     const mockUserId = 'user-123';
     const mockBuildingId = 'building-003';
 
     beforeEach(() => {
         // prepare mock chains for your prisma service properties
-        (mockedPrisma as any).userBuildingAccess = { findUnique: jest.fn() };
-        (mockedPrisma as any).building = { delete: jest.fn() };
+        mockedPrisma.userBuildingAccess.findUnique = jest.fn() ;
+        mockedPrisma.building.delete =  jest.fn();
     });
 
     it('should successfully delete a building if user has valid access', async () => {
@@ -570,4 +794,73 @@ describe('deleteBuildingService', () => {
         await expect(deleteBuildingService(mockUserId, mockBuildingId)).rejects.toThrow('Access Denied');
         expect(mockedPrisma.building.delete).not.toHaveBeenCalled();
     });
+});
+
+describe("Get All Buildings Services Test", () => {
+	beforeEach(() => {
+		if(!mockedPrisma.building) (mockedPrisma as any).buidling = {};
+		mockedPrisma.building.findMany = jest.fn();
+	})
+	it("should_fetch_all_buildings-succesfully",async () =>{
+		const buildings = [
+			{
+				building_id: "building-123",
+				lifecycle_state: "PROVISIONING"
+			},
+			{
+				building_id: "building-1234",
+				lifecycle_state: "ACTIVE"
+			},
+		];
+
+		(prisma.building.findMany as jest.Mock).mockResolvedValue(buildings);
+		//act
+		const out = await getAllBuildings();
+		//assert
+		expect(out).toEqual(buildings);
+		expect(prisma.building.findMany).toHaveBeenCalledTimes(1);
+		expect(prisma.building.findMany).toHaveBeenCalledWith({
+			where: {},
+			orderBy: {
+				created_at: 'desc',
+			},
+			include: {
+				authorized_users: {
+					include: {user:true},
+				},
+			},
+		});
+	});
+
+	it("should_return_matching_buildings_with_filter", async () =>{
+		const buildings = [
+			{
+				building_id: "building-123",
+				lifecycle_state: "PROVISIONING"
+			},
+			{
+				building_id: "building-1234",
+				lifecycle_state: "ACTIVE"
+			},
+		];
+		(prisma.building.findMany as jest.Mock).mockResolvedValue(buildings);
+		//act
+		const out = await getAllBuildings("ACTIVE" as any);
+		//assert
+		expect(out).toEqual(buildings);
+		expect(prisma.building.findMany).toHaveBeenCalledTimes(1);
+		expect(prisma.building.findMany).toHaveBeenCalledWith({
+			where: {
+				lifecycle_state: "ACTIVE"
+			},
+			orderBy: {
+				created_at: 'desc',
+			},
+			include: {
+				authorized_users: {
+					include: {user:true},
+				},
+			},
+		});
+	});
 });

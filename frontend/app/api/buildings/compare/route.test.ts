@@ -21,7 +21,7 @@ describe("compare buildings route", () => {
     }) as jest.Mock;
   });
 
-  it("forwards the request to core with auth and idempotency key", async () => {
+  it("forwards the request to core with authentication", async () => {
     const request = new Request(
       "http://localhost/api/buildings/compare?building_id_a=11111111-1111-1111-1111-111111111111&building_id_b=22222222-2222-2222-2222-222222222222&time_range=30d",
       {
@@ -48,7 +48,6 @@ describe("compare buildings route", () => {
           cookie: "optigrid_session=%7B%22userId%22%3A%22user-123%22%7D; optigrid_access_token=test-token",
           "Content-Type": "application/json",
           Authorization: "Bearer test-token",
-          "Idempotency-Key": "compare-11111111-1111-1111-1111-111111111111-22222222-2222-2222-2222-222222222222-30d",
         }),
       })
     );

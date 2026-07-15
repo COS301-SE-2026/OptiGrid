@@ -10,6 +10,8 @@ services:
 
   influxdb:
     image: influxdb:2.7-alpine
+    ports:
+      - "8086:8086"
     restart: unless-stopped
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
@@ -19,12 +21,39 @@ services:
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
     healthcheck:
-      test: ["CMD", "influx", "ping"]
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ../.data/influxdb:/var/lib/influxdb2
+
+  mlflow:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
+    restart: unless-stopped
+    command:
+      [
+        "mlflow",
+        "server",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5000",
+        "--backend-store-uri",
+        "sqlite:////mlflow/mlflow.db",
+        "--default-artifact-root",
+        "/mlflow/artifacts"
+      ]
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5).read()\""]
       interval: 10s
       timeout: 5s
       retries: 12
-    volumes:
-      - influxdb_data:/var/lib/influxdb2
+      start_period: 20s
 
   frontend:
     image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-frontend:latest
@@ -55,7 +84,8 @@ services:
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      INGESTION_API_URL: http://ingestion-api:8000/ingest
+      INGESTION_API_URL: http://ingestion-api:8000
+      ANALYTICS_API_URL: http://analytics:5001
       DATABASE_URL: ${DATABASE_URL}
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -64,6 +94,7 @@ services:
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
       INFLUXDB_ORG: ${INFLUXDB_ORG}
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
@@ -108,6 +139,9 @@ services:
   analytics:
     image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
     restart: unless-stopped
+    command: ["python", "-m", "uvicorn", "backend.analytics.src.main:app", "--host", "0.0.0.0", "--port", "5001"]
+    ports:
+      - "5001:5001"
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
@@ -116,9 +150,12 @@ services:
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
     depends_on:
       influxdb:
         condition: service_healthy
+      mlflow:
+        condition: service_healthy
 
 volumes:
-  influxdb_data:
+  mlflow_data:

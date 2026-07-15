@@ -327,6 +327,25 @@ pnpm --filter @optigrid/frontend run test
 pnpm --filter @optigrid/core run test
 ```
 
+### Run Building E2E Tests with Local Supabase
+
+Use this flow when you want Playwright to test against the local Supabase emulator instead of the temporary Postgres container used by the default E2E launcher.
+
+```powershell
+# Start local Supabase. If this repo has not been initialized locally yet,
+# run `supabase init` once from the repo root first.
+supabase start
+supabase status
+```
+
+Run the create-building E2E test:
+
+```powershell
+corepack pnpm run test:e2e:supabase -- tests/e2e/buildings/create-building.e2e.spec.ts
+```
+
+The Supabase E2E launcher reads `supabase status -o env` and maps the local `DB_URL`, `API_URL`, `ANON_KEY`, and `SERVICE_ROLE_KEY` into the app environment automatically. It also runs `prisma db push --accept-data-loss` before starting the core API. It does not run `supabase/seed.sql`; keep that seed aligned with the current Prisma schema before using `supabase db reset`.
+
 ---
 
 ## Branching Strategy

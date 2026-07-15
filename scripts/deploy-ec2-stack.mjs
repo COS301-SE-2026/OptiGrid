@@ -108,6 +108,11 @@ const imageTags = [
   `ghcr.io/${imageNamespace}/optigrid-ingestion:latest`,
   `ghcr.io/${imageNamespace}/optigrid-analytics:latest`,
 ];
+const supportImageTags = [
+  "redis:7-alpine",
+  "influxdb:2.7-alpine",
+];
+const bundledImageTags = [...imageTags, ...supportImageTags];
 
 const generatedDir = path.join("infrastructure", "docker", ".generated");
 const composeProdPath = path.join("infrastructure", "docker", "docker-compose.prod.yml");
@@ -401,6 +406,7 @@ function generateComposeAndEnv() {
     `DATABASE_URL=${runtimeEnv.databaseUrl}`,
     `SUPABASE_URL=${runtimeEnv.supabaseUrl}`,
     `SUPABASE_SERVICE_ROLE_KEY=${runtimeEnv.supabaseKey}`,
+    `SUPABASE_KEY=${runtimeEnv.supabaseKey}`,
     `SUPABASE_ANON_KEY=${runtimeEnv.supabaseAnonKey}`,
     `INFLUXDB_URL=${runtimeEnv.influxUrl}`,
     `INFLUXDB_TOKEN=${runtimeEnv.influxToken}`,
@@ -420,10 +426,18 @@ function buildImages() {
   run("docker", ["build", "-f", "backend/analytics/Dockerfile", "-t", imageTags[3], "."]);
 }
 
+function pullSupportImages() {
+  phase("Pulling support Docker images locally");
+  for (const imageTag of supportImageTags) {
+    run("docker", ["pull", imageTag]);
+  }
+}
+
 function packageImages() {
   phase("Packaging Docker images for transfer");
   // `docker save` creates a portable tar used by remote `docker load`.
-  run("docker", ["save", "-o", imagesTarPath, ...imageTags]);
+  // Include public dependency images because remote compose runs with `--pull never`.
+  run("docker", ["save", "-o", imagesTarPath, ...bundledImageTags]);
 }
 
 function uploadArtifacts(host) {
@@ -630,6 +644,7 @@ generateComposeAndEnv();
 if (!skipBuild) {
   buildImages();
 }
+pullSupportImages();
 packageImages();
 uploadArtifacts(host);
 remoteComposeDeploy(host);

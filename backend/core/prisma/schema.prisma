@@ -39,6 +39,15 @@ enum SensorStatus {
   Maintenance
 }
 
+enum LifecycleState {
+  PROVISIONING        @map("provisioning")
+  ACTIVE              @map("active")
+  PROVISIONING_FAILED @map("provisioning_failed")
+  INACTIVE            @map("inactive")
+
+  @@map("lifecycle_state")
+}
+
 // All the models for db tables are made here
 model User {
   userId         String          @id @map("user_id") @db.Uuid
@@ -48,7 +57,6 @@ model User {
   firstName      String?         @map("first_name") @db.VarChar(100)
   lastName       String?         @map("last_name") @db.VarChar(100)
   preferredTheme ThemePreference @default(SYSTEM) @map("preferred_theme")
-  passwordHash   String          @map("password_hash") @db.VarChar(255)
   createdAt      DateTime?       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime?       @default(now()) @map("updated_at") @db.Timestamptz(6)
 
@@ -75,21 +83,29 @@ model Tenant {
 }
 
 model Building {
-  building_id      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id        String?       @db.Uuid
-  building_name    String        @db.VarChar(255)
-  building_type    BuildingType? @default(Residential) @map("building_type")
-  square_footage   Decimal?      @db.Decimal
-  physical_address String?
-  timezone         String?       @default("UTC") @db.VarChar(50)
-  max_occupancy    Int?
-  created_at       DateTime?     @default(now()) @db.Timestamptz
-  updated_at       DateTime?     @default(now()) @db.Timestamptz
+  building_id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id             String?         @db.Uuid
+  building_name         String          @db.VarChar(255)
+  building_type         BuildingType?   @default(Residential) @map("building_type")
+  square_footage        Decimal?        @db.Decimal
+  physical_address      String?
+  timezone              String?         @default("UTC") @db.VarChar(50)
+  max_occupancy         Int?
+  nominal_voltage       Float?          @default(230) @map("nominal_voltage")
+  max_current_threshold Float?          @default(60) @map("max_current_threshold")
+  hardware_auth_token   String?         @map("hardware_auth_token") @db.VarChar(512)
+  lifecycle_state       LifecycleState  @default(PROVISIONING) @map("lifecycle_state")
+  created_at            DateTime?       @default(now()) @db.Timestamptz
+  updated_at            DateTime?       @default(now()) @db.Timestamptz
+  latitude              Float? 
+  longitude             Float?
+  geohash               String?        @db.VarChar(10)
 
   // Relations with other tables
   tenant           Tenant?               @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
   authorized_users UserBuildingAccess[]
   sensors          Sensor[]
+  analytics        BuildingAnalytics?
 
   @@index([tenant_id])
   @@map("buildings")
@@ -129,7 +145,7 @@ model Sensor {
 
 model BuildingAnalytics {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  building_id      String   @db.VarChar(255)
+  building_id      String   @unique @db.Uuid
   todays_usage     Float?
   forecast_peak    Float?
   forecast_avg_day Float?
@@ -137,7 +153,8 @@ model BuildingAnalytics {
   forecast_series  Json?    @db.JsonB
   updated_at       DateTime @default(now()) @db.Timestamptz
 
-  @@unique([building_id])
+  building         Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
   @@index([building_id])
   @@map("building_analytics")
 }

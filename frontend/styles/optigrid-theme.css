@@ -357,6 +357,12 @@ h3 {
     font-weight: var(--fw-semibold);
 }
 
+.dashboard-utility {
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--brand-border)
+}
+
 .dashboard-topbar {
     display: flex;
     align-items: center;
@@ -799,6 +805,209 @@ h3 {
     color: var(--brand-ink-muted);
 }
 
+.faq-list {
+    display: grid;
+    gap: var(--space-8);
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.faq-category-title {
+    font-size: 1rem;
+    font-weight: var(--fw-semibold);
+    color: var(--brand-ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-3);
+}
+
+.faq-item {
+    padding: 0;
+    overflow: hidden;
+}
+
+.faq-question {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    font-size: 0.95rem;
+    font-weight: var(--fw-semibold);
+    color: var(--brand-ink);
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.faq-question:hover {
+    color: var(--brand-primary);
+}
+
+.faq-chevron {
+    flex-shrink: 0;
+    font-size: 1.25rem;
+    color: var(--brand-ink-muted);
+}
+
+.faq-answer {
+    padding: 0 var(--space-5) var(--space-4);
+    font-size: 0.9rem;
+    color: var(--brand-ink-muted);
+    line-height: 1.65;
+}
+
+.help-anchor {
+    scroll-margin-top: 88px;
+}
+
+.help-resource-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+}
+
+.help-resource-card {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.help-resource-header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+}
+
+.help-resource-content {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.help-resource-actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.help-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+}
+
+.help-guide-card {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.help-guide-list {
+    color: var(--brand-ink-muted);
+    line-height: 1.65;
+    margin: 0;
+    padding-left: var(--space-5);
+    display: grid;
+    gap: var(--space-2);
+}
+
+.tutorial-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+}
+
+.tutorial-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.tutorial-card-frame {
+    border-bottom: 1px solid var(--brand-border);
+}
+
+.tutorial-video-placeholder {
+    display: grid;
+    place-items: center;
+    padding: var(--space-5);
+    background: radial-gradient(circle at top, color-mix(in srgb, var(--brand-primary) 20%, transparent), transparent 50%), linear-gradient(135deg, color-mix(in srgb, var(--brand-surface-alt) 55%, transparent), var(--brand-surface));
+}
+
+.tutorial-video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--brand-surface-alt);
+}
+
+.tutorial-video-placeholder-content {
+    width: 100%;
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+    gap: var(--space-3);
+    border: 1px dashed var(--brand-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    text-align: center;
+}
+
+.tutorial-video-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--brand-primary);
+    background: color-mix(in srgb, var(--brand-surface) 82%, transparent);
+    border: 1px solid var(--brand-border);
+}
+
+.tutorial-video-chip {
+    font-size: var(--fs-small);
+    font-weight: var(--fw-semibold);
+    color: var(--brand-primary);
+    background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+    border-radius: var(--radius-pill);
+    padding: 4px 12px;
+}
+
+.tutorial-video-copy {
+    max-width: 320px;
+    margin: 0;
+    color: var(--brand-ink-muted);
+    line-height: 1.55;
+}
+
+.tutorial-card-body {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-5);
+}
+
+.tutorial-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.tutorial-duration {
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    color: var(--brand-ink-muted);
+    white-space: nowrap;
+}
+
+.tutorial-step-list {
+    margin-top: 2px;
+}
+
+.tutorials-section {
+    scroll-margin-top: 88px;
+}
+
 @keyframes fade-up {
     from {
         opacity: 0;
@@ -815,7 +1024,10 @@ h3 {
 
     .landing-hero-grid,
     .landing-feature-grid,
-    .landing-outcomes-grid {
+    .landing-outcomes-grid,
+    .help-resource-grid,
+    .help-guide-grid,
+    .tutorial-grid {
         grid-template-columns: 1fr;
     }
 
@@ -860,6 +1072,63 @@ h3 {
     .dashboard-shell {
         padding: var(--space-5) var(--space-4);
     }
+}
+
+@keyframes live-pulse {
+    0% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-success) 70%, transparent);
+    }
+    70% {
+        box-shadow: 0 0 0 8px color-mix(in srgb, var(--brand-success) 0%, transparent);
+    }
+    100% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-success) 0%, transparent);
+    }
+}
+
+.live-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+.live-dot.off {
+    background: var(--brand-ink-muted);
+}
+
+.live-dot.on {
+    background: var(--brand-success);
+    animation: live-pulse 1.8s ease-out infinite;
+}
+
+.live-chip {
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: transparent;
+    color: var(--brand-ink-muted);
+    padding: 6px 14px;
+    border-radius: 99px;
+    border: 1px solid var(--brand-border);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.live-chip:hover:not(:disabled) {
+    border-color: var(--brand-primary);
+    color: var(--brand-ink);
+}
+
+.live-chip:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.live-chip.on {
+    background: var(--brand-primary);
+    border-color: var(--brand-primary);
+    color: #fff;
 }
 
 @media (max-width: 900px) {

@@ -37,10 +37,33 @@ describe('sensor controller unit tests', () => {
 
         //Assert
         expect(mockRes.status).toHaveBeenCalledWith(400);
-        expect(mockRes.json).toHaveBeenCalledWith({
+        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
             status: 'error',
-            message: 'Missing required telemetry fields'
-        });
+            message: 'Invalid telemetry payload'
+        }));
+        expect(mockedForwardToIngestionService).not.toHaveBeenCalled();
+    });
+
+    it('rejects payloads carrying unexpected fields to prevent mass assignment', async () => {
+        // arrange
+        mockReq = {
+            body: {
+                sensor_id: 'sensor-001',
+                building_id: 'building-001',
+                usage: 412.5,
+                lifecycle_state: 'ACTIVE',
+                is_admin: true
+            }
+        };
+        // act
+        await handleSensorTelemetry(mockReq as Request, mockRes as Response);
+
+        // assert
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+            status: 'error',
+            message: 'Invalid telemetry payload'
+        }));
         expect(mockedForwardToIngestionService).not.toHaveBeenCalled();
     });
 
@@ -59,9 +82,17 @@ describe('sensor controller unit tests', () => {
         await handleSensorTelemetry(mockReq as Request, mockRes as Response);
 
         // Assert
-        expect(mockedForwardToIngestionService).toHaveBeenCalledWith(mockReq.body);
-        expect(mockRes.status).not.toHaveBeenCalledWith(400);
-        expect(mockRes.status).not.toHaveBeenCalledWith(500);
+        //the numeric string usage values get converted to numbers before forwarding here
+        expect(mockedForwardToIngestionService).toHaveBeenCalledWith({
+            sensor_id: 'sensor-001',
+            building_id: 'building-001',
+            usage: 412.5
+        });
+        expect(mockRes.status).toHaveBeenCalledWith(200);
+        expect(mockRes.json).toHaveBeenCalledWith({
+            status: 'success',
+            data: { status: 'success' },
+        });
     });
 
     it('returns a 500 server error status code if downstream service links throw exceptions', async () => {

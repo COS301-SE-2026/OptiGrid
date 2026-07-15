@@ -13,13 +13,25 @@ type UpdateBuildingPayload = {
 	building_type?: string;
 };
 
-type ForwardHeaderOptions = {
+const ALLOWED_BUILDING_FIELDS = [
+	"building_name",
+	"building_type",
+	"physical_address",
+	"square_footage",
+	"max_occupancy",
+	"nominal_voltage",
+	"max_current_thresold",
+	"lifecycle_state",
+	"timezone",
+] as const;
+
+export type ForwardHeaderOptions = {
 	includeContentType?: boolean;
 	includeIdempotency?: boolean;
 	idempotencyPrefix?: string;
 };
 
-function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
+ function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
 	if (!cookieHeader) {
 		return null;
 	}
@@ -45,7 +57,18 @@ function createIdempotencyKey(prefix = "buildings"): string {
 	return `${prefix}-${randomId}`;
 }
 
-function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {
+function sanitizeBuildingPayload(payload: UpdateBuildingPayload): Record<string, unknown> {
+	const sanitized: Record<string, unknown> = {};
+	for (const field of ALLOWED_BUILDING_FIELDS) {
+		if (payload[field] !== undefined) {
+			sanitized[field] = payload[field];
+		}
+	}
+
+	return sanitized;
+}
+
+ function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {
 	const { includeContentType = false, includeIdempotency = false, idempotencyPrefix } = options;
 	const headers = new Headers();
 	const authorization = request.headers.get("authorization");
@@ -163,7 +186,7 @@ export async function PATCH(
 		const coreResponse = await fetch(`${CORE_URL}/api/buildings/${buildingId}`, {
 			method: "PATCH",
 			headers,
-			body: JSON.stringify(body),
+			body: JSON.stringify(sanitizeBuildingPayload(body)),
 			cache: "no-store",
 		});
 

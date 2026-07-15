@@ -54,6 +54,7 @@ infrastructure/terraform/terraform.tfvars
 # Generated EC2 deployment artifacts
 infrastructure/docker/.generated/
 infrastructure/docker/.env.localtest
+infrastructure/docker/
 
 .gitignore
 package-lock.json
@@ -63,3 +64,18 @@ playwright-report/
 test-results/
 
 mlruns/
+
+# Local Supabase emulator artifacts
+supabase/*
+!supabase/seed.sql
+!supabase/.temp/
+supabase/.temp/*
+!supabase/.temp/cli-latest
+
+# Local-only helper scripts
+scripts/run-core-integration.mjs
+
+infrastructure/docker/.data/
+infrastructure/docker/.generated/
+
+.mypy_cache/

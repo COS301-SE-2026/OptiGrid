@@ -35,10 +35,10 @@ describe('Building integration - Create Building', () => {
 				[tenantId, 'OptiGrid Test Tenant'],
 			);
 			await client.query(
-				`insert into users (user_id, tenant_id, email, password_hash, first_name, last_name)
-				 values ($1, $2, $3, $4, $5, $6)
+				`insert into users (user_id, tenant_id, email, first_name, last_name)
+				 values ($1, $2, $3, $4, $5)
 				 on conflict (user_id) do nothing`,
-				[userId, tenantId, 'building.integration@optigrid.test', '$2b$10$2h2mZKoDbJkWBk4x9swFZeF7Ojf9SIxkV8W8QhQPXfS9M9iYjW0uS', 'Integration', 'User'],
+				[userId, tenantId, 'building.integration@optigrid.test', 'Integration', 'User'],
 			);
 		} finally {
 			await client.end();

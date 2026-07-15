@@ -3,8 +3,8 @@ import * as authService from '../services/user_auth.services';
 
 export const signup = async (req: Request, res: Response) => {
     try {
-        const { email, password, name } = req.body;
-        const user = await authService.signup(email, password, name);
+        const { email, password, name, roleType} = req.body;
+        const user = await authService.signup(email, password, name, roleType);
             
         return res.status(201).json({
             message: 'User created successfully',
@@ -43,11 +43,16 @@ export const login = async (req: Request, res: Response) => {
             accessToken: loginResult.accessToken,
         });
     }
-    catch(error: any){
-        if(error.message === "Invalid email or password"){
-            return res.status(400).json({message: error.message});
+    catch(error: unknown){
+        if(error instanceof Error){
+            if (error.message === 'Invalid email or password') {
+                return res.status(400).json({ message: "Invalid email or password" });
+            }
+            console.error("Login error:", error);
         }
-        console.error("Login error:", error);
+        else {
+            console.error("Login error:", error);
+        }
         return res.status(500).json({message: "Internal server error"});
     }
 }

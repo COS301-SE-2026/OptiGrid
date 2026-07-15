@@ -29,12 +29,16 @@ function MoonIcon() {
 export function ThemeToggle() {
     const { theme, toggle } = useTheme();
     return (
-    <button
+        <button
             onClick={async () => {
                 toggle();
                 const newTheme = theme === "light" ? "dark" : "light";
+                const syncTheme = globalThis.fetch;
+                if (typeof syncTheme !== "function") {
+                    return;
+                }
                 try {
-                    await fetch("/api/preferences/theme", {
+                    await syncTheme("/api/preferences/theme", {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ theme: newTheme }),

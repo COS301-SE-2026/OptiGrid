@@ -9,6 +9,8 @@ const influxServiceHost = "influxdb";
 const influxServicePort = "8086";
 const redisServiceHost = "redis";
 const redisServicePort = "6379";
+const mlflowServiceHost = "mlflow";
+const mlflowServicePort = "5000";
 
 function stripWrappingQuotes(value) {
   if (
@@ -146,9 +148,15 @@ const env = {
   ),
   influxToken: process.env.INFLUXDB_TOKEN ?? "dummy",
   influxOrg: process.env.INFLUXDB_ORG ?? "optigrid",
-  influxBucket: process.env.INFLUXDB_BUCKET ?? "telemetry_bucket",
+  influxBucket: process.env.INFLUXDB_BUCKET ?? "EnergyData",
   influxInitUsername: process.env.INFLUXDB_INIT_USERNAME ?? "admin",
-  influxInitPassword: process.env.INFLUXDB_INIT_PASSWORD ?? "optigrid-influx-password",
+  influxInitPassword: process.env.INFLUXDB_INIT_PASSWORD ?? "pass1234",
+  mlflowPort: process.env.MLFLOW_PORT ?? mlflowServicePort,
+  mlflowTrackingUri: normalizeLocalhostToServiceUrl(
+    process.env.MLFLOW_TRACKING_URI,
+    mlflowServiceHost,
+    mlflowServicePort,
+  ),
   redisHost: normalizeHostForContainer(process.env.REDIS_HOST, redisServiceHost),
   redisPort: process.env.REDIS_PORT ?? redisServicePort,
   redisUrl: normalizeRedisUrlForContainer(
@@ -298,6 +306,8 @@ writeFileSync(
     `INFLUXDB_BUCKET=${env.influxBucket}`,
     `INFLUXDB_INIT_USERNAME=${env.influxInitUsername}`,
     `INFLUXDB_INIT_PASSWORD=${env.influxInitPassword}`,
+    `MLFLOW_PORT=${env.mlflowPort}`,
+    `MLFLOW_TRACKING_URI=${env.mlflowTrackingUri}`,
     "",
   ].join("\n"),
 );
@@ -312,6 +322,7 @@ if (!skipBuild) {
 run(composeCmd("up -d"));
 try {
   await waitForServiceHealthy("influxdb");
+  await waitForServiceHealthy("mlflow");
   await waitForHealth("frontend", ["http://localhost:3000/health"]);
   await waitForHealth("core", ["http://localhost:4000/health"]);
   await waitForWorkerRunning("ingestion");

@@ -18,6 +18,8 @@
 		"pretest": "node ./scripts/prisma-generate-dummy.mjs --schema=./prisma/schema.prisma"
 	},
 	"dependencies": {
+		"@influxdata/influxdb-client": "^1.35.0",
+		"@influxdata/influxdb-client-apis": "1.35.0",
 		"@prisma/adapter-pg": "^7.8.0",
 		"@prisma/client": "^7.0.0",
 		"@supabase/supabase-js": "^2.49.0",
@@ -30,6 +32,7 @@
 		"jsonwebtoken": "^9.0.3",
 		"pg": "^8.14.1",
 		"redis": "^4.7.0",
+		"resend": "^6.12.4",
 		"swagger-jsdoc": "^6.2.8",
 		"swagger-ui-express": "^5.0.1",
 		"ws": "^8.16.0",

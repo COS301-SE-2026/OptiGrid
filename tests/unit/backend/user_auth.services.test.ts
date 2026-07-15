@@ -8,6 +8,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
     default: {
         user: {
             findUnique: jest.fn(),
+            upsert: jest.fn(),
         },
     },
 }));
@@ -22,6 +23,7 @@ jest.mock('@supabase/supabase-js', () => ({
 const mockedPrisma = prisma as unknown as {
     user: {
         findUnique: jest.Mock;
+        upsert: jest.Mock;
     };
 };
 
@@ -36,6 +38,7 @@ describe('User Authentication Service - Login', () => {
         email: 'test@testing.com',
         firstName: 'Test',
         lastName: 'User',
+        roleType: "VIEWER"
     };
 
     beforeEach(() => {
@@ -88,6 +91,7 @@ describe('User Authentication Service - Login', () => {
                 email: true,
                 firstName: true,
                 lastName: true,
+                roleType: true,
             },
         });
         expect(result).toEqual({
@@ -110,14 +114,23 @@ describe('User Authentication Service - Login', () => {
 
         await expect(authServices.login('test@testing.com', 'wrongpassword')).rejects.toThrow('Invalid email or password');
         expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+        expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
     });
 
-    it('should throw an error if authenticated profile is missing', async () => {
-        // Even with valid auth, missing local profile should fail explicitly.
+    it('should create a profile if authenticated profile is missing', async () => {
+        // Valid auth can repair a missing local app profile.
+        const repairedUser = {
+            userId: 'uuid-1234',
+            email: 'test@testing.com',
+            firstName: '',
+            lastName: '',
+            roleType: "VIEWER",
+        };
         mockSignInWithPassword.mockResolvedValue({
             data: {
                 user: {
                     id: 'uuid-1234',
+                    email: 'test@testing.com',
                 },
                 session: {
                     access_token: 'token-123',
@@ -126,7 +139,36 @@ describe('User Authentication Service - Login', () => {
             error: null,
         });
         mockedPrisma.user.findUnique.mockResolvedValue(null);
+        mockedPrisma.user.upsert.mockResolvedValue(repairedUser);
 
-        await expect(authServices.login('test@testing.com', 'password1234')).rejects.toThrow('Authenticated user profile not found.');
+        await expect(authServices.login('test@testing.com', 'password1234')).resolves.toEqual({
+            user: repairedUser,
+            accessToken: 'token-123',
+        });
+        expect(mockedPrisma.user.upsert).toHaveBeenCalledWith({
+            where: {
+                userId: 'uuid-1234',
+            },
+            create: {
+                userId: 'uuid-1234',
+                email: 'test@testing.com',
+                firstName: '',
+                lastName: '',
+                roleType: "VIEWER"
+            },
+            update: {
+                email: 'test@testing.com',
+                firstName: '',
+                lastName: '',
+                roleType:"VIEWER"
+            },
+            select: {
+                userId: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                roleType: true,
+            },
+        });
     });
 });
