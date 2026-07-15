@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo,useEffect } from "react";
+import Link from "next/link";
+
 import { useRouter } from "next/navigation";
 
 
@@ -203,6 +205,9 @@ export default function AdminPage() {
                 {buildings.length} buildings total
               </div>
             </div>
+            <Link href="useradmin" className="btn btn-primary">
+    Manage Users
+  </Link>
           </div>
 
           
