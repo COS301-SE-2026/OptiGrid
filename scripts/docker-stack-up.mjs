@@ -150,7 +150,7 @@ const env = {
   influxOrg: process.env.INFLUXDB_ORG ?? "optigrid",
   influxBucket: process.env.INFLUXDB_BUCKET ?? "EnergyData",
   influxInitUsername: process.env.INFLUXDB_INIT_USERNAME ?? "admin",
-  influxInitPassword: process.env.INFLUXDB_INIT_PASSWORD ?? "optigrid-influx-password",
+  influxInitPassword: process.env.INFLUXDB_INIT_PASSWORD ?? "pass1234",
   mlflowPort: process.env.MLFLOW_PORT ?? mlflowServicePort,
   mlflowTrackingUri: normalizeLocalhostToServiceUrl(
     process.env.MLFLOW_TRACKING_URI,

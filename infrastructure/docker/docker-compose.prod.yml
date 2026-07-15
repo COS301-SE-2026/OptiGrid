@@ -26,7 +26,7 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - influxdb_data:/var/lib/influxdb2
+      - ../.data/influxdb:/var/lib/influxdb2
 
   mlflow:
     image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
@@ -158,5 +158,4 @@ services:
         condition: service_healthy
 
 volumes:
-  influxdb_data:
   mlflow_data:
