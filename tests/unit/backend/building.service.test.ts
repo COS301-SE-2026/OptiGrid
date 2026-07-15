@@ -1,5 +1,5 @@
 import prisma from '../../../backend/core/src/lib/prisma';
-import { createBuilding, buildingPayload, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails } from '../../../backend/core/src/services/building.services';
+import { createBuilding, buildingPayload, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, getPortfolioConsumption } from '../../../backend/core/src/services/building.services';
 import { BuildingType } from '@prisma/client';
 import { deleteInfluxBucket } from "../../../backend/core/src/services/provisioning.service"
 // Mock Prisma with 
@@ -33,6 +33,7 @@ jest.mock('../../../backend/core/src/lib/influx', () => ({
 	__esModule: true,
 	queryTotalKwh: jest.fn(),
 	queryUsageDetails: jest.fn(),
+	queryUsageSeries: jest.fn(),
 }));
 
 // Mock provisioning service to avoid actual InfluxDB calls in tests
@@ -45,6 +46,7 @@ jest.mock('../../../backend/core/src/services/provisioning.service', () => ({
 const mockedInflux = require('../../../backend/core/src/lib/influx') as {
 	queryTotalKwh: jest.Mock;
 	queryUsageDetails: jest.Mock;
+	queryUsageSeries: jest.Mock;
 };
 
 describe('Building Services, happy path', () => {
@@ -701,6 +703,51 @@ describe('compareBuildingsService', () => {
 		// assert
 		expect(result.buildingA.eui).toBeNull();
 		expect(result.buildingB.eui).toBeNull();
+	});
+});
+
+describe('getPortfolioConsumption', () => {
+	const mockUserId = 'portfolio-user';
+
+	afterEach(() => {
+		jest.useRealTimers();
+	});
+
+	it('aggregates the assigned buildings into daily portfolio telemetry', async () => {
+		jest.useFakeTimers().setSystemTime(new Date('2026-07-14T12:00:00Z'));
+		(mockedPrisma as any).building = {
+			findMany: jest.fn().mockResolvedValue([
+				{ building_id: 'building-a' },
+				{ building_id: 'building-b' },
+			]),
+		};
+		mockedInflux.queryUsageSeries
+			.mockResolvedValueOnce([
+				{ timestamp: '2026-07-14T08:00:00Z', kwh: 100, cost_zar: 0 },
+			])
+			.mockResolvedValueOnce([
+				{ timestamp: '2026-07-14T09:00:00Z', kwh: 50, cost_zar: 25 },
+			]);
+
+		const result = await getPortfolioConsumption(mockUserId);
+
+		expect(mockedPrisma.building.findMany).toHaveBeenCalledWith(expect.objectContaining({
+			where: expect.objectContaining({
+				authorized_users: expect.any(Object),
+			}),
+		}));
+		expect(mockedInflux.queryUsageSeries).toHaveBeenCalledWith('building-a', '7d');
+		expect(mockedInflux.queryUsageSeries).toHaveBeenCalledWith('building-b', '7d');
+		expect(result.today_kwh_by_building).toEqual({
+			'building-a': 100,
+			'building-b': 50,
+		});
+		expect(result.daily.at(-1)).toEqual({
+			date: '2026-07-14',
+			kwh: 150,
+			cost_zar: 25,
+		});
+		expect(result.estimated_cost_zar).toBe(25);
 	});
 });
 

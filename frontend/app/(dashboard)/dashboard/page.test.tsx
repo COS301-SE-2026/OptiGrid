@@ -59,10 +59,18 @@ jest.mock("recharts", () => {
     };
 });
 
-const consumptionData = [
-    { day: "Mon", kwh: 3800 },
-    { day: "Tue", kwh: 4100 },
-];
+const portfolioConsumptionData = {
+    daily: [
+        { date: "2026-07-13", kwh: 3800, cost_zar: 0 },
+        { date: "2026-07-14", kwh: 4100, cost_zar: 0 },
+    ],
+    today_kwh_by_building: {
+        "1": 1847,
+        "2": 1512,
+    },
+    estimated_cost_zar: null,
+    active_alerts: 1,
+};
 
 const buildingsData = [
     {
@@ -83,7 +91,7 @@ const buildingsData = [
     },
 ];
 
-function mockQueries({ buildings = buildingsData } = {}) {
+function mockQueries({ buildings = buildingsData, portfolioConsumption = portfolioConsumptionData } = {}) {
     const now = Date.now();
     mockUseQuery.mockImplementation((options: any) => {
         const key = options?.queryKey?.[0];
@@ -99,7 +107,7 @@ function mockQueries({ buildings = buildingsData } = {}) {
             };
         }
         if (key === "portfolio-consumption") {
-            return { data: consumptionData, isLoading: false };
+            return { data: portfolioConsumption, isLoading: false };
         }
         if (key === "buildings") {
             return { data: buildings, isLoading: false, dataUpdatedAt: now };

@@ -58,8 +58,6 @@ export async function POST(request: Request) {
         headers: {
           "Content-Type": "application/json",
           ...(resolvedAuthorizationHeader ? { Authorization: resolvedAuthorizationHeader } : {}),
-          //this key ensuresidentiacal reqs hit cache
-          "Idempotency-Key": `compare-${buildingIdA}-${buildingIdB}-${timeRange}`,
           ...(cookie ? { cookie } : {}),
         },
         cache: "no-store",

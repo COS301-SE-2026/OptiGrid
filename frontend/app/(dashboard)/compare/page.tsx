@@ -9,7 +9,7 @@ import {
     ComparisonMetricCards,
 } from "./components";
 import { fetchBuildings, fetchComparison } from "./api";
-import type { ComparisonBuilding, Metric, TimeRange } from "./types";
+import type { ComparisonBuilding, ComparisonSeriesPoint, Metric, TimeRange } from "./types";
 
 export default function CompareBuildingPage() {
     const [buildingA, setBuildingA] = useState("");
@@ -92,13 +92,33 @@ export default function CompareBuildingPage() {
             return [];
         }
 
-        return [
-            {
-                period: `${dateRange} days`,
-                A: getValue(selectedComparisonA),
-                B: getValue(selectedComparisonB),
-            },
-        ];
+        const toSeriesValue = (point: ComparisonSeriesPoint) =>
+            metric === "R" ? point.cost_zar : point.kwh;
+        const pointsByTimestamp = new Map<string, { A: number; B: number }>();
+
+        for (const point of comparison.series?.buildingA ?? []) {
+            pointsByTimestamp.set(point.timestamp, {
+                ...(pointsByTimestamp.get(point.timestamp) ?? { A: 0, B: 0 }),
+                A: toSeriesValue(point),
+            });
+        }
+
+        for (const point of comparison.series?.buildingB ?? []) {
+            pointsByTimestamp.set(point.timestamp, {
+                ...(pointsByTimestamp.get(point.timestamp) ?? { A: 0, B: 0 }),
+                B: toSeriesValue(point),
+            });
+        }
+
+        return Array.from(pointsByTimestamp.entries())
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([timestamp, values]) => ({
+                period: new Date(timestamp).toLocaleDateString(undefined, {
+                    day: "numeric",
+                    month: "short",
+                }),
+                ...values,
+            }));
     }, [comparison, dateRange, metric, selectedComparisonA, selectedComparisonB]);
 
     const efficiencyRatio =

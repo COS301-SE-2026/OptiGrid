@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, listBuildingsForUser, updateBuildingService } from '../services/building.services';
+import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, getPortfolioConsumption, listBuildingsForUser, updateBuildingService } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { adminBuildingsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 
@@ -85,6 +85,23 @@ export const listBuildingsController = async (req: Request, res: Response) => {
   }
 };
 
+export const getPortfolioConsumptionController = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+
+    const portfolioConsumption = await getPortfolioConsumption(req.user.id);
+    return res.status(200).json({
+      status: 'success',
+      data: portfolioConsumption,
+    });
+  } catch (error) {
+    console.error('getPortfolioConsumptionController error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
 export const getBuildingEnergyConsumptionController = async (req: Request, res: Response) => {
   try {
     if (!req.user?.id) {
@@ -133,13 +150,6 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
 
-    const idempotencyHeader = req.headers['idempotency-key'];
-    const idempotencyKey = Array.isArray(idempotencyHeader) ? idempotencyHeader[0] : idempotencyHeader;
-
-    if (!idempotencyKey) return res.status(400).json({ status: 'error', message: 'Idempotency-Key header is required' });
-    const cachedResponse = await checkIdempotencyKey(userId, idempotencyKey);
-    if (cachedResponse) return res.status(200).json(cachedResponse);
-
     const validatedQuery = compareBuildingsSchema.parse(req.query);
 
     // we give the data to the service layer to handle
@@ -154,8 +164,6 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
       data: comparisonData
     };
 
-    // here we save to redis
-    await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     return res.status(200).json(successResponse);
 
   } 

@@ -1,6 +1,6 @@
 import prisma from '../lib/prisma';
 import { Building, BuildingType, LifecycleState } from '@prisma/client';
-import { PeakUsageTime, queryTotalKwh, queryUsageDetails } from '../lib/influx';
+import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries } from '../lib/influx';
 import crypto from 'crypto';
 import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
 
@@ -172,6 +172,17 @@ export interface BuildingEnergyConsumptionDetails {
   cost_saved_by_recommendations_zar: number | null;
 }
 
+export interface PortfolioConsumption {
+  daily: Array<{
+    date: string;
+    kwh: number;
+    cost_zar: number;
+  }>;
+  today_kwh_by_building: Record<string, number | null>;
+  estimated_cost_zar: number | null;
+  active_alerts: number;
+}
+
 function generateHardwareAuthToken(buildingId: string): string {
   const randomBytes = crypto.randomBytes(32);
   const encoded = randomBytes.toString('base64').replace(/[+/=]/g, (c) => {
@@ -245,6 +256,75 @@ export const listBuildingsForUser = async (userId: string) => {
       created_at: 'desc',
     },
   });
+};
+
+function lastSevenUtcDateKeys(now = new Date()): string[] {
+  const currentDay = new Date(now);
+  currentDay.setUTCHours(0, 0, 0, 0);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(currentDay);
+    day.setUTCDate(currentDay.getUTCDate() - (6 - index));
+    return day.toISOString().slice(0, 10);
+  });
+}
+
+export const getPortfolioConsumption = async (userId: string): Promise<PortfolioConsumption> => {
+  const buildings = await listBuildingsForUser(userId);
+  const dateKeys = lastSevenUtcDateKeys();
+  const todayDate = dateKeys.at(-1)!;
+  const dailyTotals = new Map(dateKeys.map((date) => [date, { kwh: 0, costZar: 0 }]));
+  const todayUsageByBuilding: Record<string, number | null> = Object.fromEntries(
+    buildings.map((building) => [building.building_id, null]),
+  );
+  let hasCostData = false;
+
+  const buildingSeries = await Promise.all(
+    buildings.map(async (building) => ({
+      buildingId: building.building_id,
+      points: await queryUsageSeries(building.building_id, '7d'),
+    })),
+  );
+
+  for (const { buildingId, points } of buildingSeries) {
+    for (const point of points ?? []) {
+      const date = point.timestamp.slice(0, 10);
+      const daily = dailyTotals.get(date);
+      if (!daily) {
+        continue;
+      }
+
+      daily.kwh += point.kwh;
+      daily.costZar += point.cost_zar;
+      hasCostData ||= point.cost_zar !== 0;
+
+      if (date === todayDate) {
+        todayUsageByBuilding[buildingId] = (todayUsageByBuilding[buildingId] ?? 0) + point.kwh;
+      }
+    }
+  }
+
+  const daily = dateKeys.map((date) => {
+    const values = dailyTotals.get(date)!;
+    return {
+      date,
+      kwh: roundMetric(values.kwh),
+      cost_zar: roundMetric(values.costZar),
+    };
+  });
+
+  for (const buildingId of Object.keys(todayUsageByBuilding)) {
+    const value = todayUsageByBuilding[buildingId];
+    todayUsageByBuilding[buildingId] = value === null ? null : roundMetric(value);
+  }
+
+  const totalCostZar = daily.reduce((total, point) => total + point.cost_zar, 0);
+  return {
+    daily,
+    today_kwh_by_building: todayUsageByBuilding,
+    estimated_cost_zar: hasCostData ? roundMetric(totalCostZar) : null,
+    active_alerts: 0,
+  };
 };
 
 export const getBuildingEnergyConsumptionDetails = async (
@@ -404,9 +484,11 @@ export const compareBuildingsService = async (
   if (!buildingA || !buildingB) throw new Error('Building not found');
 
   // then we get data from influx for both buildings in parallel
-  const [influxA, influxB] = await Promise.all([
+  const [influxA, influxB, seriesA, seriesB] = await Promise.all([
     queryTotalKwh(buildingId_1, timeRange),
-    queryTotalKwh(buildingId_2, timeRange)
+    queryTotalKwh(buildingId_2, timeRange),
+    queryUsageSeries(buildingId_1, timeRange),
+    queryUsageSeries(buildingId_2, timeRange),
   ]);
 
   // we calculate metrics such as EUI, cost per sq ft and cost per kwh, ensuring no division by 0
@@ -455,7 +537,11 @@ export const compareBuildingsService = async (
     time_range: timeRange,
     mostEfficient,
     buildingA: metricsA,
-    buildingB: metricsB
+    buildingB: metricsB,
+    series: {
+      buildingA: seriesA ?? [],
+      buildingB: seriesB ?? [],
+    },
   };
 };
 
