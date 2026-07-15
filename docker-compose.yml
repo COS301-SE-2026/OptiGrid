@@ -53,7 +53,7 @@ services:
       - "8000:8000"
     environment:
       - REDIS_HOST=optigrid_redis
-      - INFLUXDB_URL=http://optigrid_influxdb:8086
+      - INFLUXDB_URL=http://localhost:8086
       - INFLUXDB_TOKEN=token-1234
       - INFLUXDB_ORG=OptiGrid
       - INFLUXDB_BUCKET=EnergyData
@@ -72,7 +72,7 @@ services:
     command: python -m backend.ingestion.src.worker
     environment:
       - REDIS_HOST=optigrid_redis
-      - INFLUXDB_URL=http://optigrid_influxdb:8086
+      - INFLUXDB_URL=http://localhost:8086
       - INFLUXDB_TOKEN=token-1234
       - INFLUXDB_ORG=OptiGrid
       - INFLUXDB_BUCKET=EnergyData

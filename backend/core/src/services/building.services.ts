@@ -24,6 +24,101 @@ function timeRangeToDays(timeRange: string): number {
   return daysByRange[timeRange] ?? 30;
 }
 
+function isUnavailableMetricSource(error: unknown): boolean {
+  const err = error as { code?: string; message?: string };
+  const message = err.message?.toLowerCase() ?? '';
+
+  return (
+    err.code === '42P01' ||
+    err.code === '42703' ||
+    message.includes('relation') && message.includes('does not exist') ||
+    message.includes('column') && message.includes('does not exist')
+  );
+}
+
+async function countBuildingAnomalyAlerts(buildingId: string): Promise<number | null> {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ count: number | bigint | string }>>`
+      SELECT COUNT(*) AS count
+      FROM anomalies anomaly
+      INNER JOIN sensors sensor
+        ON sensor.sensor_id::text = anomaly.sensor_id::text
+      WHERE sensor.building_id::text = ${buildingId}
+    `;
+
+    return Math.trunc(toFiniteNumber(rows[0]?.count, 0));
+  } catch (error) {
+    if (isUnavailableMetricSource(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+const recommendationSavingsColumns = [
+  'cost_saved_by_recommendations_zar',
+  'estimated_savings_zar',
+  'estimated_monthly_savings_zar',
+  'estimated_monthly_savings',
+  'estimated_savings',
+  'savings_zar',
+  'monthly_savings_zar',
+] as const;
+
+async function sumImplementedRecommendationSavings(buildingId: string): Promise<number | null> {
+  try {
+    const columns = await prisma.$queryRawUnsafe<Array<{ column_name: string }>>(
+      `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = 'optimisation_recommendations'
+      `,
+    );
+
+    const availableColumns = new Set(columns.map((column) => column.column_name));
+    const savingsColumn = recommendationSavingsColumns.find((column) => availableColumns.has(column));
+
+    if (!savingsColumn) {
+      return null;
+    }
+
+    const statusFilter = availableColumns.has('status')
+      ? "AND LOWER(COALESCE(status::text, '')) IN ('implemented', 'completed', 'accepted', 'followed', 'done')"
+      : '';
+    const rows = await prisma.$queryRawUnsafe<Array<{ total: number | string | null }>>(
+      `
+      SELECT COALESCE(SUM("${savingsColumn}"::numeric), 0) AS total
+      FROM optimisation_recommendations
+      WHERE building_id::text = $1
+      ${statusFilter}
+      `,
+      buildingId,
+    );
+
+    return roundMetric(toFiniteNumber(rows[0]?.total, 0));
+  } catch (error) {
+    if (isUnavailableMetricSource(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+async function getBuildingEnergySupplementalMetrics(buildingId: string) {
+  const [totalAnomalyAlerts, costSavedByRecommendationsZar] = await Promise.all([
+    countBuildingAnomalyAlerts(buildingId),
+    sumImplementedRecommendationSavings(buildingId),
+  ]);
+
+  return {
+    totalAnomalyAlerts,
+    costSavedByRecommendationsZar,
+  };
+}
+
 // handle building creation, updating, deletion, and others here
 export interface buildingPayload {
   tenant_id?: string;
@@ -258,7 +353,10 @@ export const getBuildingEnergyConsumptionDetails = async (
     throw new Error('Building not found');
   }
 
-  const usageDetails = await queryUsageDetails(buildingId, timeRange);
+  const [usageDetails, supplementalMetrics] = await Promise.all([
+    queryUsageDetails(buildingId, timeRange),
+    getBuildingEnergySupplementalMetrics(buildingId),
+  ]);
   const totalKwh = toFiniteNumber(usageDetails.total_kwh);
   const totalCostUsd = toFiniteNumber(usageDetails.total_cost_usd);
   const rawTotalCostZar = toFiniteNumber(usageDetails.total_cost_zar);
@@ -285,8 +383,8 @@ export const getBuildingEnergyConsumptionDetails = async (
     total_cost_usd: roundMetric(totalCostUsd),
     cost_per_kwh: totalKwh > 0 ? roundMetric(totalCostZar / totalKwh) : 0,
     eui: hasSquareFootage ? roundMetric(totalKwh / sqFt) : null,
-    total_anomaly_alerts: null,
-    cost_saved_by_recommendations_zar: null,
+    total_anomaly_alerts: supplementalMetrics.totalAnomalyAlerts,
+    cost_saved_by_recommendations_zar: supplementalMetrics.costSavedByRecommendationsZar,
   };
 };
 
@@ -490,5 +588,10 @@ export const getAllBuildings = async (lifecycle_state?: LifecycleState) => {
     orderBy: {
       created_at: "desc"
     },
+    include: {
+      authorized_users: {
+        include: { user: true}
+      }
+    }
   });
 };

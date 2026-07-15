@@ -8,29 +8,34 @@ const navigation = [
     { label: "Compare", href: "/compare" },
     { label: "Live", href: "/realtime" },
     { label: "Forecast", href: "/forecast" },
-    { label: "admin", href: "/admin" },
+    { label: "Admin", href: "/admin", roles: ["ADMIN"] },
+    { label: "Manage", href: "/manager", roles: ["BUILDING_MANAGER"] },
+   
+    
 ];
 
-export function NavLinks() {
+export function NavLinks({ role }: { role?: string }) {
     const pathname = usePathname();
     return (
         <nav className="dashboard-nav" aria-label="Dashboard">
-            {navigation.map((item) => {
-                const active =
-                    pathname === item.href ||
-                    pathname.startsWith(item.href + "/");
-                return (
-                    <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`dashboard-link ${active ? "dashboard-link-active" : ""
-                            }`}
-                        aria-current={active ? "page" : undefined}
-                    >
-                        {item.label}
-                    </Link>
-                );
-            })}
+            {navigation
+                .filter((item) => !item.roles || (role && item.roles.includes(role)))
+                .map((item) => {
+                    const active =
+                        pathname === item.href ||
+                        pathname.startsWith(item.href + "/");
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`dashboard-link ${active ? "dashboard-link-active" : ""
+                                }`}
+                            aria-current={active ? "page" : undefined}
+                        >
+                            {item.label}
+                        </Link>
+                    );
+                })}
         </nav>
     );
 }

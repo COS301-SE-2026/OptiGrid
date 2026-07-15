@@ -25,16 +25,24 @@ except ModuleNotFoundError:
 
 def calculate_usage(building_index: int, current_time: datetime) -> float:
     # base power draw, varies per building using the building index
-    base_load = 45.0 + (building_index * 12.5)
-    # peak capacity
-    peak_capacity = 180.0 + (building_index * 30.0)
+    base_load = 24.0 + (building_index * 0.6)
+    multiplier = 11.0 + (building_index * 0.3)
     # diurnal model
     hour = current_time.hour + (current_time.minute / 60.0) + (current_time.second / 3600.0)
     # sine wave offset to make sure that peak load is around 14:00
-    time_factor = math.sin(math.pi * ((hour - 2.0) / 24.0))
-    time_factor = max(0.05, time_factor)
-    noise = random.uniform(0.97, 1.03)
-    calculated_value = (base_load + (peak_capacity * time_factor)) * noise
+    time_factor = math.sin((hour - 6.0) * math.pi / 12.0)
+    noise = random.uniform(-3.0, 3.0)
+    calculated_value = (base_load + (multiplier * time_factor)) * noise
+    calculated_value = max(8.0, calculated_value)
+    
+    # 2% chance of anomalies
+    anomaly_chance = random.random()
+    if anomaly_chance < 0.02:
+        anomaly_type = random.choice(["spike", "dropout"])
+        if anomaly_type == "spike":
+            calculated_value *= random.uniform(3.5, 4.5)  # Spikes out of bounds
+        elif anomaly_type == "dropout":
+            calculated_value = random.uniform(0.0, 0.5)  # Dropouts fall to near-zero
     return round(calculated_value, 2)
 
 
@@ -76,7 +84,7 @@ def emulate_sensor():
             
         try:
             write_api.write(bucket=INFLUXDB_BUCKET, record=points_batch)
-            print(f"[{current_time.strftime('%H:%M:%S')}] Streamed batch successfully. Example Usage (Building 1): {points_batch[0]._fields['usage']} kW")
+            print(f"[{current_time.strftime('%H:%M:%S')}] Streamed batch successfully.")
         except Exception as e:
             print(f"Write error encountered: {e}")
             

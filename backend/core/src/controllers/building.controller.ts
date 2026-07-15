@@ -68,8 +68,13 @@ export const listBuildingsController = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
-
-    const buildings = await listBuildingsForUser(req.user.id);
+    const userId = req.user.userId || req.user.id || req.user.user_id
+    if(!userId) {
+      console.error("Userid is null"); 
+      return; 
+    }
+    
+    const buildings = await listBuildingsForUser(userId);
     return res.status(200).json({
       status: 'success',
       data: buildings,
@@ -319,10 +324,9 @@ export const getAllBuildingsController = async (req:Request, resp: Response) => 
         details: error.errors
       });
     }
-    //console.error('createBuildingController error:', error);
-    resp.status(500).json({
-      status: 'error',
-      message: 'Internal server error'
+    resp.status(500).json({ 
+      status: 'error', 
+      message: 'Internal server error' 
     });
   }
 }
