@@ -176,6 +176,61 @@ router.get('/admin', getAllBuildingsController);
 router.get('/', listBuildingsController);
 router.post('/', createBuildingController);
 router.get('/portfolio-consumption', getPortfolioConsumptionController);
+/**
+ * @swagger
+ * /api/buildings/{building_id}:
+ *   get:
+ *     summary: View individual building details
+ *     description: Returns all non-sensitive stored details for one building when the authenticated user has access to it.
+ *     tags:
+ *       - Buildings
+ *     parameters:
+ *       - name: building_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Building identifier
+ *     responses:
+ *       200:
+ *         description: Building details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     building_id: { type: string, format: uuid }
+ *                     tenant_id: { type: string, format: uuid, nullable: true }
+ *                     building_name: { type: string }
+ *                     building_type: { type: string, nullable: true }
+ *                     square_footage: { type: number, nullable: true }
+ *                     physical_address: { type: string, nullable: true }
+ *                     timezone: { type: string, nullable: true }
+ *                     max_occupancy: { type: integer, nullable: true }
+ *                     nominal_voltage: { type: number, nullable: true }
+ *                     max_current_threshold: { type: number, nullable: true }
+ *                     lifecycle_state: { type: string }
+ *                     created_at: { type: string, format: date-time, nullable: true }
+ *                     updated_at: { type: string, format: date-time, nullable: true }
+ *                     latitude: { type: number, nullable: true }
+ *                     longitude: { type: number, nullable: true }
+ *                     geohash: { type: string, nullable: true }
+ *       400:
+ *         description: Invalid building identifier
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Building not found
+ */
 router.get('/:building_id', getBuildingDetailsController);
 /**
  * @swagger
