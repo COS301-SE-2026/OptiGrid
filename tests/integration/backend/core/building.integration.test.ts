@@ -73,6 +73,36 @@ describe('Building integration - Create Building', () => {
 		expect(response.body.data.building_name).toBe(payload.building_name);
 	});
 
+	it('retrieves an owned building through the individual details endpoint', async () => {
+		const createResponse = await request(harness.app)
+			.post('/api/buildings')
+			.set('Idempotency-Key', uuidv4())
+			.set(authHeaders)
+			.send({
+				building_name: 'Individual Details Building',
+				building_type: 'Commercial',
+				square_footage: 5000,
+				timezone: 'Africa/Johannesburg',
+				max_occupancy: 250,
+			});
+
+		const buildingId = createResponse.body.data.building_id;
+		const response = await request(harness.app)
+			.get(`/api/buildings/${buildingId}`)
+			.set(authHeaders);
+
+		expect(response.status).toBe(200);
+		expect(response.body).toMatchObject({
+			status: 'success',
+			data: {
+				building_id: buildingId,
+				building_name: 'Individual Details Building',
+				building_type: 'Commercial',
+			},
+		});
+		expect(response.body.data).not.toHaveProperty('hardware_auth_token');
+	});
+
 	it('returns cached response when reusing Idempotency-Key', async () => {
 		const idempotencyKey = uuidv4();
 		const payload = {
