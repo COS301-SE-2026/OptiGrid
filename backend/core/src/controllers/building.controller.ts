@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, getPortfolioConsumption, listBuildingsForUser, updateBuildingService } from '../services/building.services';
+import { compareBuildingsService, createBuilding, deleteBuildingService, getAllBuildings, getBuildingDetails, getBuildingEnergyConsumptionDetails, getPortfolioConsumption, listBuildingsForUser, updateBuildingService } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
-import { adminBuildingsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -81,6 +81,41 @@ export const listBuildingsController = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('listBuildingsController error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+export const getBuildingDetailsController = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+
+    const { building_id } = buildingDetailsParamsSchema.parse(req.params);
+    const building = await getBuildingDetails(req.user.id, building_id);
+
+    return res.status(200).json({
+      status: 'success',
+      data: building,
+    });
+  } catch (error: any) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid request parameters',
+        details: error.errors ?? error.issues,
+      });
+    }
+
+    if (error.message?.includes('Access Denied')) {
+      return res.status(403).json({ status: 'error', message: error.message });
+    }
+
+    if (error.message === 'Building not found') {
+      return res.status(404).json({ status: 'error', message: 'Building not found' });
+    }
+
+    console.error('getBuildingDetailsController error:', error);
     return res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };

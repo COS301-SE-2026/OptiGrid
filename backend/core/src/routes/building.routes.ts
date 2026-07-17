@@ -4,6 +4,7 @@ import {
   createBuildingController,
   deleteBuildingController,
   getAllBuildingsController,
+  getBuildingDetailsController,
   getPortfolioConsumptionController,
   listBuildingsController,
   updateBuildingController,
@@ -175,6 +176,7 @@ router.get('/admin', getAllBuildingsController);
 router.get('/', listBuildingsController);
 router.post('/', createBuildingController);
 router.get('/portfolio-consumption', getPortfolioConsumptionController);
+router.get('/:building_id', getBuildingDetailsController);
 /**
  * @swagger
  * /api/buildings/{building_id}/energy-consumption:
