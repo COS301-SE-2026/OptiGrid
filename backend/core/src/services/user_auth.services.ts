@@ -362,3 +362,59 @@ export const login = async (email: string, password: string) => {
         accessToken: authUser.accessToken,
     };
 };
+
+export const getViewersService = async () => {
+    const viewers = await prisma.user.findMany({
+        where: {
+            roleType: "VIEWER"
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            buildingAccess: {
+                select: {
+                    building_id: true
+                }
+            }
+        },
+    });
+
+    return viewers.map(viewer => ({
+        ...viewer,
+        buildingIds: viewer.buildingAccess.map( 
+            building => building.building_id
+        ),
+        buildingAccess: undefined
+    }));
+}
+
+export const getManagersService = async () =>{
+    const managers = await prisma.user.findMany({
+        where: {
+            roleType: "BUILDING_MANAGER"
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            buildingAccess: {
+                select: {
+                    building_id: true
+                }
+            }
+        },
+    });
+
+    return managers.map(manager => ({
+        ...manager,
+        buildingIds: manager.buildingAccess.map( 
+            building => building.building_id
+        ),
+        buildingAccess: undefined
+    }));
+}
