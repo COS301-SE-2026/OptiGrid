@@ -60,4 +60,4 @@ describe("ALl user operations for admin such as getting viewers, managers etc.",
         });
         expect(out[0].buildingIds).toEqual(["building-123"]);
     });
-})
+});
