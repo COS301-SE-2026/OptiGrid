@@ -389,7 +389,7 @@ export const getViewersService = async () => {
         ),
         buildingAccess: undefined
     }));
-}
+};
 
 export const getManagersService = async () =>{
     const managers = await prisma.user.findMany({
@@ -417,4 +417,4 @@ export const getManagersService = async () =>{
         ),
         buildingAccess: undefined
     }));
-}
+};
