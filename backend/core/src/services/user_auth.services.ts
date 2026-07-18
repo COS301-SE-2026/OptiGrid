@@ -423,15 +423,6 @@ export const assignMangerToBuilding = async (
     userId: string,
     buildingId: string
 ) => {
-    const user = await prisma?.user.findUnique({
-        where: {userId},
-        select: {
-            roleType: true
-        }
-    });
-
-    if(!user) throw new Error("User not found");
-
     try{
         await prisma?.userBuildingAccess.create({
             data: {
@@ -453,4 +444,4 @@ export const assignMangerToBuilding = async (
         }
         throw error;
     }
-}
+};

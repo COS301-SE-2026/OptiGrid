@@ -81,13 +81,6 @@ describe("ALl user operations for admin such as getting viewers, managers etc.",
         expect(out.message).toBe("Manger assigned to building successfully");
     });
 
-    it("should_throw_error_if_not_user", async () => {
-        (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-        //act 
-        //assert
-        await expect(assignMangerToBuilding("user-123", "building-124")).rejects.toThrow("User not found");
-    });
-
     it("should_throw_p2002_error_for_already_assigned_buildings", async () => {
         const mock = {
             userId: "user-123",
