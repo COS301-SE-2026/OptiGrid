@@ -1,4 +1,4 @@
-import { getViewersService, getManagersService } from "../../../backend/core/src/services/user_auth.services";
+import { getViewersService, getManagersService, assignMangerToBuilding } from "../../../backend/core/src/services/user_auth.services";
 import prisma from "../../../backend/core/src/lib/prisma";
 
 jest.mock("../../../backend/core/src/lib/prisma", () => ({
@@ -59,5 +59,48 @@ describe("ALl user operations for admin such as getting viewers, managers etc.",
             select: expect.any(Object)
         });
         expect(out[0].buildingIds).toEqual(["building-123"]);
+    });
+
+    it("should_assign_a_building_to_managr", async () => {
+        const mock = {
+            userId: "user-123",
+            roleType: "BUILDING_MANAGER"
+        };
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue(mock);
+        (prisma.userBuildingAccess.create as jest.Mock).mockResolvedValue({});
+        //act
+        const out = await assignMangerToBuilding("user-123", "building-123");
+        //asset
+        expect(prisma.userBuildingAccess.create).toHaveBeenCalledWith({
+            data: {
+                user_id: "user-123",
+                building_id: "building-123"
+            }
+        });
+        expect(out.success).toBe(true);
+        expect(out.message).toBe("Manger assigned to building successfully");
+    });
+
+    it("should_throw_error_if_not_user", async () => {
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+        //act 
+        //assert
+        await expect(assignMangerToBuilding("user-123", "building-124")).rejects.toThrow("User not found");
+    });
+
+    it("should_throw_p2002_error_for_already_assigned_buildings", async () => {
+        const mock = {
+            userId: "user-123",
+            roleType: "BUILDING_MANAGER"
+        };
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue(mock);
+        //act
+        const prismaerr: any = new Error("Unique Failed");
+        prismaerr.code = "P2002";
+        (prisma.userBuildingAccess.create as jest.Mock).mockRejectedValue(prismaerr);
+        const  out = await assignMangerToBuilding("user-123", "building-124");
+        //arrange
+        expect(out.success).toBe(true);
+        expect(out.message).toBe("Building was already assigned to another manager");
     });
 });

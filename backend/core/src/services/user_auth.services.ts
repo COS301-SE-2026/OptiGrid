@@ -418,3 +418,39 @@ export const getManagersService = async () =>{
         buildingAccess: undefined
     }));
 };
+
+export const assignMangerToBuilding = async (
+    userId: string,
+    buildingId: string
+) => {
+    const user = await prisma?.user.findUnique({
+        where: {userId},
+        select: {
+            roleType: true
+        }
+    });
+
+    if(!user) throw new Error("User not found");
+
+    try{
+        await prisma?.userBuildingAccess.create({
+            data: {
+                user_id: userId,
+                building_id: buildingId
+            }
+        });
+        return {
+            success: true,
+            message: "Manger assigned to building successfully"
+        };
+    }
+    catch(error:any) {   
+        if(error.code === "P2002"){
+            return {
+                success:true,
+                message: "Building was already assigned to another manager"
+            };
+        }
+        throw error;
+    }
+}
