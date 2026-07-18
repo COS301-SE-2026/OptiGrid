@@ -1,4 +1,4 @@
-import { getViewersService, getManagersService, assignMangerToBuilding } from "../../../backend/core/src/services/user_auth.services";
+import { getViewersService, getManagersService, assignMangerToBuilding, removeAssignment } from "../../../backend/core/src/services/user_auth.services";
 import prisma from "../../../backend/core/src/lib/prisma";
 
 jest.mock("../../../backend/core/src/lib/prisma", () => ({
@@ -7,9 +7,11 @@ jest.mock("../../../backend/core/src/lib/prisma", () => ({
         user: {
             findMany: jest.fn(),
             findUnique: jest.fn(),
+            delete: jest.fn(),
         },
         userBuildingAccess: {
             create: jest.fn(),
+            delete: jest.fn(),
         }
     },
 }));
@@ -95,5 +97,33 @@ describe("ALl user operations for admin such as getting viewers, managers etc.",
         //arrange
         expect(out.success).toBe(true);
         expect(out.message).toBe("Building was already assigned to another manager");
+    });
+
+    it("should_remove_assignment_from_a_building", async () => {
+        (prisma.userBuildingAccess.delete as jest.Mock).mockResolvedValue({});
+        //act
+        const out = await removeAssignment("user-123", "building-123");
+        //asset
+        expect(prisma.userBuildingAccess.delete).toHaveBeenCalledWith({
+            where: {
+                user_id_building_id: {
+                    user_id: "user-123",
+                    building_id: "building-123"
+                }    
+            }
+        });
+        expect(out.success).toBe(true);
+        expect(out.message).toBe("Manger removed from building successfully");
+    });
+
+    it("should_throw_p2025_error_for_not_assigned_buildings", async () => {
+        //act
+        const prismaerr: any = new Error("No record to delete");
+        prismaerr.code = "P2025";
+        (prisma.userBuildingAccess.delete as jest.Mock).mockRejectedValue(prismaerr);
+        const  out = await removeAssignment("user-123", "building-124");
+        //arrange
+        expect(out.success).toBe(true);
+        expect(out.message).toBe("Building was not assigned to this manager");
     });
 });

@@ -445,3 +445,32 @@ export const assignMangerToBuilding = async (
         throw error;
     }
 };
+
+export const removeAssignment = async (
+    userId: string,
+    buildingId: string
+) => {
+    try{
+        await prisma?.userBuildingAccess.delete({
+            where: {
+                user_id_building_id: {
+                    user_id: userId,
+                    building_id: buildingId
+                }
+            }
+        });
+        return {
+            success: true,
+            message: "Manger removed from building successfully"
+        };
+    }
+    catch(error:any) {   
+        if(error.code === "P2025"){//p2025 is for record not found
+            return {
+                success:true,
+                message: "Building was not assigned to this manager"
+            };
+        }
+        throw error;
+    }
+};

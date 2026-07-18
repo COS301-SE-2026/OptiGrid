@@ -153,4 +153,78 @@ describe("Controller tests for for getting users and mangers for admin", () => {
             message: "Internal Server Error"
         });
     });
+
+    it("should_return_200_when_removing_assignmnet", async () => {
+        req.body = {
+            userId: "user-123",
+            buildingId: "building-123"
+        };
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue({roleType: "BUILDING_MANAGER"});
+        //act
+        const successResp = {
+            success: true,
+            message: "Manger removed from building successfully"
+        };
+        (authService.removeAssignment as jest.Mock).mockResolvedValue(successResp);
+        await authController.removeManagerController(req as Request, resp as Response);
+        //assert
+        expect(authService.removeAssignment).toHaveBeenCalledWith("user-123", "building-123");
+        expect(resp.status).toHaveBeenCalledWith(200);
+        expect(resp.json).toHaveBeenCalledWith(successResp);
+    });
+
+     it("should_throw_400_error_for_missing_stuff_in_remove_assignmnet", async () => {
+         await authController.removeManagerController(req as Request, resp as Response);
+        expect(resp.status).toHaveBeenCalledWith(400);
+        expect(resp.json).toHaveBeenCalledWith({
+            status: "error",
+            message: "Both UserId and BuildingId are required"
+        }); 
+    });
+
+    it("should_throw_404_error_if_user_not_found_in_remove_assignment", async () => {
+        req.body = {
+            userId: "user-123",
+            buildingId: "building-123"
+        };
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+        //act
+        await authController.removeManagerController(req as Request, resp as Response);
+        //assert
+        expect(resp.status).toHaveBeenCalledWith(404);
+        expect(resp.json).toHaveBeenCalledWith({
+            message: "User not found"
+        });
+    });
+
+    it("should_throw_403_error_if_not_manage_in_remove_assignmnetr", async () => {
+        req.body = {
+            userId: "user-123",
+            buildingId: "building-123"
+        };
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue({roleType: "VIEWER"});
+        //act
+        await authController.removeManagerController(req as Request, resp as Response);
+        //assert
+        expect(resp.status).toHaveBeenCalledWith(403);
+        expect(resp.json).toHaveBeenCalledWith({
+            message: "User has to be a manager"
+        });
+    });
+
+    it("should_throw_500_error_for_removing_assingmnet_unexpected_error", async () => {
+        req.body = {
+            userId: "user-123",
+            buildingId: "building-123"
+        };
+        (prisma.user.findUnique as jest.Mock).mockRejectedValue(new Error("Unknown error"));
+        //act
+        await authController.removeManagerController(req as Request, resp as Response);
+        //assert
+        expect(resp.status).toHaveBeenCalledWith(500);
+        expect(resp.json).toHaveBeenCalledWith({
+            message: "Internal Server Error"
+        });
+    });
+
 });
