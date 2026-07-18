@@ -86,7 +86,7 @@ describe("Controller tests for for getting users and mangers for admin", () => {
             userId: "user-123",
             buildingId: "building-123"
         };
-        (prisma.user.findUnique as jest.Mock).mockResolvedValue(req.body);
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue({roleType: "BUILDING_MANAGER"});
         //act
         const successResp = {
             success: true,
@@ -120,7 +120,6 @@ describe("Controller tests for for getting users and mangers for admin", () => {
         //assert
         expect(resp.status).toHaveBeenCalledWith(404);
         expect(resp.json).toHaveBeenCalledWith({
-            status:"error",
             message: "User not found"
         });
     });
@@ -141,6 +140,10 @@ describe("Controller tests for for getting users and mangers for admin", () => {
     });
 
     it("should_throw_500_error", async () => {
+        req.body = {
+            userId: "user-123",
+            buildingId: "building-123"
+        };
         (prisma.user.findUnique as jest.Mock).mockRejectedValue(new Error("Unknown error"));
         //act
         await authController.assignManagerController(req as Request, resp as Response);
