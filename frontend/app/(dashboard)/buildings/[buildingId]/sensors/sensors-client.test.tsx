@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SensorsClient from "./sensors-client";
 
@@ -9,7 +9,7 @@ const mockBuildings = [
 ];
 const renderPage = async (role = "BUILDING_MANAGER", buildingId = "b1") => {
     render(<SensorsClient role={role} buildingId={buildingId} />);
-    await waitFor(() => expect(screen.getByText("AA:BB:CC:00:00:01")).toBeInTheDocument());
+    expect(await screen.findByText("AA:BB:CC:00:00:01")).toBeInTheDocument();
 };
 
 beforeEach(() => {
@@ -110,7 +110,7 @@ describe("SensorsClient", () => {
 
     it("shows an error when the building does not belong to the user", async () => {
         render(<SensorsClient role="VIEWER" buildingId="unknown" />);
-        await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Building not found."));
+        expect(await screen.findByRole("alert")).toHaveTextContent("Building not found.");
     });
     it("shows an error message when buildings cannot be loaded ", async () => {
         (global.fetch as jest.Mock).mockResolvedValue({
@@ -119,8 +119,6 @@ describe("SensorsClient", () => {
         });
 
         render(<SensorsClient role="VIEWER" buildingId="b1" />);
-        await waitFor(() =>
-            expect(screen.getByRole("alert")).toHaveTextContent("Authentication required."),
-        );
+        expect(await screen.findByRole("alert")).toHaveTextContent("Authentication required.");
     });
 });

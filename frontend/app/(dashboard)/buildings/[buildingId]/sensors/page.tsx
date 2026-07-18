@@ -5,9 +5,9 @@ import SensorsClient from "./sensors-client";
 
 export default async function BuildingSensorsPage({
     params,
-}: {
+}: Readonly<{
     params: Promise<{ buildingId: string }>;
-}) 
+}>)
 {
     const sessionCookies = await cookies();
     const session = sessionCookies.get(SESSION_COOKIE_NAME);

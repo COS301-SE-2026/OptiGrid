@@ -60,10 +60,10 @@ function seedSensors(buildingId: string): SensorRecord[] {
 export default function SensorsClient({
     role,
     buildingId,
-}: {
+}: Readonly<{
     role: string;
     buildingId: string;
-}) {
+}>) {
     const canManageSensors = role === "ADMIN" || role === "BUILDING_MANAGER";
 
     const [building, setBuilding] = useState<BuildingRecord | null>(null);
@@ -304,7 +304,7 @@ export default function SensorsClient({
                             <dd>{viewingSensor.installed_date || "N/A"}</dd>
                         </dl>
                         <div style={{ display: "flex", marginTop: "var(--space-5)" }}>
-                            <button onClick={() => setViewingSensor(null)} style={{ flex: 1 }} className="btn btn-secondary">Close</button>
+                            <button type="button" onClick={() => setViewingSensor(null)} style={{ flex: 1 }} className="btn btn-secondary">Close</button>
                         </div>
                     </div>
                 </div>
@@ -400,10 +400,10 @@ export default function SensorsClient({
                         </div>
 
                         <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-5)" }}>
-                            <button onClick={() => setIsRegisterOpen(false)} className="btn btn-secondary" style={{ flex: 1 }}>
+                            <button type="button" onClick={() => setIsRegisterOpen(false)} className="btn btn-secondary" style={{ flex: 1 }}>
                                 Cancel
                             </button>
-                            <button onClick={handleRegisterSensor} className="btn btn-primary" style={{ flex: 1 }}>Register</button>
+                            <button type="button" onClick={handleRegisterSensor} className="btn btn-primary" style={{ flex: 1 }}>Register</button>
                         </div>
                     </div>
                 </div>
