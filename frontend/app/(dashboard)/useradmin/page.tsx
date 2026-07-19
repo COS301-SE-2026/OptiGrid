@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 interface User {
   user_id: string;
   first_name: string;
   email: string;
-  role_type: "admin" | "user" | "manager";
+  role_type: "ADMIN" | "VIEWER" | "BUILDING_MANAGER";
   created_at: string;
   building_ids: string[];
 }
@@ -16,68 +16,9 @@ interface Building {
   building_name: string;
 }
 
-const mockUsers: User[] = [
-  {
-    user_id: "u1",
-    first_name: "gh",
-    email: "gh@example.com",
-    role_type: "admin",
-    created_at: "2024-12-01T10:00:00Z",
-    building_ids: [],
-  },
-  {
-    user_id: "u2",
-    first_name: "Li",
-    email: "li@example.com",
-    role_type: "user",
-    created_at: "2024-12-05T14:30:00Z",
-    building_ids: ["b1"],
-  },
-  {
-    user_id: "u3",
-    first_name: "Che",
-    email: "che@example.com",
-    role_type: "manager",
-    created_at: "2024-12-10T09:15:00Z",
-    building_ids: [],
-  },
-  {
-    user_id: "u4",
-    first_name: "Ga",
-    email: "ga@example.com",
-    role_type: "user",
-    created_at: "2024-12-15T16:45:00Z",
-    building_ids: ["b2"],
-  },
-  {
-    user_id: "u5",
-    first_name: "Mi",
-    email: "mi@example.com",
-    role_type: "manager",
-    created_at: "2024-12-20T11:20:00Z",
-    building_ids: [],
-  },
-  {
-    user_id: "u5",
-    first_name: "James Wilson",
-    email: "james@example.com",
-    role_type: "user",
-    created_at: "2025-01-05T10:30:00Z",
-    building_ids: [],
-  },
-];
-
-const mockBuildings: Building[] = [
-  { building_id: "b1", building_name: "sandton" },
-  { building_id: "b2", building_name: "marlboro" },
-  { building_id: "b3", building_name: "Plaza" },
-  { building_id: "b4", building_name: "qqee" },
-  { building_id: "b5", building_name: "Green" },
-];
-
 export default function UserManagementPage() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [buildings] = useState<Building[]>(mockBuildings);
+  const [users, setUsers] = useState<User[]>([]);
+  const [buildings] = useState<Building[]>([]);
   const [sortFilter, setSortFilter] = useState<string>("latest");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isActionOpen, setIsActionOpen] = useState<boolean>(false);
@@ -98,7 +39,7 @@ export default function UserManagementPage() {
     return users.some(
       (u) => 
         u.user_id !== excludeUserId && 
-        u.role_type !== "manager" && 
+        u.role_type !== "BUILDING_MANAGER" && 
         u.building_ids.includes(buildingId)
     );
   };
@@ -112,7 +53,7 @@ export default function UserManagementPage() {
     let result = [...users];
 
     result = result.filter((u) => {
-      if (u.role_type === "admin") {
+      if (u.role_type === "ADMIN") {
         return u.email === "tali@example.com";
       }
       return true;
@@ -154,7 +95,7 @@ export default function UserManagementPage() {
   }, [users, sortFilter, searchQuery]);
 
   const filteredManagers = useMemo(() => {
-    let result = users.filter((u) => u.role_type === "manager");
+    let result = users.filter((u) => u.role_type === "BUILDING_MANAGER");
 
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -192,14 +133,14 @@ export default function UserManagementPage() {
   }, [users, sortFilter, searchQuery]);
 
   const regularUsers = useMemo(() => {
-    return filteredUsers.filter((u) => u.role_type !== "manager");
+    return filteredUsers.filter((u) => u.role_type !== "BUILDING_MANAGER");
   }, [filteredUsers]);
 
   const stats = useMemo(() => {
     const total = users.length;
-    const admins = users.filter((u) => u.role_type === "admin").length;
-    const managers = users.filter((u) => u.role_type === "manager").length;
-    const regularUsers = users.filter((u) => u.role_type === "user").length;
+    const admins = users.filter((u) => u.role_type === "ADMIN").length;
+    const managers = users.filter((u) => u.role_type === "BUILDING_MANAGER").length;
+    const regularUsers = users.filter((u) => u.role_type === "VIEWER").length;
     return { total, admins, managers, regularUsers, totalBuildings: buildings.length };
   }, [users, buildings]);
 
@@ -222,7 +163,7 @@ export default function UserManagementPage() {
     setSelectedBuildingId("");
   };
 
-  const confirmAction = () => {
+  const confirmAction = async () => {
     if (!selectedBuildingId) {
       close();
       return;
@@ -233,69 +174,97 @@ export default function UserManagementPage() {
       close();
       return;
     }
-
-    if (Action === "assign") {
-      if (user.role_type === "user" && isBuildingAssignedToUser(selectedBuildingId, selectedUserId)) {
-        close();
-        return;
+    //we put all of this in try and cacth block to fetch endpoints from backendn speak to db
+    try {
+      if (Action === "assign") {
+        const resp = await fetch("/api/users/assignmnets", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: selectedUserId,
+            buildingId: selectedBuildingId
+          })
+        });
+        
+        if(resp.ok) setUsers((prev) => prev.map((u) => u.user_id === selectedUserId ? { ...u, building_ids: [...u.building_ids, selectedBuildingId] } : u));
+        else alert("Failed To Assign Building")
       }
+      else if( Action === "remove") {
+        const resp = await fetch("/api/users/assignmnets", {
+          method: "DELETE",
+          body: JSON.stringify({
+            userId: selectedUserId,
+            buildingId: selectedBuildingId
+          })
+        });
 
-      if (!user.building_ids.includes(selectedBuildingId)) {
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.user_id === selectedUserId
-              ? { ...u, building_ids: [...u.building_ids, selectedBuildingId] }
-              : u
-          )
-        );
-      }
-    } else if (Action === "remove") {
-      const idx = user.building_ids.indexOf(selectedBuildingId);
-      if (idx > -1) {
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.user_id === selectedUserId
-              ? {
-                  ...u,
-                  building_ids: u.building_ids.filter(
-                    (id) => id !== selectedBuildingId
-                  ),
-                }
-              : u
-          )
-        );
+        if(resp.ok) setUsers((prev) => prev.map((u) => u.user_id === selectedUserId ? { ...u, building_ids: [...u.building_ids, selectedBuildingId] } : u));
+        else alert("Failed To Remove Building")
       }
     }
-
+    catch(error){
+      console.error("Failed to apply any action: ", error);
+    }
     close();
   };
+  //logic no done for this will implemt in next sprint from backend, may not be able to demo in demo2 thus commented out
+  // const deleteUser = (userId: string) => {
+  //   const user = users.find((u) => u.user_id === userId);
+  //   if (!user) return;
 
-  const deleteUser = (userId: string) => {
-    const user = users.find((u) => u.user_id === userId);
-    if (!user) return;
+  //   if (user.role_type === "ADMIN") {
+  //     return;
+  //   }
 
-    if (user.role_type === "admin") {
-      return;
-    }
+  //   if (!confirm(`Delete ${user.first_name} permanently? This action cannot be undone.`)) return;
 
-    if (!confirm(`Delete ${user.first_name} permanently? This action cannot be undone.`)) return;
+  //   setUsers((prev) => prev.filter((u) => u.user_id !== userId));
+  // };
 
-    setUsers((prev) => prev.filter((u) => u.user_id !== userId));
-  };
+  // const deleteManager = (userId: string) => {
+  //   const user = users.find((u) => u.user_id === userId);
+  //   if (!user) return;
 
-  const deleteManager = (userId: string) => {
-    const user = users.find((u) => u.user_id === userId);
-    if (!user) return;
+  //   if (!confirm(`Delete manager ${user.first_name} permanently? This action cannot be undone.`)) return;
 
-    if (!confirm(`Delete manager ${user.first_name} permanently? This action cannot be undone.`)) return;
-
-    setUsers((prev) => prev.filter((u) => u.user_id !== userId));
-  };
+  //   setUsers((prev) => prev.filter((u) => u.user_id !== userId));
+  // };
 
   const resetFilters = () => {
     setSortFilter("latest");
     setSearchQuery("");
   };
+
+  useEffect(() => {
+    const data = async () => {
+      try {
+        //we fetch all the data we need such as building, viewers managers etc.
+        const buildingResp = await fetch("/api/admin");
+        const buidlingData = await buildingResp.json();
+        const viewersReps = await fetch("/api/users?role=viewers");
+        const viewersData = await viewersReps.json();
+        const managersResp = await fetch("api/users?role=managers");
+        const managersData = await managersResp.json();
+        //map data to our frontedn
+        const users = [
+          ...(viewersData.data || []),
+          ...(managersData.data || [])
+        ];
+        const formatUser: User[] = users.map((user: any) => ({
+          user_id: user.userId,
+          first_name: user.firstName,
+          email: user.email,
+          role_type: user.roleType === "BUILDING_MANAGER" ? "BUILDING_MANAGER" : "VIEWER",
+          building_ids: user.buildingIds  || [],
+          created_at: user.createdAt || new Date().toISOString()
+        }));
+        setUsers(formatUser);
+      }
+      catch(error){
+        console.error("Failed to get data: ", error);
+      }
+    };
+    data();
+  }, []);
 
   return (
     <div className="dashboard-page">
@@ -472,7 +441,7 @@ export default function UserManagementPage() {
                                   fontSize: "var(--fs-small)",
                                   padding: "4px 12px",
                                   backgroundColor:
-                                    user.role_type === "admin"
+                                    user.role_type === "ADMIN"
                                       ? "var(--brand-ink-muted)"
                                       : "var(--brand-primary)",
                                   color: "white",
@@ -498,17 +467,17 @@ export default function UserManagementPage() {
                               >
                                 Remove
                               </button>
-                              <button
+                              {/* <button
                                 onClick={() => deleteUser(user.user_id)}
                                 className="btn btn-danger"
                                 style={{
                                   fontSize: "var(--fs-small)",
                                   padding: "4px 12px",
                                 }}
-                                disabled={user.role_type === "admin"}
+                                disabled={user.role_type === "ADMIN"}
                               >
                                 Delete
-                              </button>
+                              </button> */}
                             </div>
                           </td>
                         </tr>
@@ -608,7 +577,7 @@ export default function UserManagementPage() {
                               >
                                 Remove
                               </button>
-                              <button
+                              {/* <button
                                 onClick={() => deleteManager(manager.user_id)}
                                 className="btn btn-danger"
                                 style={{
@@ -617,7 +586,7 @@ export default function UserManagementPage() {
                                 }}
                               >
                                 Delete
-                              </button>
+                              </button> */}
                             </div>
                           </td>
                         </tr>
@@ -665,7 +634,7 @@ export default function UserManagementPage() {
                     {Action === "assign" ? (
                       (() => {
                         const user = users.find((u) => u.user_id === selectedUserId);
-                        if (user?.role_type === "manager") {
+                        if (user?.role_type === "BUILDING_MANAGER") {
                           return buildings
                             .filter(
                               (b) =>
