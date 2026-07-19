@@ -205,15 +205,8 @@ export default function UserManagementPage() {
           })
         });
 
-        if(resp.ok) {
-          setUsers((prev) => prev.map((u) => u.user_id === selectedUserId 
-            ? { ...u, building_ids: u.building_ids.filter(id => id !== selectedBuildingId)} 
-            : u)
-          );
-        }
-        else {
-          alert("Failed To Remove Building");
-        }
+        if(resp.ok) setUsers((prev) => prev.map((u) => u.user_id === selectedUserId ? { ...u, building_ids: u.building_ids.filter(id => id !== selectedBuildingId) } : u));
+        else alert("Failed To Remove Building");
       }
     }
     catch(error){
@@ -623,50 +616,36 @@ export default function UserManagementPage() {
                     className="select"
                   >
                     <option value="">Select a building...</option>
-                    {Action === "assign" ? (
-                      (() => {
-                        const user = users.find((u) => u.user_id === selectedUserId);
-                        if (user?.role_type === "BUILDING_MANAGER") {
-                          return buildings
-                            .filter(
-                              (b) =>
-                                !users
-                                  .find((u) => u.user_id === selectedUserId)
-                                  ?.building_ids.includes(b.building_id)
-                            )
-                            .map((b) => (
-                              <option key={b.building_id} value={b.building_id}>
-                                {b.building_name}
-                              </option>
-                            ));
-                        } else {
-                          return buildings
-                            .filter(
-                              (b) =>
-                                !isBuildingAssignedToUser(b.building_id, selectedUserId) &&
-                                !users
-                                  .find((u) => u.user_id === selectedUserId)
-                                  ?.building_ids.includes(b.building_id)
-                            )
-                            .map((b) => (
-                              <option key={b.building_id} value={b.building_id}>
-                                {b.building_name}
-                              </option>
-                            ));
-                        }
-                      })()
-                    ) : (
+                    {Action === "assign" ? ( 
                       buildings
-                        .filter((b) =>
-                          users
-                            .find((u) => u.user_id === selectedUserId)
-                            ?.building_ids.includes(b.building_id)
+                        .filter((b) => {
+                          const user = users.find((u) => u.user_id === selectedUserId);
+                          const isManager = user?.role_type === "BUILDING_MANAGER";
+                          const assigned = user?.building_ids.includes(b.building_id);
+                          const assignedToAnyManager = users.some((u) => 
+                            u.role_type === "BUILDING_MANAGER" && u.building_ids.includes(b.building_id)
+                          );
+                          if(assigned) return false;
+                          if(isManager && assignedToAnyManager)  return false
+                          return true;
+                        }
                         )
                         .map((b) => (
                           <option key={b.building_id} value={b.building_id}>
                             {b.building_name}
                           </option>
                         ))
+                    ) : (
+                      buildings
+                        .filter((b) => 
+                          users
+                            .find((u) => u.user_id === selectedUserId)?.building_ids.includes(b.building_id)
+                          )
+                          .map((b) => (
+                            <option key={b.building_id} value={b.building_id}>
+                              {b.building_name}
+                            </option>
+                          ))
                     )}
                   </select>
                   {Action === "assign" && selectedBuildingId && (
