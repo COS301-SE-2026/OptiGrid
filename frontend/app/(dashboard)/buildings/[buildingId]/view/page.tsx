@@ -27,12 +27,53 @@ type BuildingResponse = {
     message?: string;
 };
 
+type EnergyTimeRange = "7d" | "30d" | "90d" | "1y";
+
+type PeakUsageTime = {
+    timestamp: string;
+    kwh: number;
+};
+
+type EnergyConsumptionRecord = {
+    time_range: EnergyTimeRange;
+    total_kwh: number;
+    average_daily_kwh: number;
+    total_cost_zar: number;
+    total_cost_usd: number;
+    cost_per_kwh: number;
+    eui: number | null;
+    total_anomaly_alerts: number | null;
+    cost_saved_by_recommendations_zar: number | null;
+    peak_usage_times: PeakUsageTime[];
+};
+
+type EnergyConsumptionResponse = {
+    data?: EnergyConsumptionRecord;
+    message?: string;
+};
+
 function displayValue(value: string | number | null | undefined): string | number {
     return value ?? "-";
 }
 
 function displayValueWithUnit(value: string | number | null | undefined, unit: string): string {
     return value === null || value === undefined ? "-" : `${value} ${unit}`;
+}
+
+function formatNumber(value: number | null | undefined, maximumFractionDigits = 2): string {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+        return "-";
+    }
+
+    return value.toLocaleString(undefined, { maximumFractionDigits });
+}
+
+function formatZar(value: number | null | undefined): string {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+        return "-";
+    }
+
+    return `R ${formatNumber(value)}`;
 }
 
 export default function ViewBuildingPage({
@@ -46,6 +87,10 @@ export default function ViewBuildingPage({
         building_id: "",
         building_name: "",
     });
+    const [timeRange, setTimeRange] = useState<EnergyTimeRange>("30d");
+    const [consumption, setConsumption] = useState<EnergyConsumptionRecord | null>(null);
+    const [consumptionLoading, setConsumptionLoading] = useState(true);
+    const [consumptionError, setConsumptionError] = useState("");
 
     useEffect(() => {
         let isMounted = true;
@@ -90,6 +135,58 @@ export default function ViewBuildingPage({
             isMounted = false;
         };
     }, [params]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadConsumption = async () => {
+            const { buildingId } = await params;
+            if (isMounted) {
+                setConsumptionLoading(true);
+                setConsumptionError("");
+            }
+
+            try {
+                const response = await fetch(
+                    `/api/buildings/${encodeURIComponent(buildingId)}/energy-consumption?time_range=${timeRange}`,
+                    {
+                        method: "GET",
+                        cache: "no-store",
+                    },
+                );
+                const payload = (await response.json().catch(() => ({}))) as EnergyConsumptionResponse;
+
+                if (!response.ok) {
+                    throw new Error(payload.message || "Unable to load energy consumption.");
+                }
+
+                if (!payload.data) {
+                    throw new Error("Energy consumption data is unavailable.");
+                }
+
+                if (isMounted) {
+                    setConsumption(payload.data);
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setConsumption(null);
+                    setConsumptionError(
+                        err instanceof Error ? err.message : "Unable to load energy consumption.",
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setConsumptionLoading(false);
+                }
+            }
+        };
+
+        loadConsumption();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [params, timeRange]);
 
     if (loading) {
         return (
@@ -154,6 +251,76 @@ export default function ViewBuildingPage({
                         label="Max Current Threshold"
                         value={displayValueWithUnit(building.max_current_threshold, "A")}
                     />
+                </DetailsSection>
+
+                <DetailsSection title="Energy Consumption">
+                    <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "space-between", gap: "var(--space-4)", alignItems: "center", flexWrap: "wrap" }}>
+                        <p className="text-muted" style={{ margin: 0 }}>
+                            Usage and cost metrics for this building.
+                        </p>
+                        <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                            <span className="text-muted">Time range</span>
+                            <select
+                                aria-label="Energy consumption time range"
+                                value={timeRange}
+                                onChange={(event) => setTimeRange(event.target.value as EnergyTimeRange)}
+                                disabled={consumptionLoading}
+                            >
+                                <option value="7d">Last 7 days</option>
+                                <option value="30d">Last 30 days</option>
+                                <option value="90d">Last 90 days</option>
+                                <option value="1y">Last year</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    {consumptionLoading && (
+                        <div style={{ gridColumn: "1 / -1" }} className="text-muted">
+                            Loading energy consumption...
+                        </div>
+                    )}
+
+                    {consumptionError && !error && (
+                        <div style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
+                            {consumptionError}
+                        </div>
+                    )}
+
+                    {consumption && !consumptionLoading && (
+                        <>
+                            <Detail label="Total Consumption" value={displayValueWithUnit(formatNumber(consumption.total_kwh), "kWh")} />
+                            <Detail label="Average Daily Usage" value={displayValueWithUnit(formatNumber(consumption.average_daily_kwh), "kWh")} />
+                            <Detail label="Total Cost" value={formatZar(consumption.total_cost_zar)} />
+                            <Detail label="Cost per kWh" value={formatZar(consumption.cost_per_kwh)} />
+                            <Detail label="Energy Use Intensity" value={displayValueWithUnit(formatNumber(consumption.eui), "kWh/mÂ²")} />
+                            <Detail label="Active Anomaly Alerts" value={consumption.total_anomaly_alerts} />
+                            <Detail label="Recommendation Savings" value={formatZar(consumption.cost_saved_by_recommendations_zar)} />
+
+                            <div style={{ gridColumn: "1 / -1", marginTop: "var(--space-2)" }}>
+                                <h4 style={{ marginBottom: "var(--space-2)" }}>Peak Usage Times</h4>
+                                {consumption.peak_usage_times.length === 0 ? (
+                                    <p className="text-muted">No peak usage data is available for this time range.</p>
+                                ) : (
+                                    <table style={{ width: "100%" }}>
+                                        <thead>
+                                            <tr>
+                                                <th align="left">Timestamp</th>
+                                                <th align="left">Usage</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {consumption.peak_usage_times.map((peak) => (
+                                                <tr key={`${peak.timestamp}-${peak.kwh}`}>
+                                                    <td>{peak.timestamp}</td>
+                                                    <td>{displayValueWithUnit(formatNumber(peak.kwh), "kWh")}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </DetailsSection>
 
                 <DetailsSection title="Location Details">

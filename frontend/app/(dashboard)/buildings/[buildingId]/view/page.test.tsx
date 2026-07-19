@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import ViewBuildingPage from "./page";
 
@@ -31,11 +32,28 @@ const mockBuilding = {
 
 const makeParams = (buildingId: string) => Promise.resolve({ buildingId });
 
-function mockFetchOk(building = mockBuilding) {
-  global.fetch = jest.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({ data: building }),
-  });
+const mockConsumption = {
+  time_range: "30d",
+  total_kwh: 900,
+  average_daily_kwh: 30,
+  total_cost_zar: 1800,
+  total_cost_usd: 45,
+  cost_per_kwh: 2,
+  eui: 0.18,
+  total_anomaly_alerts: 0,
+  cost_saved_by_recommendations_zar: null,
+  peak_usage_times: [{ timestamp: "2026-07-17T08:00:00.000Z", kwh: 120 }],
+};
+
+function mockFetchOk(building = mockBuilding, consumption = mockConsumption) {
+  global.fetch = jest.fn().mockImplementation((url: string) =>
+    Promise.resolve({
+      ok: true,
+      json: async () => ({
+        data: url.includes("energy-consumption") ? consumption : building,
+      }),
+    }),
+  );
 }
 
 describe("ViewBuildingPage", () => {
@@ -52,6 +70,13 @@ describe("ViewBuildingPage", () => {
         method: "GET",
         cache: "no-store",
       }),
+    );
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/buildings/111/energy-consumption?time_range=30d",
+      {
+        method: "GET",
+        cache: "no-store",
+      },
     );
   });
 
@@ -71,7 +96,54 @@ describe("ViewBuildingPage", () => {
       expect(screen.getByText("60 A")).toBeInTheDocument();
       expect(screen.getByText("-26.111")).toBeInTheDocument();
       expect(screen.getByText("28.055")).toBeInTheDocument();
-      expect(screen.getByText("2026-07-17T08:00:00.000Z")).toBeInTheDocument();
+      expect(screen.getAllByText("2026-07-17T08:00:00.000Z")).toHaveLength(2);
+      expect(screen.getByRole("heading", { name: "Energy Consumption" })).toBeInTheDocument();
+      expect(screen.getByText("900 kWh")).toBeInTheDocument();
+      expect(screen.getByText("R 1,800")).toBeInTheDocument();
+      expect(screen.getByText("120 kWh")).toBeInTheDocument();
+    });
+  });
+
+  it("reloads consumption when the time range changes", async () => {
+    mockFetchOk();
+    const user = userEvent.setup();
+    render(<ViewBuildingPage params={makeParams("111")} />);
+
+    const timeRange = await screen.findByRole("combobox", {
+      name: "Energy consumption time range",
+    });
+    await user.selectOptions(timeRange, "7d");
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/buildings/111/energy-consumption?time_range=7d",
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      ),
+    );
+  });
+
+  it("shows a consumption error without hiding building details", async () => {
+    global.fetch = jest.fn().mockImplementation((url: string) =>
+      Promise.resolve(
+        url.includes("energy-consumption")
+          ? {
+              ok: false,
+              json: async () => ({ message: "Telemetry is temporarily unavailable." }),
+            }
+          : {
+              ok: true,
+              json: async () => ({ data: mockBuilding }),
+            },
+      ),
+    );
+    render(<ViewBuildingPage params={makeParams("111")} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Building A")).toBeInTheDocument();
+      expect(screen.getByText("Telemetry is temporarily unavailable.")).toBeInTheDocument();
     });
   });
 
