@@ -154,8 +154,6 @@ describe("ViewBuildingPage", () => {
     });
     render(<ViewBuildingPage params={makeParams("111")} />);
 
-    await waitFor(() =>
-      expect(screen.getByText("Building not found.")).toBeInTheDocument(),
-    );
+    expect(await screen.findByText("Building not found.")).toBeInTheDocument();
   });
 });

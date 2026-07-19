@@ -4,7 +4,7 @@ import { GET } from "./route";
 
 describe("building energy-consumption route", () => {
 	beforeEach(() => {
-		process.env.CORE_URL = "http://core.test";
+		process.env.CORE_URL = "https://core.test";
 		global.fetch = jest.fn().mockResolvedValue({
 			ok: true,
 			status: 200,
@@ -32,7 +32,7 @@ describe("building energy-consumption route", () => {
 
 		expect(response.status).toBe(200);
 		expect(global.fetch).toHaveBeenCalledWith(
-			"http://core.test/api/buildings/building-123/energy-consumption?time_range=7d",
+			"https://core.test/api/buildings/building-123/energy-consumption?time_range=7d",
 			expect.objectContaining({ method: "GET" }),
 		);
 

@@ -52,11 +52,13 @@ type EnergyConsumptionResponse = {
     message?: string;
 };
 
-function displayValue(value: string | number | null | undefined): string | number {
+type DisplayValue = string | number | null | undefined;
+
+function displayValue(value: DisplayValue): string | number {
     return value ?? "-";
 }
 
-function displayValueWithUnit(value: string | number | null | undefined, unit: string): string {
+function displayValueWithUnit(value: DisplayValue, unit: string): string {
     return value === null || value === undefined ? "-" : `${value} ${unit}`;
 }
 
@@ -338,7 +340,7 @@ export default function ViewBuildingPage({
     );
 }
 
-function DetailsSection({ title, children }: { title: string; children: ReactNode }) {
+function DetailsSection({ title, children }: Readonly<{ title: string; children: ReactNode }>) {
     return (
         <div>
             <h3
@@ -364,7 +366,7 @@ function DetailsSection({ title, children }: { title: string; children: ReactNod
     );
 }
 
-function Detail({ label, value }: { label: string; value: string | number | null | undefined }) {
+function Detail({ label, value }: Readonly<{ label: string; value: DisplayValue }>) {
     return (
         <>
             <div className="text-muted">{label}</div>
