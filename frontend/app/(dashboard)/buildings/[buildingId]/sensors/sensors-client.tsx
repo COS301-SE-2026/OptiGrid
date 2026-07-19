@@ -175,6 +175,57 @@ export default function SensorsClient({
         setSensors((prev) => prev.filter((sensor) => sensor.sensor_id !== sensorId));
     };
 
+    const sensorsCount = `${sensors.length} sensor${sensors.length === 1 ? "" : "s"} registered`;
+    let tableBody;
+
+    if (loading) {
+        tableBody = (
+            <tr>
+                <td colSpan={5} className="dashboard-empty"> Loading sensors... </td>
+            </tr>
+        );
+    } 
+    else if (sensors.length === 0) {
+        tableBody = (
+            <tr>
+                <td colSpan={5} className="dashboard-empty">No sensors registered for this building</td>
+            </tr>
+        );
+    } else {
+        tableBody = sensors.map((sensor) => (
+            <tr key={sensor.sensor_id}>
+                <td style={{ fontWeight: "var(--fw-semibold)" }}>
+                    {sensor.mac_address}
+                </td>
+                <td>{sensor.sensor_type || "N/A"}</td>
+                <td>{sensor.location_zone || "N/A"}</td>
+
+                <td>
+                    <span className={`badge ${statusBadge[sensor.status]}`}>
+                        {sensor.status}
+                    </span>
+                </td>
+                <td>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+                        <button type="button" onClick={() => setViewingSensor(sensor)} className="btn btn-secondary" style={
+                        { 
+                            fontSize: "var(--fs-small)", 
+                            padding: "4px 12px" 
+                        }
+                        }>View</button>
+                        {canManageSensors && (<button type="button" onClick={() => handleDeleteSensor(sensor.sensor_id)} className="btn btn-danger" style={
+                            { 
+                                fontSize: "var(--fs-small)",
+                                padding: "4px 12px"
+                            }
+                            }>Delete</button>
+                        )}
+                    </div>
+                </td>
+            </tr>
+        ));
+    }
+
     return (
         <section>
             <div className="dashboard-header">
@@ -183,15 +234,13 @@ export default function SensorsClient({
                         {building ? `${building.building_name} - Sensors` : "Sensors"}
                     </h1>
                     <div className="dashboard-subtitle">
-                        {building
-                            ? `${sensors.length} sensor${sensors.length === 1 ? "" : "s"} registered`
-                            : "Sensors registered for this building"}
+                        {building ? sensorsCount : "Sensors registered for this building"}
                     </div>
                 </div>
                 <div style={{ display: "flex", gap: "var(--space-3)" }}>
                     <Link href={`/buildings/${buildingId}/view`} className="btn btn-secondary">Back to building</Link>
                     {canManageSensors && (
-                        <button onClick={openRegisterModal} className="btn btn-primary" disabled={!building}>Register sensor</button>
+                        <button type="button" onClick={openRegisterModal} className="btn btn-primary" disabled={!building}>Register sensor</button>
                     )}
                 </div>
             </div>
@@ -216,52 +265,7 @@ export default function SensorsClient({
                             </tr>
                         </thead>
                         <tbody>
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="dashboard-empty"> Loading sensors... </td>
-                                </tr>
-                            ) : sensors.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="dashboard-empty">
-                                        No sensors registered for this building
-                                    </td>
-                                </tr>
-                            ) : (
-                                sensors.map((sensor) => (
-                                    <tr key={sensor.sensor_id}>
-                                        <td style={{ fontWeight: "var(--fw-semibold)" }}>
-                                            {sensor.mac_address}
-                                        </td>
-
-                                        <td>{sensor.sensor_type || "N/A"}</td>
-                                        <td>{sensor.location_zone || "N/A"}</td>
-                                        <td>
-                                            <span className={`badge ${statusBadge[sensor.status]}`}>
-                                                {sensor.status}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-                                                <button
-                                                    onClick={() => setViewingSensor(sensor)}
-                                                    className="btn btn-secondary"
-                                                    style={{ fontSize: "var(--fs-small)", padding: "4px 12px" }}>
-                                                    View
-                                                </button>
-                                                {canManageSensors && (
-                                                    <button
-                                                        onClick={() => handleDeleteSensor(sensor.sensor_id)}
-                                                        className="btn btn-danger"
-                                                        style={{ padding: "4px 12px", fontSize: "var(--fs-small)"  }}>
-                                                        Delete
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
+                            {tableBody}
                         </tbody>
                     </table>
                 </div>
@@ -277,11 +281,8 @@ export default function SensorsClient({
                         justifyContent: "center",
                         padding: "var(--space-4)",
                     }}
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setViewingSensor(null);
-                    }}
                 >
-                    <div className="modal" style={{ width: "100%", maxWidth: "500px" }}>
+                    <div className="modal" aria-modal="true" aria-label="Sensor details" role="dialog" style={{ width: "100%", maxWidth: "500px" }}>
                         <h2 style={{ marginBottom: "var(--space-4)" }}>Sensor details</h2>
                         <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--space-2) var(--space-4)" }}>
                             <dt className="label">Building</dt>
@@ -321,11 +322,8 @@ export default function SensorsClient({
                         alignItems: "center",
                         padding: "var(--space-4)",
                     }}
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setIsRegisterOpen(false);
-                    }}
                 >
-                    <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
+                    <div className="modal" aria-modal="true" aria-label="Register sensor" role="dialog"  style={{ maxWidth: "500px", width: "100%" }}>
                         <h2 style={{ marginBottom: "var(--space-4)" }}>Register sensor</h2>
                         <p style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-4)" }}>
                             The sensor will be registered to {building?.building_name ?? "this building"}.
