@@ -179,9 +179,12 @@ export default function UserManagementPage() {
       if (Action === "assign") {
         const resp = await fetch("/api/usersAdmin/operations", {
           method: "POST",
+          headers: {
+            "Content-type": "application/json"
+          },
           body: JSON.stringify({
-            UserId: selectedUserId,
-            BuildingId: selectedBuildingId
+            userId: selectedUserId,
+            buildingId: selectedBuildingId
           })
         });
         const data = await resp.json();
@@ -193,14 +196,24 @@ export default function UserManagementPage() {
       else if( Action === "remove") {
         const resp = await fetch("/api/usersAdmin/operations", {
           method: "DELETE",
+          headers: {
+            "Content-type": "application/json"
+          },
           body: JSON.stringify({
-            UserId: selectedUserId,
-            BuildingId: selectedBuildingId
+            userId: selectedUserId,
+            buildingId: selectedBuildingId
           })
         });
 
-        if(resp.ok) setUsers((prev) => prev.map((u) => u.user_id === selectedUserId ? { ...u, building_ids: [...u.building_ids, selectedBuildingId] } : u));
-        else alert("Failed To Remove Building")
+        if(resp.ok) {
+          setUsers((prev) => prev.map((u) => u.user_id === selectedUserId 
+            ? { ...u, building_ids: u.building_ids.filter(id => id !== selectedBuildingId)} 
+            : u)
+          );
+        }
+        else {
+          alert("Failed To Remove Building");
+        }
       }
     }
     catch(error){

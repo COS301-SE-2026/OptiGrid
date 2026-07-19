@@ -67,7 +67,9 @@ function createIdempotencyKey(prefix = "buildings"): string {
 }
 
 export async function GET(req:Request) {
-    const headers = getForwardHeaders(req);
+    const headers = getForwardHeaders(req, {
+        includeContentType: true
+    });
     if(!headers) {
         return NextResponse.json({
             message: "Authentication required"

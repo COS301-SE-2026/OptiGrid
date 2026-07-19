@@ -67,7 +67,9 @@ function createIdempotencyKey(prefix = "buildings"): string {
 }
 
 export async function POST(req: Request) {
-    const headers = getForwardHeaders(req);
+    const headers = getForwardHeaders(req, 
+        {includeContentType: true}
+    );
     if(!headers) {
         return NextResponse.json({
             message: "Authentication required"
@@ -99,7 +101,9 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req:Request) {
-    const headers = getForwardHeaders(req);
+    const headers = getForwardHeaders(req, {
+        includeContentType: true
+    });
     if(!headers) {
         return NextResponse.json({
             message: "Authentication required"
@@ -109,7 +113,7 @@ export async function DELETE(req:Request) {
     try{ 
         const body = await req.json();
         const resp = await fetch(`${CORE_URL}/api/users/remove`, {
-            method: "POST",
+            method: "DELETE",
             headers,
             body: JSON.stringify(body)
         });
