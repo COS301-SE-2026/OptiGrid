@@ -86,10 +86,10 @@ export async function GET(req:Request) {
         });
         const payload = await resp.json();
 
-        return NextResponse.json({
+        return NextResponse.json(
             payload,
-            status: resp.status
-        });
+            {status: resp.status}
+        );
     }
     catch{
         return NextResponse.json({

@@ -18,7 +18,7 @@ interface Building {
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [buildings] = useState<Building[]>([]);
+  const [buildings,setBuildings] = useState<Building[]>([]);
   const [sortFilter, setSortFilter] = useState<string>("latest");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isActionOpen, setIsActionOpen] = useState<boolean>(false);
@@ -177,23 +177,25 @@ export default function UserManagementPage() {
     //we put all of this in try and cacth block to fetch endpoints from backendn speak to db
     try {
       if (Action === "assign") {
-        const resp = await fetch("/api/users/assignmnets", {
+        const resp = await fetch("/api/usersAdmin/operations", {
           method: "POST",
           body: JSON.stringify({
-            userId: selectedUserId,
-            buildingId: selectedBuildingId
+            UserId: selectedUserId,
+            BuildingId: selectedBuildingId
           })
         });
-        
+        const data = await resp.json();
         if(resp.ok) setUsers((prev) => prev.map((u) => u.user_id === selectedUserId ? { ...u, building_ids: [...u.building_ids, selectedBuildingId] } : u));
-        else alert("Failed To Assign Building")
+        else {
+          console.error("Backend rejected assign payload:", data);
+          alert("Failed To Assign Building");}
       }
       else if( Action === "remove") {
-        const resp = await fetch("/api/users/assignmnets", {
+        const resp = await fetch("/api/usersAdmin/operations", {
           method: "DELETE",
           body: JSON.stringify({
-            userId: selectedUserId,
-            buildingId: selectedBuildingId
+            UserId: selectedUserId,
+            BuildingId: selectedBuildingId
           })
         });
 
@@ -240,9 +242,17 @@ export default function UserManagementPage() {
         //we fetch all the data we need such as building, viewers managers etc.
         const buildingResp = await fetch("/api/admin");
         const buidlingData = await buildingResp.json();
-        const viewersReps = await fetch("/api/users?role=viewers");
+
+        const bdata = buidlingData.data || (Array.isArray(buidlingData) ? buidlingData : []);
+        const formatBuildings: Building[] = bdata.map((b: any) => ({
+          building_id:  b.building_id,
+          building_name:  b.building_name
+        }));
+        setBuildings(formatBuildings);
+
+        const viewersReps = await fetch("/api/usersAdmin?role=viewers");
         const viewersData = await viewersReps.json();
-        const managersResp = await fetch("api/users?role=managers");
+        const managersResp = await fetch("api/usersAdmin?role=managers");
         const managersData = await managersResp.json();
         //map data to our frontedn
         const users = [
@@ -265,6 +275,8 @@ export default function UserManagementPage() {
     };
     data();
   }, []);
+
+
 
   return (
     <div className="dashboard-page">
@@ -383,7 +395,7 @@ export default function UserManagementPage() {
                     <th>User</th>
                     <th>Email</th>
                     <th>Buildings</th>
-                    <th>Actions</th>
+                    {/* <th>Actions</th> */}
                   </tr>
                 </thead>
                 <tbody>
@@ -434,39 +446,6 @@ export default function UserManagementPage() {
                           </td>
                           <td>
                             <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-                              <button
-                                onClick={() => Assign(user.user_id)}
-                                className="btn"
-                                style={{
-                                  fontSize: "var(--fs-small)",
-                                  padding: "4px 12px",
-                                  backgroundColor:
-                                    user.role_type === "ADMIN"
-                                      ? "var(--brand-ink-muted)"
-                                      : "var(--brand-primary)",
-                                  color: "white",
-                                }}
-                              >
-                                Assign
-                              </button>
-                              <button
-                                onClick={() => Remove(user.user_id)}
-                                className="btn"
-                                style={{
-                                  fontSize: "var(--fs-small)",
-                                  padding: "4px 12px",
-                                  backgroundColor: buildingCount > 0 ? "var(--brand-warning)" : "var(--brand-ink-muted)",
-                                  color: "white",
-                                }}
-                                disabled={buildingCount === 0}
-                                title={
-                                  buildingCount === 0
-                                    ? "No buildings to remove"
-                                    : "Remove a building from user"
-                                }
-                              >
-                                Remove
-                              </button>
                               {/* <button
                                 onClick={() => deleteUser(user.user_id)}
                                 className="btn btn-danger"

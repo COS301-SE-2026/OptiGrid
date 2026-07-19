@@ -83,10 +83,10 @@ export async function POST(req: Request) {
         });
         const payload = await resp.json();
         
-        return NextResponse.json({
+        return NextResponse.json(
             payload,
-            status: resp.status
-        });
+            {status: resp.status}
+        );
     }
     catch{
         return NextResponse.json({
@@ -115,10 +115,10 @@ export async function DELETE(req:Request) {
         });
         const payload = await resp.json();
         
-        return NextResponse.json({
+        return NextResponse.json(
             payload,
-            status: resp.status
-        });
+            {status: resp.status}
+        );
     }
     catch{
         return NextResponse.json({
