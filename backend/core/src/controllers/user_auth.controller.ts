@@ -88,78 +88,47 @@ export const getManagersController = async (req:Request, resp:Response) => {
     }
 };
 
-export const assignManagerController = async (req:Request, resp:Response) => {
-    try {
-        const {userId, buildingId} =req.body;
-        if(!userId || !buildingId) {
-            return resp.status(400).json({
-                status: "error",
-                message: "Both UserId and BuildingId are required"
-            });
-        }
-
-        const user = await prisma.user.findUnique({
-            where: {userId},
-            select: {
-                roleType: true
+const helperForManager = (
+    funcToCall: (userId: string, buildingId: string) => Promise<any>,
+    action: string
+) => {
+    return async (req: Request, resp: Response) => {
+        try{
+           const {userId, buildingId} =req.body;
+            if(!userId || !buildingId) {
+                return resp.status(400).json({
+                    status: "error",
+                    message: "Both UserId and BuildingId are required"
+                });
             }
-        });
-        if(!user) {
-            return resp.status(404).json({
-                message: "User not found"
-            });
-        }
-        if(user.roleType !== "BUILDING_MANAGER") {
-            return resp.status(403).json({
-                message: "User has to be a manager"
-            });
-        }
 
-        const out = await authService.assignMangerToBuilding(userId, buildingId);
-        return resp.status(200).json(out);
-    }
-    catch(error: unknown) {
-        console.error("Error when assigning: ", error);
-        return resp.status(500).json({
-            message: "Internal Server Error"
-        });
-    }
-};
-
-export const removeManagerController = async (req:Request, resp:Response) => {
-    try {
-        const {userId, buildingId} =req.body;
-        if(!userId || !buildingId) {
-            return resp.status(400).json({
-                status: "error",
-                message: "Both UserId and BuildingId are required"
+            const user = await prisma.user.findUnique({
+                where: {userId},
+                select: {
+                    roleType: true
+                }
             });
-        }
-
-        const user = await prisma.user.findUnique({
-            where: {userId},
-            select: {
-                roleType: true
+            if(!user) {
+                return resp.status(404).json({
+                    message: "User not found"
+                });
             }
-        });
-        if(!user) {
-            return resp.status(404).json({
-                message: "User not found"
-            });
-        }
-        if(user.roleType !== "BUILDING_MANAGER") {
-            return resp.status(403).json({
-                message: "User has to be a manager"
-            });
-        }
+            if(user.roleType !== "BUILDING_MANAGER") {
+                return resp.status(403).json({
+                    message: "User has to be a manager"
+                });
+            }
 
-        const out = await authService.removeAssignment(userId, buildingId);
-        return resp.status(200).json(out);
-    }
-    catch(error: unknown) {
-        console.error("Error when removing assignment: ", error);
-        return resp.status(500).json({
-            message: "Internal Server Error"
-        });
-    }
+            const out = await funcToCall(userId, buildingId);
+            return resp.status(200).json(out);
+        }
+        catch(error: unknown) {
+            console.error(`Error when ${action}: `, error);
+            return resp.status(500).json({
+                message: "Internal Server Error"
+            });
+        }    
+    };
 };
+export const assignManagerController = helperForManager(authService.assignMangerToBuilding, "assigning");
+export const removeManagerController = helperForManager(authService.removeAssignment, "removing");

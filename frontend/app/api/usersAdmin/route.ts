@@ -26,9 +26,7 @@ function readCookieValue(cookieHeader: string | null, cName: string): string | n
 }
 
 function createIdempotencyKey(prefix = "buildings"): string {
-    const id = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-    const out = `${prefix}-${id}`;
-    return out;
+    return `${prefix}-${crypto.randomUUID()}`;
 }
 
  function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {

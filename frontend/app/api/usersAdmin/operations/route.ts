@@ -5,35 +5,26 @@ const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 const SESSION_COOKIE_NAME = "optigrid_session";
 
 export type ForwardHeaderOptions = {
-    includeContentType?: boolean;
     includeIdempotency?: boolean;
     idempotencyPrefix?: string;
+    includeContentType?: boolean;
 };
 
 function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
-    if (!cookieHeader) {
-        return null;
-    }
-
-    const segments = cookieHeader.split(";");
-    for (const segment of segments) {
-        const [name, ...valueParts] = segment.trim().split("=");
+    if (!cookieHeader) return null;
+    const part = cookieHeader.split(";");
+    for (const i of part) {
+        const [name, ...valueParts] = i.trim().split("=");
         if (name === cookieName) {
-            const rawValue = valueParts.join("=").trim();
-            return rawValue ? decodeURIComponent(rawValue) : null;
+            const value = valueParts.join("=").trim();
+            return value ? decodeURIComponent(value) : null;
         }
     }
-
     return null;
 }
 
 function createIdempotencyKey(prefix = "buildings"): string {
-    const randomId =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random()}`;
-
-    return `${prefix}-${randomId}`;
+    return `${prefix}-${crypto.randomUUID()}`;
 }
 
  function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {
@@ -43,26 +34,18 @@ function createIdempotencyKey(prefix = "buildings"): string {
     const cookie = request.headers.get("cookie");
     const accessTokenFromCookie = readCookieValue(cookie, ACCESS_TOKEN_COOKIE_NAME);
     const sessionCookie = readCookieValue(cookie, SESSION_COOKIE_NAME);
-    const resolvedAuthorizationHeader =
-        authorization || (accessTokenFromCookie ? `Bearer ${accessTokenFromCookie}` : null);
+    const resolvedAuthorizationHeader = authorization || (accessTokenFromCookie ? `Bearer ${accessTokenFromCookie}` : null);
 
-    if (!resolvedAuthorizationHeader && !sessionCookie) {
-        return null;
-    }
-
-    if (resolvedAuthorizationHeader) {
-        headers.set("Authorization", resolvedAuthorizationHeader);
-    }
+    if (!resolvedAuthorizationHeader && !sessionCookie) return null;
+    if (resolvedAuthorizationHeader) headers.set("Authorization", resolvedAuthorizationHeader);
     if (cookie) headers.set("Cookie", cookie);
     if (includeContentType) headers.set("Content-Type", "application/json");
     if (includeIdempotency) {
         const incomingIdempotencyKey = request.headers.get("idempotency-key")?.trim();
-        headers.set(
-            "Idempotency-Key",
+        headers.set("Idempotency-Key",
             incomingIdempotencyKey || createIdempotencyKey(idempotencyPrefix),
         );
     }
-
     return headers;
 }
 
