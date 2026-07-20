@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTheme } from "../theme-provider";
 
 interface UserProfile {
   first_name: string;
@@ -11,8 +12,35 @@ interface UserProfile {
   role: "admin" | "manager" | "user";
 }
 
+
+function SunIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  );
+}
+
+
+function MoonIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
 export default function SettingsPage() {
   const router = useRouter();
+  const {theme,toggle} = useTheme();
 
   const [profile, setProfile] = useState<UserProfile>({
     first_name: "Tali",
@@ -69,6 +97,20 @@ export default function SettingsPage() {
     setTimeout(() => {
       router.push("/login");
     }, 500);
+  };
+
+    const handleThemeToggle = async () => {
+    toggle();
+    const newTheme = theme === "light" ? "dark" : "light";
+    try {
+      await fetch("/api/preferences/theme", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: newTheme }),
+      });
+    } catch (e) {
+      console.error("Failed to sync theme to backend", e);
+    }
   };
 
   return (
@@ -168,6 +210,38 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+
+
+                    <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+            <h2 style={{ marginBottom: "var(--space-4)" }}>Appearance</h2>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "var(--space-3)",
+                backgroundColor: "var(--brand-surface-alt)",
+                borderRadius: "var(--radius-md)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                {theme === "light" ? <SunIcon /> : <MoonIcon />}
+                <span style={{ fontWeight: "var(--fw-medium)" }}>
+                  {theme === "light" ? "Light Mode" : "Dark Mode"}
+                </span>
+              </div>
+              <button
+                onClick={handleThemeToggle}
+                className="btn btn-primary"
+                style={{ padding: "6px 16px", fontSize: "var(--fs-small)" }}
+              >
+                Switch to {theme === "light" ? "Dark" : "Light"} Mode
+              </button>
+            </div>
+          </div>
+
+
+
 
           <div className="card" style={{ marginBottom: "var(--space-5)" }}>
             <h2 style={{ marginBottom: "var(--space-4)" }}>Help & Contact</h2>
