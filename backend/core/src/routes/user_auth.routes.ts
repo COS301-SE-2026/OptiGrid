@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { signup, login, getManagersController, getViewersController, assignManagerController, removeManagerController } from '../controllers/user_auth.controller';
-import { validateSignUp, validateBody, signupSchema, loginSchema, userBuildingsSchema } from '../validation/user_auth.validation';
+import { validateSignUp, validateBody, signupSchema, loginSchema } from '../validation/user_auth.validation';
 import { reqRole } from '../middleware/rbac.middleware';
 import { authenticateRequest } from '../middleware/auth.middleware';
 import { UserRole } from '@prisma/client';

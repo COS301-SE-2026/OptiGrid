@@ -205,7 +205,19 @@ export default function UserManagementPage() {
           })
         });
 
-        if(resp.ok) setUsers((prev) => prev.map((u) => u.user_id === selectedUserId ? { ...u, building_ids: u.building_ids.filter(id => id !== selectedBuildingId) } : u));
+        if(resp.ok) {
+          const userBuildings = (user) => {
+            if(user.user_id !== selectedUserId) return user;
+            const buildingUpdated = user.building_ids.filter(
+              (id) => id !== selectedBuildingId
+            );
+            return {
+              ...user,
+              building_ids: buildingUpdated
+            };
+          };
+          setUsers((prev) => prev.map(userBuildings));
+        }
         else alert("Failed To Remove Building");
       }
     }

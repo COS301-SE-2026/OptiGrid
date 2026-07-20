@@ -119,6 +119,7 @@ export const assignManagerController = async (req:Request, resp:Response) => {
         return resp.status(200).json(out);
     }
     catch(error: unknown) {
+        console.error("Error when assigning: ", error);
         return resp.status(500).json({
             message: "Internal Server Error"
         });
