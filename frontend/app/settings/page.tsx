@@ -12,7 +12,6 @@ interface UserProfile {
   role: "admin" | "manager" | "user";
 }
 
-
 function SunIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -29,7 +28,6 @@ function SunIcon() {
   );
 }
 
-
 function MoonIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -40,7 +38,7 @@ function MoonIcon() {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const {theme,toggle} = useTheme();
+  const { theme, toggle } = useTheme();
 
   const [profile, setProfile] = useState<UserProfile>({
     first_name: "Tali",
@@ -49,7 +47,6 @@ export default function SettingsPage() {
     role: "admin",
   });
 
-  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
@@ -62,7 +59,6 @@ export default function SettingsPage() {
   };
 
   const handleSaveChanges = () => {
-    setIsEditing(false);
     showToastMessage("Profile changes saved");
   };
 
@@ -73,7 +69,6 @@ export default function SettingsPage() {
       email: "Tali@example.com",
       role: "admin",
     });
-    setIsEditing(false);
     showToastMessage("Profile reset to default");
   };
 
@@ -99,7 +94,7 @@ export default function SettingsPage() {
     }, 500);
   };
 
-    const handleThemeToggle = async () => {
+  const handleThemeToggle = async () => {
     toggle();
     const newTheme = theme === "light" ? "dark" : "light";
     try {
@@ -138,13 +133,13 @@ export default function SettingsPage() {
               }}
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                <label className="label">First Name</label>
+                <label className="label" htmlFor="firstName">First Name</label>
                 <input
+                  id="firstName"
                   type="text"
                   value={profile.first_name}
                   onChange={(e) => {
                     setProfile({ ...profile, first_name: e.target.value });
-                    setIsEditing(true);
                   }}
                   className="input"
                   placeholder="Enter first name"
@@ -152,13 +147,13 @@ export default function SettingsPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                <label className="label">Last Name</label>
+                <label className="label" htmlFor="lastName">Last Name</label>
                 <input
+                  id="lastName"
                   type="text"
                   value={profile.last_name}
                   onChange={(e) => {
                     setProfile({ ...profile, last_name: e.target.value });
-                    setIsEditing(true);
                   }}
                   className="input"
                   placeholder="Enter last name"
@@ -166,13 +161,13 @@ export default function SettingsPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                <label className="label">Email Address</label>
+                <label className="label" htmlFor="email">Email Address</label>
                 <input
+                  id="email"
                   type="email"
                   value={profile.email}
                   onChange={(e) => {
                     setProfile({ ...profile, email: e.target.value });
-                    setIsEditing(true);
                   }}
                   className="input"
                   placeholder="Enter email address"
@@ -180,8 +175,9 @@ export default function SettingsPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                <label className="label">Role</label>
+                <label className="label" htmlFor="role">Role</label>
                 <input
+                  id="role"
                   type="text"
                   value={profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
                   className="input"
@@ -202,17 +198,16 @@ export default function SettingsPage() {
                 borderTop: "1px solid var(--brand-border)",
               }}
             >
-              <button onClick={handleSaveChanges} className="btn btn-primary">
+              <button type="button" onClick={handleSaveChanges} className="btn btn-primary">
                 Save Changes
               </button>
-              <button onClick={handleResetToDefault} className="btn btn-secondary">
+              <button type="button" onClick={handleResetToDefault} className="btn btn-secondary">
                 Reset to Default
               </button>
             </div>
           </div>
 
-
-                    <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+          <div className="card" style={{ marginBottom: "var(--space-5)" }}>
             <h2 style={{ marginBottom: "var(--space-4)" }}>Appearance</h2>
             <div
               style={{
@@ -231,6 +226,7 @@ export default function SettingsPage() {
                 </span>
               </div>
               <button
+                type="button"
                 onClick={handleThemeToggle}
                 className="btn btn-primary"
                 style={{ padding: "6px 16px", fontSize: "var(--fs-small)" }}
@@ -239,9 +235,6 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
-
-
-
 
           <div className="card" style={{ marginBottom: "var(--space-5)" }}>
             <h2 style={{ marginBottom: "var(--space-4)" }}>Help & Contact</h2>
@@ -297,6 +290,7 @@ export default function SettingsPage() {
               }}
             >
               <button
+                type="button"
                 onClick={handleLogout}
                 className="btn"
                 style={{
@@ -310,6 +304,7 @@ export default function SettingsPage() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setShowDeleteModal(true)}
                 className="btn btn-danger"
                 style={{
@@ -332,10 +327,17 @@ export default function SettingsPage() {
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "var(--space-4)",
-            
               }}
               onClick={(e) => {
                 if (e.target === e.currentTarget) {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText("");
+                }
+              }}
+              role="dialog"
+              aria-modal="true"
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
                   setShowDeleteModal(false);
                   setDeleteConfirmText("");
                 }
@@ -352,10 +354,11 @@ export default function SettingsPage() {
                 </div>
 
                 <div style={{ marginBottom: "var(--space-4)" }}>
-                  <label className="label">
+                  <label className="label" htmlFor="deleteConfirm">
                     Type <span style={{ color: "var(--brand-danger)", fontWeight: "bold" }}>DELETE</span> to confirm
                   </label>
                   <input
+                    id="deleteConfirm"
                     type="text"
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
@@ -371,6 +374,7 @@ export default function SettingsPage() {
 
                 <div style={{ display: "flex", gap: "var(--space-3)" }}>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowDeleteModal(false);
                       setDeleteConfirmText("");
@@ -381,6 +385,7 @@ export default function SettingsPage() {
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={handleDeleteAccount}
                     className="btn btn-danger"
                     style={{ flex: 1 }}
@@ -396,14 +401,16 @@ export default function SettingsPage() {
             <div
               style={{
                 position: "fixed",
-                bottom: "var(--space-4)",
+                bottom: "var(--space-4)",                
                 backgroundColor: "var(--brand-ink)",
                 color: "var(--brand-bg)",
                 padding: "var(--space-3) var(--space-5)",
                 borderRadius: "var(--radius-md)",
+                boxShadow: "var(--shadow-card)",
                 fontFamily: "var(--font-body)",
                 fontSize: "var(--fs-body)",
               }}
+              role="alert"
             >
               {toastMessage}
             </div>
