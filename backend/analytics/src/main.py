@@ -40,6 +40,16 @@ def init_building(payload: BuildingInitPayLoad):
         raise HTTPException(status_code=500, detail=f"Internal Engine error during provisioning: {str(e)}")
 
 
+@app.post("/refresh-building/{building_id}")
+def refresh_building(building_id: str):
+    try:
+        data = engine_instance.refresh_todays_metrics(building_id)
+        return {"status": "success", "data": data}
+    except Exception as e:
+        logger.error(f"Failed to refresh metrics for {building_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Refresh failed")
+
+
 def run_scheduler():
     logger.info("Background analytics scheduler started")
     schedule.every().hour.at(":00").do(run_analytics_batch)
