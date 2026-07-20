@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
+const CORE_URL = process.env.CORE_URL ?? "https://core:4000";
 const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 const SESSION_COOKIE_NAME = "optigrid_session";
 
@@ -12,47 +12,42 @@ export type ForwardHeaderOptions = {
 
 function readCookieValue(cookieHeader: string | null, cName: string): string | null {
     if (!cookieHeader) return null;
-    const segments = cookieHeader.split(";");
+    const parts = cookieHeader.split(";");
 
-    for (const segment of segments) {
-        const [name, ...valueParts] = segment.trim().split("=");
+    for (const part of parts) {
+        const [name, ...valueParts] = part.trim().split("=");
         if (name === cName) {
             const val = valueParts.join("=").trim();
-            return val ? decodeURIComponent(val) : null;
+            if(val) return decodeURIComponent(val)
+            else return null;
         }
     }
     return null;
 }
 
 function createIdempotencyKey(prefix = "buildings"): string {
-    const randomId = typeof crypto !== "undefined" && 
-    typeof crypto.randomUUID === "function"
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random()}`;
-
-    const out = `${prefix}-${randomId}`;
+    const id = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    const out = `${prefix}-${id}`;
     return out;
 }
 
  function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {
     const { includeContentType = false, includeIdempotency = false, idempotencyPrefix } = options;
     const headers = new Headers();
-    const authorization = request.headers.get("authorization");
+    const auth = request.headers.get("authorization");
     const cookie = request.headers.get("cookie");
     const accessTokenFromCookie = readCookieValue(cookie, ACCESS_TOKEN_COOKIE_NAME);
     const sessionCookie = readCookieValue(cookie, SESSION_COOKIE_NAME);
-    const resolvedAuthorizationHeader = authorization || (accessTokenFromCookie ? `Bearer ${accessTokenFromCookie}` : null);
+    const resolvedAuthHeader = auth || (accessTokenFromCookie ? `Bearer ${accessTokenFromCookie}` : null);
 
-    if (!resolvedAuthorizationHeader && !sessionCookie) return null;
+    if (!resolvedAuthHeader && !sessionCookie) return null;
 
-    if (resolvedAuthorizationHeader) headers.set("Authorization", resolvedAuthorizationHeader);
+    if (resolvedAuthHeader) headers.set("Authorization", resolvedAuthHeader);
     if (cookie) headers.set("Cookie", cookie);
     if (includeContentType) headers.set("Content-Type", "application/json");
     if (includeIdempotency) {
-        const incomingIdempotencyKey = request.headers.get("idempotency-key")?.trim();
-        headers.set( "Idempotency-Key",
-            incomingIdempotencyKey || createIdempotencyKey(idempotencyPrefix),
-        );
+        const key = request.headers.get("idempotency-key")?.trim();
+        headers.set( "Idempotency-Key", key || createIdempotencyKey(idempotencyPrefix),);
     }
     return headers;
 }

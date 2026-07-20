@@ -35,20 +35,6 @@ export default function UserManagementPage() {
       .map((b) => b.building_name);
   };
 
-  const isBuildingAssignedToUser = (buildingId: string, excludeUserId?: string) => {
-    return users.some(
-      (u) => 
-        u.user_id !== excludeUserId && 
-        u.role_type !== "BUILDING_MANAGER" && 
-        u.building_ids.includes(buildingId)
-    );
-  };
-
-  const getBuildingOwner = (buildingId: string) => {
-    const owner = users.find((u) => u.building_ids.includes(buildingId));
-    return owner ? owner.first_name : null;
-  };
-
   const filteredUsers = useMemo(() => {
     let result = [...users];
 
