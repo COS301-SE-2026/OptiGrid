@@ -143,18 +143,32 @@ model Sensor {
   @@map("sensors")
 }
 
-model BuildingAnalytics {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  building_id      String   @unique @db.Uuid
-  todays_usage     Float?
-  forecast_peak    Float?
-  forecast_avg_day Float?
-  model_mape       Float?
-  forecast_series  Json?    @db.JsonB
-  updated_at       DateTime @default(now()) @db.Timestamptz
+model building_analytics_weekly {
+  building_id      String    @id @db.Uuid
+  todays_usage     Decimal?  @default(0.0) @db.Decimal
+  todays_cost      Decimal?  @default(0.0) @db.Decimal
+  forecast_peak    Decimal?  @default(0.0) @db.Decimal
+  forecast_avg_day Decimal?  @default(0.0) @db.Decimal
+  model_mape       Decimal?  @default(0.0) @db.Decimal
+  forecast_series  Json?
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+  min_historic     Decimal?  @default(0.0) @db.Decimal
+  max_historic     Decimal?  @default(0.0) @db.Decimal
+  min_forecast     Decimal?  @default(0.0) @db.Decimal
+  max_forecast     Decimal?  @default(0.0) @db.Decimal
+}
 
-  building         Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
-
-  @@index([building_id])
-  @@map("building_analytics")
+model building_analytics_monthly {
+  building_id      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  todays_usage     Decimal?  @default(0.0) @db.Decimal
+  todays_cost      Decimal?  @default(0.0) @db.Decimal
+  forecast_peak    Decimal?  @default(0.0) @db.Decimal
+  forecast_avg_day Decimal?  @default(0.0) @db.Decimal
+  model_mape       Decimal?  @default(0.0) @db.Decimal
+  forecast_series  Json?     @default("0.0")
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+  min_historic     Decimal?  @default(0.0) @db.Decimal
+  max_historic     Decimal?  @default(0.0) @db.Decimal
+  min_forecast     Decimal?  @default(0.0) @db.Decimal
+  max_forecast     Decimal?  @default(0.0) @db.Decimal
 }
