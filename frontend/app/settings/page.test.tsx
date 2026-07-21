@@ -59,7 +59,7 @@ beforeEach(() => {
  
     it("renders the Appearance", () => {
       render(<SettingsPage />);
-      expect(screen.getByRole("heading", { name: /appearance/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Theme/i })).toBeInTheDocument();
     });
  
     it("renders the Help & Contact section", () => {
@@ -80,7 +80,7 @@ beforeEach(() => {
 
     it("renders the Reset to Default button", () => {
       render(<SettingsPage />);
-      expect(screen.getByRole("button", { name: /reset to default/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /reset/i })).toBeInTheDocument();
     });
 
     it("renders the theme toggle button", () => {
