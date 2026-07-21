@@ -14,9 +14,48 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  jest.clearAllMocks();
-  (window.confirm as jest.Mock).mockImplementation(() => true);
+  global.fetch = jest.fn((url: string) => {
+      if (url.includes("/api/admin")) {
+        return Promise.resolve({
+          json: () => Promise.resolve({ 
+            data: [{ 
+              buildingId: "b1", 
+              buildingName: "Building-123 A" 
+            }] 
+          })
+        });
+      }
+      if (url.includes("role=viewers")) {
+        return Promise.resolve({
+          json: () => Promise.resolve({ data: [{ 
+              userId: "u1", firstName: "Alice", 
+              email: "alice@test.com", 
+              roleType: "VIEWER", 
+              buildingIds: [] 
+            }] 
+          })
+        });
+      }
+      if (url.includes("role=managers")) {
+        return Promise.resolve({
+          json: () => Promise.resolve({ 
+            data: [{ 
+              userId: "m1", 
+              firstName: "Bob", 
+              email: "bob@test.com", 
+              roleType: "BUILDING_MANAGER", 
+              buildingIds: [] 
+            }] 
+          })
+        });
+      }
+      return Promise.resolve({ json: () => 
+        Promise.resolve([]) 
+      });
+    }) as jest.Mock;
 });
+
+afterEach(() => jest.restoreAllMocks());
 
 const getSortSelect = () => screen.getByRole("combobox");
 const getSearchInput = () => screen.getByPlaceholderText(/name or email/i);
@@ -68,11 +107,10 @@ describe("UserManagementPage", () => {
       ).toBeInTheDocument();
     });
 
-    it("renders Assign buttons", () => {
+    it("renders Assign buttons", async () => {
       render(<UserManagementPage />);
-      expect(
-        screen.getAllByRole("button", { name: /^assign$/i }).length
-      ).toBeGreaterThan(0);
+      const assignButtons = await screen.findAllByRole("button", { name: /^assign$/i });
+      expect(assignButtons.length).toBeGreaterThan(0);
     });
   });
 });
