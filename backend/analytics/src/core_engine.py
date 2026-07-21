@@ -170,108 +170,243 @@ class AnalyticsEngine:
         df_ml['lag_1'] = df_ml['usage'].shift(1)
         return df_ml.dropna()  # get rid of first row which as a NaN lag value
     
-    def train_and_forecast(self, df: pd.DataFrame, building_id: str) -> dict:
+    def train_and_forecast_weekly(self, df: pd.DataFrame, building_id: str) -> dict:
         # trains models and selects which is best via MAPE, then forecasts next 24 hours
         if len(df) < 24:
-            return None
-        
+            return {}
+
+        df_ml = df.copy()
+        df_ml['hour'] = df_ml['timestamp'].dt.hour
+        df_ml['day_of_week'] = df_ml['timestamp'].dt.dayofweek
+        df_ml['lag_1'] = df_ml['usage'].shift(1)
+        df_ml = df_ml.dropna()
+
         # prepare features (X) and target (y)
         features = ['hour', 'day_of_week', 'lag_1']
-        X = df[features]
-        y = df['usage']
-        
-        # def objective function optuna
-        def objective(trial):
-            # optuna chooses which algorithm to test for this specific trail
-            regressor_name = trial.suggest_categorical("regressor", ["RandomForest", "GradientBoosting"])
-            
-            # define hyperparams
-            if regressor_name == "RandomForest":
-                rf_n_estimators = trial.suggest_int("rf_n_estimators", 20, 100)  # 20 to 100 trees
-                rf_max_depth = trial.suggest_int("rf_max_depth", 3, 15)  # tree depth controls complexity
-                model = RandomForestRegressor(n_estimators=rf_n_estimators, max_depth=rf_max_depth, random_state=42)
-            else:
-                gb_n_estimators = trial.suggest_int("gb_n_estimators", 20, 100)  # no of boosting stages
-                gb_max_depth = trial.suggest_int("gb_max_depth", 3, 10)
-                gb_learning_rate = trial.suggest_float("gb_learning_rate", 1e-3, 0.3, log=True)  # step size log scale
-                model = GradientBoostingRegressor(n_estimators=gb_n_estimators, max_depth=gb_max_depth, learning_rate=gb_learning_rate, random_state=42)
-            
-            # evaluates trail model using 3 fold cross validation
-            # negative mape since sklearn maximises scores
-            cv_scores = cross_val_score(model, X, y, cv=3, scoring='neg_mean_absolute_percentage_error')
-            # return positive mape (lower is better), optuna tries to minimise this
-            return -cv_scores.mean()
+        X = df_ml[features]
+        y = df_ml['usage']
 
-        # run optuna study
-        study = optuna.create_study(direction="minimize")
-        study.optimize(objective, n_trials=15)
-        
-        # get best model from best trial
-        best_params = study.best_params
-        best_model_name = best_params["regressor"]
-        best_mape = study.best_value
-        
-        # build best model with optimal hyperparamters
-        if best_model_name == "RandomForest":
-            best_model = RandomForestRegressor(
-                n_estimators=best_params["rf_n_estimators"], 
-                max_depth=best_params["rf_max_depth"],
-                random_state=42)
-        else:
-            best_model = GradientBoostingRegressor(
-                n_estimators=best_params["gb_n_estimators"], 
-                max_depth=best_params["gb_max_depth"],
-                learning_rate=best_params["gb_learning_rate"],
-                random_state=42)
-        
-        # train all data on the best model
-        best_model.fit(X, y)
-        
-        # autoregressive 24 hour forecast
-        last_timestamp = df['timestamp'].iloc[-1]  # timestamp of the last known data point
-        current_lag = df['usage'].iloc[-1]  # last known usage value
-        
-        forecast_series = []  # stores 24 hourly predictions
-        
-        # generate predictions for next 24 hours, 1 hour at a time
-        for i in range(1, 25):
-            next_time = last_timestamp + timedelta(hours=i)
-            next_features = pd.DataFrame([{
-                'hour': next_time.hour,
-                'day_of_week': next_time.dayofweek,
-                'lag_1': current_lag
-            }])
+        # the objective function used by optuna to determine the better model
+        def objective(trial):
+            regressor_name = trial.suggest_categorical("regressor", ["RandomForest", "GradientBoosting"])
+            # def hyper params
+            if regressor_name == "RandomForest":
+                n_estimators = trial.suggest_int("n_estimators", 20, 100)
+                max_depth = trial.suggest_int("max_depth", 3, 15)
+                model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+            else:
+                n_estimators = trial.suggest_int("n_estimators", 20, 100)
+                max_depth = trial.suggest_int("max_depth", 3, 10)
+                learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
+                model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42)
             
-            # append prediction to forecast series
+            scores = cross_val_score(model, X, y, cv=3, scoring='neg_mean_absolute_percentage_error')
+            return -scores.mean()
+
+        study = optuna.create_study(direction="minimize")
+        study.optimize(objective, n_trials=10)
+        
+        best_params = study.best_params
+        if best_params["regressor"] == "RandomForest":
+            best_model = RandomForestRegressor(n_estimators=best_params["n_estimators"], max_depth=best_params["max_depth"], random_state=42)
+        else:
+            best_model = GradientBoostingRegressor(n_estimators=best_params["n_estimators"], max_depth=best_params["max_depth"], learning_rate=best_params["learning_rate"], random_state=42)
+            
+        # training using better model
+        best_model.fit(X, y)
+
+        last_timestamp = df['timestamp'].iloc[-1]
+        current_lag = df['usage'].iloc[-1]
+        
+        # predicting each hour in the upcoming week
+        forecast_series = []
+        for i in range(1, 169):
+            next_time = last_timestamp + timedelta(hours=i)
+            next_features = pd.DataFrame([{'hour': next_time.hour, 'day_of_week': next_time.dayofweek, 'lag_1': current_lag}])
             pred = best_model.predict(next_features)[0]
-            forecast_series.append({
-                "timestamp": next_time.isoformat(),
-                "predicted_usage": round(pred, 2)
-            })
-            # update the lag to be the predication for the next run, 
-            # auto-regressive = using predictions as inputs
+            forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred, 2)})
             current_lag = pred
+
+        daily_sums = [sum(f["predicted_usage"] for f in forecast_series[i:i+24]) for i in range(0, 168, 24)]
         
-        forecast_peak = max(f["predicted_usage"] for f in forecast_series)
-        forecast_avg_day = sum(f["predicted_usage"] for f in forecast_series) / 24.0
+        return {
+            "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
+            "forecast_avg_day": round(sum(daily_sums) / 7.0, 2),
+            "model_mape": round(study.best_value, 4),
+            "forecast_series": forecast_series,
+            "min_historic": round(df['usage'].min(), 2),
+            "max_historic": round(df['usage'].max(), 2),
+            "min_forecast": round(min(f["predicted_usage"] for f in forecast_series), 2),
+            "max_forecast": round(max(f["predicted_usage"] for f in forecast_series), 2)
+        }
         
-        # MLOps logging
-        try:
-            with mlflow.start_run(run_name=f"Bld_{building_id}_{datetime.now().strftime('%H%M%S')}"):
-                mlflow.log_param("building_id", building_id)
-                mlflow.log_param("champion_model", best_model_name)
-                mlflow.log_params(best_params)  # Logs the exact depths/rates chosen
-                mlflow.log_metric("cv_mape", best_mape)
-                mlflow.log_metric("forecast_peak", forecast_peak)
-        except Exception as e:
-            logger.warning(f"MLflow logging bypassed: {e}")
+    # same overall logic as the weekly prediction but rather for 3 months in increments of weeks
+    def train_and_forecast_monthly(self, df: pd.DataFrame, building_id: str) -> dict:
+        # trains models and selects which is best via MAPE, then forecasts next 4 weeks
+        if len(df) < 4:
+            return {}
+
+        df_ml = df.copy()
+        df_ml['week'] = df_ml['timestamp'].dt.isocalendar().week.astype(int)
+        df_ml['month'] = df_ml['timestamp'].dt.month
+        df_ml['lag_1'] = df_ml['usage'].shift(1)
+        df_ml = df_ml.dropna()
+
+        features = ['week', 'month', 'lag_1']
+        X = df_ml[features]
+        y = df_ml['usage']
+
+        def objective(trial):
+            regressor_name = trial.suggest_categorical("regressor", ["RandomForest", "GradientBoosting"])
+            if regressor_name == "RandomForest":
+                n_estimators = trial.suggest_int("n_estimators", 20, 100)
+                max_depth = trial.suggest_int("max_depth", 3, 10)
+                model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+            else:
+                n_estimators = trial.suggest_int("n_estimators", 20, 100)
+                max_depth = trial.suggest_int("max_depth", 3, 10)
+                learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
+                model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42)
+            
+            scores = cross_val_score(model, X, y, cv=2, scoring='neg_mean_absolute_percentage_error')
+            return -scores.mean()
+
+        study = optuna.create_study(direction="minimize")
+        study.optimize(objective, n_trials=10)
+        
+        # Build and train best model
+        best_params = study.best_params
+        if best_params["regressor"] == "RandomForest":
+            best_model = RandomForestRegressor(n_estimators=best_params["n_estimators"], max_depth=best_params["max_depth"], random_state=42)
+        else:
+            best_model = GradientBoostingRegressor(n_estimators=best_params["n_estimators"], max_depth=best_params["max_depth"], learning_rate=best_params["learning_rate"], random_state=42)
+            
+        best_model.fit(X, y)
+
+        last_timestamp = df['timestamp'].iloc[-1]
+        current_lag = df['usage'].iloc[-1]
+        
+        forecast_series = []
+        for i in range(1, 13):
+            next_time = last_timestamp + timedelta(weeks=i)
+            next_features = pd.DataFrame([{'week': next_time.isocalendar().week, 'month': next_time.month, 'lag_1': current_lag}])
+            pred = best_model.predict(next_features)[0]
+            forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred, 2)})
+            current_lag = pred
 
         return {
-            "forecast_peak": round(forecast_peak, 2),
-            "forecast_avg_day": round(forecast_avg_day, 2),
-            "model_mape": round(best_mape, 4),
-            "forecast_series": forecast_series
+            "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
+            "forecast_avg_day": round(sum(f["predicted_usage"] for f in forecast_series) / 12.0, 2),
+            "model_mape": round(study.best_value, 4),
+            "forecast_series": forecast_series,
+            "min_historic": round(df['usage'].min(), 2),
+            "max_historic": round(df['usage'].max(), 2),
+            "min_forecast": round(min(f["predicted_usage"] for f in forecast_series), 2),
+            "max_forecast": round(max(f["predicted_usage"] for f in forecast_series), 2)
         }
+    
+    # def train_and_forecast(self, df: pd.DataFrame, building_id: str) -> dict:
+    #     # trains models and selects which is best via MAPE, then forecasts next 24 hours
+    #     if len(df) < 24:
+    #         return None
+        
+    #     # prepare features (X) and target (y)
+    #     features = ['hour', 'day_of_week', 'lag_1']
+    #     X = df[features]
+    #     y = df['usage']
+        
+    #     # def objective function optuna
+    #     def objective(trial):
+    #         # optuna chooses which algorithm to test for this specific trail
+    #         regressor_name = trial.suggest_categorical("regressor", ["RandomForest", "GradientBoosting"])
+            
+    #         # define hyperparams
+    #         if regressor_name == "RandomForest":
+    #             rf_n_estimators = trial.suggest_int("rf_n_estimators", 20, 100)  # 20 to 100 trees
+    #             rf_max_depth = trial.suggest_int("rf_max_depth", 3, 15)  # tree depth controls complexity
+    #             model = RandomForestRegressor(n_estimators=rf_n_estimators, max_depth=rf_max_depth, random_state=42)
+    #         else:
+    #             gb_n_estimators = trial.suggest_int("gb_n_estimators", 20, 100)  # no of boosting stages
+    #             gb_max_depth = trial.suggest_int("gb_max_depth", 3, 10)
+    #             gb_learning_rate = trial.suggest_float("gb_learning_rate", 1e-3, 0.3, log=True)  # step size log scale
+    #             model = GradientBoostingRegressor(n_estimators=gb_n_estimators, max_depth=gb_max_depth, learning_rate=gb_learning_rate, random_state=42)
+            
+    #         # evaluates trail model using 3 fold cross validation
+    #         # negative mape since sklearn maximises scores
+    #         cv_scores = cross_val_score(model, X, y, cv=3, scoring='neg_mean_absolute_percentage_error')
+    #         # return positive mape (lower is better), optuna tries to minimise this
+    #         return -cv_scores.mean()
+
+    #     # run optuna study
+    #     study = optuna.create_study(direction="minimize")
+    #     study.optimize(objective, n_trials=15)
+        
+    #     # get best model from best trial
+    #     best_params = study.best_params
+    #     best_model_name = best_params["regressor"]
+    #     best_mape = study.best_value
+        
+    #     # build best model with optimal hyperparamters
+    #     if best_model_name == "RandomForest":
+    #         best_model = RandomForestRegressor(
+    #             n_estimators=best_params["rf_n_estimators"], 
+    #             max_depth=best_params["rf_max_depth"],
+    #             random_state=42)
+    #     else:
+    #         best_model = GradientBoostingRegressor(
+    #             n_estimators=best_params["gb_n_estimators"], 
+    #             max_depth=best_params["gb_max_depth"],
+    #             learning_rate=best_params["gb_learning_rate"],
+    #             random_state=42)
+        
+    #     # train all data on the best model
+    #     best_model.fit(X, y)
+        
+    #     # autoregressive 24 hour forecast
+    #     last_timestamp = df['timestamp'].iloc[-1]  # timestamp of the last known data point
+    #     current_lag = df['usage'].iloc[-1]  # last known usage value
+        
+    #     forecast_series = []  # stores 24 hourly predictions
+        
+    #     # generate predictions for next 24 hours, 1 hour at a time
+    #     for i in range(1, 25):
+    #         next_time = last_timestamp + timedelta(hours=i)
+    #         next_features = pd.DataFrame([{
+    #             'hour': next_time.hour,
+    #             'day_of_week': next_time.dayofweek,
+    #             'lag_1': current_lag
+    #         }])
+            
+    #         # append prediction to forecast series
+    #         pred = best_model.predict(next_features)[0]
+    #         forecast_series.append({
+    #             "timestamp": next_time.isoformat(),
+    #             "predicted_usage": round(pred, 2)
+    #         })
+    #         # update the lag to be the predication for the next run, 
+    #         # auto-regressive = using predictions as inputs
+    #         current_lag = pred
+        
+    #     forecast_peak = max(f["predicted_usage"] for f in forecast_series)
+    #     forecast_avg_day = sum(f["predicted_usage"] for f in forecast_series) / 24.0
+        
+    #     # MLOps logging
+    #     try:
+    #         with mlflow.start_run(run_name=f"Bld_{building_id}_{datetime.now().strftime('%H%M%S')}"):
+    #             mlflow.log_param("building_id", building_id)
+    #             mlflow.log_param("champion_model", best_model_name)
+    #             mlflow.log_params(best_params)  # Logs the exact depths/rates chosen
+    #             mlflow.log_metric("cv_mape", best_mape)
+    #             mlflow.log_metric("forecast_peak", forecast_peak)
+    #     except Exception as e:
+    #         logger.warning(f"MLflow logging bypassed: {e}")
+
+    #     return {
+    #         "forecast_peak": round(forecast_peak, 2),
+    #         "forecast_avg_day": round(forecast_avg_day, 2),
+    #         "model_mape": round(best_mape, 4),
+    #         "forecast_series": forecast_series
+    #     }
 
 
     def process_all_buildings(self):
