@@ -1,8 +1,13 @@
 import {Router} from 'express'
 import {handleSensorTelemetry, listSensorsController, registerSensorController, deleteSensorController} from "../controllers/sensor.controller"
 import { authenticateRequest } from "../middleware/auth.middleware"
+import { rateLimiter } from "../middleware/rateLimiter.middleware"
 
 const router = Router();
+
+// Imade the rate limiting for the sensor operations more generous 
+const telemetryRate = rateLimiter(10, 1/10);
+const sensorCrudRate = rateLimiter(30, 2);
 /**
  * @swagger
  * /api/sensors/data:
@@ -56,7 +61,7 @@ const router = Router();
  */
 // POST endpoint for IoT devices to send sensor readings
 // URL: /api/sensors/data
-router.post("/data", handleSensorTelemetry);
+router.post("/data", telemetryRate, handleSensorTelemetry);
 
 /**
  * @swagger
@@ -163,8 +168,8 @@ router.post("/data", handleSensorTelemetry);
  *         description: Internal server error
  */
 //sensor CRUD needs an authenticated user but the IoT devices do not require authentication
-router.get("/", authenticateRequest, listSensorsController);
-router.post("/", authenticateRequest, registerSensorController);
-router.delete("/:sensor_id", authenticateRequest, deleteSensorController);
+router.get("/", authenticateRequest, sensorCrudRate, listSensorsController);
+router.post("/", authenticateRequest, sensorCrudRate, registerSensorController);
+router.delete("/:sensor_id", authenticateRequest, sensorCrudRate, deleteSensorController);
 
 export default router;
