@@ -114,7 +114,12 @@ export default function SettingsPage() {
         <div className="dashboard-main">
           <div className="dashboard-header">
             <div>
-              <h1 className="dashboard-title">Settings</h1>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                <Link href="/dashboard" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+                  Back to Dashboard
+                </Link>
+              </div>
+              <h1 className="dashboard-title" style={{ marginTop: "var(--space-3)" }}>Settings</h1>
               <div className="dashboard-subtitle">Manage your profile and account settings</div>
             </div>
             <div className="badge badge-success" style={{ display: "inline-flex" }}>
@@ -202,13 +207,13 @@ export default function SettingsPage() {
                 Save Changes
               </button>
               <button type="button" onClick={handleResetToDefault} className="btn btn-secondary">
-                Reset to Default
+                Reset
               </button>
             </div>
           </div>
 
           <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-            <h2 style={{ marginBottom: "var(--space-4)" }}>Appearance</h2>
+            <h2 style={{ marginBottom: "var(--space-4)" }}>Theme</h2>
             <div
               style={{
                 display: "flex",
@@ -401,7 +406,7 @@ export default function SettingsPage() {
             <div
               style={{
                 position: "fixed",
-                bottom: "var(--space-4)",                
+                bottom: "var(--space-4)",
                 backgroundColor: "var(--brand-ink)",
                 color: "var(--brand-bg)",
                 padding: "var(--space-3) var(--space-5)",
