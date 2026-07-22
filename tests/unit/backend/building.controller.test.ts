@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import prisma from '../../../backend/core/src/lib/prisma';
-import { createBuildingController, deleteBuildingController, getAllBuildingsController, getBuildingEnergyConsumptionController } from '../../../backend/core/src/controllers/building.controller';
-import { createBuilding, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails } from '../../../backend/core/src/services/building.services';
+import { createBuildingController, deleteBuildingController, getBuildingEnergyConsumptionController } from '../../../backend/core/src/controllers/building.controller';
+import { createBuilding, deleteBuildingService, getBuildingEnergyConsumptionDetails } from '../../../backend/core/src/services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
-import { adminBuildingsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import { buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
 import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
 import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
 import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
@@ -39,6 +39,7 @@ const mockedBuildingEnergyConsumptionQuerySchema = buildingEnergyConsumptionQuer
 const mockedCompareBuildingsService = (buildingServicesModule as any).compareBuildingsService as jest.Mock;
 const mockedDeleteBuildingService = deleteBuildingService as jest.MockedFunction<typeof deleteBuildingService>;
 const mockedDeleteBuildingSchema = deleteBuildingSchema as any;
+const mockedManagerBuildings = (buildingServicesModule as any).getManagerBuildings as jest.Mock;
 
 const mockedCompareBuildingsSchema = (buildingValidationModule as any).compareBuildingsSchema as {
 	parse: jest.Mock;
@@ -909,4 +910,79 @@ describe("Get All Buildings for Admin - COntroller tests", () => {
 			message: "Internal server error",
 		});
 	})
+});
+
+describe("Unit tests for getManagerBuildings", () => {
+	let req: any;
+	let resp: any;
+	beforeEach(() => {
+		resp = {
+			status: jest.fn().mockReturnThis(),
+			json: jest.fn(),
+		};
+		jest.clearAllMocks();
+	});
+
+	it("should_fetch_manager_buildings_and_return_200", async () => {
+		req = {
+			user: {
+				id: "manager",
+				userId: "manager",
+				roleType: "BUILDING_MANAGER",
+				user_metadata: {},
+			},
+		};
+		const buildings = [
+			{
+				building_id: "building1",
+				building_name: "Building",
+				lifecycle_state: "ACTIVE",
+				authorized_users: [
+					{
+						user: {
+							userId: "user123",
+							firstName: "John",
+							roleType: "Viewer"
+						}
+					}
+				]
+			},
+			{
+				building_id: "building2",
+				building_name: "Building 2",
+				lifecycle_state: "PROVISIONING",
+				authorized_users: []
+			}
+			
+		];
+		mockedManagerBuildings.mockResolvedValue(buildings);
+		//act
+		await (buildingControllerModule as any).getManagerBuildingsController(req, resp);
+		//assert
+		expect(mockedManagerBuildings).toHaveBeenCalledWith("manager");
+		expect(resp.status).toHaveBeenCalledWith(200);
+		expect(resp.json).toHaveBeenCalledWith({
+			status:"success", data: buildings,
+		});
+	});
+
+	it("should_return_500_for_unexpect error", async () => {
+		req = {
+			user: {
+				id: "manager",
+				userId: "manager",
+				roleType: "BUILDING_MANAGER",
+				user_metadata: {},
+			},
+		};
+		mockedManagerBuildings.mockRejectedValue(new Error("Something Wrong"));
+		//act
+		await (buildingControllerModule as any).getManagerBuildingsController(req, resp);
+		//assert
+		expect(mockedManagerBuildings).toHaveBeenCalledWith("manager");
+		expect(resp.status).toHaveBeenCalledWith(500);
+		expect(resp.json).toHaveBeenCalledWith({
+			status:"error", message: "Unexpected error",
+		});
+	});
 });

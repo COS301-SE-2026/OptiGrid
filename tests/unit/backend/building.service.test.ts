@@ -1,6 +1,6 @@
 import prisma from '../../../backend/core/src/lib/prisma';
-import { createBuilding, buildingPayload, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, getPortfolioConsumption } from '../../../backend/core/src/services/building.services';
-import { BuildingType } from '@prisma/client';
+import { createBuilding, buildingPayload, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
+	getPortfolioConsumption, getManagerBuildings } from '../../../backend/core/src/services/building.services';
 import { deleteInfluxBucket } from "../../../backend/core/src/services/provisioning.service"
 // Mock Prisma with 
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -863,4 +863,72 @@ describe("Get All Buildings Services Test", () => {
 			},
 		});
 	});
+});
+
+
+describe("Get All Manager Buildings Services Unit Tests", () => {
+	beforeEach(() => {
+		if(!mockedPrisma.building) (mockedPrisma as any).building = {}
+		mockedPrisma.building.findMany = jest.fn();
+	});
+
+	it("should_return_buildings correctly", async() => {
+		const userId = "manager";
+		const building = [
+			{
+				building_id: "building1",
+				building_name: "Building",
+				building_type: "Residential",
+				physical_address: "Something",
+				lifecycle_state: "ACTIVE",
+				authorized_users: [
+					{
+						user: {
+							userId: "user123",
+							firstName: "John",
+							lastName: "Doe",
+							email: "johndoe@gmail.com",
+							roleType: "Viewer"
+						}
+					}
+				]
+			}
+		];
+		const expected = [
+			{
+				building_id: "building1",
+				building_name: "Building",
+				building_type: "Residential",
+				physical_address: "Something",
+				lifecycle_state: "ACTIVE",
+				todays_usage: null,
+				authorized_users: [
+					{
+						user: {
+							userId: "user123",
+							firstName: "John",
+							lastName: "Doe",
+							email: "johndoe@gmail.com",
+							roleType: "Viewer"
+						}
+					}
+				]
+			}
+		];
+		(prisma.building.findMany as jest.Mock).mockResolvedValue(building);
+		//act
+		const out = await getManagerBuildings(userId);
+		//assert
+		expect(out).toEqual(expected);
+		expect(prisma.building.findMany).toHaveBeenCalledTimes(1); 
+	});
+	it("should_return_empty_array_when_no_buildings", async () => {
+		const userId = "manager";
+		(prisma.building.findMany as jest.Mock).mockResolvedValue([]);
+		//act
+		const out = await getManagerBuildings(userId);
+		//assert
+		expect(out).toEqual([]);
+		expect(prisma.building.findMany).toHaveBeenCalledTimes(1);
+	})
 });

@@ -15,7 +15,7 @@ export const getRole = (req: Request) => {
   return {
     userId: userId as string,
     role:user.roleType,
-    tenantId: toUuidOrUndefined(user?.user_metadata.tenant_id),
+    tenantId: toUuidOrUndefined(user?.user_metadata?.tenant_id),
   };
 }
 function toUuidOrUndefined(value: unknown): string | undefined {
