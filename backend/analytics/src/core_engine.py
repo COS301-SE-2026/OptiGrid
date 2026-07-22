@@ -115,60 +115,6 @@ class AnalyticsEngine:
             self.supabase.table("building_analytics_monthly").upsert(update).execute()
 
         return {"update": update}
-
-    def fetch_telemetry(self, building_id: str) -> pd.DataFrame:
-        # fetching raw data from influx for the last 30 days
-        query = f'''
-        from(bucket: "{INFLUXDB_BUCKET}") 
-            |> range(start: -30d) 
-            |> filter(fn: (r) => r["building_id"] == "{building_id}")
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-        '''
-        df = self.influx.query_api().query_data_frame(query)
-        if(df.empty):
-            return pd.DataFrame()
-
-        if "usage" not in df.columns and "usage_kwh" in df.columns:
-            df = df.rename(columns={"usage_kwh": "usage"})
-        if "usage" not in df.columns:
-            logger.warning("Telemetry query returned no usage field.")
-            return pd.DataFrame()
-        
-        df = df.rename(columns={"_time":"timestamp"})  # just renaming column
-        df['timestamp'] = pd.to_datetime(df['timestamp'])  # converting to pandas datatime
-        df['usage'] = pd.to_numeric(df['usage'], errors='coerce').fillna(0.0)  # ensuring usage is numeric and invalid values are 0.0
-        
-        # resample hourly to ensure no stale data
-        df = df.set_index('timestamp')
-        hourly_df = df['usage'].resample('h').mean().ffill().fillna(0.0).reset_index()
-        return hourly_df
-    
-    def compute_todays_metrics(self, df: pd.DataFrame) -> dict:
-        if df.empty: 
-            return {"todays_usage": 0.0, "todays_cost": 0.0}
-        
-        # filter for today's date
-        df = df.copy()
-        df['date_only'] = df['timestamp'].dt.date
-        
-        # Pull the latest available day from the data instead of strict system clock
-        latest_day = df['date_only'].max() 
-        
-        today_df = df[df['date_only'] == latest_day]
-        todays_usage = float(today_df['usage'].sum())
-        todays_cost = todays_usage * UTILITY_RATE_KWH
-        
-        return {
-            "todays_usage": round(todays_usage, 2),
-            "todays_cost": round(todays_cost, 2)
-        }
-        
-    def create_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        df_ml = df.copy()
-        df_ml['hour'] = df_ml['timestamp'].dt.hour
-        df_ml['day_of_week'] = df_ml['timestamp'].dt.dayofweek
-        df_ml['lag_1'] = df_ml['usage'].shift(1)
-        return df_ml.dropna()  # get rid of first row which as a NaN lag value
     
     def train_and_forecast_weekly(self, df: pd.DataFrame, building_id: str) -> dict:
         # trains models and selects which is best via MAPE, then forecasts next 24 hours
@@ -410,72 +356,105 @@ class AnalyticsEngine:
 
 
     def process_all_buildings(self):
-        # gets data for all buildings for the last 24 hours
-        query = f'''
+        # query to fetch last 30 days usage for weekly analysis
+        query_weekly = f'''
         from(bucket: "{INFLUXDB_BUCKET}") 
-            |> range(start: -7d) 
+            |> range(start: -30d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> group()
         '''
-        result = self.influx.query_api().query_data_frame(query)
         
-        # handling the list vs dataframe result
-        if isinstance(result, list):
-            if not result:
-                logger.warning("No data returned from InfluxDB.")
-                return
-            # concat multiple dataframes from list into single dataframe
-            df = pd.concat(result)
-        else:
-            df = result
+        # query to fetch last 180 days usage for monthly analysis
+        query_monthly = f'''
+        from(bucket: "{INFLUXDB_BUCKET}") 
+            |> range(start: -180d) 
+            |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> group()
+        '''
 
-        if df.empty:
-            logger.warning("Dataframe is empty.")
-            return
+        try:
+            # Execute weekly query and convert to data frame
+            res_weekly = self.influx.query_api().query_data_frame(query_weekly)
+            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
+            
+            # Execute monthly query and convert to data frame
+            res_monthly = self.influx.query_api().query_data_frame(query_monthly)
+            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
+        except Exception:
+            return  # exist if db query fails
 
-        # fixing column naming
-        df = df.rename(columns={"_time": "timestamp"})
-        if "usage" not in df.columns and "usage_kwh" in df.columns:
-            df = df.rename(columns={"usage_kwh": "usage"})
-        if "usage" not in df.columns:
-            logger.warning("No usage/usage_kwh field found in analytics source data.")
-            return
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        df['usage'] = pd.to_numeric(df['usage'], errors='coerce').fillna(0.0)
+        # processing weekly data
+        if df_weekly is not None and not df_weekly.empty:
+            # cleaning up column names and data types
+            df_weekly = df_weekly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+            df_weekly['timestamp'] = pd.to_datetime(df_weekly['timestamp'])
+            df_weekly['usage'] = pd.to_numeric(df_weekly['usage'], errors='coerce').fillna(0.0)
 
-        # process each building data individually
-        upsert_payloads = []
-        for building_id, group in df.groupby('building_id'):
-            #resample individual building streams
-            grouped_hourly = group.set_index('timestamp')[['usage']].resample('h').mean().ffill().fillna(0.0).reset_index()
+            weekly_payloads = []
+            # process each building
+            for building_id, group in df_weekly.groupby('building_id'):
+                # resample to hourly averags
+                hourly_group = group.set_index('timestamp')[['usage']].resample('h').mean().ffill().fillna(0.0).reset_index()
+                
+                # calculating today's usage from midnight to lastest timestamp
+                latest_time = hourly_group['timestamp'].max()
+                today_start = latest_time.replace(hour=0, minute=0, second=0, microsecond=0)
+                today_usage = float(hourly_group[hourly_group['timestamp'] >= today_start]['usage'].sum())
+                
+                # train ml model and generate forecasts
+                ml_metrics = self.train_and_forecast_weekly(hourly_group, building_id)
+                if not ml_metrics:
+                    continue  # skip if model training fails
+
+                # preparing weekly analytics record
+                weekly_payloads.append({
+                    "building_id": building_id,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "todays_usage": round(today_usage, 2),
+                    "todays_cost": round(today_usage * UTILITY_RATE_KWH, 2),
+                    **ml_metrics
+                })
+
+            # upload weekly analytics to supabase
+            if weekly_payloads and self.supabase:
+                self.supabase.table("building_analytics_weekly").upsert(weekly_payloads).execute()
+
+        # process monthly data
+        if df_monthly is not None and not df_monthly.empty:
+            # cleaning up column names and data types
+            df_monthly = df_monthly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+            df_monthly['timestamp'] = pd.to_datetime(df_monthly['timestamp'])
+            df_monthly['usage'] = pd.to_numeric(df_monthly['usage'], errors='coerce').fillna(0.0)
+
+            monthly_payloads = []
+            #process each building
+            for building_id, group in df_monthly.groupby('building_id'):
+                #resample to weekly totals
+                weekly_group = group.set_index('timestamp')[['usage']].resample('W').sum().ffill().fillna(0.0).reset_index()
+                
+                #calculate this weeks usage
+                latest_time = weekly_group['timestamp'].max()
+                week_start = latest_time - timedelta(days=latest_time.weekday())
+                week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+                this_week_usage = float(weekly_group[weekly_group['timestamp'] >= week_start]['usage'].sum())
+
+                # train ML model
+                ml_metrics = self.train_and_forecast_monthly(weekly_group, building_id)
+                if not ml_metrics:
+                    continue  # skip if model fails
+
+                # prepare monthly analytics record
+                monthly_payloads.append({
+                    "building_id": building_id,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "todays_usage": round(this_week_usage, 2),
+                    "todays_cost": round(this_week_usage * UTILITY_RATE_KWH, 2),
+                    **ml_metrics
+                })
             
-            # calculate metrics
-            metrics = self.compute_todays_metrics(grouped_hourly)
-            df_features = self.create_features(grouped_hourly)
-            ml_metrics = {
-                "forecast_peak": 0.0,
-                "forecast_avg_day": 0.0,
-                "model_mape": 0.0,
-                "forecast_series": []
-            }
-            
-            if not df_features.empty:
-                results = self.train_and_forecast(df_features, building_id)
-                if results:
-                    ml_metrics = results
-            
-            upsert_payloads.append({
-                "building_id": building_id,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                **metrics,  # unpacks todays_usage and todays_cost
-                **ml_metrics
-            })
-        
-        # bulk upsert command
-        if upsert_payloads and self.supabase is not None:
-            self.supabase.table("building_analytics").upsert(upsert_payloads).execute()
-            logger.info(f"Successfully processed {len(upsert_payloads)} buildings in batch.")
-        elif upsert_payloads:
-            logger.warning("Skipping analytics upsert because Supabase client is unavailable.")
+            #upload monthly to supabase
+            if monthly_payloads and self.supabase:
+                self.supabase.table("building_analytics_monthly").upsert(monthly_payloads).execute()
         
