@@ -19,6 +19,18 @@ const EMPTY_PROFILE: UserProfile = {
   role: "user",
 };
 
+function roleFromSession(roleType: string): UserProfile["role"] {
+  if (roleType === "ADMIN") {
+    return "admin";
+  }
+
+  if (roleType === "BUILDING_MANAGER") {
+    return "manager";
+  }
+
+  return "user";
+}
+
 function profileFromSession(user: Record<string, unknown>): UserProfile {
   const roleType = typeof user.roleType === "string" ? user.roleType : "VIEWER";
 
@@ -26,7 +38,7 @@ function profileFromSession(user: Record<string, unknown>): UserProfile {
     first_name: typeof user.firstName === "string" ? user.firstName : "",
     last_name: typeof user.lastName === "string" ? user.lastName : "",
     email: typeof user.email === "string" ? user.email : "",
-    role: roleType === "ADMIN" ? "admin" : roleType === "BUILDING_MANAGER" ? "manager" : "user",
+    role: roleFromSession(roleType),
   };
 }
 
