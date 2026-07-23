@@ -648,3 +648,54 @@ export const getAllBuildings = async (lifecycle_state?: LifecycleState) => {
     }
   });
 };
+
+export const getManagerBuildings = async (userId: string) => {
+  const building = await prisma.building.findMany({
+    where: {
+      authorized_users: {
+        some: { user_id: userId}
+      }
+    },
+    //this is to get viewer
+    include: {
+      authorized_users: {
+        include: {
+          user: {
+            select: {
+              userId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              roleType: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      created_at: "desc"
+    },
+  });
+  const getUsage = await Promise.all(
+    building.map(async (b) => {
+      let todays_usage: number | null = null;
+      try {
+        const data = await queryTotalKwh(b.building_id, "1d");
+        todays_usage = typeof data === "number" ? data : data?.total_kwh ?? null;
+      }
+      catch(error) {
+        console.error(`Failed to get the todays usage for this building: `, error)
+      }
+    })
+  );
+  //all things returned here are things expecte din frotnend
+  return building.map((build) => ({
+    building_id: build.building_id,
+    building_name: build.building_name,
+    building_type: build.building_type,
+    physical_address: build.physical_address,
+    lifecycle_state: build.lifecycle_state,
+    todays_usage: null,//will change when integrating, for now in frontend its null, just want to confirm everything works nicley bfr moving on
+    authorized_users: build.authorized_users.map((allowed) => ({ user: allowed.user,})),
+  }));
+};

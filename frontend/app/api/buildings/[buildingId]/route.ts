@@ -20,7 +20,7 @@ const ALLOWED_BUILDING_FIELDS = [
 	"square_footage",
 	"max_occupancy",
 	"nominal_voltage",
-	"max_current_thresold",
+	"max_current_threshold",
 	"lifecycle_state",
 	"timezone",
 ] as const;
