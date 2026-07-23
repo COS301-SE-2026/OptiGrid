@@ -28,6 +28,15 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 				version: "0.1.0",
 				description: "OptiGrid API documentation using swagger-jsdoc and swagger-ui-express",
 			},
+			components: {
+				securitySchemes: {
+					bearerAuth: {
+						type: "http",
+						scheme: "bearer",
+						bearerFormat: "JWT",
+					},
+				},
+			},
 			servers: [
 				{
 					url: `http://localhost:${port}`,
