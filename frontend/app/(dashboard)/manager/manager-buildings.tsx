@@ -259,16 +259,28 @@ export default function ManagerBuildings() {
                                             <td>{getOwnerName(building)}</td>
 
                                             <td>
-                                                <Link
-                                                    href={`/buildings/${building.building_id}/edit`}
-                                                    className="btn btn-primary"
-                                                    style={{
-                                                        padding: "4px 12px",
-                                                        fontSize: "var(--fs-small)"
-                                                    }}
-                                                >
-                                                    Edit
-                                                </Link>
+                                                <div style={{ display: "flex", flexWrap: "wrap",  gap: "var(--space-2)" }}>
+                                                    <Link
+                                                        href={`/buildings/${building.building_id}/edit`}
+                                                        className="btn btn-primary"
+                                                        style={{
+                                                            padding: "4px 12px",
+                                                            fontSize: "var(--fs-small)"
+                                                        }}
+                                                    >
+                                                        Edit
+                                                    </Link>
+                                                    <Link
+                                                        href={`/buildings/${building.building_id}/sensors`}
+                                                        className="btn btn-secondary"
+                                                        style={{
+                                                            padding: "4px 12px",
+                                                            fontSize: "var(--fs-small)"
+                                                        }}
+                                                    >
+                                                        Sensors
+                                                    </Link>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

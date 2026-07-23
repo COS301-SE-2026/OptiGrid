@@ -1,0 +1,197 @@
+import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from "./harness/core-api-harness";
+import { insertIntegrationUsers } from "./harness/user-fixtures";
+
+const {Client } = require("pg");
+const req = require("supertest");
+const {v4: uuidv4} = require("uuid");
+
+jest.mock("../../../../backend/core/src/services/provisioning.service", () => {
+    queueBuildingProvisioning: jest.fn().mockResolvedValue(true);
+    provisionInfluxDBBucket: jest.fn().mockResolvedValue(true);
+});
+
+describe("Get all buildings and manage state for admin and building manager", () => {
+    let harness: CoreApiHarness;
+    const tenantId = '8680c655-bfa3-433b-81aa-084fc76882d9';
+    const adminUserId = 'bbe48b78-438f-4ed7-9fe7-a8fc9addc187';
+    const normalUserId = '1f11cc3f-c6a0-4d10-84fd-f27b9500862a';
+    const managerUserId = '3c22dd4f-d7b1-5e21-95ee-e38c0611973b';
+
+    let adminHeader: {
+        Cookie: string
+    };
+    let normalHeader: {
+        Cookie:string
+    };
+
+    beforeAll(async () => {
+        harness = await createCoreApiHarness();
+        adminHeader = await getAuthHeaders(adminUserId);
+        normalHeader = await getAuthHeaders(normalUserId);
+    }, 180000);
+
+    beforeEach( async () => {
+        const client = new Client({
+            connectionString: harness.databaseUrl
+        });
+        await client.connect();
+
+        try {
+            await client.query(
+                `INSERT into tenants (tenant_id, company_name)
+                VALUES ($1, $2)
+                ON CONFLICT (tenant_id) DO NOTHING`,
+                [tenantId, 'Test'],
+            );
+            await insertIntegrationUsers(client, [
+                {
+                    userId: adminUserId,
+                    tenantId,
+                    email: "admin@gmail.com",
+                    firstName: "Admin",
+                    lastName: "Testing",
+                },
+                {
+                    userId: normalUserId,
+                    email: "normal@test.com",
+                    firstName: "Test",
+                    lastName: "Viewer",
+                },
+                {
+                    userId: managerUserId,
+                    tenantId,
+                    email: "manager@test.com",
+                    firstName: "Building",
+                    lastName: "Manager",
+                },
+            ]);
+            await client.query(
+                `UPDATE users SET role_type = 'Admin'
+                WHERE user_id= $1`, [adminUserId] 
+            );
+            await client.query(
+                `UPDATE users SET role_type = 'Building_Manager'
+                WHERE user_id= $1`, [managerUserId]
+            );
+        }
+        finally {
+            await client.end();
+        }
+    });
+    afterEach(async () => {
+        if(harness) await harness.resetDatabase();
+    });
+    afterAll(async () => {
+        if(harness) await harness.stop();
+    });
+
+    async function building({
+        buildingId = uuidv4(),
+        name,
+        lifecycle_state= 'provisioning',
+        created_at = new Date().toISOString(),
+    } : {
+        buildingId?: string;
+        name:string;
+        lifecycle_state?: string;
+        created_at?: string;
+    }) {
+        const client = new Client({
+            connectionString: harness.databaseUrl
+        });
+        await client.connect();
+        
+        try{
+            await client.query(
+                `insert into buildings (
+                    building_id,
+                    tenant_id,
+                    building_name,
+                    building_type,
+                    nominal_voltage,
+                    max_current_threshold,
+                    lifecycle_state,
+                    created_at
+                ) 
+                    values ($1, $2, $3, 'Commercial', 230, 60, $4, $5)`,
+                    [buildingId, tenantId, name, lifecycle_state, created_at],
+            );
+        } 
+        finally {
+            await client.end();
+        }
+        return buildingId;
+    }
+
+    it("should_assign_building", async () => {
+        const building_id = await building({
+            name: "Building-123"
+        });
+
+        const resp = await req(harness.app).post("/api/users/assign").set(adminHeader)
+        .send({
+            userId: managerUserId,
+            buildingId: building_id
+        });
+        expect(resp.status).toBe(200);
+    });
+
+    it("should_return_400_if_missing_shit", async () => {
+        const building_id = await building({
+            name: "Building-123"
+        });
+
+        const resp = await req(harness.app).post("/api/users/assign").set(adminHeader)
+        .send({
+            buildingId: building_id
+        });
+        expect(resp.status).toBe(400);
+        expect(resp.body.status).toBe("error");
+            expect(resp.body.message).toBe("Both UserId and BuildingId are required");
+    });
+
+    it("should_return_403_if_not_admin", async () => {
+        const building_id = await building({
+            name: "Building-123"
+        });
+
+        const resp = await req(harness.app).post("/api/users/assign").set(normalHeader)
+        .send({
+            userid: normalUserId,
+            buildingId: building_id
+        });
+        expect(resp.status).toBe(403);
+    });
+
+    it("should_return_404_if_user_not_found", async () => {
+        const building_id = await building({
+            name: "Building-123"
+        });
+        const user = uuidv4();
+        const resp = await req(harness.app).post("/api/users/assign").set(adminHeader)
+        .send({
+            userId: user,
+            buildingId: building_id
+        });
+        expect(resp.status).toBe(404);
+    });
+
+    it("should_remove_building", async () => {
+        const building_id = await building({
+            name: "Building-123"
+        });
+
+        await  req(harness.app).post("/api/users/assign").set(adminHeader)
+        .send({
+            userId: managerUserId,
+            buildingId: building_id
+        });
+
+        const resp = await req(harness.app).delete("/api/users/remove").set(adminHeader)
+        .send({
+            userId: managerUserId,
+            buildingId: building_id
+        });
+        expect(resp.status).toBe(200);
+    });
+});

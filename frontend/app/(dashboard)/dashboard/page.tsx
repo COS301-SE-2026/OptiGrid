@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useState, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ThemeToggle } from "../../theme-toggle";
+
 import {
     CartesianGrid,
     Line,
@@ -386,7 +386,7 @@ export default function DashboardPage() {
     return (
         <div>
             <div className="dashboard-topbar">
-                <ThemeToggle />
+                
                 <div className="dashboard-user">
                     <div className="dashboard-avatar">{initials}</div>
                     <span>{fullName}</span>

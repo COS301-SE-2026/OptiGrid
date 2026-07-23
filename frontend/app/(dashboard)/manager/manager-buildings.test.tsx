@@ -91,6 +91,14 @@ describe("ManagerBuildings", () => {
             "/buildings/b1/edit",);
     });
 
+    it("links each building to its sensors page", async () => {
+        await renderPage();
+        const row = screen.getByText("Sandton HQ").closest("tr")!;
+        expect(within(row).getByRole("link", { name: /sensors/i })).toHaveAttribute(
+            "href",
+            "/buildings/b1/sensors",);
+    });
+
     it("filters the buildings by lifecycle state", async () => {
         await renderPage();
         fireEvent.change(screen.getByLabelText(/Lifecycle:/i), {
