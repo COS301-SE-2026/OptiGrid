@@ -6,12 +6,14 @@ import {
   getAllBuildingsController,
   getPortfolioConsumptionController,
   listBuildingsController,
-  updateBuildingController,
+  updateBuildingController, getManagerBuildingsController,
 } from '../controllers/building.controller';
 
 const router = Router();
 
 router.get('/admin', getAllBuildingsController);
+//will add swagger docs in docs branch
+router.get("/manager", getManagerBuildingsController);
 
 /**
  * @swagger
