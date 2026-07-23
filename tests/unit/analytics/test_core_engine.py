@@ -1,143 +1,454 @@
 import pytest
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, call
 sys.modules['mlflow'] = MagicMock()
 import pandas as pd
 import numpy as np
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from backend.analytics.src.core_engine import AnalyticsEngine
 from backend.analytics.src.config import UTILITY_RATE_KWH
 
+# fixtures
+
 @pytest.fixture
 def engine():
-    with patch('backend.analytics.src.core_engine.InfluxDBClient'), \
-        patch('backend.analytics.src.core_engine.create_client'):
-        yield AnalyticsEngine()
+    """Create analytics engine instance with mocked influxdb and supabase clients"""
+    with patch('backend.analytics.src.core_engine.InfluxDBClient') as mock_influx, \
+         patch('backend.analytics.src.core_engine.create_client') as mock_create_client:
+        
+        mock_supabase_client = MagicMock()
+        mock_create_client.return_value = mock_supabase_client
+        
+        eng = AnalyticsEngine()
+        yield eng
 
-#generates 7 days worth of hourly data per building 
 @pytest.fixture
-def sample_timeseries():
-    now = datetime.now()
-    dates = pd.date_range(end=now, periods=168, freq='h') #7 * 24
+def sample_weekly_timeseries():
+    """Generates 14 days of hourly usage data for weekly forecasting tests"""
+    now = datetime.now(timezone.utc)
+    dates = pd.date_range(end=now, periods=336, freq='h')  # 14 * 24 = 336 hours
     df = pd.DataFrame({
         'timestamp': dates,
-        'usage': np.random.uniform(50.0, 150.0, size=168),
+        'usage': np.random.uniform(50.0, 150.0, size=336),  # random usage value between 50-150 kwh
         'building_id': 'bld_test_1'
     })
     return df
 
-#negative test case to ensure dataframes return safe default zeros
-def test_compute_todays_metrics_negative_empty(engine):
-    empty_df = pd.DataFrame()
-    metrics = engine.compute_todays_metrics(empty_df)
+@pytest.fixture
+def sample_monthly_timeseries():
+    """Generates 12 weeks of weekly aggregated data fro monthly forecasting tests"""
+    now = datetime.now(timezone.utc)
+    dates = pd.date_range(end=now, periods=12, freq='W')  # 12 weeks
+    df = pd.DataFrame({
+        'timestamp': dates,
+        'usage': np.random.uniform(300.0, 1000.0, size=12),  # weekly usage between 300-1000 kwh
+        'building_id': 'bld_test_1'
+    })
+    return df
+
+
+# tests for registering building
+
+def test_register_new_building_positive(engine):
+    """Test successful registration of a new building in both analytics tables"""
+    mock_table = engine.supabase.table
+    mock_upsert = mock_table.return_value.upsert
+    mock_execute = mock_upsert.return_value.execute
+    mock_execute.return_value = MagicMock()
+
+    result = engine.register_new_building('bld_test_1')
+
+    # verify that the builindg was registered
+    assert result is True
+    # should insert into both weekly and monthly tables
+    assert mock_table.call_count == 2
+    mock_table.assert_any_call('building_analytics_weekly')
+    mock_table.assert_any_call('building_analytics_monthly')
     
-    assert metrics['todays_usage'] == 0.0
-    assert metrics['todays_cost'] == 0.0
+    # verify both upsert calls contain correct inital data
+    upsert_calls = mock_upsert.call_args_list
+    assert len(upsert_calls) == 2
+    for upsert_call in upsert_calls:
+        payload = upsert_call[0][0]
+        assert payload['building_id'] == 'bld_test_1'
+        assert payload['todays_usage'] == 0.0
+        assert payload['todays_cost'] == 0.0
+
+def test_register_new_building_no_supabase(engine):
+    """Test registration fails gracefully when supabase client is None"""
+    engine.supabase = None
+    result = engine.register_new_building('bld_test_1')
+    assert result is False
+
+def test_register_new_building_exception(engine):
+    """Test registraion handles database exceptions properly"""
+    engine.supabase.table.side_effect = Exception("Database connection failure")
+    # execption should be raised up to caller
+    with pytest.raises(Exception, match="Database connection failure"):
+        engine.register_new_building('bld_test_1')
+
+
+# tests for getting active buidling ids
+
+def test_get_active_building_ids_positive(engine):
+    """Test successfully fetching active building ids from supabase"""
+    mock_res = MagicMock()
+    mock_res.data = [
+        {"building_id": "bld_1"},
+        {"building_id": "bld_2"},
+        {"other_key": "ignored"} # should be filterd out
+    ]
+    engine.supabase.table.return_value.select.return_value.filter.return_value.execute.return_value = mock_res
+
+    res = engine.get_active_building_ids()
+    assert res == ["bld_1", "bld_2"] # only valid building_ids should be returned
+    engine.supabase.table.assert_called_with("buildings")
+
+def test_get_active_building_ids_empty_or_none(engine):
+    """Test handleing when no buildings are returned from query"""
+    mock_res = MagicMock()
+    mock_res.data = None
+    engine.supabase.table.return_value.select.return_value.filter.return_value.execute.return_value = mock_res
+
+    res = engine.get_active_building_ids()
+    assert res == []  # return empty list instead of None
+
+def test_get_active_building_ids_no_supabase(engine):
+    """Test handles query expections by returning empty list"""
+    engine.supabase = None
+    res = engine.get_active_building_ids()
+    assert res == []
+
+def test_get_active_building_ids_exception(engine):
+    """Test handles query exceptions by returning an empty list"""
+    engine.supabase.table.side_effect = Exception("Supabase select failure")
+    res = engine.get_active_building_ids()
+    assert res == []  # gracefully handles error
+
+
+# tests for seeding missing influx data
+
+def test_seed_missing_influx_telemetry_positive(engine):
+    """Test successful seeding of missing telemetry data"""
+    mock_write_api = MagicMock()
+    engine.influx.write_api.return_value = mock_write_api
+
+    engine.seed_missing_influx_telemetry('bld_test_1', days_back=2)
     
-#positive test case, ensuring time features and lag shifts created properly
-def test_create_features_positive(engine, sample_timeseries):
-    """POSITIVE: Ensures time features and lag shifts are created properly."""
-    df_features = engine.create_features(sample_timeseries)
+    # verify data was written and connection was closed
+    assert mock_write_api.write.called
+    assert mock_write_api.close.called
+
+def test_seed_missing_influx_telemetry_exception(engine):
+    """Test handles influxdb connection errors gracefully"""
+    engine.influx.write_api.side_effect = Exception("Influx connection timeout")
+    # Should catch internally and log error rather than raising
+    # Function should complete without raising any exceptions
+    engine.seed_missing_influx_telemetry('bld_test_1', days_back=1)
+
+
+# tests for refreshing today's metrics
+
+def test_refresh_todays_metrics_positive(engine):
+    """Test successful refresh of today's metrics from influxdb to supabase"""
+    now = datetime.now(timezone.utc)
+    dates = pd.date_range(end=now, periods=48, freq='h')
+    df = pd.DataFrame({
+        '_time': dates,
+        'usage': [15.0] * 48,
+        'building_id': 'bld_test_1'
+    })
+    engine.influx.query_api().query_data_frame.return_value = df
     
-    # lag shift means the first row is NaN, so length should be -1
-    assert len(df_features) == len(sample_timeseries) - 1
-    assert 'hour' in df_features.columns
-    assert 'day_of_week' in df_features.columns
-    assert 'lag_1' in df_features.columns
+    mock_table = engine.supabase.table
+    mock_upsert = mock_table.return_value.upsert
+    mock_execute = mock_upsert.return_value.execute
     
-#postive test case mocks optuma to test ml loop execution and JSONB format
+    res = engine.refresh_todays_metrics('bld_test_1')
+    
+    # verify successful update
+    assert "update" in res
+    assert res["update"]["building_id"] == "bld_test_1"
+    # should update both weekly and monthly
+    assert mock_table.call_count == 2
+    mock_table.assert_any_call('building_analytics_weekly')
+    mock_table.assert_any_call('building_analytics_monthly')
+
+@patch.object(AnalyticsEngine, 'seed_missing_influx_telemetry')
+def test_refresh_todays_metrics_empty_then_seeding(mock_seed, engine):
+    """Test that seeding is triggered when no data ecists initially"""
+    now = datetime.now(timezone.utc)
+    dates = pd.date_range(end=now, periods=48, freq='h')
+    df = pd.DataFrame({
+        '_time': dates,
+        'usage': [10.0] * 48,
+        'building_id': 'bld_test_1'
+    })
+    
+    # first query empty second query returns data frame
+    engine.influx.query_api().query_data_frame.side_effect = [pd.DataFrame(), df]
+    res = engine.refresh_todays_metrics('bld_test_1')
+
+    #verify that seeding was triggered
+    assert mock_seed.called
+    assert "update" in res
+    assert res["update"]["building_id"] == "bld_test_1"
+
+def test_refresh_todays_metrics_completely_empty(engine):
+    """Test handles case where data remains empty even after seeding"""
+    # returns empty data frames both times
+    engine.influx.query_api().query_data_frame.return_value = pd.DataFrame()
+    
+    res = engine.refresh_todays_metrics('bld_test_1')
+    assert res == {}  # returns empty dictionary when no data
+
+
+# tests for training and forecasting weekly
+
 @patch('backend.analytics.src.core_engine.optuna.create_study')
-def test_train_and_forecast_positive(mock_study, engine, sample_timeseries):
+def test_train_and_forecast_weekly_positive(mock_study, engine, sample_weekly_timeseries):
+    """Test successful weekly model training and forecasting"""
+    # mock Optuna study with predefined best params
     mock_study_instance = MagicMock()
     mock_study_instance.best_params = {
         "regressor": "RandomForest",
-        "rf_n_estimators": 20,
-        "rf_max_depth": 3
+        "n_estimators": 2,
+        "max_depth": 2
     }
-    mock_study_instance.best_value = 0.05  #mape
+    mock_study_instance.best_value = 0.05  # MAPE = 5%
     mock_study.return_value = mock_study_instance
-    
-    df_features = engine.create_features(sample_timeseries)
-    results = engine.train_and_forecast(df_features, 'bld_test_1')
-    
-    assert results is not None
-    assert "forecast_peak" in results
-    assert "forecast_avg_day" in results
-    assert results["model_mape"] == 0.05
-    assert len(results["forecast_series"]) == 24
-    
-    #check JSONB array structure
-    first_forecast = results["forecast_series"][0]
-    assert "timestamp" in first_forecast
-    assert "predicted_usage" in first_forecast
 
-#negative test case, engine aborts if no data < 24 hours exists
-def test_train_and_forecast_negative_insufficient_data(engine):
-    now = datetime.now()
-    dates = pd.date_range(end=now, periods=10, freq='h')
+    res = engine.train_and_forecast_weekly(sample_weekly_timeseries, 'bld_test_1')
+    
+    # verify forecast results structure
+    assert res is not None
+    assert "forecast_peak" in res
+    assert "forecast_avg_day" in res
+    assert res["model_mape"] == 0.05  # matches mock best_value
+    assert len(res["forecast_series"]) == 168  # 7 days * 24 hours
+    assert "timestamp" in res["forecast_series"][0]
+    assert "predicted_usage" in res["forecast_series"][0]
+
+def test_train_and_forecast_weekly_insufficient_data(engine):
+    now = datetime.now(timezone.utc)
     df_short = pd.DataFrame({
-        'timestamp': dates,
+        'timestamp': pd.date_range(end=now, periods=10, freq='h'),  # only 10 hours of data
         'usage': [100.0] * 10
     })
-    df_features = engine.create_features(df_short)
     
-    results = engine.train_and_forecast(df_features, 'bld_test_1')
-    assert results is None
+    res = engine.train_and_forecast_weekly(df_short, 'bld_test_1')
+    assert res == {}  # not enough data for weekly forecast
 
-#positive test case, simulating successfull batch pull and db upsert
-@patch.object(AnalyticsEngine, 'train_and_forecast')
-@patch.object(AnalyticsEngine, 'compute_todays_metrics')
-def test_process_all_buildings_positive(mock_metrics, mock_train, engine, sample_timeseries):
-    #mock influx to return sample data
-    engine.influx.query_api().query_data_frame.return_value = sample_timeseries.rename(
-        columns={"timestamp": "_time"} 
-    )
-    
-    mock_metrics.return_value = {"todays_usage": 100.0, "todays_cost": 22.0}
-    mock_train.return_value = {
-        "forecast_peak": 150.0,
-        "forecast_avg_day": 120.0,
-        "model_mape": 0.05,
-        "forecast_series": []
+
+# tests for training and forecasting monthly
+
+@patch('backend.analytics.src.core_engine.optuna.create_study')
+def test_train_and_forecast_monthly_positive(mock_study, engine, sample_monthly_timeseries):
+    """Test successful monthly model training and forecasting"""
+    # mock Optuna with predefined best params
+    mock_study_instance = MagicMock()
+    mock_study_instance.best_params = {
+        "regressor": "RandomForest",
+        "n_estimators": 2,
+        "max_depth": 2
     }
-    
-    engine.process_all_buildings()
-    
-    # ensure supabase upsert was called once with formatted list
-    upsert_mock = engine.supabase.table().upsert
-    upsert_mock.assert_called_once()
-    
-    payload = upsert_mock.call_args[0][0] #inspect payload
-    assert len(payload) == 1
-    assert payload[0]['building_id'] == 'bld_test_1'
-    assert 'updated_at' in payload[0]
-    assert payload[0]['todays_cost'] == 22.0
-    assert payload[0]['forecast_peak'] == 150.0
+    mock_study_instance.best_value = 0.07  # MAPE = 7%
+    mock_study.return_value = mock_study_instance
 
-#negative test, tests graceful exit when influx returns nothing
-def test_process_all_buildings_negative_empty_influx(engine):
-    engine.influx.query_api().query_data_frame.return_value = []
-    engine.process_all_buildings()
+    res = engine.train_and_forecast_monthly(sample_monthly_timeseries, 'bld_test_1')
     
-    # upsert should not be called on empty data
-    engine.supabase.table().upsert.assert_not_called()
+    # verify forecast results structure
+    assert res is not None
+    assert "forecast_peak" in res
+    assert "forecast_avg_day" in res
+    assert res["model_mape"] == 0.07
+    assert len(res["forecast_series"]) == 12  # 12 weeks forecast
+    assert "timestamp" in res["forecast_series"][0]
+    assert "predicted_usage" in res["forecast_series"][0]
 
-#edge case, influx sometimes returns list of dataframes instead of a single dataframe
-def test_process_all_buildings_edge_list_return(engine, sample_timeseries):
-    df1 = sample_timeseries.rename(columns={"timestamp": "_time"})
-    df2 = df1.copy()
-    df2['building_id'] = 'bld_test_2'
+def test_train_and_forecast_monthly_insufficient_data(engine):
+    now = datetime.now(timezone.utc)
+    df_short = pd.DataFrame({
+        'timestamp': pd.date_range(end=now, periods=3, freq='W'),  # only 3 weeks of data
+        'usage': [50.0] * 3
+    })
     
-    engine.influx.query_api().query_data_frame.return_value = [df1, df2]
+    res = engine.train_and_forecast_monthly(df_short, 'bld_test_1')
+    assert res == {}  # not enough data for montly forecast
+
+
+# tests for processing a single buidling
+
+@patch.object(AnalyticsEngine, 'register_new_building')
+@patch.object(AnalyticsEngine, 'train_and_forecast_weekly')
+@patch.object(AnalyticsEngine, 'train_and_forecast_monthly')
+def test_process_single_building_positive(mock_monthly, mock_weekly, mock_register, engine):
+    """Test complete processing of a single building including fetch, ML training and uploading"""
+    now = datetime.now(timezone.utc)
+    # mock weekly data (48 hours)
+    dates_weekly = pd.date_range(end=now, periods=48, freq='h')
+    df_weekly = pd.DataFrame({
+        '_time': dates_weekly,
+        'usage_kwh': [10.0] * 48,
+        'building_id': 'bld_test_1'
+    })
+    
+    # mock monthly data (5 weeks of hourly data)
+    dates_monthly = pd.date_range(end=now, periods=5 * 24 * 7, freq='h')
+    df_monthly = pd.DataFrame({
+        '_time': dates_monthly,
+        'usage_kwh': [20.0] * (5 * 24 * 7),
+        'building_id': 'bld_test_1'
+    })
+    
+    # mock influx queries
+    engine.influx.query_api().query_data_frame.side_effect = [df_weekly, df_monthly]
+    
+    # mock ML results
+    mock_weekly.return_value = {"forecast_peak": 100.0, "forecast_avg_day": 80.0, "model_mape": 0.05, "forecast_series": []}
+    mock_monthly.return_value = {"forecast_peak": 200.0, "forecast_avg_day": 160.0, "model_mape": 0.06, "forecast_series": []}
+    
+    engine.process_single_building('bld_test_1')
+    
+    # verify registraion and uploads
+    mock_register.assert_called_once_with('bld_test_1')
+    # should upload to weekly and monthly tables
+    assert engine.supabase.table.call_count == 2
+
+
+# tests for processing all buildings
+
+@patch.object(AnalyticsEngine, 'get_active_building_ids')
+@patch.object(AnalyticsEngine, 'register_new_building')
+@patch.object(AnalyticsEngine, 'seed_missing_influx_telemetry')
+@patch.object(AnalyticsEngine, 'train_and_forecast_weekly')
+@patch.object(AnalyticsEngine, 'train_and_forecast_monthly')
+def test_process_all_buildings_positive(mock_monthly, mock_weekly, mock_seed, mock_register, mock_get_ids, engine):
+    """Test processing all active buildings with data available"""
+    mock_get_ids.return_value = ['bld_test_1', 'bld_test_2']
+    
+    now = datetime.now(timezone.utc)
+    # create data for building 1
+    dates_weekly = pd.date_range(end=now, periods=48, freq='h')
+    df_weekly = pd.DataFrame({
+        '_time': dates_weekly,
+        'usage_kwh': [10.0] * 48,
+        'building_id': 'bld_test_1'
+    })
+    
+    dates_monthly = pd.date_range(end=now, periods=5 * 24 * 7, freq='h')
+    df_monthly = pd.DataFrame({
+        '_time': dates_monthly,
+        'usage_kwh': [20.0] * (5 * 24 * 7),
+        'building_id': 'bld_test_1'
+    })
+    
+    # creat data for building 2 after seeding
+    df_weekly_all = pd.concat([
+        df_weekly,
+        pd.DataFrame({
+            '_time': dates_weekly,
+            'usage_kwh': [15.0] * 48,
+            'building_id': 'bld_test_2'
+        })
+    ])
+    
+    df_monthly_all = pd.concat([
+        df_monthly,
+        pd.DataFrame({
+            '_time': dates_monthly,
+            'usage_kwh': [30.0] * (5 * 24 * 7),
+            'building_id': 'bld_test_2'
+        })
+    ])
+    
+    # mock influx queries: inital queries, then queries after seeding
+    engine.influx.query_api().query_data_frame.side_effect = [
+        df_weekly, # inital weekly query
+        df_monthly,  # inital monthly query
+        df_weekly_all,  # weekly query after seeding
+        df_monthly_all  # monthly query after seeding
+    ]
+    
+    mock_weekly.return_value = {"forecast_peak": 100.0, "forecast_avg_day": 80.0, "model_mape": 0.05, "forecast_series": []}
+    mock_monthly.return_value = {"forecast_peak": 200.0, "forecast_avg_day": 160.0, "model_mape": 0.06, "forecast_series": []}
     
     engine.process_all_buildings()
     
-    #ensure it concat-ed them and processed both buildings
-    upsert_mock = engine.supabase.table().upsert
-    payload = upsert_mock.call_args[0][0]
+    # verify both buildings were registered
+    assert mock_register.call_count == 2
+    mock_register.assert_any_call('bld_test_1')
+    mock_register.assert_any_call('bld_test_2')
     
-    assert len(payload) == 2
-    ids_processed = [p['building_id'] for p in payload]
-    assert 'bld_test_1' in ids_processed
-    assert 'bld_test_2' in ids_processed
+    # only building 2 should need seeding since building 1 has data
+    mock_seed.assert_called_once_with('bld_test_2')
+    
+    # verify uploads to both tables
+    mock_table = engine.supabase.table
+    mock_table.assert_any_call("building_analytics_weekly")
+    mock_table.assert_any_call("building_analytics_monthly")
+
+@patch.object(AnalyticsEngine, 'get_active_building_ids')
+@patch.object(AnalyticsEngine, 'register_new_building')
+def test_process_all_buildings_negative_empty_influx(mock_register, mock_get_ids, engine):
+    """Test handleing when no data exists in inlfux db"""
+    mock_get_ids.return_value = ['bld_test_1']
+    engine.influx.query_api().query_data_frame.return_value = pd.DataFrame()
+    
+    engine.process_all_buildings()
+    
+    # building registered but no analytics uploaded
+    mock_register.assert_called_once_with('bld_test_1')
+    engine.supabase.table.assert_not_called()  # no data to upload
+
+@patch.object(AnalyticsEngine, 'get_active_building_ids')
+@patch.object(AnalyticsEngine, 'register_new_building')
+@patch.object(AnalyticsEngine, 'train_and_forecast_weekly')
+@patch.object(AnalyticsEngine, 'train_and_forecast_monthly')
+def test_process_all_buildings_edge_list_return(mock_monthly, mock_weekly, mock_register, mock_get_ids, engine):
+    """Test handleing when influxdb returns list od data frames instead of single data frame"""
+    mock_get_ids.return_value = ['bld_test_1', 'bld_test_2']
+    
+    now = datetime.now(timezone.utc)
+    dates_weekly = pd.date_range(end=now, periods=48, freq='h')
+
+    # creates separate data frames for each building
+    df1 = pd.DataFrame({
+        '_time': dates_weekly,
+        'usage_kwh': [10.0] * 48,
+        'building_id': 'bld_test_1'
+    })
+    df2 = pd.DataFrame({
+        '_time': dates_weekly,
+        'usage_kwh': [15.0] * 48,
+        'building_id': 'bld_test_2'
+    })
+    
+    dates_monthly = pd.date_range(end=now, periods=5 * 24 * 7, freq='h')
+    df3 = pd.DataFrame({
+        '_time': dates_monthly,
+        'usage_kwh': [20.0] * (5 * 24 * 7),
+        'building_id': 'bld_test_1'
+    })
+    df4 = pd.DataFrame({
+        '_time': dates_monthly,
+        'usage_kwh': [30.0] * (5 * 24 * 7),
+        'building_id': 'bld_test_2'
+    })
+    
+    # influxdb returns list of dataframes
+    engine.influx.query_api().query_data_frame.side_effect = [
+        [df1, df2],  # weekly returns list
+        [df3, df4]  # monthly returns list
+    ]
+    
+    mock_weekly.return_value = {"forecast_peak": 100.0, "forecast_avg_day": 80.0, "model_mape": 0.05, "forecast_series": []}
+    mock_monthly.return_value = {"forecast_peak": 200.0, "forecast_avg_day": 160.0, "model_mape": 0.06, "forecast_series": []}
+    
+    #execute - should handle list concatentation properly
+    engine.process_all_buildings()
+    
+    # verify uploads occured
+    mock_table = engine.supabase.table
+    mock_table.assert_any_call("building_analytics_weekly")
+    mock_table.assert_any_call("building_analytics_monthly")
