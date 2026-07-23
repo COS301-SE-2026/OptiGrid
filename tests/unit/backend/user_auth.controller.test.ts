@@ -24,7 +24,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
     },
 }));
 
-import { login } from '../../../backend/core/src/controllers/user_auth.controller';
+import { login, recoverAccount } from '../../../backend/core/src/controllers/user_auth.controller';
 import * as authServices from '../../../backend/core/src/services/user_auth.services';
 import { Request, Response } from 'express';
 
@@ -83,5 +83,22 @@ describe("User Authentication Controller - Login", () => {
         await login(mockRequest as Request, mockResponse as Response);
         expect(statusMock).toHaveBeenCalledWith(500);
         expect(jsonMock).toHaveBeenCalledWith({ message: "Internal server error" });
+    });
+
+    it("returns a recovered account and access token", async () => {
+        mockRequest = { body: { email: "test@test.com", password: "password123" } };
+        (authServices.recoverAccount as jest.Mock).mockResolvedValue({
+            user: { userId: "1", email: "test@test.com" },
+            accessToken: "recovered-token",
+        });
+
+        await recoverAccount(mockRequest as Request, mockResponse as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(200);
+        expect(jsonMock).toHaveBeenCalledWith({
+            message: "Account recovered successfully",
+            user: { userId: "1", email: "test@test.com" },
+            accessToken: "recovered-token",
+        });
     });
 });
