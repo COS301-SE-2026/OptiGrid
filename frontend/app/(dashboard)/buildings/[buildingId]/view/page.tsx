@@ -206,9 +206,15 @@ export default function ViewBuildingPage({
                     <p className="dashboard-subtitle">View information.</p>
                 </div>
 
-                <Link href="/dashboard" className="btn btn-secondary">
-                    Back
-                </Link>
+                <div style={{ gap: "var(--space-3)", display: "flex" }}>
+                    {building.building_id && (<Link href={`/buildings/${building.building_id}/sensors`} className="btn btn-primary">Sensors</Link>)}
+                    <Link
+                        href="/dashboard"
+                        className="btn btn-secondary"
+                    >
+                        Back
+                    </Link>
+                </div>
             </div>
 
             {error && (

@@ -47,3 +47,10 @@ export const validateSignUp = (schema: ZodTypeAny) => {
 
 //this is a generic alias. this middleware validates any body schema not just signup
 export const validateBody = validateSignUp;
+
+export const userBuildingsSchema = z.object({
+    body: z.object({
+        userId: z.string({message: "User ID is missing",}),
+        buildingId: z.string({message: "Building ID is missing",}),
+    }),
+}).strict();

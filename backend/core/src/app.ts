@@ -55,6 +55,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	const strictRate = rateLimiter(3, 1/60); //max 3, 1 refill every min
 	app.use(express.json());
 	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
+
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", authRate, userAuthRoutes);
 	app.use("/api/sensors", sensorRate, sensorRoutes);
@@ -64,6 +65,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use("/api/contact", strictRate,contactRoutes);
 	app.use("/api/accounts", authenticateRequest, normalRate, accountRoutes);
 	app.use("/api/admin/users", authenticateRequest, strictRate, adminUserRoutes);
+	app.use("/api/users",authRate, userAuthRoutes)
 	//app.use("/api/admin/", authenticateRequest, normalRate, buildingRoutes);
 
 	app.get("/health", (_req, res) => {

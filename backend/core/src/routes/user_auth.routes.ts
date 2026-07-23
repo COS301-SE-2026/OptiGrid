@@ -1,6 +1,17 @@
 import { Router } from 'express';
-import { signup, login, recoverAccount } from '../controllers/user_auth.controller';
+import {
+    signup,
+    login,
+    recoverAccount,
+    getManagersController,
+    getViewersController,
+    assignManagerController,
+    removeManagerController,
+} from '../controllers/user_auth.controller';
 import { validateSignUp, validateBody, signupSchema, loginSchema } from '../validation/user_auth.validation';
+import { reqRole } from '../middleware/rbac.middleware';
+import { authenticateRequest } from '../middleware/auth.middleware';
+import { UserRole } from '@prisma/client';
 
 const router = Router();
 
@@ -215,6 +226,11 @@ router.post('/login', validateBody(loginSchema), login)
  *         description: Account is already active
  */
 router.post('/recover-account', validateBody(loginSchema), recoverAccount);
+
+router.get('/viewers', authenticateRequest, reqRole([UserRole.ADMIN]), getViewersController);
+router.get('/managers', authenticateRequest, reqRole([UserRole.ADMIN]), getManagersController);
+router.post('/assign', authenticateRequest, reqRole([UserRole.ADMIN]), assignManagerController);
+router.delete('/remove', authenticateRequest, reqRole([UserRole.ADMIN]), removeManagerController);
 
 export default router;
 
