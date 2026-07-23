@@ -1,6 +1,6 @@
 /** @jest-environment node */
 
-import { DELETE, PATCH } from "./route";
+import { DELETE, GET, PATCH } from "./route";
 
 describe("buildings [buildingId] route", () => {
 	beforeEach(() => {
@@ -10,6 +10,25 @@ describe("buildings [buildingId] route", () => {
 			status: 200,
 			json: async () => ({ status: "success", message: "Building deleted successfully." }),
 		}) as jest.Mock;
+	});
+
+	it("forwards individual building GET requests to Core", async () => {
+		const request = new Request("http://localhost/api/buildings/building-123", {
+			method: "GET",
+			headers: {
+				cookie: "optigrid_access_token=access-token",
+			},
+		});
+
+		const response = await GET(request, {
+			params: Promise.resolve({ buildingId: "building-123" }),
+		});
+
+		expect(response.status).toBe(200);
+		expect(global.fetch).toHaveBeenCalledWith(
+			"http://core.test/api/buildings/building-123",
+			expect.objectContaining({ method: "GET" }),
+		);
 	});
 
 	it("generates and forwards an idempotency key for delete requests when one is not provided", async () => {

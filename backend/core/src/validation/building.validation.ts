@@ -49,6 +49,10 @@ export const deleteBuildingSchema = z.object({
     building_id: z.string().min(1, "Building ID is required")
 });
 
+export const buildingDetailsParamsSchema = z.object({
+    building_id: z.string().uuid("building_id must be a valid UUID"),
+}).strict();
+
 export const buildingEnergyConsumptionParamsSchema = z.object({
     building_id: z.string().regex(/^[0-9a-fA-F-]{36}$/, "building_id must be a valid UUID"),
 }).strict();

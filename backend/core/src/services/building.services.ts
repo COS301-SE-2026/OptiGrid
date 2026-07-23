@@ -1,8 +1,32 @@
 import prisma from '../lib/prisma';
 import { Building, BuildingType, LifecycleState } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries } from '../lib/influx';
 import crypto from 'crypto';
 import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
+
+const buildingDetailsSelect = {
+  building_id: true,
+  tenant_id: true,
+  building_name: true,
+  building_type: true,
+  square_footage: true,
+  physical_address: true,
+  timezone: true,
+  max_occupancy: true,
+  nominal_voltage: true,
+  max_current_threshold: true,
+  lifecycle_state: true,
+  created_at: true,
+  updated_at: true,
+  latitude: true,
+  longitude: true,
+  geohash: true,
+} satisfies Prisma.BuildingSelect;
+
+export type BuildingDetails = Prisma.BuildingGetPayload<{
+  select: typeof buildingDetailsSelect;
+}>;
 
 function toFiniteNumber(value: unknown, fallback = 0): number {
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -256,6 +280,35 @@ export const listBuildingsForUser = async (userId: string) => {
       created_at: 'desc',
     },
   });
+};
+
+export const getBuildingDetails = async (
+  userId: string,
+  buildingId: string,
+): Promise<BuildingDetails> => {
+  const accessRecord = await prisma.userBuildingAccess.findUnique({
+    where: {
+      user_id_building_id: {
+        user_id: userId,
+        building_id: buildingId,
+      },
+    },
+  });
+
+  if (!accessRecord) {
+    throw new Error('Access Denied: You do not have permission to view this building.');
+  }
+
+  const building = await prisma.building.findUnique({
+    where: { building_id: buildingId },
+    select: buildingDetailsSelect,
+  });
+
+  if (!building) {
+    throw new Error('Building not found');
+  }
+
+  return building;
 };
 
 function lastSevenUtcDateKeys(now = new Date()): string[] {

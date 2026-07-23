@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import prisma from '../../../backend/core/src/lib/prisma';
-import { createBuildingController, deleteBuildingController, getAllBuildingsController, getBuildingEnergyConsumptionController } from '../../../backend/core/src/controllers/building.controller';
-import { createBuilding, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails } from '../../../backend/core/src/services/building.services';
+import { createBuildingController, deleteBuildingController, getAllBuildingsController, getBuildingDetailsController, getBuildingEnergyConsumptionController } from '../../../backend/core/src/controllers/building.controller';
+import { createBuilding, deleteBuildingService, getAllBuildings, getBuildingDetails, getBuildingEnergyConsumptionDetails } from '../../../backend/core/src/services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
-import { adminBuildingsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
 import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
 import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
 import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
@@ -30,10 +30,12 @@ jest.mock('../../../backend/core/src/services/idempotency.services');
 jest.mock('../../../backend/core/src/validation/building.validation');
 
 const mockedCreateBuilding = createBuilding as jest.MockedFunction<typeof createBuilding>;
+const mockedGetBuildingDetails = getBuildingDetails as jest.MockedFunction<typeof getBuildingDetails>;
 const mockedGetBuildingEnergyConsumptionDetails = getBuildingEnergyConsumptionDetails as jest.MockedFunction<typeof getBuildingEnergyConsumptionDetails>;
 const mockedCheckIdempotencyKey = checkIdempotencyKey as jest.MockedFunction<typeof checkIdempotencyKey>;
 const mockedSaveIdempotencyKey = saveIdempotencyKey as jest.MockedFunction<typeof saveIdempotencyKey>;
 const mockedCreateBuildingSchema = createBuildingSchema as jest.Mocked<typeof createBuildingSchema>;
+const mockedBuildingDetailsParamsSchema = buildingDetailsParamsSchema as any;
 const mockedBuildingEnergyConsumptionParamsSchema = buildingEnergyConsumptionParamsSchema as any;
 const mockedBuildingEnergyConsumptionQuerySchema = buildingEnergyConsumptionQuerySchema as any;
 const mockedCompareBuildingsService = (buildingServicesModule as any).compareBuildingsService as jest.Mock;
@@ -540,6 +542,66 @@ describe('Building Controller', () => {
 			});
 		});
 	});
+	describe('getBuildingDetailsController', () => {
+		const buildingId = '11111111-1111-4111-8111-111111111111';
+
+		it('returns_the_authorized_building_without_its_hardware_token', async () => {
+			const building = {
+				building_id: buildingId,
+				building_name: 'Main Office',
+				building_type: 'Commercial',
+				lifecycle_state: 'ACTIVE',
+			};
+			const req = { user: { id: mockUserId }, params: { building_id: buildingId } } as any;
+			const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
+
+			mockedBuildingDetailsParamsSchema.parse.mockReturnValue({ building_id: buildingId });
+			mockedGetBuildingDetails.mockResolvedValue(building as any);
+
+			await getBuildingDetailsController(req, res);
+
+			expect(mockedGetBuildingDetails).toHaveBeenCalledWith(mockUserId, buildingId);
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(res.json).toHaveBeenCalledWith({ status: 'success', data: building });
+		});
+
+		it('returns_400_for_an_invalid_building_id', async () => {
+			const zodError = Object.assign(new Error('Invalid params'), {
+				name: 'ZodError',
+				errors: [{ message: 'building_id must be a valid UUID' }],
+			});
+			const req = { user: { id: mockUserId }, params: { building_id: 'not-a-uuid' } } as any;
+			const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
+
+			mockedBuildingDetailsParamsSchema.parse.mockImplementation(() => {
+				throw zodError;
+			});
+
+			await getBuildingDetailsController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(400);
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'error',
+				message: 'Invalid request parameters',
+				details: zodError.errors,
+			});
+		});
+
+		it('returns_403_when_the_user_cannot_access_the_building', async () => {
+			const req = { user: { id: mockUserId }, params: { building_id: buildingId } } as any;
+			const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
+
+			mockedBuildingDetailsParamsSchema.parse.mockReturnValue({ building_id: buildingId });
+			mockedGetBuildingDetails.mockRejectedValue(
+				new Error('Access Denied: You do not have permission to view this building.'),
+			);
+
+			await getBuildingDetailsController(req, res);
+
+			expect(res.status).toHaveBeenCalledWith(403);
+		});
+	});
+
 	describe('getBuildingEnergyConsumptionController', () => {
 		const energyBuildingId = '11111111-1111-1111-1111-111111111111';
 
