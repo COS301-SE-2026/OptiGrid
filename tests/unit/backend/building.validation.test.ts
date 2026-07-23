@@ -2,6 +2,7 @@ import { BuildingType } from '@prisma/client';
 import { createBuildingSchema } from '../../../backend/core/src/validation/building.validation';
 import { compareBuildingsSchema } from '../../../backend/core/src/validation/building.validation';
 import { deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import { buildingDetailsParamsSchema } from '../../../backend/core/src/validation/building.validation';
 import { buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema } from '../../../backend/core/src/validation/building.validation';
 
 describe('building validation', () => {
@@ -163,6 +164,15 @@ describe('building energy consumption validation', () => {
 	it('rejects_invalid_building_id_and_time_range', () => {
 		expect(() => buildingEnergyConsumptionParamsSchema.parse({ building_id: 'not-a-uuid' })).toThrow();
 		expect(() => buildingEnergyConsumptionQuerySchema.parse({ time_range: '14d' })).toThrow();
+	});
+});
+
+describe('building details validation', () => {
+	it('accepts_a_uuid_building_id_and_rejects_invalid_ids', () => {
+		const params = { building_id: '11111111-1111-4111-8111-111111111111' };
+
+		expect(buildingDetailsParamsSchema.parse(params)).toEqual(params);
+		expect(() => buildingDetailsParamsSchema.parse({ building_id: 'not-a-uuid' })).toThrow();
 	});
 });
 

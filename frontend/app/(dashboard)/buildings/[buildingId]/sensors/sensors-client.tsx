@@ -17,11 +17,21 @@ type SensorRecord = {
     sensor_id: string;
     building_id: string;
     mac_address: string;
-    sensor_type: string;
-    unit: string;
-    location_zone: string;
-    status: SensorStatus;
-    installed_date: string;
+    sensor_type?: string | null;
+    unit?: string | null;
+    location_zone?: string | null;
+    status?: SensorStatus | null;
+    installed_date?: string | null;
+};
+
+type SensorResponse = {
+    data?: SensorRecord;
+    message?: string;
+};
+
+type SensorListResponse = {
+    data?: SensorRecord[];
+    message?: string;
 };
 
 const statusBadge: Record<SensorStatus, string> = {
@@ -31,30 +41,10 @@ const statusBadge: Record<SensorStatus, string> = {
 };
 
 const MAC_PATTERN = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
-//the sensor CRUD is not available in the core API yet so i will seed demo sensors for the building and keep them in client state until the endpoints are coded
-function seedSensors(buildingId: string): SensorRecord[] {
-    return [
-        {
-            sensor_id: `seed-${buildingId}-1`,
-            building_id: buildingId,
-            mac_address: "AA:BB:CC:00:00:01",
-            sensor_type: "Energy meter",
-            unit: "kWh",
-            location_zone: "Main incomer",
-            status: "Active",
-            installed_date: "2026-02-15",
-        },
-        {
-            sensor_id: `seed-${buildingId}-2`,
-            building_id: buildingId,
-            mac_address: "AA:BB:CC:00:00:02",
-            sensor_type: "HVAC meter",
-            unit: "kWh",
-            location_zone: "Roof plant room",
-            status: "Maintenance",
-            installed_date: "2026-05-07",
-        },
-    ];
+
+// only kepp the date date part for display and slice the rest which prsima returns
+function formatInstalledDate(installedDate?: string | null): string {
+    return installedDate ? installedDate.slice(0, 10) : "N/A";
 }
 
 export default function SensorsClient({
@@ -86,20 +76,31 @@ export default function SensorsClient({
 
         const load = async () => {
             try {
-                const response = await fetch("/api/buildings", { method: "GET", cache: "no-store" });
-                const payload = (await response.json()) as BuildingResponse;
+                const [buildingsResponse, sensorsResponse] = await Promise.all([
+                    fetch("/api/buildings", { method: "GET", cache: "no-store" }),
+                    fetch(`/api/sensors?building_id=${encodeURIComponent(buildingId)}`, {
+                        method: "GET",
+                        cache: "no-store"
+                    })
+                ]);
+                const buildingsPayload = (await buildingsResponse.json()) as BuildingResponse;
+                const sensorsPayload = (await sensorsResponse.json()) as SensorListResponse;
 
-                if (!response.ok) {
-                    throw new Error(payload.message || "Unable to load the building.");
+                if (!buildingsResponse.ok) {
+                    throw new Error(buildingsPayload.message || "Unable to load the building.");
                 }
-                const foundBuilding = (payload.data ?? []).find((row) => row.building_id === buildingId);
+                const foundBuilding = (buildingsPayload.data ?? []).find((row) => row.building_id === buildingId);
                 if (!foundBuilding) {
                     throw new Error("Building not found.");
                 }
 
+                if (!sensorsResponse.ok) {
+                    throw new Error(sensorsPayload.message || "Unable to load the sensors.");
+                }
+
                 if (isMounted) {
                     setBuilding(foundBuilding);
-                    setSensors(seedSensors(buildingId));
+                    setSensors(Array.isArray(sensorsPayload.data) ? sensorsPayload.data : []);
                 }
             }
             catch (loadError) {
@@ -137,7 +138,7 @@ export default function SensorsClient({
         setIsRegisterOpen(true);
     };
 
-    const handleRegisterSensor = () => {
+    const handleRegisterSensor = async () => {
         const macAddress = form.mac_address.trim().toUpperCase();
 
         if (!macAddress) {
@@ -154,25 +155,57 @@ export default function SensorsClient({
             return;
         }
 
-        // every sensor registered here belongs to this building only 
-        const newSensor: SensorRecord = {
-            sensor_id: `sensor-${Date.now()}`,
-            building_id: buildingId,
-            mac_address: macAddress,
-            sensor_type: form.sensor_type.trim() || "Energy meter",
-            unit: form.unit.trim() || "kWh",
-            location_zone: form.location_zone.trim(),
-            status: form.status,
-            installed_date: new Date().toISOString().slice(0, 10),
-        };
+        // every sensor registered here belongs to this building only
+        try {
+            const response = await fetch("/api/sensors", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                cache: "no-store",
+                body: JSON.stringify({
+                    building_id: buildingId,
+                    mac_address: macAddress,
+                    sensor_type: form.sensor_type.trim() || "Energy meter",
+                    unit: form.unit.trim() || "kWh",
+                    ...(form.location_zone.trim() ? { location_zone: form.location_zone.trim() } : {}),
+                    status: form.status
+                })
+            });
 
-        setSensors((prev) => [...prev, newSensor]);
-        setIsRegisterOpen(false);
+            const payload = (await response.json()) as SensorResponse;
+
+            if (!response.ok || !payload.data) {
+                setFormError(payload.message || "Unable to register the sensor.");
+                return;
+            }
+            setSensors((prev) => [...prev, payload.data as SensorRecord]);
+            setIsRegisterOpen(false);
+        } catch {
+            setFormError("Unable to register the sensor.");
+        }
     };
 
-    const handleDeleteSensor = (sensorId: string) => {
-        if (!confirm("Delete this sensor permanently?")) return;
-        setSensors((prev) => prev.filter((sensor) => sensor.sensor_id !== sensorId));
+    const handleDeleteSensor = async (sensorId: string) => {
+        if (!confirm("Delete this sensor permanently?")) { 
+            return 
+        };
+
+        try {
+            const response = await fetch(`/api/sensors/${encodeURIComponent(sensorId)}`, {
+                method: "DELETE",
+                cache: "no-store"
+            });
+            
+            if (!response.ok) {
+                const payload = (await response.json().catch(() => ({}))) as SensorResponse;
+                setError(payload.message || "Unable to delete the sensor.");
+                return;
+            }
+
+            setError("");
+            setSensors((prev) => prev.filter((sensor) => sensor.sensor_id !== sensorId));
+        } catch {
+            setError("Unable to delete the sensor.");
+        }
     };
 
     const sensorsCount = `${sensors.length} sensor${sensors.length === 1 ? "" : "s"} registered`;
@@ -184,7 +217,7 @@ export default function SensorsClient({
                 <td colSpan={5} className="dashboard-empty"> Loading sensors... </td>
             </tr>
         );
-    } 
+    }
     else if (sensors.length === 0) {
         tableBody = (
             <tr>
@@ -201,24 +234,24 @@ export default function SensorsClient({
                 <td>{sensor.location_zone || "N/A"}</td>
 
                 <td>
-                    <span className={`badge ${statusBadge[sensor.status]}`}>
-                        {sensor.status}
+                    <span className={`badge ${statusBadge[sensor.status ?? "Active"]}`}>
+                        {sensor.status ?? "Active"}
                     </span>
                 </td>
                 <td>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
                         <button type="button" onClick={() => setViewingSensor(sensor)} className="btn btn-secondary" style={
-                        { 
-                            fontSize: "var(--fs-small)", 
-                            padding: "4px 12px" 
-                        }
-                        }>View</button>
-                        {canManageSensors && (<button type="button" onClick={() => handleDeleteSensor(sensor.sensor_id)} className="btn btn-danger" style={
-                            { 
+                            {
                                 fontSize: "var(--fs-small)",
                                 padding: "4px 12px"
                             }
-                            }>Delete</button>
+                        }>View</button>
+                        {canManageSensors && (<button type="button" onClick={() => handleDeleteSensor(sensor.sensor_id)} className="btn btn-danger" style={
+                            {
+                                fontSize: "var(--fs-small)",
+                                padding: "4px 12px"
+                            }
+                        }>Delete</button>
                         )}
                     </div>
                 </td>
@@ -297,12 +330,12 @@ export default function SensorsClient({
                             <dd>{viewingSensor.location_zone || "N/A"}</dd>
                             <dt className="label">Status</dt>
                             <dd>
-                                <span className={`badge ${statusBadge[viewingSensor.status]}`}>
-                                    {viewingSensor.status}
+                                <span className={`badge ${statusBadge[viewingSensor.status ?? "Active"]}`}>
+                                    {viewingSensor.status ?? "Active"}
                                 </span>
                             </dd>
                             <dt className="label">Installed</dt>
-                            <dd>{viewingSensor.installed_date || "N/A"}</dd>
+                            <dd>{formatInstalledDate(viewingSensor.installed_date)}</dd>
                         </dl>
                         <div style={{ display: "flex", marginTop: "var(--space-5)" }}>
                             <button type="button" onClick={() => setViewingSensor(null)} style={{ flex: 1 }} className="btn btn-secondary">Close</button>
@@ -323,7 +356,7 @@ export default function SensorsClient({
                         padding: "var(--space-4)",
                     }}
                 >
-                    <div className="modal" aria-modal="true" aria-label="Register sensor" role="dialog"  style={{ maxWidth: "500px", width: "100%" }}>
+                    <div className="modal" aria-modal="true" aria-label="Register sensor" role="dialog" style={{ maxWidth: "500px", width: "100%" }}>
                         <h2 style={{ marginBottom: "var(--space-4)" }}>Register sensor</h2>
                         <p style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-4)" }}>
                             The sensor will be registered to {building?.building_name ?? "this building"}.

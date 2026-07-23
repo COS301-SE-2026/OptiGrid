@@ -39,7 +39,6 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 
 	const authRate = rateLimiter(5, 1/60); //max 5, with 1 refill every min
 	const homeRate = rateLimiter(50,5); //max 50, 5 refill every second
-	const sensorRate = rateLimiter(10, 1/10); //max 10, 1refill every 10 second
 	const normalRate = rateLimiter(30, 2); //max30, 2 refill every sec
 	const strictRate = rateLimiter(3, 1/60); //max 3, 1 refill every min
 	app.use(express.json());
@@ -47,7 +46,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", authRate, userAuthRoutes);
-	app.use("/api/sensors", sensorRate, sensorRoutes);
+	app.use("/api/sensors", sensorRoutes);
 	app.use("/api/analytics", authenticateRequest, homeRate,analyticsRoutes);
 	app.use("/api/buildings", authenticateRequest, normalRate, buildingRoutes);
 	app.use("/api/preferences", authenticateRequest, normalRate, userPreferencesRoutes);
