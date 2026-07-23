@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "../theme-provider";
@@ -10,6 +10,24 @@ interface UserProfile {
   last_name: string;
   email: string;
   role: "admin" | "manager" | "user";
+}
+
+const EMPTY_PROFILE: UserProfile = {
+  first_name: "",
+  last_name: "",
+  email: "",
+  role: "user",
+};
+
+function profileFromSession(user: Record<string, unknown>): UserProfile {
+  const roleType = typeof user.roleType === "string" ? user.roleType : "VIEWER";
+
+  return {
+    first_name: typeof user.firstName === "string" ? user.firstName : "",
+    last_name: typeof user.lastName === "string" ? user.lastName : "",
+    email: typeof user.email === "string" ? user.email : "",
+    role: roleType === "ADMIN" ? "admin" : roleType === "BUILDING_MANAGER" ? "manager" : "user",
+  };
 }
 
 function SunIcon() {
@@ -40,12 +58,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const { theme, toggle } = useTheme();
 
-  const [profile, setProfile] = useState<UserProfile>({
-    first_name: "Tali",
-    last_name: "Seaba",
-    email: "Tali@example.com",
-    role: "admin",
-  });
+  const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE);
+  const [initialProfile, setInitialProfile] = useState<UserProfile>(EMPTY_PROFILE);
 
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState<boolean>(false);
@@ -58,18 +72,42 @@ export default function SettingsPage() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+
+        const user = (await response.json()) as Record<string, unknown>;
+        const sessionProfile = profileFromSession(user);
+
+        if (isMounted) {
+          setProfile(sessionProfile);
+          setInitialProfile(sessionProfile);
+        }
+      } catch (error) {
+        console.error("Failed to load user profile", error);
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleSaveChanges = () => {
     showToastMessage("Profile changes saved");
   };
 
   const handleResetToDefault = () => {
-    setProfile({
-      first_name: "Tali",
-      last_name: "Seaba",
-      email: "Tali@example.com",
-      role: "admin",
-    });
-    showToastMessage("Profile reset to default");
+    setProfile(initialProfile);
+    showToastMessage("Profile reset");
   };
 
   const handleLogout = () => {
