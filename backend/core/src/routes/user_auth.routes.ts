@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { signup, login } from '../controllers/user_auth.controller';
+import { signup, login, recoverAccount } from '../controllers/user_auth.controller';
 import { validateSignUp, validateBody, signupSchema, loginSchema } from '../validation/user_auth.validation';
 
 const router = Router();
@@ -181,6 +181,40 @@ router.post('/signup', validateSignUp(signupSchema), signup);
  *                   example: Internal server error
  */
 router.post('/login', validateBody(loginSchema), login)
+
+/**
+ * @swagger
+ * /auth/recover-account:
+ *   post:
+ *     summary: Recover a deactivated account
+ *     description: Verifies the account credentials and reactivates a previously soft-deleted account.
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Account recovered successfully
+ *       400:
+ *         description: Invalid credentials or invalid payload
+ *       404:
+ *         description: Account profile not found
+ *       409:
+ *         description: Account is already active
+ */
+router.post('/recover-account', validateBody(loginSchema), recoverAccount);
 
 export default router;
 
