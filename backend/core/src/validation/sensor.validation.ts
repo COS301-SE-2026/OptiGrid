@@ -15,3 +15,28 @@ export const telemetrySchema = z.object({
 }).strict();
 
 export type TelemetryPayload = z.infer<typeof telemetrySchema>;
+
+const UUID_REGEX = /^[0-9a-fA-F-]{36}$/;
+const MAC_ADDRESS_REGEX = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/;
+
+// sensor listing validadtion
+export const listSensorsSchema = z.object({
+    building_id: z.string().regex(UUID_REGEX, "building_id must be a valid UUID"),
+}).strict();
+
+// validation of payload for creating a sensor
+export const createSensorSchema = z.object({
+    building_id: z.string().regex(UUID_REGEX, "building_id must be a valid UUID"),
+    mac_address: z.string().regex(MAC_ADDRESS_REGEX, "mac_address must look like AA:BB:CC:DD:EE:FF"),
+
+    sensor_type: z.string().max(100).optional(),
+    unit: z.string().max(50).optional(),
+    location_zone: z.string().max(100).optional(),
+    status: z.enum(['Active', 'Offline', 'Maintenance']).optional(),
+    installed_date: z.string().date("installed_date must be a YYYY-MM-DD date").optional()
+}).strict();
+export type CreateSensorPayload = z.infer<typeof createSensorSchema>;
+
+export const deleteSensorSchema = z.object({
+    sensor_id: z.string().regex(UUID_REGEX, "sensor_id must be a valid UUID"),
+}).strict();
