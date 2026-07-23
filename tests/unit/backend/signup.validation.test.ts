@@ -72,6 +72,7 @@ describe('signup validation', () => {
 				password: 'SecurePass123!',
 				name: 'Jane Doe',
 				role: 'admin',
+				roleType: 'ADMIN',
 				tenant_id: '11111111-1111-4111-8111-111111111111',
 			},
 		} as any;
