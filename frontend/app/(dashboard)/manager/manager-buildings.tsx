@@ -49,7 +49,7 @@ function getEnergyUsage(building: BuildingRecord): number | null {
     return typeof usage === "number" && Number.isFinite(usage) ? usage : null;
 }
 function getOwnerName(building: BuildingRecord): string {
-    const viewer = building.authorized_users?.find((access) => access?.user?.roleType === "VIEWER",)?.user;
+    const viewer = building.authorized_users.find((access) => access?.user?.roleType?.toUpperCase() === "VIEWER")?.user;
     if (!viewer) {
         return "N/A";
     }
@@ -70,7 +70,7 @@ export default function ManagerBuildings() {
         let isMounted = true;
         const load = async () => {
             try {
-                const response = await fetch("/api/buildings", {
+                const response = await fetch("/api/buildings/manager", {
                     method: "GET",
                     cache: "no-store",
                 });

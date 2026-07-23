@@ -623,6 +623,18 @@ export const getManagerBuildings = async (userId: string) => {
       created_at: "desc"
     },
   });
+  const getUsage = await Promise.all(
+    building.map(async (b) => {
+      let todays_usage: number | null = null;
+      try {
+        const data = await queryTotalKwh(b.building_id, "1d");
+        todays_usage = typeof data === "number" ? data : data?.total_kwh ?? null;
+      }
+      catch(error) {
+        console.error(`Failed to get the todays usage for this building: `, error)
+      }
+    })
+  );
   //all things returned here are things expecte din frotnend
   return building.map((build) => ({
     building_id: build.building_id,
