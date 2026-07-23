@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
   getPortfolioConsumption, listBuildingsForUser, updateBuildingService, getManagerBuildings } from '../services/building.services';
-import { compareBuildingsService, createBuilding, deleteBuildingService, getAllBuildings, getBuildingDetails, getBuildingEnergyConsumptionDetails, getPortfolioConsumption, listBuildingsForUser, updateBuildingService } from '../services/building.services';
+import { getBuildingDetails } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 
