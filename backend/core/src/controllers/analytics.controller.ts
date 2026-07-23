@@ -11,6 +11,8 @@ type NormalizedForecastPoint = {
     yhat_upper: number;
 };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LEGACY_BUILDING_PATTERN = /^(bld_|building_)[a-zA-Z0-9_-]+$/i;
+const isValidBuildingId = (id: string) => UUID_PATTERN.test(id) || LEGACY_BUILDING_PATTERN.test(id);
 
 function toFiniteNumber(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -32,8 +34,8 @@ export const refreshAnalyticsController = async (req: Request, res: Response) =>
         }
 
         const { building_id } = req.params;
-        if (!UUID_PATTERN.test(building_id)) {
-            return res.status(400).json({ status: 'error', message: 'Invalid building ID. Must be a valid UUID.' });
+        if (!isValidBuildingId(building_id)) {
+            return res.status(400).json({ status: 'error', message: 'Building ID must be a valid UUID or legacy building id.' });
         }
 
         const authorizedBuildings = await prisma.building.findMany({
@@ -43,7 +45,7 @@ export const refreshAnalyticsController = async (req: Request, res: Response) =>
 
         const isAuthorized = authorizedBuildings.some(b => b.building_id === building_id);
         if (!isAuthorized) {
-            return res.status(403).json({ status: 'error', message: 'Access Denied' });
+            return res.status(403).json({ status: 'error', message: 'Access Denied: You do not have permission to view this forecast.' });
         }
 
         const pythonEngineUrl = process.env.ANALYTICS_URL || 'http://localhost:5001';
@@ -70,12 +72,12 @@ export const getForecastController = async (req: Request, res: Response) => {
             return res.status(401).json({ status: 'error', message: 'Unauthorized' });
         }
 
-        // get building id from url params, determine forcast horizon
+        // get building id from url params, determine forecast horizon
         const { building_id } = req.params;
-        const horizon = req.query.horizon === 'monthly' ? 'monthly' : 'weekly';
+        const horizon = (req.query?.horizon === 'monthly' || req.body?.horizon === 'monthly') ? 'monthly' : 'weekly';
 
-        if (!UUID_PATTERN.test(building_id)) {
-            return res.status(400).json({ status: 'error', message: 'Invalid building ID. Must be a valid UUID.' });
+        if (!isValidBuildingId(building_id)) {
+            return res.status(400).json({ status: 'error', message: 'Building ID must be a valid UUID or legacy building id.' });
         }
 
         // check if user has access to this building
@@ -86,7 +88,7 @@ export const getForecastController = async (req: Request, res: Response) => {
 
         const isAuthorized = authorizedBuildings.some(b => b.building_id === building_id);
         if (!isAuthorized) {
-            return res.status(403).json({ status: 'error', message: 'Access Denied' });
+            return res.status(403).json({ status: 'error', message: 'Access Denied: You do not have permission to view this forecast.' });
         }
 
         // fetch analytics data from appropriate table based on horizon
@@ -94,27 +96,32 @@ export const getForecastController = async (req: Request, res: Response) => {
             ? await prisma.$queryRaw<any[]>(Prisma.sql`SELECT * FROM public.building_analytics_monthly WHERE building_id::text = ${building_id} LIMIT 1`)
             : await prisma.$queryRaw<any[]>(Prisma.sql`SELECT * FROM public.building_analytics_weekly WHERE building_id::text = ${building_id} LIMIT 1`);
 
-        const analytics = directAnalyticsRows[0] ?? null;
+        let analytics = directAnalyticsRows[0] ?? null;
+
+        if (!analytics) {
+            const fallbackRows = await prisma.$queryRaw<any[]>(Prisma.sql`SELECT * FROM public.building_analytics WHERE building_id::text = ${building_id} LIMIT 1`).catch(() => []);
+            analytics = fallbackRows[0] ?? null;
+        }
 
         // return 404 if no data found (models yet to be generated)
         if (!analytics) {
-            return res.status(404).json({ status: 'error', message: 'Forecast models are currently being generated.' });
+            return res.status(404).json({ status: 'error', message: 'Forecast models are currently being generated for this building. Please check back later.' });
         }
         
-        //build hisotrical data point from last usage
+        //build historical data point from last usage
         const synthesisedHistorical = [{
             timestamp: analytics.updated_at || new Date().toISOString(),
             kwh: Number(analytics.todays_usage) || 0
         }];
 
-        // parse and normalise forecase series data from JSON
+        // parse and normalise forecast series data from JSON
         const rawForecastSeries = Array.isArray(analytics.forecast_series) ? analytics.forecast_series : [];
         const normalizedForecastSeries = rawForecastSeries.map((point: any) => {
             const yhat = toFiniteNumber(point?.yhat) ?? toFiniteNumber(point?.predicted_usage) ?? toFiniteNumber(point?.value);
             // extract predicted value from various possible field names
             if (!point?.timestamp || yhat === null) return null;
 
-            // extract condidence interval bounds
+            // extract confidence interval bounds
             const lowerBound = toFiniteNumber(point?.yhat_lower) ?? toFiniteNumber(point?.lower) ?? yhat;
             const upperBound = toFiniteNumber(point?.yhat_upper) ?? toFiniteNumber(point?.upper) ?? yhat;
 
@@ -126,7 +133,7 @@ export const getForecastController = async (req: Request, res: Response) => {
             };
         }).filter((point: NormalizedForecastPoint | null): point is NormalizedForecastPoint => point !== null);
 
-        //buidling final response with historical data, forecast and summary metric
+        //building final response with historical data, forecast and summary metric
         const result = {
             historical: synthesisedHistorical, 
             forecast: normalizedForecastSeries, 

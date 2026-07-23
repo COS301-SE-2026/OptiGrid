@@ -16,6 +16,7 @@ import {
 
 type ForecastParams = {
     building_id: string;
+    horizon: "weekly" | "monthly";
 };
 
 type HistoricalPoint = { timestamp: string; kwh: number };
@@ -42,8 +43,7 @@ type ChartPoint = {
     timestamp: string;
     kwh?: number;
     yhat?: number;
-    yhat_lower?: number;
-    yhat_upper?: number;
+    yhat_range?: [number, number];
 };
 
 type BuildingApiRecord = {
@@ -66,18 +66,50 @@ function toFiniteNumber(value: unknown): number | undefined {
     return undefined;
 }
 
-function formatXTick(ts: string): string {
+function formatXTick(ts: string, horizon: "weekly" | "monthly"): string {
     const d = new Date(ts);
-    const day = new Intl.DateTimeFormat("en", { weekday: "short" }).format(d);
+    if (isNaN(d.getTime())) return ts;
+    if (horizon === "monthly") {
+        return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
+    }
+    const monthDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
     const hour = String(d.getUTCHours()).padStart(2, "0");
-    return `${day} ${hour}:00`;
+    return `${monthDay} ${hour}:00`;
+}
+
+function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return ts;
+    if (horizon === "monthly") {
+        return new Intl.DateTimeFormat("en", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        }).format(d);
+    }
+    return new Intl.DateTimeFormat("en", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "UTC",
+    }).format(d);
 }
 
 function formatPeakTimestamp(ts: string): string {
     const d = new Date(ts);
-    const day = new Intl.DateTimeFormat("en", { weekday: "short" }).format(d);
-    const hour = String(d.getUTCHours()).padStart(2, "0");
-    return `${day} ${hour}:00`;
+    if (isNaN(d.getTime())) return ts;
+    return new Intl.DateTimeFormat("en", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "UTC",
+    }).format(d);
 }
 
 function Spinner() {
@@ -121,6 +153,8 @@ function Skeleton({ style }: { style?: CSSProperties }) {
 }
 
 function formatFullTimestamp(ts: string): string {
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return ts;
     return new Intl.DateTimeFormat("en", {
         month: "short",
         day: "numeric",
@@ -128,11 +162,12 @@ function formatFullTimestamp(ts: string): string {
         minute: "2-digit",
         hour12: false,
         timeZone: "UTC",
-    }).format(new Date(ts));
+    }).format(d);
 }
 
 export default function ForecastPage() {
     const [buildingId, setBuildingId] = useState<string>("");
+    const [horizon, setHorizon] = useState<"weekly" | "monthly">("weekly");
     const [forecastError, setForecastError] = useState<string | null>(null);
 
     const { data: buildings = [], isLoading: buildingsLoading, isError: buildingsError } = useQuery<
@@ -161,14 +196,15 @@ export default function ForecastPage() {
 
     const { mutate, isPending, data: result } = useMutation({
         mutationFn: async (params: ForecastParams) => {
-            const response = await fetch(`/api/analytics/forecast/${params.building_id}`, {
+            const response = await fetch(`/api/analytics/forecast/${params.building_id}?horizon=${params.horizon}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    horizon_days: 1,
-                    granularity: "hourly",
+                    horizon: params.horizon,
+                    horizon_days: params.horizon === "monthly" ? 30 : 7,
+                    granularity: params.horizon === "monthly" ? "weekly" : "hourly",
                 }),
             });
 
@@ -209,17 +245,30 @@ export default function ForecastPage() {
         })
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
+    // Connect boundary timestamp for line continuity
+    const connectedForecast = [...normalizedForecast];
+    if (normalizedHistorical.length > 0 && connectedForecast.length > 0) {
+        const lastHist = normalizedHistorical[normalizedHistorical.length - 1];
+        if (connectedForecast[0].timestamp !== lastHist.timestamp) {
+            connectedForecast.unshift({
+                timestamp: lastHist.timestamp,
+                yhat: lastHist.kwh,
+                yhat_lower: lastHist.kwh,
+                yhat_upper: lastHist.kwh,
+            });
+        }
+    }
+
     const chartData: ChartPoint[] = result
         ? [
             ...normalizedHistorical.map((p) => ({
                 timestamp: p.timestamp,
                 kwh: p.kwh,
             })),
-            ...normalizedForecast.map((p) => ({
+            ...connectedForecast.map((p) => ({
                 timestamp: p.timestamp,
                 yhat: p.yhat,
-                yhat_lower: p.yhat_lower,
-                yhat_upper: p.yhat_upper,
+                yhat_range: [p.yhat_lower, p.yhat_upper] as [number, number],
             })),
         ]
         : [];
@@ -232,7 +281,7 @@ export default function ForecastPage() {
     const hasConfidenceBand = normalizedForecast.some(
         (point) => point.yhat_lower !== point.yhat_upper,
     );
-    const tickInterval = 23;
+    const tickInterval = horizon === "monthly" ? 0 : 23;
 
     const canRun = buildingId !== "" && !isPending && !buildingsLoading;
     const selectedBuildingName =
@@ -257,7 +306,7 @@ export default function ForecastPage() {
             >
                 <h1 className="dashboard-title">Demand Forecast</h1>
                 <p className="dashboard-subtitle">
-                    Select a building to view its upcoming demand forecast.
+                    Select a building and horizon to view its upcoming energy demand forecast.
                 </p>
             </div>
 
@@ -313,6 +362,40 @@ export default function ForecastPage() {
                     </div>
 
                     <div style={{ display: "grid", gap: "6px" }}>
+                        <label
+                            htmlFor="horizon-select"
+                            className="label"
+                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
+                        >
+                            Horizon
+                        </label>
+                        <div style={{ position: "relative" }}>
+                            <select
+                                id="horizon-select"
+                                className="select"
+                                style={selectStyle}
+                                value={horizon}
+                                onChange={(e) => setHorizon(e.target.value as "weekly" | "monthly")}
+                            >
+                                <option value="weekly">Weekly (Next 7 Days)</option>
+                                <option value="monthly">Monthly (Next 12 Weeks)</option>
+                            </select>
+                            <span
+                                style={{
+                                    position: "absolute",
+                                    right: "12px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "var(--brand-ink-muted)",
+                                    pointerEvents: "none",
+                                }}
+                            >
+                                <ChevronDown />
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "grid", gap: "6px" }}>
                         <span className="label" style={{ opacity: 0 }}>
                             Run
                         </span>
@@ -321,6 +404,7 @@ export default function ForecastPage() {
                             onClick={() =>
                                 mutate({
                                     building_id: buildingId,
+                                    horizon: horizon,
                                 })
                             }
                             className="btn btn-primary"
@@ -353,15 +437,17 @@ export default function ForecastPage() {
             <div className="card dashboard-section">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Demand Trend</h2>
-                    <span className="dashboard-section-meta">Next 24 hours</span>
+                    <span className="dashboard-section-meta">
+                        {horizon === "monthly" ? "Next 12 weeks" : "Next 7 days"}
+                    </span>
                 </div>
 
                 {isPending ? (
-                    <Skeleton style={{ height: 224, width: "100%" }} />
+                    <Skeleton style={{ height: 240, width: "100%" }} />
                 ) : !result ? (
                     <div
                         style={{
-                            height: 224,
+                            height: 240,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -375,10 +461,10 @@ export default function ForecastPage() {
                     </div>
                 ) : (
                     <>
-                        <ResponsiveContainer width="100%" height={220}>
+                        <ResponsiveContainer width="100%" height={240}>
                             <ComposedChart
                                 data={chartData}
-                                margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                                margin={{ top: 16, right: 20, left: 10, bottom: 0 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 3"
@@ -386,7 +472,7 @@ export default function ForecastPage() {
                                 />
                                 <XAxis
                                     dataKey="timestamp"
-                                    tickFormatter={(ts) => formatXTick(ts)}
+                                    tickFormatter={(ts) => formatXTick(ts, horizon)}
                                     interval={tickInterval}
                                     tick={{
                                         fill: "var(--brand-ink-muted)",
@@ -396,6 +482,8 @@ export default function ForecastPage() {
                                     tickLine={false}
                                 />
                                 <YAxis
+                                    domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
+                                    tickFormatter={(val) => `${val.toLocaleString()}`}
                                     tick={{
                                         fill: "var(--brand-ink-muted)",
                                         fontSize: 10,
@@ -412,28 +500,18 @@ export default function ForecastPage() {
                                         fontSize: "12px",
                                     }}
                                     cursor={{ stroke: "var(--brand-border)" }}
-                                    labelFormatter={(ts) => formatXTick(ts as string)}
+                                    labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon)}
                                 />
-                                {/* Confidence band - renders below lines */}
+                                {/* Native confidence range area band */}
                                 {hasConfidenceBand ? (
-                                    <>
-                                        <Area
-                                            type="monotone"
-                                            dataKey="yhat_upper"
-                                            fill="var(--brand-primary)"
-                                            fillOpacity={0.16}
-                                            stroke="none"
-                                            connectNulls={false}
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="yhat_lower"
-                                            fill="var(--brand-bg)"
-                                            fillOpacity={1}
-                                            stroke="none"
-                                            connectNulls={false}
-                                        />
-                                    </>
+                                    <Area
+                                        type="monotone"
+                                        dataKey="yhat_range"
+                                        fill="var(--brand-primary)"
+                                        fillOpacity={0.15}
+                                        stroke="none"
+                                        connectNulls={false}
+                                    />
                                 ) : null}
                                 {nowTs && (
                                     <ReferenceLine
@@ -562,7 +640,9 @@ export default function ForecastPage() {
                 </div>
 
                 <div className="card dashboard-card-tight">
-                    <p className="dashboard-kpi-label">Avg / day</p>
+                    <p className="dashboard-kpi-label">
+                        {horizon === "monthly" ? "Avg / week" : "Avg / day"}
+                    </p>
                     {isPending ? (
                         <Skeleton style={{ height: 28, width: 150, marginTop: 12 }} />
                     ) : result ? (
