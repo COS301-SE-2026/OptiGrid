@@ -112,6 +112,83 @@ function formatPeakTimestamp(ts: string): string {
     }).format(d);
 }
 
+function processHistoricalData(historical: HistoricalPoint[]) {
+    return historical
+        .map((point) => ({
+            timestamp: point.timestamp,
+            kwh: toFiniteNumber(point.kwh) ?? 0,
+        }))
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+}
+
+function processForecastData(forecast: ForecastPoint[]) {
+    return forecast
+        .map((point) => {
+            const forecastValue = toFiniteNumber(point.yhat) ?? 0;
+            const lowerBound = toFiniteNumber(point.yhat_lower) ?? forecastValue;
+            const upperBound = toFiniteNumber(point.yhat_upper) ?? forecastValue;
+
+            return {
+                timestamp: point.timestamp,
+                yhat: forecastValue,
+                yhat_lower: Math.min(lowerBound, upperBound),
+                yhat_upper: Math.max(lowerBound, upperBound),
+            };
+        })
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+}
+
+function buildChartData(result: ForecastResult | undefined) {
+    if (!result) {
+        return {
+            chartData: [],
+            nowTs: null,
+            showActualDots: false,
+            showForecastDots: false,
+            hasConfidenceBand: false,
+        };
+    }
+
+    const normalizedHistorical = processHistoricalData(result.historical ?? []);
+    const normalizedForecast = processForecastData(result.forecast ?? []);
+
+    // Connect boundary timestamp for line continuity
+    const connectedForecast = [...normalizedForecast];
+    if (normalizedHistorical.length > 0 && connectedForecast.length > 0) {
+        const lastHist = normalizedHistorical.at(-1);
+        if (connectedForecast[0].timestamp !== lastHist.timestamp) {
+            connectedForecast.unshift({
+                timestamp: lastHist.timestamp,
+                yhat: lastHist.kwh,
+                yhat_lower: lastHist.kwh,
+                yhat_upper: lastHist.kwh,
+            });
+        }
+    }
+
+    const chartData: ChartPoint[] = [
+        ...normalizedHistorical.map((p) => ({
+            timestamp: p.timestamp,
+            kwh: p.kwh,
+        })),
+        ...connectedForecast.map((p) => ({
+            timestamp: p.timestamp,
+            yhat: p.yhat,
+            yhat_range: [p.yhat_lower, p.yhat_upper] as [number, number],
+        })),
+    ];
+
+    const nowTs = normalizedHistorical.at(-1)?.timestamp ?? null;
+
+    const showActualDots = normalizedHistorical.length <= 1 ? { r: 4, strokeWidth: 0 } : false;
+    const showForecastDots = normalizedForecast.length <= 1 ? { r: 4, strokeWidth: 0 } : false;
+    const hasConfidenceBand = normalizedForecast.some(
+        (point) => point.yhat_lower !== point.yhat_upper,
+    );
+
+    return { chartData, nowTs, showActualDots, showForecastDots, hasConfidenceBand };
+}
+
 function Spinner() {
     return (
         <svg
@@ -148,21 +225,274 @@ function ChevronDown() {
     );
 }
 
-function Skeleton({ style }: { style?: CSSProperties }) {
+function Skeleton({ style }: Readonly<{ style?: CSSProperties }>) {
     return <div className="skeleton" style={style} />;
 }
 
-function formatFullTimestamp(ts: string): string {
-    const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) return ts;
-    return new Intl.DateTimeFormat("en", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-        timeZone: "UTC",
-    }).format(d);
+function BuildingStatusNotice({
+    buildingsError,
+    buildingsCount,
+    buildingsLoading,
+    forecastError,
+}: Readonly<{
+    buildingsError: boolean;
+    buildingsCount: number;
+    buildingsLoading: boolean;
+    forecastError: string | null;
+}>) {
+    if (buildingsError) {
+        return (
+            <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+                Unable to load your assigned buildings right now.
+            </p>
+        );
+    }
+    if (buildingsCount === 0 && !buildingsLoading) {
+        return (
+            <p className="text-muted" style={{ marginTop: "12px" }}>
+                No buildings are currently assigned to your account.
+            </p>
+        );
+    }
+    if (forecastError) {
+        return (
+            <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+                {forecastError}
+            </p>
+        );
+    }
+    return null;
+}
+
+function KpiCard({
+    label,
+    isPending,
+    value,
+    skeletonWidth = 150,
+}: Readonly<{
+    label: string;
+    isPending: boolean;
+    value: string | null;
+    skeletonWidth?: number;
+}>) {
+    return (
+        <div className="card dashboard-card-tight">
+            <p className="dashboard-kpi-label">{label}</p>
+            {isPending && <Skeleton style={{ height: 28, width: skeletonWidth, marginTop: 12 }} />}
+            {!isPending && value && <p className="dashboard-kpi-value metric">{value}</p>}
+            {!isPending && !value && <p className="dashboard-kpi-value text-muted">--</p>}
+        </div>
+    );
+}
+
+function ForecastChartContainer({
+    isPending,
+    result,
+    chartData,
+    horizon,
+    tickInterval,
+    hasConfidenceBand,
+    nowTs,
+    showActualDots,
+    showForecastDots,
+    selectedBuildingName,
+}: Readonly<{
+    isPending: boolean;
+    result: ForecastResult | undefined;
+    chartData: ChartPoint[];
+    horizon: "weekly" | "monthly";
+    tickInterval: number;
+    hasConfidenceBand: boolean;
+    nowTs: string | null;
+    showActualDots: boolean | { r: number; strokeWidth: number };
+    showForecastDots: boolean | { r: number; strokeWidth: number };
+    selectedBuildingName: string;
+}>) {
+    if (isPending) {
+        return <Skeleton style={{ height: 240, width: "100%" }} />;
+    }
+
+    if (!result) {
+        return (
+            <div
+                style={{
+                    height: 240,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px dashed var(--brand-border)",
+                    color: "var(--brand-ink-muted)",
+                    fontSize: "0.9rem",
+                }}
+            >
+                Configure the controls above and run a forecast.
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <ResponsiveContainer width="100%" height={240}>
+                <ComposedChart
+                    data={chartData}
+                    margin={{ top: 16, right: 20, left: 10, bottom: 0 }}
+                >
+                    <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="var(--brand-border)"
+                    />
+                    <XAxis
+                        dataKey="timestamp"
+                        tickFormatter={(ts) => formatXTick(ts, horizon)}
+                        interval={tickInterval}
+                        tick={{
+                            fill: "var(--brand-ink-muted)",
+                            fontSize: 10,
+                        }}
+                        axisLine={false}
+                        tickLine={false}
+                    />
+                    <YAxis
+                        domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
+                        tickFormatter={(val) => `${val.toLocaleString()}`}
+                        tick={{
+                            fill: "var(--brand-ink-muted)",
+                            fontSize: 10,
+                        }}
+                        axisLine={false}
+                        tickLine={false}
+                    />
+                    <Tooltip
+                        contentStyle={{
+                            backgroundColor: "var(--brand-surface)",
+                            border: "1px solid var(--brand-border)",
+                            borderRadius: "12px",
+                            color: "var(--brand-ink)",
+                            fontSize: "12px",
+                        }}
+                        cursor={{ stroke: "var(--brand-border)" }}
+                        labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon)}
+                    />
+                    {/* Native confidence range area band */}
+                    {hasConfidenceBand ? (
+                        <Area
+                            type="monotone"
+                            dataKey="yhat_range"
+                            fill="var(--brand-primary)"
+                            fillOpacity={0.15}
+                            stroke="none"
+                            connectNulls={false}
+                        />
+                    ) : null}
+                    {nowTs && (
+                        <ReferenceLine
+                            x={nowTs}
+                            stroke="var(--brand-ink-muted)"
+                            strokeDasharray="4 3"
+                            label={{
+                                value: "now",
+                                position: "top",
+                                fill: "var(--brand-ink-muted)",
+                                fontSize: 11,
+                            }}
+                        />
+                    )}
+                    <Line
+                        type="monotone"
+                        dataKey="kwh"
+                        stroke="var(--brand-primary)"
+                        strokeWidth={2}
+                        dot={showActualDots}
+                        activeDot={{ r: 5 }}
+                        connectNulls={false}
+                    />
+                    <Line
+                        type="monotone"
+                        dataKey="yhat"
+                        stroke="var(--brand-primary)"
+                        strokeWidth={2}
+                        strokeDasharray="4 2"
+                        dot={showForecastDots}
+                        activeDot={{ r: 5 }}
+                        connectNulls={false}
+                    />
+                </ComposedChart>
+            </ResponsiveContainer>
+
+            {/* Legend */}
+            <div
+                className="text-muted"
+                style={{
+                    marginTop: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "20px",
+                    fontSize: "0.75rem",
+                }}
+            >
+                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span
+                        style={{
+                            width: 16,
+                            borderTop: "2px dashed var(--brand-primary)",
+                            display: "inline-block",
+                        }}
+                    />
+                    <span>Predicted</span>
+                </span>
+            </div>
+
+            <div
+                style={{
+                    marginTop: "20px",
+                    display: "grid",
+                    gap: "12px",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                }}
+            >
+                <div
+                    style={{
+                        padding: "14px 16px",
+                        border: "1px solid var(--brand-border)",
+                        borderRadius: "var(--radius-md)",
+                        background: "var(--brand-bg-subtle)",
+                    }}
+                >
+                    <p className="dashboard-kpi-label">Building</p>
+                    <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                        {selectedBuildingName}
+                    </p>
+                </div>
+                <div
+                    style={{
+                        padding: "14px 16px",
+                        border: "1px solid var(--brand-border)",
+                        borderRadius: "var(--radius-md)",
+                        background: "var(--brand-bg-subtle)",
+                    }}
+                >
+                    <p className="dashboard-kpi-label">Forecast points</p>
+                    <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                        {result.forecast.length}
+                    </p>
+                </div>
+                <div
+                    style={{
+                        padding: "14px 16px",
+                        border: "1px solid var(--brand-border)",
+                        borderRadius: "var(--radius-md)",
+                        background: "var(--brand-bg-subtle)",
+                    }}
+                >
+                    <p className="dashboard-kpi-label">Peak timestamp</p>
+                    <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                        {formatPeakTimestamp(result.summary.peak_timestamp)}
+                    </p>
+                </div>
+            </div>
+        </>
+    );
 }
 
 export default function ForecastPage() {
@@ -223,64 +553,7 @@ export default function ForecastPage() {
         },
     });
 
-    const normalizedHistorical = (result?.historical ?? [])
-        .map((point) => ({
-            timestamp: point.timestamp,
-            kwh: toFiniteNumber(point.kwh) ?? 0,
-        }))
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-    const normalizedForecast = (result?.forecast ?? [])
-        .map((point) => {
-            const forecastValue = toFiniteNumber(point.yhat) ?? 0;
-            const lowerBound = toFiniteNumber(point.yhat_lower) ?? forecastValue;
-            const upperBound = toFiniteNumber(point.yhat_upper) ?? forecastValue;
-
-            return {
-                timestamp: point.timestamp,
-                yhat: forecastValue,
-                yhat_lower: Math.min(lowerBound, upperBound),
-                yhat_upper: Math.max(lowerBound, upperBound),
-            };
-        })
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-    // Connect boundary timestamp for line continuity
-    const connectedForecast = [...normalizedForecast];
-    if (normalizedHistorical.length > 0 && connectedForecast.length > 0) {
-        const lastHist = normalizedHistorical[normalizedHistorical.length - 1];
-        if (connectedForecast[0].timestamp !== lastHist.timestamp) {
-            connectedForecast.unshift({
-                timestamp: lastHist.timestamp,
-                yhat: lastHist.kwh,
-                yhat_lower: lastHist.kwh,
-                yhat_upper: lastHist.kwh,
-            });
-        }
-    }
-
-    const chartData: ChartPoint[] = result
-        ? [
-            ...normalizedHistorical.map((p) => ({
-                timestamp: p.timestamp,
-                kwh: p.kwh,
-            })),
-            ...connectedForecast.map((p) => ({
-                timestamp: p.timestamp,
-                yhat: p.yhat,
-                yhat_range: [p.yhat_lower, p.yhat_upper] as [number, number],
-            })),
-        ]
-        : [];
-
-    const nowTs = normalizedHistorical.length > 0
-            ? normalizedHistorical[normalizedHistorical.length - 1].timestamp
-            : null;
-    const showActualDots = normalizedHistorical.length <= 1 ? { r: 4, strokeWidth: 0 } : false;
-    const showForecastDots = normalizedForecast.length <= 1 ? { r: 4, strokeWidth: 0 } : false;
-    const hasConfidenceBand = normalizedForecast.some(
-        (point) => point.yhat_lower !== point.yhat_upper,
-    );
+    const { chartData, nowTs, showActualDots, showForecastDots, hasConfidenceBand } = buildChartData(result);
     const tickInterval = horizon === "monthly" ? 0 : 23;
 
     const canRun = buildingId !== "" && !isPending && !buildingsLoading;
@@ -417,21 +690,12 @@ export default function ForecastPage() {
                     </div>
                 </div>
 
-                {buildingsError ? (
-                    <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
-                        Unable to load your assigned buildings right now.
-                    </p>
-                ) : buildings.length === 0 && !buildingsLoading ? (
-                    <p className="text-muted" style={{ marginTop: "12px" }}>
-                        No buildings are currently assigned to your account.
-                    </p>
-                ) : null}
-
-                {forecastError ? (
-                    <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
-                        {forecastError}
-                    </p>
-                ) : null}
+                <BuildingStatusNotice
+                    buildingsError={buildingsError}
+                    buildingsCount={buildings.length}
+                    buildingsLoading={buildingsLoading}
+                    forecastError={forecastError}
+                />
             </div>
 
             {/* Chart */}
@@ -443,230 +707,44 @@ export default function ForecastPage() {
                     </span>
                 </div>
 
-                {isPending ? (
-                    <Skeleton style={{ height: 240, width: "100%" }} />
-                ) : !result ? (
-                    <div
-                        style={{
-                            height: 240,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: "var(--radius-md)",
-                            border: "1px dashed var(--brand-border)",
-                            color: "var(--brand-ink-muted)",
-                            fontSize: "0.9rem",
-                        }}
-                    >
-                        Configure the controls above and run a forecast.
-                    </div>
-                ) : (
-                    <>
-                        <ResponsiveContainer width="100%" height={240}>
-                            <ComposedChart
-                                data={chartData}
-                                margin={{ top: 16, right: 20, left: 10, bottom: 0 }}
-                            >
-                                <CartesianGrid
-                                    strokeDasharray="3 3"
-                                    stroke="var(--brand-border)"
-                                />
-                                <XAxis
-                                    dataKey="timestamp"
-                                    tickFormatter={(ts) => formatXTick(ts, horizon)}
-                                    interval={tickInterval}
-                                    tick={{
-                                        fill: "var(--brand-ink-muted)",
-                                        fontSize: 10,
-                                    }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                />
-                                <YAxis
-                                    domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
-                                    tickFormatter={(val) => `${val.toLocaleString()}`}
-                                    tick={{
-                                        fill: "var(--brand-ink-muted)",
-                                        fontSize: 10,
-                                    }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "var(--brand-surface)",
-                                        border: "1px solid var(--brand-border)",
-                                        borderRadius: "12px",
-                                        color: "var(--brand-ink)",
-                                        fontSize: "12px",
-                                    }}
-                                    cursor={{ stroke: "var(--brand-border)" }}
-                                    labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon)}
-                                />
-                                {/* Native confidence range area band */}
-                                {hasConfidenceBand ? (
-                                    <Area
-                                        type="monotone"
-                                        dataKey="yhat_range"
-                                        fill="var(--brand-primary)"
-                                        fillOpacity={0.15}
-                                        stroke="none"
-                                        connectNulls={false}
-                                    />
-                                ) : null}
-                                {nowTs && (
-                                    <ReferenceLine
-                                        x={nowTs}
-                                        stroke="var(--brand-ink-muted)"
-                                        strokeDasharray="4 3"
-                                        label={{
-                                            value: "now",
-                                            position: "top",
-                                            fill: "var(--brand-ink-muted)",
-                                            fontSize: 11,
-                                        }}
-                                    />
-                                )}
-                                <Line
-                                    type="monotone"
-                                    dataKey="kwh"
-                                    stroke="var(--brand-primary)"
-                                    strokeWidth={2}
-                                    dot={showActualDots}
-                                    activeDot={{ r: 5 }}
-                                    connectNulls={false}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="yhat"
-                                    stroke="var(--brand-primary)"
-                                    strokeWidth={2}
-                                    strokeDasharray="4 2"
-                                    dot={showForecastDots}
-                                    activeDot={{ r: 5 }}
-                                    connectNulls={false}
-                                />
-                            </ComposedChart>
-                        </ResponsiveContainer>
-
-                        {/* Legend */}
-                        <div
-                            className="text-muted"
-                            style={{
-                                marginTop: "12px",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "20px",
-                                fontSize: "0.75rem",
-                            }}
-                        >
-                            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span
-                                    style={{
-                                        width: 16,
-                                        borderTop: "2px dashed var(--brand-primary)",
-                                        display: "inline-block",
-                                    }}
-                                />
-                                Predicted
-                            </span>
-                        </div>
-
-                        <div
-                            style={{
-                                marginTop: "20px",
-                                display: "grid",
-                                gap: "12px",
-                                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    padding: "14px 16px",
-                                    border: "1px solid var(--brand-border)",
-                                    borderRadius: "var(--radius-md)",
-                                    background: "var(--brand-bg-subtle)",
-                                }}
-                            >
-                                <p className="dashboard-kpi-label">Building</p>
-                                <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
-                                    {selectedBuildingName}
-                                </p>
-                            </div>
-                            <div
-                                style={{
-                                    padding: "14px 16px",
-                                    border: "1px solid var(--brand-border)",
-                                    borderRadius: "var(--radius-md)",
-                                    background: "var(--brand-bg-subtle)",
-                                }}
-                            >
-                                <p className="dashboard-kpi-label">Forecast points</p>
-                                <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
-                                    {result.forecast.length}
-                                </p>
-                            </div>
-                            <div
-                                style={{
-                                    padding: "14px 16px",
-                                    border: "1px solid var(--brand-border)",
-                                    borderRadius: "var(--radius-md)",
-                                    background: "var(--brand-bg-subtle)",
-                                }}
-                            >
-                                <p className="dashboard-kpi-label">Peak timestamp</p>
-                                <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
-                                    {formatFullTimestamp(result.summary.peak_timestamp)}
-                                </p>
-                            </div>
-                        </div>
-                    </>
-                )}
+                <ForecastChartContainer
+                    isPending={isPending}
+                    result={result}
+                    chartData={chartData}
+                    horizon={horizon}
+                    tickInterval={tickInterval}
+                    hasConfidenceBand={hasConfidenceBand}
+                    nowTs={nowTs}
+                    showActualDots={showActualDots}
+                    showForecastDots={showForecastDots}
+                    selectedBuildingName={selectedBuildingName}
+                />
             </div>
 
             {/* KPI cards */}
             <div className="dashboard-kpi-grid">
-                <div className="card dashboard-card-tight">
-                    <p className="dashboard-kpi-label">Peak demand</p>
-                    {isPending ? (
-                        <Skeleton style={{ height: 28, width: 180, marginTop: 12 }} />
-                    ) : result ? (
-                        <p className="dashboard-kpi-value metric">
-                            {result.summary.peak_kwh} kWh ·{" "}
-                            {formatPeakTimestamp(result.summary.peak_timestamp)}
-                        </p>
-                    ) : (
-                        <p className="dashboard-kpi-value text-muted">--</p>
-                    )}
-                </div>
-
-                <div className="card dashboard-card-tight">
-                    <p className="dashboard-kpi-label">
-                        {horizon === "monthly" ? "Avg / week" : "Avg / day"}
-                    </p>
-                    {isPending ? (
-                        <Skeleton style={{ height: 28, width: 150, marginTop: 12 }} />
-                    ) : result ? (
-                        <p className="dashboard-kpi-value metric">
-                            {result.summary.avg_daily_kwh.toLocaleString()} kWh
-                        </p>
-                    ) : (
-                        <p className="dashboard-kpi-value text-muted">--</p>
-                    )}
-                </div>
-
-                <div className="card dashboard-card-tight">
-                    <p className="dashboard-kpi-label">Model accuracy</p>
-                    {isPending ? (
-                        <Skeleton style={{ height: 28, width: 120, marginTop: 12 }} />
-                    ) : result ? (
-                        <p className="dashboard-kpi-value metric">
-                            MAPE {result.summary.mape}%
-                        </p>
-                    ) : (
-                        <p className="dashboard-kpi-value text-muted">--</p>
-                    )}
-                </div>
+                <KpiCard
+                    label="Peak demand"
+                    isPending={isPending}
+                    value={
+                        result
+                            ? `${result.summary.peak_kwh} kWh · ${formatPeakTimestamp(result.summary.peak_timestamp)}`
+                            : null
+                    }
+                    skeletonWidth={180}
+                />
+                <KpiCard
+                    label={horizon === "monthly" ? "Avg / week" : "Avg / day"}
+                    isPending={isPending}
+                    value={result ? `${result.summary.avg_daily_kwh.toLocaleString()} kWh` : null}
+                    skeletonWidth={150}
+                />
+                <KpiCard
+                    label="Model accuracy"
+                    isPending={isPending}
+                    value={result ? `MAPE ${result.summary.mape}%` : null}
+                    skeletonWidth={120}
+                />
             </div>
         </div>
     );

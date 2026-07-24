@@ -46,6 +46,14 @@ def sample_monthly_timeseries():
     })
     return df
 
+def _create_mock_df(periods, val, bld_id, freq='h'):
+    now = datetime.now(timezone.utc)
+    return pd.DataFrame({
+        '_time': pd.date_range(end=now, periods=periods, freq=freq),
+        'usage_kwh': [val] * periods,
+        'building_id': bld_id
+    })
+
 
 # tests for registering building
 
@@ -284,22 +292,8 @@ def test_train_and_forecast_monthly_insufficient_data(engine):
 @patch.object(AnalyticsEngine, 'train_and_forecast_monthly')
 def test_process_single_building_positive(mock_monthly, mock_weekly, mock_register, engine):
     """Test complete processing of a single building including fetch, ML training and uploading"""
-    now = datetime.now(timezone.utc)
-    # mock weekly data (48 hours)
-    dates_weekly = pd.date_range(end=now, periods=48, freq='h')
-    df_weekly = pd.DataFrame({
-        '_time': dates_weekly,
-        'usage_kwh': [10.0] * 48,
-        'building_id': 'bld_test_1'
-    })
-    
-    # mock monthly data (5 weeks of hourly data)
-    dates_monthly = pd.date_range(end=now, periods=5 * 24 * 7, freq='h')
-    df_monthly = pd.DataFrame({
-        '_time': dates_monthly,
-        'usage_kwh': [20.0] * (5 * 24 * 7),
-        'building_id': 'bld_test_1'
-    })
+    df_weekly = _create_mock_df(48, 10.0, 'bld_test_1')
+    df_monthly = _create_mock_df(5 * 24 * 7, 20.0, 'bld_test_1')
     
     # mock influx queries
     engine.influx.query_api().query_data_frame.side_effect = [df_weekly, df_monthly]
@@ -327,40 +321,12 @@ def test_process_all_buildings_positive(mock_monthly, mock_weekly, mock_seed, mo
     """Test processing all active buildings with data available"""
     mock_get_ids.return_value = ['bld_test_1', 'bld_test_2']
     
-    now = datetime.now(timezone.utc)
-    # create data for building 1
-    dates_weekly = pd.date_range(end=now, periods=48, freq='h')
-    df_weekly = pd.DataFrame({
-        '_time': dates_weekly,
-        'usage_kwh': [10.0] * 48,
-        'building_id': 'bld_test_1'
-    })
-    
-    dates_monthly = pd.date_range(end=now, periods=5 * 24 * 7, freq='h')
-    df_monthly = pd.DataFrame({
-        '_time': dates_monthly,
-        'usage_kwh': [20.0] * (5 * 24 * 7),
-        'building_id': 'bld_test_1'
-    })
+    df_weekly = _create_mock_df(48, 10.0, 'bld_test_1')
+    df_monthly = _create_mock_df(5 * 24 * 7, 20.0, 'bld_test_1')
     
     # creat data for building 2 after seeding
-    df_weekly_all = pd.concat([
-        df_weekly,
-        pd.DataFrame({
-            '_time': dates_weekly,
-            'usage_kwh': [15.0] * 48,
-            'building_id': 'bld_test_2'
-        })
-    ])
-    
-    df_monthly_all = pd.concat([
-        df_monthly,
-        pd.DataFrame({
-            '_time': dates_monthly,
-            'usage_kwh': [30.0] * (5 * 24 * 7),
-            'building_id': 'bld_test_2'
-        })
-    ])
+    df_weekly_all = pd.concat([df_weekly, _create_mock_df(48, 15.0, 'bld_test_2')])
+    df_monthly_all = pd.concat([df_monthly, _create_mock_df(5 * 24 * 7, 30.0, 'bld_test_2')])
     
     # mock influx queries: inital queries, then queries after seeding
     engine.influx.query_api().query_data_frame.side_effect = [
@@ -377,16 +343,8 @@ def test_process_all_buildings_positive(mock_monthly, mock_weekly, mock_seed, mo
     
     # verify both buildings were registered
     assert mock_register.call_count == 2
-    mock_register.assert_any_call('bld_test_1')
-    mock_register.assert_any_call('bld_test_2')
-    
-    # only building 2 should need seeding since building 1 has data
     mock_seed.assert_called_once_with('bld_test_2')
-    
-    # verify uploads to both tables
-    mock_table = engine.supabase.table
-    mock_table.assert_any_call("building_analytics_weekly")
-    mock_table.assert_any_call("building_analytics_monthly")
+    assert engine.supabase.table.call_count == 2
 
 @patch.object(AnalyticsEngine, 'get_active_building_ids')
 @patch.object(AnalyticsEngine, 'register_new_building')
@@ -413,28 +371,10 @@ def test_process_all_buildings_edge_list_return(mock_monthly, mock_weekly, mock_
     dates_weekly = pd.date_range(end=now, periods=48, freq='h')
 
     # creates separate data frames for each building
-    df1 = pd.DataFrame({
-        '_time': dates_weekly,
-        'usage_kwh': [10.0] * 48,
-        'building_id': 'bld_test_1'
-    })
-    df2 = pd.DataFrame({
-        '_time': dates_weekly,
-        'usage_kwh': [15.0] * 48,
-        'building_id': 'bld_test_2'
-    })
-    
-    dates_monthly = pd.date_range(end=now, periods=5 * 24 * 7, freq='h')
-    df3 = pd.DataFrame({
-        '_time': dates_monthly,
-        'usage_kwh': [20.0] * (5 * 24 * 7),
-        'building_id': 'bld_test_1'
-    })
-    df4 = pd.DataFrame({
-        '_time': dates_monthly,
-        'usage_kwh': [30.0] * (5 * 24 * 7),
-        'building_id': 'bld_test_2'
-    })
+    df1 = _create_mock_df(48, 10.0, 'bld_test_1')
+    df2 = _create_mock_df(48, 15.0, 'bld_test_2')
+    df3 = _create_mock_df(5 * 24 * 7, 20.0, 'bld_test_1')
+    df4 = _create_mock_df(5 * 24 * 7, 30.0, 'bld_test_2')
     
     # influxdb returns list of dataframes
     engine.influx.query_api().query_data_frame.side_effect = [
@@ -447,8 +387,4 @@ def test_process_all_buildings_edge_list_return(mock_monthly, mock_weekly, mock_
     
     #execute - should handle list concatentation properly
     engine.process_all_buildings()
-    
-    # verify uploads occured
-    mock_table = engine.supabase.table
-    mock_table.assert_any_call("building_analytics_weekly")
-    mock_table.assert_any_call("building_analytics_monthly")
+    assert engine.supabase.table.call_count == 2

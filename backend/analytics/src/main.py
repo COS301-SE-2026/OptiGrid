@@ -57,7 +57,7 @@ def run_scheduler():
     # running initial background pass on startup
     try:
         run_analytics_batch()
-    except Exception as e:
+    except Exception :
         logger.exception("Initial worker batch run failed")
     while True:
         schedule.run_pending()

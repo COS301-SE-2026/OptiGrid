@@ -39,26 +39,31 @@ function toFiniteNumber(value: unknown): number | null {
     return null;
 }
 
+const authorizeBuildingAccess = async (userId: string | undefined, buildingId: string, res: Response): Promise<boolean> => {
+    if (!userId) {
+        res.status(401).json({ status: 'error', message: 'Unauthorized' });
+        return false;
+    }
+    if (!isValidBuildingId(buildingId)) {
+        res.status(400).json({ status: 'error', message: 'Building ID must be a valid UUID or legacy building id.' });
+        return false;
+    }
+    const authorizedBuildings = await prisma.building.findMany({
+        where: { authorized_users: { some: { user_id: userId } } },
+        select: { building_id: true }
+    });
+    if (!authorizedBuildings.some(b => b.building_id === buildingId)) {
+        res.status(403).json({ status: 'error', message: 'Access Denied: You do not have permission to view this forecast.' });
+        return false;
+    }
+    return true;
+};
+
 export const refreshAnalyticsController = async (req: Request, res: Response) => {
     try {
-        if (!req.user?.id) {
-            return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-        }
-
         const { building_id } = req.params;
-        if (!isValidBuildingId(building_id)) {
-            return res.status(400).json({ status: 'error', message: 'Building ID must be a valid UUID or legacy building id.' });
-        }
-
-        const authorizedBuildings = await prisma.building.findMany({
-            where: { authorized_users: { some: { user_id: req.user.id } } },
-            select: { building_id: true }
-        });
-
-        const isAuthorized = authorizedBuildings.some(b => b.building_id === building_id);
-        if (!isAuthorized) {
-            return res.status(403).json({ status: 'error', message: 'Access Denied: You do not have permission to view this forecast.' });
-        }
+        const isAuth = await authorizeBuildingAccess(req.user?.id, building_id, res);
+        if (!isAuth) return;
 
         const pythonEngineUrl = process.env.ANALYTICS_URL || 'http://localhost:5001';
         const refreshResponse = await fetch(`${pythonEngineUrl}/refresh-building/${building_id}`, {
@@ -81,28 +86,11 @@ export const refreshAnalyticsController = async (req: Request, res: Response) =>
 export const getForecastController = async (req: Request, res: Response) => {
     try {
         //verify user is auth
-        if (!req.user?.id) {
-            return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-        }
-
-        // get building id from url params, determine forecast horizon
         const { building_id } = req.params;
         const horizon = (req.query?.horizon === 'monthly' || req.body?.horizon === 'monthly') ? 'monthly' : 'weekly';
 
-        if (!isValidBuildingId(building_id)) {
-            return res.status(400).json({ status: 'error', message: 'Building ID must be a valid UUID or legacy building id.' });
-        }
-
-        // check if user has access to this building
-        const authorizedBuildings = await prisma.building.findMany({
-            where: { authorized_users: { some: { user_id: req.user.id } } },
-            select: { building_id: true }
-        });
-
-        const isAuthorized = authorizedBuildings.some(b => b.building_id === building_id);
-        if (!isAuthorized) {
-            return res.status(403).json({ status: 'error', message: 'Access Denied: You do not have permission to view this forecast.' });
-        }
+        const isAuth = await authorizeBuildingAccess(req.user?.id, building_id, res);
+        if (!isAuth) return;
 
         // fetch analytics data from appropriate table based on horizon
         const directAnalyticsRows = horizon === 'monthly'
