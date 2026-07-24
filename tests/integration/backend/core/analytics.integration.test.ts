@@ -86,7 +86,7 @@ describe('Analytics API Integration', () => {
 		});
 	});
 
-	it('should return 200 and formatted analytics data from legacy building_analytics table', async () => {
+	it('should return 200 and formatted analytics data from building_analytics_weekly table', async () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
 
@@ -94,7 +94,7 @@ describe('Analytics API Integration', () => {
 			await seedAssignedBuildingAccess(client);
 			await client.query(
 				`
-					INSERT INTO public.building_analytics (
+					INSERT INTO public.building_analytics_weekly (
 						building_id,
 						todays_usage,
 						forecast_peak,
@@ -144,7 +144,7 @@ describe('Analytics API Integration', () => {
 			await seedAssignedBuildingAccess(client);
 			await client.query(
 				`
-					INSERT INTO public.building_analytics (
+					INSERT INTO public.building_analytics_weekly (
 						building_id,
 						todays_usage,
 						forecast_peak,
@@ -187,7 +187,7 @@ describe('Analytics API Integration', () => {
 			await seedAssignedBuildingAccess(client);
 			await client.query(
 				`
-					INSERT INTO public.building_analytics (
+					INSERT INTO public.building_analytics_weekly (
 						building_id,
 						todays_usage,
 						forecast_peak,
@@ -209,6 +209,47 @@ describe('Analytics API Integration', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.body.forecast).toEqual([]);
+	});
+
+	it('should fallback gracefully when building_analytics_weekly is empty', async () => {
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+
+		try {
+			await seedAssignedBuildingAccess(client);
+			await client.query(
+				`
+					INSERT INTO public.building_analytics_monthly (
+						building_id,
+						todays_usage,
+						forecast_peak,
+						forecast_avg_day,
+						model_mape,
+						forecast_series,
+						updated_at
+					) VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())
+				`,
+				[
+					testBuildingId,
+					90.0,
+					250.0,
+					100.0,
+					4.0,
+					JSON.stringify([{ timestamp: '2026-06-01T00:00:00Z', predicted_usage: 240 }]),
+				],
+			);
+		} finally {
+			await client.end();
+		}
+
+		const response = await request(harness.app)
+			.post(`/api/analytics/forecast/${testBuildingId}?horizon=monthly`)
+			.send({ horizon_days: 30, granularity: 'weekly' });
+
+		expect(response.status).toBe(200);
+		expect(response.body.summary.peak_kwh).toBe(250.0);
+		expect(response.body.summary.avg_daily_kwh).toBe(100.0);
+		expect(response.body.forecast[0].yhat).toBe(240);
 	});
 
 	it('should return 403 when the user is not assigned to the building', async () => {
@@ -328,90 +369,6 @@ describe('Analytics API Integration', () => {
 		expect(response.body.forecast).toHaveLength(3);
 		expect(response.body.forecast[0].yhat).toBe(700);
 		expect(response.body.forecast[2].yhat).toBe(690);
-	});
-
-	it('should fallback to building_analytics when building_analytics_weekly is empty', async () => {
-		const client = new Client({ connectionString: harness.databaseUrl });
-		await client.connect();
-
-		try {
-			await seedAssignedBuildingAccess(client);
-			// only seed the legacy table
-			await client.query(
-				`
-					INSERT INTO public.building_analytics (
-						building_id,
-						todays_usage,
-						forecast_peak,
-						forecast_avg_day,
-						model_mape,
-						forecast_series,
-						updated_at
-					) VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())
-				`,
-				[
-					testBuildingId,
-					90.0,
-					250.0,
-					100.0,
-					4.0,
-					JSON.stringify([{ timestamp: '2026-06-01T00:00:00Z', predicted_usage: 240 }]),
-				],
-			);
-		} finally {
-			await client.end();
-		}
-
-		const response = await request(harness.app)
-			.post(`/api/analytics/forecast/${testBuildingId}?horizon=weekly`)
-			.send({ horizon_days: 7, granularity: 'hourly' });
-
-		expect(response.status).toBe(200);
-		expect(response.body.summary.peak_kwh).toBe(250.0);
-		expect(response.body.summary.avg_daily_kwh).toBe(100.0);
-		expect(response.body.forecast[0].yhat).toBe(240);
-	});
-
-	it('should fallback to building_analytics when building_analytics_monthly is empty', async () => {
-		const client = new Client({ connectionString: harness.databaseUrl });
-		await client.connect();
-
-		try {
-			await seedAssignedBuildingAccess(client);
-			// only seed the legacy table
-			await client.query(
-				`
-					INSERT INTO public.building_analytics (
-						building_id,
-						todays_usage,
-						forecast_peak,
-						forecast_avg_day,
-						model_mape,
-						forecast_series,
-						updated_at
-					) VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW())
-				`,
-				[
-					testBuildingId,
-					110.0,
-					300.0,
-					130.0,
-					2.5,
-					JSON.stringify([{ timestamp: '2026-06-15T00:00:00Z', predicted_usage: 290 }]),
-				],
-			);
-		} finally {
-			await client.end();
-		}
-
-		const response = await request(harness.app)
-			.post(`/api/analytics/forecast/${testBuildingId}?horizon=monthly`)
-			.send({ horizon_days: 30, granularity: 'weekly' });
-
-		expect(response.status).toBe(200);
-		expect(response.body.summary.peak_kwh).toBe(300.0);
-		expect(response.body.summary.avg_daily_kwh).toBe(130.0);
-		expect(response.body.forecast[0].yhat).toBe(290);
 	});
 
 	it('should normalize confidence bands when yhat_lower > yhat_upper', async () => {
