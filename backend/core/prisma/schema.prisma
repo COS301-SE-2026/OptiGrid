@@ -6,6 +6,10 @@ datasource db {
   provider = "postgresql"
 }
 
+// ==========================================
+// ENUMS
+// ==========================================
+
 enum UserRole {
   ADMIN            @map("Admin")
   BUILDING_MANAGER @map("Building_Manager")
@@ -37,6 +41,8 @@ enum SensorStatus {
   Active
   Offline
   Maintenance
+
+  @@map("sensor_status")
 }
 
 enum LifecycleState {
@@ -48,113 +54,295 @@ enum LifecycleState {
   @@map("lifecycle_state")
 }
 
-// All the models for db tables are made here
+enum AnomalyStatus {
+  Open
+  Resolved
+  In_Progress
+  Ignored
+
+  @@map("anomaly_status")
+}
+
+enum RecommendationStatus {
+  Pending
+  Implemented
+  Dismissed
+
+  @@map("recommendation_status")
+}
+
+enum NotificationChannel {
+  Email
+  SMS
+  InApp
+  Push
+
+  @@map("notification_channel")
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
 model User {
   userId         String          @id @map("user_id") @db.Uuid
   tenantId       String?         @map("tenant_id") @db.Uuid
-  email          String          @unique @db.VarChar(255)
+  email          String          @unique @db.VarChar
   roleType       UserRole        @default(VIEWER) @map("role_type")
-  firstName      String?         @map("first_name") @db.VarChar(100)
-  lastName       String?         @map("last_name") @db.VarChar(100)
+  firstName      String?         @map("first_name") @db.VarChar
+  lastName       String?         @map("last_name") @db.VarChar
   preferredTheme ThemePreference @default(SYSTEM) @map("preferred_theme")
-  createdAt      DateTime?       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime?       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  createdAt      DateTime?       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime?       @default(now()) @map("updated_at") @db.Timestamptz
 
-  // Relations with other tables
-  tenant         Tenant?              @relation(fields: [tenantId], references: [tenant_id], onDelete: Cascade)
-  buildingAccess UserBuildingAccess[]
+  // Relations
+  tenant            Tenant?              @relation(fields: [tenantId], references: [tenantId], onDelete: Cascade)
+  buildingAccess    UserBuildingAccess[]
+  resolvedAnomalies Anomaly[]            @relation("ResolvedByUser")
+  auditLogs         AuditLog[]
+  notifications     Notification[]
 
   @@index([tenantId])
   @@map("users")
 }
 
 model Tenant {
-  tenant_id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  company_name      String    @db.VarChar(255)
-  subscription_tier String?   @default("Standard") @db.VarChar(50)
-  created_at        DateTime? @default(now()) @db.Timestamptz
-  updated_at        DateTime? @default(now()) @db.Timestamptz
+  tenantId         String    @id @default(dbgenerated("gen_random_uuid()")) @map("tenant_id") @db.Uuid
+  companyName      String    @map("company_name") @db.VarChar
+  subscriptionTier String?   @default("Standard") @map("subscription_tier") @db.VarChar
+  createdAt        DateTime? @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime? @default(now()) @map("updated_at") @db.Timestamptz
 
-  // Relations with other tables
-  users             User[]
-  buildings         Building[]
+  // Relations
+  users     User[]
+  buildings Building[]
 
   @@map("tenants")
 }
 
 model Building {
-  building_id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenant_id             String?         @db.Uuid
-  building_name         String          @db.VarChar(255)
-  building_type         BuildingType?   @default(Residential) @map("building_type")
-  square_footage        Decimal?        @db.Decimal
-  physical_address      String?
-  timezone              String?         @default("UTC") @db.VarChar(50)
-  max_occupancy         Int?
-  nominal_voltage       Float?          @default(230) @map("nominal_voltage")
-  max_current_threshold Float?          @default(60) @map("max_current_threshold")
-  hardware_auth_token   String?         @map("hardware_auth_token") @db.VarChar(512)
-  lifecycle_state       LifecycleState  @default(PROVISIONING) @map("lifecycle_state")
-  created_at            DateTime?       @default(now()) @db.Timestamptz
-  updated_at            DateTime?       @default(now()) @db.Timestamptz
-  latitude              Float? 
+  building_id           String         @id @default(dbgenerated("gen_random_uuid()")) @map("building_id") @db.Uuid
+  tenant_id             String?        @map("tenant_id") @db.Uuid
+  building_name         String         @map("building_name") @db.VarChar
+  square_footage        Decimal?       @map("square_footage") @db.Decimal
+  physical_address      String?        @map("physical_address")
+  timezone              String?        @default("UTC") @db.VarChar
+  max_occupancy         Int?           @map("max_occupancy")
+  created_at            DateTime?      @default(now()) @map("created_at") @db.Timestamptz
+  updated_at            DateTime?      @default(now()) @map("updated_at") @db.Timestamptz
+  building_type         BuildingType?  @default(Residential) @map("building_type")
+  latitude              Float?
   longitude             Float?
-  geohash               String?        @db.VarChar(10)
+  geohash               String?        @db.VarChar
+  nominal_voltage       Float?         @default(230) @map("nominal_voltage")
+  max_current_threshold Float?         @default(60) @map("max_current_threshold")
+  hardware_auth_token   String?        @map("hardware_auth_token") @db.VarChar
+  lifecycle_state       LifecycleState @default(PROVISIONING) @map("lifecycle_state")
 
-  // Relations with other tables
-  tenant           Tenant?               @relation(fields: [tenant_id], references: [tenant_id], onDelete: Cascade)
-  authorized_users UserBuildingAccess[]
-  sensors          Sensor[]
-  analytics        BuildingAnalytics?
+  // Relations
+  tenant              Tenant?                      @relation(fields: [tenant_id], references: [tenantId], onDelete: Cascade)
+  authorized_users    UserBuildingAccess[]
+  sensors             Sensor[]
+  weekly_analytics    BuildingAnalyticsWeekly?
+  monthly_analytics   BuildingAnalyticsMonthly?
+  alert_thresholds    AlertThreshold[]
+  anomalies           Anomaly[]
+  maintenance_windows MaintenanceWindow[]
+  recommendations     OptimisationRecommendation[]
+  utility_tariffs     UtilityTariff[]
 
   @@index([tenant_id])
   @@map("buildings")
 }
 
 model UserBuildingAccess {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id     String   @db.Uuid
-  building_id String   @db.Uuid
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String @map("user_id") @db.Uuid
+  building_id String @map("building_id") @db.Uuid
 
   // Relations
-  user        User     @relation(fields: [user_id], references: [userId], onDelete: Cascade)
-  building    Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+  user     User     @relation(fields: [user_id], references: [userId], onDelete: Cascade)
+  building Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@unique([user_id, building_id])
   @@map("user_building_access")
 }
 
 model Sensor {
-  sensor_id      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  building_id    String?       @db.Uuid
-  mac_address    String        @unique @db.VarChar(50)
-  sensor_type    String?       @db.VarChar(100)
-  unit           String?       @default("kWh") @db.VarChar(50)
-  location_zone  String?       @db.VarChar(100)
+  sensor_id      String        @id @default(dbgenerated("gen_random_uuid()")) @map("sensor_id") @db.Uuid
+  building_id    String?       @map("building_id") @db.Uuid
+  mac_address    String        @unique @map("mac_address") @db.VarChar
+  sensor_type    String?       @map("sensor_type") @db.VarChar
+  unit           String?       @default("kWh") @db.VarChar
+  location_zone  String?       @map("location_zone") @db.VarChar
   status         SensorStatus? @default(Active)
-  installed_date DateTime?     @default(now()) @db.Date
-  created_at     DateTime?     @default(now()) @db.Timestamptz
-  updated_at     DateTime?     @default(now()) @db.Timestamptz
+  installed_date DateTime?     @default(now()) @map("installed_date") @db.Date
+  created_at     DateTime?     @default(now()) @map("created_at") @db.Timestamptz
+  updated_at     DateTime?     @default(now()) @map("updated_at") @db.Timestamptz
 
   // Relations
-  building       Building?     @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+  building  Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+  anomalies Anomaly[]
 
   @@index([building_id])
   @@map("sensors")
 }
 
-model BuildingAnalytics {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  building_id      String   @unique @db.Uuid
-  todays_usage     Float?
-  forecast_peak    Float?
-  forecast_avg_day Float?
-  model_mape       Float?
-  forecast_series  Json?    @db.JsonB
-  updated_at       DateTime @default(now()) @db.Timestamptz
+model AlertThreshold {
+  threshold_id             String    @id @default(dbgenerated("gen_random_uuid()")) @map("threshold_id") @db.Uuid
+  building_id              String?   @map("building_id") @db.Uuid
+  metric_type              String    @map("metric_type") @db.VarChar
+  unit                     String?   @db.VarChar
+  upper_limit_kw           Decimal?  @map("upper_limit_kw") @db.Decimal
+  lower_limit_kw           Decimal?  @map("lower_limit_kw") @db.Decimal
+  allowed_spike_percentage Decimal?  @map("allowed_spike_percentage") @db.Decimal
+  is_active                Boolean?  @default(true) @map("is_active")
+  created_at               DateTime? @default(now()) @map("created_at") @db.Timestamptz
+  updated_at               DateTime? @default(now()) @map("updated_at") @db.Timestamptz
 
-  building         Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+  // Relations
+  building  Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+  anomalies Anomaly[]
 
-  @@index([building_id])
-  @@map("building_analytics")
+  @@map("alert_thresholds")
+}
+
+model Anomaly {
+  anomaly_id          String         @id @default(dbgenerated("gen_random_uuid()")) @map("anomaly_id") @db.Uuid
+  sensor_id           String?        @map("sensor_id") @db.Uuid
+  building_id         String?        @map("building_id") @db.Uuid
+  threshold_id        String?        @map("threshold_id") @db.Uuid
+  anomaly_type        String         @map("anomaly_type") @db.VarChar
+  severity_level      String         @map("severity_level") @db.VarChar
+  description         String?
+  status              AnomalyStatus? @default(Open)
+  detected_timestamp  DateTime?      @default(now()) @map("detected_timestamp") @db.Timestamptz
+  resolved_timestamp  DateTime?      @map("resolved_timestamp") @db.Timestamptz
+  resolved_by_user_id String?        @map("resolved_by_user_id") @db.Uuid
+
+  // Relations
+  building         Building?       @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+  sensor           Sensor?         @relation(fields: [sensor_id], references: [sensor_id], onDelete: Cascade)
+  threshold        AlertThreshold? @relation(fields: [threshold_id], references: [threshold_id], onDelete: Cascade)
+  resolved_by_user User?           @relation("ResolvedByUser", fields: [resolved_by_user_id], references: [userId], onDelete: SetNull)
+  notifications    Notification[]
+
+  @@map("anomalies")
+}
+
+model AuditLog {
+  log_id       String    @id @default(dbgenerated("gen_random_uuid()")) @map("log_id") @db.Uuid
+  user_id      String?   @map("user_id") @db.Uuid
+  action_type  String    @map("action_type") @db.VarChar
+  target_table String    @map("target_table") @db.VarChar
+  old_value    Json?     @map("old_value")
+  new_value    Json?     @map("new_value")
+  ip_address   String?   @map("ip_address")
+  timestamp    DateTime? @default(now()) @db.Timestamptz
+
+  // Relations
+  user User? @relation(fields: [user_id], references: [userId], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+model MaintenanceWindow {
+  window_id   String    @id @default(dbgenerated("gen_random_uuid()")) @map("window_id") @db.Uuid
+  building_id String?   @map("building_id") @db.Uuid
+  start_time  DateTime? @map("start_time") @db.Timestamptz
+  end_time    DateTime? @map("end_time") @db.Timestamptz
+  description String?
+
+  // Relations
+  building Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@map("maintenance_windows")
+}
+
+model Notification {
+  notification_id String               @id @default(dbgenerated("gen_random_uuid()")) @map("notification_id") @db.Uuid
+  anomaly_id      String?              @map("anomaly_id") @db.Uuid
+  user_id         String?              @map("user_id") @db.Uuid
+  channel         NotificationChannel?
+  status          String?              @db.VarChar
+  sent_at         DateTime?            @default(now()) @map("sent_at") @db.Timestamptz
+
+  // Relations
+  anomaly Anomaly? @relation(fields: [anomaly_id], references: [anomaly_id], onDelete: Cascade)
+  user    User?    @relation(fields: [user_id], references: [userId], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model OptimisationRecommendation {
+  recommendation_id         String                @id @default(dbgenerated("gen_random_uuid()")) @map("recommendation_id") @db.Uuid
+  building_id               String?               @map("building_id") @db.Uuid
+  strategy_description      String                @map("strategy_description")
+  estimated_monthly_savings Decimal?              @map("estimated_monthly_savings") @db.Decimal
+  status                    RecommendationStatus? @default(Pending)
+  generated_date            DateTime?             @default(now()) @map("generated_date") @db.Timestamptz
+  implemented_date          DateTime?             @map("implemented_date") @db.Timestamptz
+
+  // Relations
+  building Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@map("optimisation_recommendations")
+}
+
+model UtilityTariff {
+  tariff_id         String    @id @default(dbgenerated("gen_random_uuid()")) @map("tariff_id") @db.Uuid
+  building_id       String?   @map("building_id") @db.Uuid
+  season_name       String?   @map("season_name") @db.VarChar
+  day_type          String?   @map("day_type") @db.VarChar
+  peak_rate_usd     Decimal   @map("peak_rate_usd") @db.Decimal
+  off_peak_rate_usd Decimal   @map("off_peak_rate_usd") @db.Decimal
+  peak_start_time   DateTime? @map("peak_start_time") @db.Time
+  peak_end_time     DateTime? @map("peak_end_time") @db.Time
+  created_at        DateTime? @default(now()) @map("created_at") @db.Timestamptz
+  updated_at        DateTime? @default(now()) @map("updated_at") @db.Timestamptz
+
+  // Relations
+  building Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@map("utility_tariffs")
+}
+
+model BuildingAnalyticsWeekly {
+  building_id      String    @id @map("building_id") @db.Uuid
+  todays_usage     Decimal?  @default(0.0) @map("todays_usage") @db.Decimal
+  todays_cost      Decimal?  @default(0.0) @map("todays_cost") @db.Decimal
+  forecast_peak    Decimal?  @default(0.0) @map("forecast_peak") @db.Decimal
+  forecast_avg_day Decimal?  @default(0.0) @map("forecast_avg_day") @db.Decimal
+  model_mape       Decimal?  @default(0.0) @map("model_mape") @db.Decimal
+  forecast_series  Json?     @map("forecast_series")
+  updated_at       DateTime? @default(now()) @map("updated_at") @db.Timestamptz
+  min_historic     Decimal?  @default(0.0) @map("min_historic") @db.Decimal
+  max_historic     Decimal?  @default(0.0) @map("max_historic") @db.Decimal
+  min_forecast     Decimal?  @default(0.0) @map("min_forecast") @db.Decimal
+  max_forecast     Decimal?  @default(0.0) @map("max_forecast") @db.Decimal
+
+  // Relations
+  building Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@map("building_analytics_weekly")
+}
+
+model BuildingAnalyticsMonthly {
+  building_id      String    @id @map("building_id") @db.Uuid
+  todays_usage     Decimal?  @default(0.0) @map("todays_usage") @db.Decimal
+  todays_cost      Decimal?  @default(0.0) @map("todays_cost") @db.Decimal
+  forecast_peak    Decimal?  @default(0.0) @map("forecast_peak") @db.Decimal
+  forecast_avg_day Decimal?  @default(0.0) @map("forecast_avg_day") @db.Decimal
+  model_mape       Decimal?  @default(0.0) @map("model_mape") @db.Decimal
+  forecast_series  Json?     @default("0.0") @map("forecast_series")
+  updated_at       DateTime? @default(now()) @map("updated_at") @db.Timestamptz
+  min_historic     Decimal?  @default(0.0) @map("min_historic") @db.Decimal
+  max_historic     Decimal?  @default(0.0) @map("max_historic") @db.Decimal
+  min_forecast     Decimal?  @default(0.0) @map("min_forecast") @db.Decimal
+  max_forecast     Decimal?  @default(0.0) @map("max_forecast") @db.Decimal
+
+  // Relations
+  building Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@map("building_analytics_monthly")
 }

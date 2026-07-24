@@ -50,7 +50,7 @@ export const Categories: FAQCategory[] = [
             },
             {
                 question: "Can I delete a building?",
-                answer: "Yes. From the Buildings list you can delete a building. This action is permanent — all associated data for that building will be removed.",
+                answer: "Yes. From the Buildings list you can delete a building. This action is permanent - all associated data for that building will be removed.",
             },
         ],
     },

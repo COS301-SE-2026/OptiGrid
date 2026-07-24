@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv(".env.local")
+load_dotenv(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.env.local")))
+load_dotenv()
 
 INFLUXDB_URL = os.getenv("INFLUXDB_URL")
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
@@ -11,6 +12,10 @@ INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET")
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_DB = int(os.getenv("REDIS_DB", 0))
+
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 
 def require_influx_config() -> None:
