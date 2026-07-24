@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
+const getCoreUrl = () => process.env.CORE_URL ?? "http://core:4000";
 const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 const SESSION_COOKIE_NAME = "optigrid_session";
 
@@ -20,7 +20,7 @@ const ALLOWED_BUILDING_FIELDS = [
 	"square_footage",
 	"max_occupancy",
 	"nominal_voltage",
-	"max_current_thresold",
+	"max_current_threshold",
 	"lifecycle_state",
 	"timezone",
 ] as const;
@@ -113,7 +113,7 @@ export async function GET(
 	}
 
 	try {
-		const coreResponse = await fetch(`${CORE_URL}/api/buildings/${buildingId}`, {
+		const coreResponse = await fetch(`${getCoreUrl()}/api/buildings/${buildingId}`, {
 			method: "GET",
 			headers,
 			cache: "no-store",
@@ -146,7 +146,7 @@ export async function DELETE(
 	}
 
 	try {
-		const coreResponse = await fetch(`${CORE_URL}/api/buildings/${buildingId}`, {
+		const coreResponse = await fetch(`${getCoreUrl()}/api/buildings/${buildingId}`, {
 			method: "DELETE",
 			headers,
 			cache: "no-store",
@@ -183,7 +183,7 @@ export async function PATCH(
 	}
 
 	try {
-		const coreResponse = await fetch(`${CORE_URL}/api/buildings/${buildingId}`, {
+		const coreResponse = await fetch(`${getCoreUrl()}/api/buildings/${buildingId}`, {
 			method: "PATCH",
 			headers,
 			body: JSON.stringify(sanitizeBuildingPayload(body)),

@@ -1,8 +1,32 @@
 import prisma from '../lib/prisma';
 import { Building, BuildingType, LifecycleState } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries } from '../lib/influx';
 import crypto from 'crypto';
 import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
+
+const buildingDetailsSelect = {
+  building_id: true,
+  tenant_id: true,
+  building_name: true,
+  building_type: true,
+  square_footage: true,
+  physical_address: true,
+  timezone: true,
+  max_occupancy: true,
+  nominal_voltage: true,
+  max_current_threshold: true,
+  lifecycle_state: true,
+  created_at: true,
+  updated_at: true,
+  latitude: true,
+  longitude: true,
+  geohash: true,
+} satisfies Prisma.BuildingSelect;
+
+export type BuildingDetails = Prisma.BuildingGetPayload<{
+  select: typeof buildingDetailsSelect;
+}>;
 
 function toFiniteNumber(value: unknown, fallback = 0): number {
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -256,6 +280,35 @@ export const listBuildingsForUser = async (userId: string) => {
       created_at: 'desc',
     },
   });
+};
+
+export const getBuildingDetails = async (
+  userId: string,
+  buildingId: string,
+): Promise<BuildingDetails> => {
+  const accessRecord = await prisma.userBuildingAccess.findUnique({
+    where: {
+      user_id_building_id: {
+        user_id: userId,
+        building_id: buildingId,
+      },
+    },
+  });
+
+  if (!accessRecord) {
+    throw new Error('Access Denied: You do not have permission to view this building.');
+  }
+
+  const building = await prisma.building.findUnique({
+    where: { building_id: buildingId },
+    select: buildingDetailsSelect,
+  });
+
+  if (!building) {
+    throw new Error('Building not found');
+  }
+
+  return building;
 };
 
 function lastSevenUtcDateKeys(now = new Date()): string[] {
@@ -594,4 +647,55 @@ export const getAllBuildings = async (lifecycle_state?: LifecycleState) => {
       }
     }
   });
+};
+
+export const getManagerBuildings = async (userId: string) => {
+  const building = await prisma.building.findMany({
+    where: {
+      authorized_users: {
+        some: { user_id: userId}
+      }
+    },
+    //this is to get viewer
+    include: {
+      authorized_users: {
+        include: {
+          user: {
+            select: {
+              userId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              roleType: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      created_at: "desc"
+    },
+  });
+  const getUsage = await Promise.all(
+    building.map(async (b) => {
+      let todays_usage: number | null = null;
+      try {
+        const data = await queryTotalKwh(b.building_id, "1d");
+        todays_usage = typeof data === "number" ? data : data?.total_kwh ?? null;
+      }
+      catch(error) {
+        console.error(`Failed to get the todays usage for this building: `, error)
+      }
+    })
+  );
+  //all things returned here are things expecte din frotnend
+  return building.map((build) => ({
+    building_id: build.building_id,
+    building_name: build.building_name,
+    building_type: build.building_type,
+    physical_address: build.physical_address,
+    lifecycle_state: build.lifecycle_state,
+    todays_usage: null,//will change when integrating, for now in frontend its null, just want to confirm everything works nicley bfr moving on
+    authorized_users: build.authorized_users.map((allowed) => ({ user: allowed.user,})),
+  }));
 };

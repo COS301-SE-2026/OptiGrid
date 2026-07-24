@@ -362,3 +362,115 @@ export const login = async (email: string, password: string) => {
         accessToken: authUser.accessToken,
     };
 };
+
+export const getViewersService = async () => {
+    const viewers = await prisma.user.findMany({
+        where: {
+            roleType: "VIEWER"
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            buildingAccess: {
+                select: {
+                    building_id: true
+                }
+            }
+        },
+    });
+
+    return viewers.map(viewer => ({
+        ...viewer,
+        buildingIds: viewer.buildingAccess.map( 
+            building => building.building_id
+        ),
+        buildingAccess: undefined
+    }));
+};
+
+export const getManagersService = async () =>{
+    const managers = await prisma.user.findMany({
+        where: {
+            roleType: "BUILDING_MANAGER"
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            buildingAccess: {
+                select: {
+                    building_id: true
+                }
+            }
+        },
+    });
+
+    return managers.map(manager => ({
+        ...manager,
+        buildingIds: manager.buildingAccess.map( 
+            building => building.building_id
+        ),
+        buildingAccess: undefined
+    }));
+};
+
+export const assignMangerToBuilding = async (
+    userId: string,
+    buildingId: string
+) => {
+    try{
+        await prisma?.userBuildingAccess.create({
+            data: {
+                user_id: userId,
+                building_id: buildingId
+            }
+        });
+        return {
+            success: true,
+            message: "Manger assigned to building successfully"
+        };
+    }
+    catch(error:any) {   
+        if(error.code === "P2002"){
+            return {
+                success:true,
+                message: "Building was already assigned to another manager"
+            };
+        }
+        throw error;
+    }
+};
+
+export const removeAssignment = async (
+    userId: string,
+    buildingId: string
+) => {
+    try{
+        await prisma?.userBuildingAccess.delete({
+            where: {
+                user_id_building_id: {
+                    user_id: userId,
+                    building_id: buildingId
+                }
+            }
+        });
+        return {
+            success: true,
+            message: "Manger removed from building successfully"
+        };
+    }
+    catch(error:any) {   
+        if(error.code === "P2025"){//p2025 is for record not found
+            return {
+                success:true,
+                message: "Building was not assigned to this manager"
+            };
+        }
+        throw error;
+    }
+};

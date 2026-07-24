@@ -5,11 +5,17 @@ const {Client } = require("pg");
 const req = require("supertest");
 const {v4: uuidv4} = require("uuid");
 
+jest.mock("../../../../backend/core/src/services/provisioning.service", () => {
+    queueBuildingProvisioning: jest.fn().mockResolvedValue(true);
+    provisionInfluxDBBucket: jest.fn().mockResolvedValue(true);
+});
+
 describe("Get all buildings and manage state for admin and building manager", () => {
     let harness: CoreApiHarness;
     const tenantId = '8680c655-bfa3-433b-81aa-084fc76882d9';
     const adminUserId = 'bbe48b78-438f-4ed7-9fe7-a8fc9addc187';
     const normalUserId = '1f11cc3f-c6a0-4d10-84fd-f27b9500862a';
+    const managerUserId = '3c22dd4f-d7b1-5e21-95ee-e38c0611973b';
 
     let adminHeader: {
         Cookie: string
@@ -51,10 +57,21 @@ describe("Get all buildings and manage state for admin and building manager", ()
                     firstName: "Test",
                     lastName: "Viewer",
                 },
+                {
+                    userId: managerUserId,
+                    tenantId,
+                    email: "manager@test.com",
+                    firstName: "Building",
+                    lastName: "Manager",
+                },
             ]);
             await client.query(
                 `UPDATE users SET role_type = 'Admin'
                 WHERE user_id= $1`, [adminUserId] 
+            );
+            await client.query(
+                `UPDATE users SET role_type = 'Building_Manager'
+                WHERE user_id= $1`, [managerUserId]
             );
         }
         finally {
@@ -106,65 +123,75 @@ describe("Get all buildings and manage state for admin and building manager", ()
         return buildingId;
     }
 
-    it("should_return_all_buildings", async () => {
-        await building({
-            name: "Admin 1"
-        });
-        await building({
-            name: "admin 2"
+    it("should_assign_building", async () => {
+        const building_id = await building({
+            name: "Building-123"
         });
 
-        const resp = await req(harness.app).get("/api/buildings/admin/")
-        .set(adminHeader);
-
+        const resp = await req(harness.app).post("/api/users/assign").set(adminHeader)
+        .send({
+            userId: managerUserId,
+            buildingId: building_id
+        });
         expect(resp.status).toBe(200);
-        expect(resp.body.status).toBe("success");
-        expect(resp.body.data).toHaveLength(2);
     });
 
-    it("should_reutrn_only_mathing_buildings_by_filter", async ()=> {
-        await building({
-            name: "Admin 1"
-        });
-        await building({
-            name: "admin 2",
-            lifecycle_state: 'active'
+    it("should_return_400_if_missing_shit", async () => {
+        const building_id = await building({
+            name: "Building-123"
         });
 
-        const resp = await req(harness.app).get("/api/buildings/admin?lifecycle_state=ACTIVE")
-        .set(adminHeader);
-
-        expect(resp.status).toBe(200);
-        expect(resp.body.status).toBe("success");
-        expect(resp.body.data).toHaveLength(1);
-        expect(resp.body.data[0].building_name).toBe('admin 2');
-        expect(resp.body.data[0].lifecycle_state).toBe('ACTIVE');
-    });
-
-    it("should_return_400_if_invalid_state_provided", async () => {
-        await building({
-            name: "Admin 1"
+        const resp = await req(harness.app).post("/api/users/assign").set(adminHeader)
+        .send({
+            buildingId: building_id
         });
-        await building({
-            name: "admin 2",
-            lifecycle_state: "active"
-        });
-
-        const resp = await req(harness.app).get("/api/buildings/admin?lifecycle_state=Wrong")
-        .set(adminHeader);
-
         expect(resp.status).toBe(400);
         expect(resp.body.status).toBe("error");
-        expect(resp.body.message).toBe("Invalid request payload");
-    
+            expect(resp.body.message).toBe("Both UserId and BuildingId are required");
     });
 
-    it("should_return_a_403_error_if_not_admin", async () => {
-        const resp = await req(harness.app).get("/api/buildings/admin/")
-        .set(normalHeader);
+    it("should_return_403_if_not_admin", async () => {
+        const building_id = await building({
+            name: "Building-123"
+        });
 
+        const resp = await req(harness.app).post("/api/users/assign").set(normalHeader)
+        .send({
+            userid: normalUserId,
+            buildingId: building_id
+        });
         expect(resp.status).toBe(403);
-        expect(resp.body.status).toBe("error");
-        expect(resp.body.message).toBe("You do not have enough permission");
+    });
+
+    it("should_return_404_if_user_not_found", async () => {
+        const building_id = await building({
+            name: "Building-123"
+        });
+        const user = uuidv4();
+        const resp = await req(harness.app).post("/api/users/assign").set(adminHeader)
+        .send({
+            userId: user,
+            buildingId: building_id
+        });
+        expect(resp.status).toBe(404);
+    });
+
+    it("should_remove_building", async () => {
+        const building_id = await building({
+            name: "Building-123"
+        });
+
+        await  req(harness.app).post("/api/users/assign").set(adminHeader)
+        .send({
+            userId: managerUserId,
+            buildingId: building_id
+        });
+
+        const resp = await req(harness.app).delete("/api/users/remove").set(adminHeader)
+        .send({
+            userId: managerUserId,
+            buildingId: building_id
+        });
+        expect(resp.status).toBe(200);
     });
 });
