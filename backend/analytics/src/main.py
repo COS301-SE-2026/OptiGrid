@@ -23,7 +23,7 @@ def health_check():
     return {"status": "success", "service": "analytics-api-worker"}
 
 
-@app.post("/init-building")
+@app.post("/init-building", responses={500: {"description": "Internal error during provisioning"}})
 def init_building(payload: BuildingInitPayLoad):
     # receive lifecycle synchronoisation commands from the core api transaction proxy
     try:
@@ -36,17 +36,17 @@ def init_building(payload: BuildingInitPayLoad):
             "building_id": payload.building_id
         }
     except Exception as e:
-        logger.error(f"Failed to register asset footprint: {str(e)}")
+        logger.exception("Failed to register asset footprint")
         raise HTTPException(status_code=500, detail=f"Internal Engine error during provisioning: {str(e)}")
 
 
-@app.post("/refresh-building/{building_id}")
+@app.post("/refresh-building/{building_id}", responses={500: {"description": "Refresh failed"}})
 def refresh_building(building_id: str):
     try:
         data = engine_instance.refresh_todays_metrics(building_id)
         return {"status": "success", "data": data}
     except Exception as e:
-        logger.error(f"Failed to refresh metrics for {building_id}: {str(e)}")
+        logger.exception("Failed to refresh metrics for %s", building_id)
         raise HTTPException(status_code=500, detail="Refresh failed")
 
 
@@ -57,7 +57,7 @@ def run_scheduler():
     try:
         run_analytics_batch()
     except Exception as e:
-        logger.error(f"Initial worker batch run failed: {str(e)}")
+        logger.exception("Initial worker batch run failed")
     while True:
         schedule.run_pending()
         time.sleep(30)

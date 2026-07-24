@@ -64,9 +64,9 @@ class AnalyticsEngine:
             else:
                 logger.warning("Supabase target manager client is offline. Registration bypassed.")
                 return False
-        except Exception as e:
-            logger.error(f"Error executing provisioning cycle logic for {building_id}: {str(e)}")
-            raise e
+        except Exception:
+            logger.exception("Error executing provisioning cycle logic for %s", building_id)
+            raise
 
     def get_active_building_ids(self) -> List[str]:
         # return empty list if SUpabase client no available
@@ -81,7 +81,7 @@ class AnalyticsEngine:
             return []
         except Exception as e:
             # log error
-            logger.error(f"Failed to fetch active building list from Supabase: {e}")
+            logger.exception("Failed to fetch active building list from Supabase")
             return []
 
     def seed_missing_influx_telemetry(self, building_id: str, days_back: int = 14):
@@ -95,6 +95,7 @@ class AnalyticsEngine:
             current_time = start_time
             points_buffer = []  # batch buffer
             
+            rng = np.random.default_rng()
             # generate one data point per hour for the specific duration
             while current_time <= end_time:
                 hour = current_time.hour
@@ -102,7 +103,7 @@ class AnalyticsEngine:
                 time_factor = np.sin((hour - 6) * np.pi / 12)
                 base_load = 25.0
                 multiplier = 12.0
-                noise = np.random.uniform(-3.0, 3.0)
+                noise = rng.uniform(-3.0, 3.0)
                 
                 raw_usage = max(1.5, base_load + (multiplier * time_factor) + noise)
                 cost_zar = round(raw_usage * UTILITY_RATE_KWH, 2)
@@ -127,9 +128,9 @@ class AnalyticsEngine:
                 write_api.write(bucket=INFLUXDB_BUCKET, record=points_buffer)
             
             write_api.close()
-            logger.info(f"Successfully seeded baseline telemetry for building {building_id}")
+            logger.info("Successfully seeded baseline telemetry for building ", building_id)
         except Exception as e:
-            logger.error(f"Failed to seed telemetry for building {building_id}: {e}")
+            logger.exception("Failed to seed telemetry for building %s", building_id)
 
     def refresh_todays_metrics(self, building_id: str) -> dict:
         query = f'''
@@ -183,7 +184,7 @@ class AnalyticsEngine:
 
         return {"update": update}
     
-    def train_and_forecast_weekly(self, df: pd.DataFrame, building_id: str) -> dict:
+    def train_and_forecast_weekly(self, df: pd.DataFrame) -> dict:
         # trains models and selects which is best via MAPE, then forecasts next 24 hours
         if len(df) < 24:
             return {}
@@ -206,12 +207,12 @@ class AnalyticsEngine:
             if regressor_name == "RandomForest":
                 n_estimators = trial.suggest_int("n_estimators", 20, 100)
                 max_depth = trial.suggest_int("max_depth", 3, 15)
-                model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+                model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, min_samples_leaf=1, max_features=1.0, random_state=42)
             else:
                 n_estimators = trial.suggest_int("n_estimators", 20, 100)
                 max_depth = trial.suggest_int("max_depth", 3, 10)
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
-                model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42)
+                model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
             scores = cross_val_score(model, X, y, cv=3, scoring='neg_mean_absolute_percentage_error')
             return -scores.mean()
@@ -253,7 +254,7 @@ class AnalyticsEngine:
         }
         
     # same overall logic as the weekly prediction but rather for 3 months in increments of weeks
-    def train_and_forecast_monthly(self, df: pd.DataFrame, building_id: str) -> dict:
+    def train_and_forecast_monthly(self, df: pd.DataFrame) -> dict:
         # trains models and selects which is best via MAPE, then forecasts next 4 weeks
         if len(df) < 4:
             return {}
@@ -273,12 +274,12 @@ class AnalyticsEngine:
             if regressor_name == "RandomForest":
                 n_estimators = trial.suggest_int("n_estimators", 20, 100)
                 max_depth = trial.suggest_int("max_depth", 3, 10)
-                model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+                model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, min_samples_leaf=1, max_features=1.0, random_state=42)
             else:
                 n_estimators = trial.suggest_int("n_estimators", 20, 100)
                 max_depth = trial.suggest_int("max_depth", 3, 10)
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
-                model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42)
+                model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
             scores = cross_val_score(model, X, y, cv=2, scoring='neg_mean_absolute_percentage_error')
             return -scores.mean()
@@ -348,7 +349,7 @@ class AnalyticsEngine:
             res_monthly = self.influx.query_api().query_data_frame(query_monthly)
             df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
         except Exception as e:
-            logger.error(f"Failed to query InfluxDB for building {building_id}: {e}")
+            logger.exception("Failed to query InfluxDB for building %s", building_id)
             return
 
         # if no weekly data, seed synthetic data then re-query
@@ -361,7 +362,7 @@ class AnalyticsEngine:
                 res_monthly = self.influx.query_api().query_data_frame(query_monthly)
                 df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
             except Exception as e:
-                logger.error(f"Re-querying InfluxDB failed for building {building_id}: {e}")
+                logger.exception("Re-querying InfluxDB after seeding failed: %s", e)
                 return
 
         # process weekly analytics
@@ -375,7 +376,7 @@ class AnalyticsEngine:
             today_start = latest_time.replace(hour=0, minute=0, second=0, microsecond=0)
             today_usage = float(hourly_group[hourly_group['timestamp'] >= today_start]['usage'].sum())
             
-            ml_metrics = self.train_and_forecast_weekly(hourly_group, building_id)
+            ml_metrics = self.train_and_forecast_weekly(hourly_group)
             if ml_metrics and self.supabase:
                 self.supabase.table("building_analytics_weekly").upsert({
                     "building_id": building_id,
@@ -397,7 +398,7 @@ class AnalyticsEngine:
             week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
             this_week_usage = float(weekly_group[weekly_group['timestamp'] >= week_start]['usage'].sum())
 
-            ml_metrics = self.train_and_forecast_monthly(weekly_group, building_id)
+            ml_metrics = self.train_and_forecast_monthly(weekly_group)
             if ml_metrics and self.supabase:
                 self.supabase.table("building_analytics_monthly").upsert({
                     "building_id": building_id,
@@ -441,7 +442,7 @@ class AnalyticsEngine:
             res_monthly = self.influx.query_api().query_data_frame(query_monthly)
             df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
         except Exception as e:
-            logger.error(f"InfluxDB batch query failed: {e}")
+            logger.exception(f"InfluxDB batch query failed: ", e)
             df_weekly = pd.DataFrame()
             df_monthly = pd.DataFrame()
 
@@ -461,7 +462,7 @@ class AnalyticsEngine:
                 res_monthly = self.influx.query_api().query_data_frame(query_monthly)
                 df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
             except Exception as e:
-                logger.error(f"Re-querying InfluxDB after seeding failed: {e}")
+                logger.exception(f"Re-querying InfluxDB after seeding failed: ", e)
 
         if df_weekly is not None and not df_weekly.empty and "building_id" in df_weekly.columns:
             # cleaning up column names and data types
@@ -481,7 +482,7 @@ class AnalyticsEngine:
                 today_usage = float(hourly_group[hourly_group['timestamp'] >= today_start]['usage'].sum())
                 
                 # train ml model and generate forecasts
-                ml_metrics = self.train_and_forecast_weekly(hourly_group, building_id)
+                ml_metrics = self.train_and_forecast_weekly(hourly_group)
                 if not ml_metrics:
                     continue  # skip if model training fails
 
@@ -516,7 +517,7 @@ class AnalyticsEngine:
                 this_week_usage = float(weekly_group[weekly_group['timestamp'] >= week_start]['usage'].sum())
 
                 # train ML model
-                ml_metrics = self.train_and_forecast_monthly(weekly_group, building_id)
+                ml_metrics = self.train_and_forecast_monthly(weekly_group)
                 if not ml_metrics:
                     continue  # skip if model fails
 

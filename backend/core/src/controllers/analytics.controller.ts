@@ -10,8 +10,20 @@ type NormalizedForecastPoint = {
     yhat_lower: number;
     yhat_upper: number;
 };
+
+interface BuildingAnalyticsRow {
+    building_id: string;
+    updated_at: string | null;
+    todays_usage: number | null;
+    forecast_series: unknown;
+    forecast_peak: number | null;
+    forecast_avg_day: number | null;
+    model_mape: number | null;
+    [key: string]: unknown;
+}
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const LEGACY_BUILDING_PATTERN = /^(bld_|building_)[a-zA-Z0-9_-]+$/i;
+const LEGACY_BUILDING_PATTERN = /^(bld_|building_)[a-z0-9_-]+$/i;
 const isValidBuildingId = (id: string) => UUID_PATTERN.test(id) || LEGACY_BUILDING_PATTERN.test(id);
 
 function toFiniteNumber(value: unknown): number | null {
@@ -60,7 +72,8 @@ export const refreshAnalyticsController = async (req: Request, res: Response) =>
 
         const refreshData = await refreshResponse.json();
         return res.status(200).json(refreshData);
-    } catch (error: any) {
+    } catch (error) {
+        console.error("Analytics failed:", error);
         return res.status(500).json({ status: 'error', message: 'Failed to refresh analytics' });
     }
 };
@@ -93,13 +106,13 @@ export const getForecastController = async (req: Request, res: Response) => {
 
         // fetch analytics data from appropriate table based on horizon
         const directAnalyticsRows = horizon === 'monthly'
-            ? await prisma.$queryRaw<any[]>(Prisma.sql`SELECT * FROM public.building_analytics_monthly WHERE building_id::text = ${building_id} LIMIT 1`)
-            : await prisma.$queryRaw<any[]>(Prisma.sql`SELECT * FROM public.building_analytics_weekly WHERE building_id::text = ${building_id} LIMIT 1`);
+            ? await prisma.$queryRaw<BuildingAnalyticsRow[]>(Prisma.sql`SELECT * FROM public.building_analytics_monthly WHERE building_id::text = ${building_id} LIMIT 1`)
+            : await prisma.$queryRaw<BuildingAnalyticsRow[]>(Prisma.sql`SELECT * FROM public.building_analytics_weekly WHERE building_id::text = ${building_id} LIMIT 1`);
 
         let analytics = directAnalyticsRows[0] ?? null;
 
         if (!analytics) {
-            const fallbackRows = await prisma.$queryRaw<any[]>(Prisma.sql`SELECT * FROM public.building_analytics WHERE building_id::text = ${building_id} LIMIT 1`).catch(() => []);
+            const fallbackRows = await prisma.$queryRaw<BuildingAnalyticsRow[]>(Prisma.sql`SELECT * FROM public.building_analytics WHERE building_id::text = ${building_id} LIMIT 1`).catch(() => []);
             analytics = fallbackRows[0] ?? null;
         }
 
@@ -116,7 +129,7 @@ export const getForecastController = async (req: Request, res: Response) => {
 
         // parse and normalise forecast series data from JSON
         const rawForecastSeries = Array.isArray(analytics.forecast_series) ? analytics.forecast_series : [];
-        const normalizedForecastSeries = rawForecastSeries.map((point: any) => {
+        const normalizedForecastSeries = rawForecastSeries.map((point: Record<string, unknown>) => {
             const yhat = toFiniteNumber(point?.yhat) ?? toFiniteNumber(point?.predicted_usage) ?? toFiniteNumber(point?.value);
             // extract predicted value from various possible field names
             if (!point?.timestamp || yhat === null) return null;
@@ -126,7 +139,7 @@ export const getForecastController = async (req: Request, res: Response) => {
             const upperBound = toFiniteNumber(point?.yhat_upper) ?? toFiniteNumber(point?.upper) ?? yhat;
 
             return {
-                timestamp: point.timestamp,
+                timestamp: point.timestamp as string,
                 yhat,
                 yhat_lower: Math.min(lowerBound, upperBound),
                 yhat_upper: Math.max(lowerBound, upperBound),
@@ -146,7 +159,8 @@ export const getForecastController = async (req: Request, res: Response) => {
         };
 
         return res.status(200).json(result);
-    } catch (error: any) {
+    } catch (error) {
+        console.error("Analytics failed:", error);
         return res.status(500).json({ status: 'error', message: 'Failed to retrieve analytics data' });
     }
 };

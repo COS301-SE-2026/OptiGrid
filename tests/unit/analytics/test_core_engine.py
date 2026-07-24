@@ -218,7 +218,7 @@ def test_train_and_forecast_weekly_positive(mock_study, engine, sample_weekly_ti
     mock_study_instance.best_value = 0.05  # MAPE = 5%
     mock_study.return_value = mock_study_instance
 
-    res = engine.train_and_forecast_weekly(sample_weekly_timeseries, 'bld_test_1')
+    res = engine.train_and_forecast_weekly(sample_weekly_timeseries)
     
     # verify forecast results structure
     assert res is not None
@@ -236,7 +236,7 @@ def test_train_and_forecast_weekly_insufficient_data(engine):
         'usage': [100.0] * 10
     })
     
-    res = engine.train_and_forecast_weekly(df_short, 'bld_test_1')
+    res = engine.train_and_forecast_weekly(df_short)
     assert res == {}  # not enough data for weekly forecast
 
 
@@ -255,7 +255,7 @@ def test_train_and_forecast_monthly_positive(mock_study, engine, sample_monthly_
     mock_study_instance.best_value = 0.07  # MAPE = 7%
     mock_study.return_value = mock_study_instance
 
-    res = engine.train_and_forecast_monthly(sample_monthly_timeseries, 'bld_test_1')
+    res = engine.train_and_forecast_monthly(sample_monthly_timeseries)
     
     # verify forecast results structure
     assert res is not None
@@ -273,7 +273,7 @@ def test_train_and_forecast_monthly_insufficient_data(engine):
         'usage': [50.0] * 3
     })
     
-    res = engine.train_and_forecast_monthly(df_short, 'bld_test_1')
+    res = engine.train_and_forecast_monthly(df_short)
     assert res == {}  # not enough data for montly forecast
 
 

@@ -32,14 +32,16 @@ except ModuleNotFoundError:
             require_influx_config,
         )
     except ModuleNotFoundError:
-        INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+        INFLUXDB_URL = os.getenv("INFLUXDB_URL", "https://influxdb:8086")
         INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN", "")
         INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "OptiGrid")
         INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "energy_telemetry")
         SUPABASE_URL = os.getenv("SUPABASE_URL", "")
         SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
         SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-        def require_influx_config(): pass
+        def require_influx_config(): 
+            """intentionally left empty, configuration validation is handled dynamically"""
+            pass
 
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from supabase import create_client
@@ -115,7 +117,8 @@ def seed_calculated_buildings(building_ids: list, days_back: int = 14):
         for b_id in building_ids:
             base_load = 25.0
             multiplier = 12.0
-            noise = np.random.uniform(-3.0, 3.0)
+            rng = np.random.default_rng()
+            noise = rng.uniform(-3.0, 3.0)
             
             raw_usage = max(1.5, base_load + (multiplier * time_factor) + noise)
             

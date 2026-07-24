@@ -68,7 +68,7 @@ function toFiniteNumber(value: unknown): number | undefined {
 
 function formatXTick(ts: string, horizon: "weekly" | "monthly"): string {
     const d = new Date(ts);
-    if (isNaN(d.getTime())) return ts;
+    if (Number.isNaN(d.getTime())) return ts;
     if (horizon === "monthly") {
         return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
     }
@@ -79,7 +79,7 @@ function formatXTick(ts: string, horizon: "weekly" | "monthly"): string {
 
 function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
     const d = new Date(ts);
-    if (isNaN(d.getTime())) return ts;
+    if (Number.isNaN(d.getTime())) return ts;
     if (horizon === "monthly") {
         return new Intl.DateTimeFormat("en", {
             weekday: "short",
@@ -101,7 +101,7 @@ function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
 
 function formatPeakTimestamp(ts: string): string {
     const d = new Date(ts);
-    if (isNaN(d.getTime())) return ts;
+    if (Number.isNaN(d.getTime())) return ts;
     return new Intl.DateTimeFormat("en", {
         month: "short",
         day: "numeric",
@@ -154,7 +154,7 @@ function Skeleton({ style }: { style?: CSSProperties }) {
 
 function formatFullTimestamp(ts: string): string {
     const d = new Date(ts);
-    if (isNaN(d.getTime())) return ts;
+    if (Number.isNaN(d.getTime())) return ts;
     return new Intl.DateTimeFormat("en", {
         month: "short",
         day: "numeric",
@@ -400,6 +400,7 @@ export default function ForecastPage() {
                             Run
                         </span>
                         <button
+                            type="button"
                             disabled={!canRun}
                             onClick={() =>
                                 mutate({
