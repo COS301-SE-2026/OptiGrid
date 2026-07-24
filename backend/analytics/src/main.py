@@ -42,11 +42,12 @@ def init_building(payload: BuildingInitPayLoad):
 
 @app.post("/refresh-building/{building_id}", responses={500: {"description": "Refresh failed"}})
 def refresh_building(building_id: str):
+    clean_id = str(building_id).replace("\r", "").replace("\n", "")
     try:
-        data = engine_instance.refresh_todays_metrics(building_id)
+        data = engine_instance.refresh_todays_metrics(clean_id)
         return {"status": "success", "data": data}
-    except Exception as e:
-        logger.exception("Failed to refresh metrics for %s", building_id)
+    except Exception:
+        logger.exception("Failed to refresh metrics for %s", clean_id)
         raise HTTPException(status_code=500, detail="Refresh failed")
 
 

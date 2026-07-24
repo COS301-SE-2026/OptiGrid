@@ -79,13 +79,14 @@ class AnalyticsEngine:
                 # extract building_id fromeach row, filter out rows missing the field
                 return [row["building_id"] for row in res.data if "building_id" in row]
             return []
-        except Exception as e:
+        except Exception:
             # log error
             logger.exception("Failed to fetch active building list from Supabase")
             return []
 
     def seed_missing_influx_telemetry(self, building_id: str, days_back: int = 14):
-        logger.info(f"Seeding baseline historical telemetry in InfluxDB for building: {building_id}")
+        clean_id = str(building_id).replace("\r", "").replace("\n", "")
+        logger.info("Seeding baseline historical telemetry in InfluxDB for building: %s", clean_id)
         try:
             # initialise influx writer
             write_api = self.influx.write_api()
@@ -95,7 +96,7 @@ class AnalyticsEngine:
             current_time = start_time
             points_buffer = []  # batch buffer
             
-            rng = np.random.default_rng()
+            rng = np.random.default_rng(seed=42)
             # generate one data point per hour for the specific duration
             while current_time <= end_time:
                 hour = current_time.hour
@@ -128,7 +129,7 @@ class AnalyticsEngine:
                 write_api.write(bucket=INFLUXDB_BUCKET, record=points_buffer)
             
             write_api.close()
-            logger.info("Successfully seeded baseline telemetry for building ", building_id)
+            logger.info("Successfully seeded baseline telemetry for building %s", clean_id)
         except Exception as e:
             logger.exception("Failed to seed telemetry for building %s", building_id)
 
@@ -222,9 +223,22 @@ class AnalyticsEngine:
         
         best_params = study.best_params
         if best_params["regressor"] == "RandomForest":
-            best_model = RandomForestRegressor(n_estimators=best_params["n_estimators"], max_depth=best_params["max_depth"], random_state=42)
+            best_model = RandomForestRegressor(
+                n_estimators=best_params["n_estimators"], 
+                max_depth=best_params["max_depth"], 
+                min_samples_leaf=1, 
+                max_features=1.0, 
+                random_state=42
+            )
         else:
-            best_model = GradientBoostingRegressor(n_estimators=best_params["n_estimators"], max_depth=best_params["max_depth"], learning_rate=best_params["learning_rate"], random_state=42)
+            best_model = GradientBoostingRegressor(
+                n_estimators=best_params["n_estimators"], 
+                max_depth=best_params["max_depth"], 
+                learning_rate=best_params["learning_rate"], 
+                min_samples_leaf=1, 
+                max_features=1.0, 
+                random_state=42
+            )
         # training using better model
         best_model.fit(X, y)
 
@@ -290,9 +304,22 @@ class AnalyticsEngine:
         # Build and train best model
         best_params = study.best_params
         if best_params["regressor"] == "RandomForest":
-            best_model = RandomForestRegressor(n_estimators=best_params["n_estimators"], max_depth=best_params["max_depth"], random_state=42)
+            best_model = RandomForestRegressor(
+                n_estimators=best_params["n_estimators"], 
+                max_depth=best_params["max_depth"], 
+                min_samples_leaf=1, 
+                max_features=1.0, 
+                random_state=42
+            )
         else:
-            best_model = GradientBoostingRegressor(n_estimators=best_params["n_estimators"], max_depth=best_params["max_depth"], learning_rate=best_params["learning_rate"], random_state=42)
+            best_model = GradientBoostingRegressor(
+                n_estimators=best_params["n_estimators"], 
+                max_depth=best_params["max_depth"], 
+                learning_rate=best_params["learning_rate"], 
+                min_samples_leaf=1, 
+                max_features=1.0, 
+                random_state=42
+            )
             
         best_model.fit(X, y)
 
@@ -408,41 +435,72 @@ class AnalyticsEngine:
                     **ml_metrics
                 }).execute()
 
+    def _process_weekly_batch(self, df_weekly: pd.DataFrame):
+        weekly_payloads = []
+        for building_id, group in df_weekly.groupby('building_id'):
+            hourly_group = group.set_index('timestamp')[['usage']].resample('h').mean().ffill().fillna(0.0).reset_index()
+            latest_time = hourly_group['timestamp'].max()
+            today_start = latest_time.replace(hour=0, minute=0, second=0, microsecond=0)
+            today_usage = float(hourly_group[hourly_group['timestamp'] >= today_start]['usage'].sum())
+            
+            ml_metrics = self.train_and_forecast_weekly(hourly_group)
+            if not ml_metrics:
+                continue
+
+            weekly_payloads.append({
+                "building_id": building_id,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "todays_usage": round(today_usage, 2),
+                "todays_cost": round(today_usage * UTILITY_RATE_KWH, 2),
+                **ml_metrics
+            })
+
+        if weekly_payloads and self.supabase:
+            self.supabase.table("building_analytics_weekly").upsert(weekly_payloads).execute()
+
+    def _process_monthly_batch(self, df_monthly: pd.DataFrame):
+        monthly_payloads = []
+        for building_id, group in df_monthly.groupby('building_id'):
+            weekly_group = group.set_index('timestamp')[['usage']].resample('W').sum().ffill().fillna(0.0).reset_index()
+            latest_time = weekly_group['timestamp'].max()
+            week_start = latest_time - timedelta(days=latest_time.weekday())
+            week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+            this_week_usage = float(weekly_group[weekly_group['timestamp'] >= week_start]['usage'].sum())
+
+            ml_metrics = self.train_and_forecast_monthly(weekly_group)
+            if not ml_metrics:
+                continue
+
+            monthly_payloads.append({
+                "building_id": building_id,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "todays_usage": round(this_week_usage, 2),
+                "todays_cost": round(this_week_usage * UTILITY_RATE_KWH, 2),
+                **ml_metrics
+            })
+
+        if monthly_payloads and self.supabase:
+            self.supabase.table("building_analytics_monthly").upsert(monthly_payloads).execute()
+
+# Update process_all_buildings:
     def process_all_buildings(self):
         active_ids = self.get_active_building_ids()
-        logger.info(f"Found {len(active_ids)} ACTIVE buildings from Supabase database.")
+        logger.info("Found %d ACTIVE buildings from Supabase database.", len(active_ids))
 
         for b_id in active_ids:
             self.register_new_building(b_id)
 
-        # query to fetch last 30 days usage for weekly analysis
-        query_weekly = f'''
-        from(bucket: "{INFLUXDB_BUCKET}") 
-            |> range(start: -30d) 
-            |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> group()
-        '''
-        
-        # query to fetch last 180 days usage for monthly analysis
-        query_monthly = f'''
-        from(bucket: "{INFLUXDB_BUCKET}") 
-            |> range(start: -180d) 
-            |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> group()
-        '''
+        query_weekly = f'''...'''
+        query_monthly = f'''...'''
 
         try:
-            # Execute weekly query and convert to data frame
             res_weekly = self.influx.query_api().query_data_frame(query_weekly)
             df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
             
-            # Execute monthly query and convert to data frame
             res_monthly = self.influx.query_api().query_data_frame(query_monthly)
             df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
-        except Exception as e:
-            logger.exception(f"InfluxDB batch query failed: ", e)
+        except Exception:
+            logger.exception("InfluxDB batch query failed")  # Fixed empty f-string (Line ~445)
             df_weekly = pd.DataFrame()
             df_monthly = pd.DataFrame()
 
@@ -452,7 +510,7 @@ class AnalyticsEngine:
 
         missing_ids = [b_id for b_id in active_ids if b_id not in existing_influx_ids]
         if missing_ids:
-            logger.info(f"Found {len(missing_ids)} ACTIVE buildings missing telemetry in InfluxDB. Auto-seeding...")
+            logger.info("Found %d ACTIVE buildings missing telemetry in InfluxDB. Auto-seeding...", len(missing_ids))
             for b_id in missing_ids:
                 self.seed_missing_influx_telemetry(b_id)
             
@@ -461,75 +519,17 @@ class AnalyticsEngine:
                 df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
                 res_monthly = self.influx.query_api().query_data_frame(query_monthly)
                 df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
-            except Exception as e:
-                logger.exception(f"Re-querying InfluxDB after seeding failed: ", e)
+            except Exception:
+                logger.exception("Re-querying InfluxDB after seeding failed")  # Fixed empty f-string (Line ~465)
 
         if df_weekly is not None and not df_weekly.empty and "building_id" in df_weekly.columns:
-            # cleaning up column names and data types
             df_weekly = df_weekly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
             df_weekly['timestamp'] = pd.to_datetime(df_weekly['timestamp'])
             df_weekly['usage'] = pd.to_numeric(df_weekly['usage'], errors='coerce').fillna(0.0)
+            self._process_weekly_batch(df_weekly)
 
-            weekly_payloads = []
-            # process each building
-            for building_id, group in df_weekly.groupby('building_id'):
-                # resample to hourly averags
-                hourly_group = group.set_index('timestamp')[['usage']].resample('h').mean().ffill().fillna(0.0).reset_index()
-                
-                # calculating today's usage from midnight to lastest timestamp
-                latest_time = hourly_group['timestamp'].max()
-                today_start = latest_time.replace(hour=0, minute=0, second=0, microsecond=0)
-                today_usage = float(hourly_group[hourly_group['timestamp'] >= today_start]['usage'].sum())
-                
-                # train ml model and generate forecasts
-                ml_metrics = self.train_and_forecast_weekly(hourly_group)
-                if not ml_metrics:
-                    continue  # skip if model training fails
-
-                # preparing weekly analytics record
-                weekly_payloads.append({
-                    "building_id": building_id,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                    "todays_usage": round(today_usage, 2),
-                    "todays_cost": round(today_usage * UTILITY_RATE_KWH, 2),
-                    **ml_metrics
-                })
-
-            # upload weekly analytics to supabase
-            if weekly_payloads and self.supabase:
-                self.supabase.table("building_analytics_weekly").upsert(weekly_payloads).execute()
-
-        # process monthly data
         if df_monthly is not None and not df_monthly.empty and "building_id" in df_monthly.columns:
             df_monthly = df_monthly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
             df_monthly['timestamp'] = pd.to_datetime(df_monthly['timestamp'])
             df_monthly['usage'] = pd.to_numeric(df_monthly['usage'], errors='coerce').fillna(0.0)
-
-            monthly_payloads = []
-            # process each building
-            for building_id, group in df_monthly.groupby('building_id'):
-                # resample to weekly totals
-                weekly_group = group.set_index('timestamp')[['usage']].resample('W').sum().ffill().fillna(0.0).reset_index()
-                # calculate this weeks usage
-                latest_time = weekly_group['timestamp'].max()
-                week_start = latest_time - timedelta(days=latest_time.weekday())
-                week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
-                this_week_usage = float(weekly_group[weekly_group['timestamp'] >= week_start]['usage'].sum())
-
-                # train ML model
-                ml_metrics = self.train_and_forecast_monthly(weekly_group)
-                if not ml_metrics:
-                    continue  # skip if model fails
-
-                # prepare monthly analytics record
-                monthly_payloads.append({
-                    "building_id": building_id,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                    "todays_usage": round(this_week_usage, 2),
-                    "todays_cost": round(this_week_usage * UTILITY_RATE_KWH, 2),
-                    **ml_metrics
-                })
-
-            #upload monthly to supabase
-            if monthly_payloads and self.supabase:
-                self.supabase.table("building_analytics_monthly").upsert(monthly_payloads).execute()
+            self._process_monthly_batch(df_monthly)

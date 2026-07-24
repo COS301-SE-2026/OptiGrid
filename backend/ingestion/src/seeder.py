@@ -117,7 +117,7 @@ def seed_calculated_buildings(building_ids: list, days_back: int = 14):
         for b_id in building_ids:
             base_load = 25.0
             multiplier = 12.0
-            rng = np.random.default_rng()
+            rng = np.random.default_rng(seed=42)
             noise = rng.uniform(-3.0, 3.0)
             
             raw_usage = max(1.5, base_load + (multiplier * time_factor) + noise)
