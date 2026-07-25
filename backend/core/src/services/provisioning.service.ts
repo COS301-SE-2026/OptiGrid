@@ -55,11 +55,8 @@ async function provisionInfluxDBBucket(
       }]
     };
 
-    console.log(`[INFLUX] Creating bucket: ${bucketName}`);
-
     try {
       await bucketsAPI.postBuckets({ body: bucketConfig });
-      console.log(`[INFLUX] Created bucket ${bucketName}`);
     } catch (error: any) {
       const message = String(error?.message || error);
       if (message.includes('already exists') || error?.statusCode === 409) {
@@ -107,8 +104,6 @@ async function initializeIngestionService(
     if (!response.ok) {
       throw new Error(`Ingestion service returned ${response.status}: ${response.statusText}`);
     }
-
-    console.log(`[INGESTION] Initialized ingestion service for building: ${buildingId}`);
   } catch (error) {
     console.error(`[INGESTION] Failed to initialize ingestion for building ${buildingId}:`, error);
     throw new Error(`Ingestion initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -137,8 +132,6 @@ async function initializeAnalyticsService(
     if (!response.ok) {
       throw new Error(`Analytics service returned ${response.status}: ${response.statusText}`);
     }
-
-    console.log(`[ANALYTICS] Initialized analytics service for building: ${buildingId}`);
   } catch (error) {
     console.error(`[ANALYTICS] Failed to initialize analytics for building ${buildingId}:`, error);
     throw new Error(`Analytics initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -169,8 +162,6 @@ export async function deleteInfluxBucket(buildingId: string): Promise<void> {
       await bucketsAPI.deleteBucketsID({
         bucketID: allBuckets.buckets[0].id as string
       });
-      //debug purposes
-      console.log("Bucket deleted");
     }
   }
   catch (error) {
