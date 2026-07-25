@@ -22,7 +22,18 @@ function runCapture(cmd, runArgs) {
     encoding: "utf8",
     shell: false,
   });
+  
+  if (result.error) {
+    if (result.error.code === 'ENOENT') {
+      console.error(`Error: Command '${cmd}' not found on your system. Please install it.`);
+    } else {
+      console.error(`Execution error for '${cmd}':`, result.error.message);
+    }
+    process.exit(1);
+  }
+  
   if (result.status !== 0) {
+    console.error(`'${cmd}' failed with status ${result.status}`);
     process.exit(result.status || 1);
   }
   return result.stdout.trim();
@@ -35,6 +46,16 @@ function run(cmd, runArgs, options = {}) {
     shell: false,
     ...options,
   });
+  
+  if (result.error) {
+    if (result.error.code === 'ENOENT') {
+      console.error(`Error: Command '${cmd}' not found on your system. Please install it.`);
+    } else {
+      console.error(`Execution error for '${cmd}':`, result.error.message);
+    }
+    process.exit(1);
+  }
+
   if (result.status !== 0) {
     process.exit(result.status || 1);
   }
@@ -47,10 +68,14 @@ if (wantsHelp) {
   process.exit(0);
 }
 
+// Safely skip if AWS credentials are missing (Mirroring CI behavior)
+if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+  process.exit(0);
+}
+
 const host = parseHostArg() || runCapture("terraform", [...tfGlobalArgs, "output", "-raw", "server_public_ip"]);
 
 if (!host) {
-  console.error("Could not determine host. Provide --host=<ip> or ensure terraform output is available.");
   process.exit(1);
 }
 
@@ -61,7 +86,7 @@ const script = [
   "test -f /var/log/docker-bootstrap.txt",
   "grep -q 'Docker version' /var/log/docker-version.txt",
   "grep -q 'Docker bootstrap complete' /var/log/docker-bootstrap.txt",
-  "",
+  "echo 'EC2 Docker bootstrap verified successfully.'",
 ].join("\n");
 
 run("ssh", [

@@ -1,10 +1,24 @@
 import { Request, Response } from 'express';
-import { compareBuildingsService, createBuilding, deleteBuildingService, getAllBuildings, getBuildingDetails, getBuildingEnergyConsumptionDetails, getPortfolioConsumption, listBuildingsForUser, updateBuildingService } from '../services/building.services';
+import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
+  getPortfolioConsumption, listBuildingsForUser, updateBuildingService, getManagerBuildings } from '../services/building.services';
+import { getBuildingDetails } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export const getRole = (req: Request) => {
+  const user = req.user;
+  const userId= user?.id;
+
+  if(!userId) throw new Error("Userid missing")
+    
+  return {
+    userId: userId as string,
+    role:user.roleType,
+    tenantId: toUuidOrUndefined(user?.user_metadata?.tenant_id),
+  };
+}
 function toUuidOrUndefined(value: unknown): string | undefined {
   if (typeof value !== 'string') {
     return undefined;
@@ -365,3 +379,21 @@ export const getAllBuildingsController = async (req:Request, resp: Response) => 
     });
   }
 }
+
+export const getManagerBuildingsController = async (req:Request, resp: Response) => {
+  try{
+    const {userId} = getRole(req);
+    const building = await getManagerBuildings(userId);
+    return resp.status(200).json({
+      status: "success",
+      data: building
+    });
+  }
+  catch(error: any) {
+    console.error("Error when fecthing all buildings for manager in controller: ", error);
+    return resp.status(500).json({
+      status: "error",
+      message: "Unexpected error"
+    });
+  }
+};

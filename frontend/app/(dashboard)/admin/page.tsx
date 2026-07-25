@@ -99,13 +99,13 @@ export default function AdminPage() {
   };
 
   const getusername = (user_id: string | null) => {
-    if (!user_id) return "—";
+    if (!user_id) return "-";
     const user = users.find((u) => u.user_id === user_id);
     return user ? user.first_name : user_id;
   };
 
   const getmanagername = (manager_id: string | null) => {
-    if (!manager_id) return "—";
+    if (!manager_id) return "-";
     const manager = managers.find((m) => m.manager_id === manager_id);
     return manager ? manager.name : manager_id;
   };

@@ -9,7 +9,7 @@ refillRate: number) => {//refillrate is in seconds
         if(process.env.DISABLE_RATE_LIMIT === "true") return nextFunc();
 
         const id = req.ip || req.socket.remoteAddress || "unknown";
-        const routes = req.baseUrl || req.path; //allows for diff buckets for diff endpoints
+        const routes = `${req.baseUrl || ""}${req.path || ""}` || "unknown-route"; //allows for diff buckets for diff endpoints
         const key = `rateLimit:${routes}-${id}`;
         try {
             const currTime = Date.now();
