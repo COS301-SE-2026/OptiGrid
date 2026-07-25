@@ -14,20 +14,19 @@ const createRedisClient = () => ({
     },
 });
 
-export const redis = process.env.NODE_ENV === 'test'
+export const redis = process.env.NODE_ENV === "test"
     ? (createRedisClient() as unknown as Redis)
     : new Redis(
         process.env.REDIS_URL
         || process.env.Redis_URL
-        || `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || '6379'}`,
+        || `redis://${process.env.REDIS_HOST || "localhost"}:${process.env.REDIS_PORT || "6379"}`,
     );
 
 if (process.env.NODE_ENV !== 'test') {
     redis.on('connect', () => {
-        console.log('Successfully connected to Redis.');
+        console.log("Successfully connected to redis");
     });
     redis.on('error', (err) => {
-        console.error('Redis connection error:', err);
+        console.error("Could not connect to redis:", err);
     });
 }
-
