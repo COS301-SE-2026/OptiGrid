@@ -9,6 +9,7 @@ import analyticsRoutes from "./routes/analytics.routes";
 import userPreferencesRoutes from "./routes/user_preferences.routes";
 import contactRoutes from "./routes/contact.routes";
 import { rateLimiter } from "./middleware/rateLimiter.middleware";
+import cors from "cors";
 
 
 export interface CreateAppOptions {
@@ -18,6 +19,10 @@ export interface CreateAppOptions {
 export function createApp(port = Number(process.env.PORT ?? 4000), options: CreateAppOptions = {}): Express {
 	const app = express();
 
+	app.use(cors({
+		origin: ["https://optigrid.co.za", "http://localhost:3000"],
+		credentials: true,
+	}));
 	const swaggerSpec = swaggerJsdoc({
 		definition: {
 			openapi: "3.0.0",
