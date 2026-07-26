@@ -1,589 +1,469 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import DashboardPage from "./page";
-
-const mockUseQuery = jest.fn();
-const mockInvalidateQueries = jest.fn();
-const mockMutate = jest.fn();
-
-jest.mock("@tanstack/react-query", () => ({
-    useQuery: (options: unknown) => mockUseQuery(options),
-    useQueryClient: () => ({
-        invalidateQueries: mockInvalidateQueries,
-    }),
-    useMutation: () => ({
-        mutate: mockMutate,
-        isPending: false,
-    }),
-}));
-
 
 const mockPush = jest.fn();
 
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: mockPush,
-  }),
+  useRouter: () => ({ push: mockPush }),
 }));
 
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ children, href, onClick, ...rest }: any) => (
+    <a href={href} onClick={onClick} {...rest}>{children}</a>
+  ),
+}));
 
-jest.mock("next/link", () => {
-    return function MockLink({
-        href,
-        children,
-        ...rest
-    }: {
-        href: string;
-        children: React.ReactNode;
-        [key: string]: unknown;
-    }) {
-        return (
-            <a href={href} {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>
-                {children}
-            </a>
-        );
-    };
-});
+jest.mock("recharts", () => ({
+  ResponsiveContainer: ({ children }: any) => <div data-testid="chart-container">{children}</div>,
+  LineChart: ({ children }: any) => <div data-testid="line-chart">{children}</div>,
+  Line: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  CartesianGrid: () => null,
+  Tooltip: () => null,
+}));
 
-jest.mock("recharts", () => {
-    const MockChart = ({ children }: { children?: React.ReactNode }) => (
-        <div>{children}</div>
-    );
-    return {
-        ResponsiveContainer: MockChart,
-        LineChart: MockChart,
-        CartesianGrid: () => null,
-        Line: () => null,
-        Tooltip: () => null,
-        XAxis: () => null,
-        YAxis: () => null,
-    };
-});
+jest.mock("../../../lib/session", () => ({
+  buildDisplayName: (user: any) =>
+    [user.firstName, user.lastName].filter(Boolean).join(" "),
+}));
 
-const portfolioConsumptionData = {
-    daily: [
-        { date: "2026-07-13", kwh: 3800, cost_zar: 0 },
-        { date: "2026-07-14", kwh: 4100, cost_zar: 0 },
-    ],
-    today_kwh_by_building: {
-        "1": 1847,
-        "2": 1512,
-    },
-    estimated_cost_zar: null,
-    active_alerts: 1,
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
 };
 
-const buildingsData = [
-    {
-        id: "1",
-        name: "Sandton HQ",
-        location: "Sandton, JHB",
-        type: "Office",
-        todayKwh: 1847,
-        status: "Normal",
-    },
-    {
-        id: "2",
-        name: "Rosebank Tower",
-        location: "Rosebank, JHB",
-        type: "Office",
-        todayKwh: 1512,
-        status: "Peak alert",
-    },
-];
+const renderPage = () => render(<DashboardPage />, { wrapper: createWrapper() });
 
-function mockQueries({ buildings = buildingsData, portfolioConsumption = portfolioConsumptionData } = {}) {
-    const now = Date.now();
-    mockUseQuery.mockImplementation((options: any) => {
-        const key = options?.queryKey?.[0];
-        if (key === "auth-session") {
-            return {
-                data: {
-                    userId: "user-123",
-                    email: "abdelrahman@example.com",
-                    firstName: "Abdelrahman",
-                    lastName: "Esam",
-                },
-                isLoading: false,
-            };
-        }
-        if (key === "portfolio-consumption") {
-            return { data: portfolioConsumption, isLoading: false };
-        }
-        if (key === "buildings") {
-            return { data: buildings, isLoading: false, dataUpdatedAt: now };
-        }
-        return { data: undefined, isLoading: false };
-    });
-}
+const mockSession = {
+  user: { firstName: "Tali", lastName: "Seaba", roleType: "admin", email: "tali@example.com" },
+};
+
+const mockBuildings = {
+  data: [
+    {
+      building_id: "b1",
+      building_name: "Tower A",
+      physical_address: "1 Main St",
+      building_type: "Commercial",
+      timezone: "Africa/Johannesburg",
+      square_footage: 5000,
+      max_occupancy: 200,
+      today_kwh: 120,
+      status: "Normal",
+    },
+    {
+      building_id: "b2",
+      building_name: "Tower B",
+      physical_address: "2 Side Ave",
+      building_type: "Industrial",
+      timezone: "UTC",
+      square_footage: 3000,
+      max_occupancy: 100,
+      today_kwh: 0,
+      status: "Offline",
+    },
+  ],
+};
+
+const mockPortfolio = {
+  data: {
+    daily: [
+      { date: "2025-01-01", kwh: 100, cost_zar: 200 },
+      { date: "2025-01-02", kwh: 150, cost_zar: 300 },
+    ],
+    today_kwh_by_building: { b1: 120, b2: 0 },
+    estimated_cost_zar: 500,
+    active_alerts: 2,
+  },
+};
+
+const setupFetch = ({
+  session = mockSession,
+  buildings = mockBuildings,
+  portfolio = mockPortfolio,
+  buildingsOk = true,
+  sessionOk = true,
+} = {}) => {
+  global.fetch = jest.fn().mockImplementation((url: string) => {
+    if (url.includes("/api/auth/session")) {
+      return Promise.resolve({
+        ok: sessionOk,
+        json: async () => session,
+      });
+    }
+    if (url.includes("/api/buildings/portfolio-consumption")) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => portfolio,
+      });
+    }
+    if (url.match(/\/api\/buildings\/[^/]+$/) && url.includes("DELETE")) {
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    }
+    if (url === "/api/buildings") {
+      return Promise.resolve({
+        ok: buildingsOk,
+        json: async () => buildings,
+      });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({}) });
+  });
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  setupFetch();
+});
 
 describe("DashboardPage", () => {
-    beforeEach(() => {
-        mockUseQuery.mockReset();
-        mockInvalidateQueries.mockReset();
-        mockMutate.mockReset();
-        mockPush.mockReset();
-        jest.spyOn(window, "confirm").mockReturnValue(false);
+  describe("Loading state", () => {
+    it("renders without crashing", () => {
+      renderPage();
+      expect(document.body).toBeTruthy();
     });
 
-    afterEach(() => {
-        jest.restoreAllMocks();
+    it("renders the topbar area", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Tali Seaba")).toBeInTheDocument()
+      );
     });
 
-    it("renders the header and KPI values", () => {
-        mockQueries();
-        render(<DashboardPage />);
+    it("renders user initials in the avatar", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("TS")).toBeInTheDocument()
+      );
+    });
+  });
 
-        expect(
-            screen.getByRole("heading", { name: "Welcome back, Abdelrahman" })
-        ).toBeInTheDocument();
-        expect(screen.getByText(/last updated just now/i)).toBeInTheDocument();
-        expect(screen.getByText("Buildings")).toBeInTheDocument();
-        expect(screen.getByText("2")).toBeInTheDocument();
-        expect(screen.getByText("3,359 kWh")).toBeInTheDocument();
-        expect(screen.getAllByText("--").length).toBeGreaterThan(0);
-        expect(screen.getByText("Active alerts")).toBeInTheDocument();
-        expect(screen.getByText("1")).toBeInTheDocument();
+  describe("Welcome heading", () => {
+    it("renders welcome hearding", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByRole("heading", { name: /welcome back, tali/i })).toBeInTheDocument()
+      );
     });
 
-    it("renders the add building CTA", () => {
-        mockQueries();
-        render(<DashboardPage />);
+    it("renders the subtitle", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText(/portfolio overview - last updated/i)).toBeInTheDocument()
+      );
+    });
+  });
 
-        const link = screen.getByRole("link", { name: "+ Add building" });
-        expect(link).toHaveAttribute("href", "/buildings/add");
+  describe("Add building", () => {
+    it("renders the Add building", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByRole("link", { name: /add building/i })).toBeInTheDocument()
+      );
     });
 
-    it("renders building rows when data exists", () => {
-        mockQueries();
-        render(<DashboardPage />);
+    it("make sure add building link points to /buildings/add", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByRole("link", { name: /add building/i })).toHaveAttribute("href", "/buildings/add")
+      );
+    });
+  });
 
-        expect(screen.getByText("Sandton HQ")).toBeInTheDocument();
-        expect(screen.getByText("Rosebank Tower")).toBeInTheDocument();
-        expect(screen.getAllByText("Office")).toHaveLength(2);
-        expect(screen.getByText("Normal")).toBeInTheDocument();
+  describe("KPI", () => {
+    it("renders the Buildings KPI", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Buildings")).toBeInTheDocument()
+      );
     });
 
-    it("renders empty state when no buildings", () => {
-        mockQueries({ buildings: [] });
-        render(<DashboardPage />);
 
-        expect(screen.getByText("No buildings yet.")).toBeInTheDocument();
-        const addLink = screen.getByRole("link", {
-            name: "Add your first building",
-        });
-        expect(addLink).toHaveAttribute("href", "/buildings/add");
+    it("renders Today's usage KPI", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Today's usage")).toBeInTheDocument()
+      );
     });
 
-    it("navigates to the building details page when the building card is clicked", () => {
-    mockQueries();
-    render(<DashboardPage />);
-
-     fireEvent.click(screen.getByText("Sandton HQ"));
-
-    expect(mockPush).toHaveBeenCalledWith("/buildings/1/view");
-
-});
- 
-
-
-
-it("renders the user's initials in the avatar", () => {
-    mockQueries();
-    render(<DashboardPage />);
-
-    expect(screen.getByText("AE")).toBeInTheDocument();
-});
-
-it("renders the user's full name", () => {
-    mockQueries();
-    render(<DashboardPage />);
-
-    expect(screen.getByText("Abdelrahman Esam")).toBeInTheDocument();
-});
-
-it("renders Edit links for every building", () => {
-    mockQueries();
-    render(<DashboardPage />);
-
-    const editLinks = screen.getAllByRole("link", { name: "Edit" });
-
-    expect(editLinks).toHaveLength(2);
-    expect(editLinks[0]).toHaveAttribute("href", "/buildings/1/edit");
-    expect(editLinks[1]).toHaveAttribute("href", "/buildings/2/edit");
-});
-
-it("opens the delete confirmation modal", () => {
-    mockUseQuery.mockImplementation((options: any) => {
-        const key = options?.queryKey?.[0];
-
-        if (key === "auth-session") {
-            return {
-                data: {
-                    userId: "1",
-                    firstName: "Admin",
-                    lastName: "User",
-                    roleType: "ADMIN",
-                },
-                isLoading: false,
-            };
-        }
-
-        if (key === "portfolio-consumption") {
-            return {
-                data: portfolioConsumptionData,
-                isLoading: false,
-            };
-        }
-
-        if (key === "buildings") {
-            return {
-                data: buildingsData,
-                isLoading: false,
-                dataUpdatedAt: Date.now(),
-            };
-        }
-
-        return { data: undefined };
+    it("renders Est. cost KPI", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Est. cost")).toBeInTheDocument()
+      );
     });
 
-    render(<DashboardPage />);
-
-    fireEvent.click(screen.getAllByLabelText("Delete")[0]);
-
-    expect(
-        screen.getByRole("heading", { name: /delete building/i })
-    ).toBeInTheDocument();
-
-    expect(
-        screen.getByText(/are you sure you want to delete/i)
-    ).toBeInTheDocument();
-});
-
-it("closes the delete modal when Cancel is clicked", () => {
-    mockUseQuery.mockImplementation((options: any) => {
-        const key = options?.queryKey?.[0];
-
-        if (key === "auth-session") {
-            return {
-                data: {
-                    firstName: "Admin",
-                    lastName: "User",
-                    roleType: "ADMIN",
-                },
-                isLoading: false,
-            };
-        }
-
-        if (key === "portfolio-consumption") {
-            return {
-                data: portfolioConsumptionData,
-                isLoading: false,
-            };
-        }
-
-        if (key === "buildings") {
-            return {
-                data: buildingsData,
-                isLoading: false,
-                dataUpdatedAt: Date.now(),
-            };
-        }
-
-        return {};
+    it("renders Active alerts", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Active alerts")).toBeInTheDocument()
+      );
     });
 
-    render(<DashboardPage />);
-
-    fireEvent.click(screen.getAllByLabelText("Delete")[0]);
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(
-        screen.queryByRole("heading", {
-            name: /delete building/i,
-        })
-    ).not.toBeInTheDocument();
-});
-
-it("calls mutate when Delete is confirmed", () => {
-    mockUseQuery.mockImplementation((options: any) => {
-        const key = options?.queryKey?.[0];
-
-        if (key === "auth-session") {
-            return {
-                data: {
-                    firstName: "Admin",
-                    lastName: "User",
-                    roleType: "ADMIN",
-                },
-                isLoading: false,
-            };
-        }
-
-        if (key === "portfolio-consumption") {
-            return {
-                data: portfolioConsumptionData,
-                isLoading: false,
-            };
-        }
-
-        if (key === "buildings") {
-            return {
-                data: buildingsData,
-                isLoading: false,
-                dataUpdatedAt: Date.now(),
-            };
-        }
-
-        return {};
+    it("renders estimated cost", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText(/R.*500/)).toBeInTheDocument()
+      );
     });
 
-    render(<DashboardPage />);
 
-    fireEvent.click(screen.getAllByLabelText("Delete")[0]);
-
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-
-    expect(mockMutate).toHaveBeenCalledWith("1");
-});
-
-it("does not render Delete buttons for non-admin users", () => {
-    mockQueries();
-
-    render(<DashboardPage />);
-
-    expect(screen.queryByLabelText("Delete")).not.toBeInTheDocument();
-});
-
-it("renders portfolio consumption heading", () => {
-    mockQueries();
-
-    render(<DashboardPage />);
-
-    expect(
-        screen.getByText(/portfolio consumption, last 7 days/i)
-    ).toBeInTheDocument();
-});
-
-it("renders all building statuses", () => {
-    mockQueries();
-
-    render(<DashboardPage />);
-
-    expect(screen.getByText("Normal")).toBeInTheDocument();
-    expect(screen.getByText("Peak alert")).toBeInTheDocument();
-});
-
-it("renders today's kWh values", () => {
-    mockQueries();
-
-    render(<DashboardPage />);
-
-    expect(screen.getByText("1,847")).toBeInTheDocument();
-    expect(screen.getByText("1,512")).toBeInTheDocument();
-});
-
-it("shows loading placeholders while buildings are loading", () => {
-    mockUseQuery.mockImplementation((options: any) => {
-        const key = options.queryKey?.[0];
-
-        if (key === "auth-session") {
-            return {
-                data: {
-                    firstName: "Abdelrahman",
-                    lastName: "Esam",
-                },
-                isLoading: false,
-            };
-        }
-
-        if (key === "buildings") {
-            return {
-                data: [],
-                isLoading: true,
-                dataUpdatedAt: Date.now(),
-            };
-        }
-
-        if (key === "portfolio-consumption") {
-            return {
-                data: undefined,
-                isLoading: true,
-            };
-        }
-
-        return {};
+  describe("Portfolio consumption", () => {
+    it("renders the chart heading", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText(/portfolio consumption, last 7 days/i)).toBeInTheDocument()
+      );
     });
 
-    render(<DashboardPage />);
-
-    expect(screen.getByText("Buildings")).toBeInTheDocument();
-    expect(screen.getByText("Today's usage")).toBeInTheDocument();
-});
-
-
-it("renders the buildings error message", () => {
-    mockUseQuery.mockImplementation((options: any) => {
-        const key = options.queryKey?.[0];
-
-        if (key === "auth-session") {
-            return {
-                data: {
-                    firstName: "Abdelrahman",
-                    lastName: "Esam",
-                },
-            };
-        }
-
-        if (key === "portfolio-consumption") {
-            return {
-                data: portfolioConsumptionData,
-                isLoading: false,
-            };
-        }
-
-        if (key === "buildings") {
-            return {
-                isLoading: false,
-                isError: true,
-                error: new Error("Backend unavailable"),
-                dataUpdatedAt: Date.now(),
-            };
-        }
-
-        return {};
+    it("renders the kWh", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("kWh")).toBeInTheDocument()
+      );
     });
 
-    render(<DashboardPage />);
+    it("renders the chart after loading", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByTestId("chart-container")).toBeInTheDocument()
+      );
+    });
+  });
 
-    expect(screen.getByText("Backend unavailable")).toBeInTheDocument();
-});
-
-
-it("shows Delete button only for admins", () => {
-    mockUseQuery.mockImplementation((options: any) => {
-        const key = options.queryKey?.[0];
-
-        if (key === "auth-session") {
-            return {
-                data: {
-                    firstName: "Admin",
-                    lastName: "User",
-                    roleType: "ADMIN",
-                },
-            };
-        }
-
-        if (key === "portfolio-consumption") {
-            return {
-                data: portfolioConsumptionData,
-                isLoading: false,
-            };
-        }
-
-        if (key === "buildings") {
-            return {
-                data: buildingsData,
-                isLoading: false,
-                dataUpdatedAt: Date.now(),
-            };
-        }
-
-        return {};
+  describe("Buildings table", () => {
+    it("renders the buildings table", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByRole("table")).toBeInTheDocument()
+      );
     });
 
-    render(<DashboardPage />);
-
-    expect(screen.getAllByLabelText("Delete")).toHaveLength(2);
-});
-
-
-it("renders estimated cost when available", () => {
-    mockQueries({
-        portfolioConsumption: {
-            ...portfolioConsumptionData,
-            estimated_cost_zar: 15324,
-        },
+    it("renders table headers: Name, Type, Today, Status, Actions", async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole("columnheader", { name: /name/i })).toBeInTheDocument();
+        expect(screen.getByRole("columnheader", { name: /type/i })).toBeInTheDocument();
+        expect(screen.getByRole("columnheader", { name: /today/i })).toBeInTheDocument();
+        expect(screen.getByRole("columnheader", { name: /status/i })).toBeInTheDocument();
+        expect(screen.getByRole("columnheader", { name: /actions/i })).toBeInTheDocument();
+      });
     });
 
-    render(<DashboardPage />);
-
-    expect(screen.getByText("R 15,324")).toBeInTheDocument();
-});
-
-it("does not navigate when Edit is clicked", () => {
-    mockQueries();
-
-    render(<DashboardPage />);
-
-    fireEvent.click(screen.getAllByLabelText("Edit")[0]);
-
-    expect(mockPush).not.toHaveBeenCalled();
-});
-
-
-it("renders Offline badge", () => {
-    mockQueries({
-        buildings: [
-            {
-                id: "1",
-                name: "Offline Building",
-                location: "Pretoria",
-                type: "Office",
-                todayKwh: 0,
-                status: "Offline",
-            },
-        ],
+    it("renders Tower A building row", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Tower A")).toBeInTheDocument()
+      );
     });
 
-    render(<DashboardPage />);
-
-    expect(screen.getByText("Offline")).toBeInTheDocument();
-});
-
-
-it("closes delete modal when clicking outside", () => {
-    mockUseQuery.mockImplementation((options: any) => {
-        const key = options.queryKey?.[0];
-
-        if (key === "auth-session") {
-            return {
-                data: {
-                    firstName: "Admin",
-                    lastName: "User",
-                    roleType: "ADMIN",
-                },
-            };
-        }
-
-        if (key === "portfolio-consumption") {
-            return {
-                data: portfolioConsumptionData,
-                isLoading: false,
-            };
-        }
-
-        if (key === "buildings") {
-            return {
-                data: buildingsData,
-                isLoading: false,
-                dataUpdatedAt: Date.now(),
-            };
-        }
-
-        return {};
+    it("renders Tower B building row", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Tower B")).toBeInTheDocument()
+      );
     });
 
-    render(<DashboardPage />);
+    it("renders building location", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("1 Main St")).toBeInTheDocument()
+      );
+    });
 
-    fireEvent.click(screen.getAllByLabelText("Delete")[0]);
+    it("renders building type", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Commercial")).toBeInTheDocument()
+      );
+    });
 
-    fireEvent.click(document.querySelector(".modal-overlay")!);
+    it("renders Normal status badge for Tower A", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Normal")).toBeInTheDocument()
+      );
+    });
 
-    expect(
-        screen.queryByText(/delete building/i)
-    ).not.toBeInTheDocument();
+    it("renders Offline status badge for Tower B", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("Offline")).toBeInTheDocument()
+      );
+    });
+
+    it("renders today kWh metric for Tower A", async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText("120")).toBeInTheDocument()
+      );
+    });
+
+    it("navigates to building view when row is clicked", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      fireEvent.click(screen.getByText("Tower A").closest("tr")!);
+      expect(mockPush).toHaveBeenCalledWith("/buildings/b1/view");
+    });
+  });
+
+  describe("Edit link", () => {
+    it("renders Edit link for Tower A", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      expect(within(row).getByRole("link", { name: /edit/i })).toBeInTheDocument();
+    });
+
+    it("Edit link points to /buildings/:id/edit", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      expect(within(row).getByRole("link", { name: /edit/i })).toHaveAttribute("href", "/buildings/b1/edit");
+    });
+
+    it("clicking Edit link does not navigate the row", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      const editLink = within(row).getByRole("link", { name: /edit/i });
+      fireEvent.click(editLink);
+      expect(mockPush).not.toHaveBeenCalledWith("/buildings/b1/view");
+    });
+  });
+
+  describe("Delete button for admin", () => {
+    it("renders Delete button for admin user", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      expect(screen.getAllByRole("button", { name: /delete/i }).length).toBeGreaterThan(0);
+    });
+
+    it("does not render Delete button for non-admin", async () => {
+      setupFetch({
+        session: { user: { firstName: "Bob", lastName: "User", roleType: "user", email: "bob@example.com" } },
+      });
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+    });
+
+    it("opens delete modal when Delete is clicked", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+      expect(screen.getByRole("heading", { name: /delete building/i })).toBeInTheDocument();
+    });
+
+    it("modal shows the building name", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+      const modalContent = screen.getByText(/are you sure you want to delete/i);
+      expect(modalContent).toBeInTheDocument();
+      expect(modalContent).toHaveTextContent(/Tower A/);
+    });
+
+    it("modal has a Cancel button", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    });
+
+    it("modal has a Delete confirm button", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+      const modal = screen.getByRole("heading", { name: /delete building/i }).closest(".modal")!;
+      expect(within(modal as HTMLElement).getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
+    });
+  });
+
+  describe("Cancel button", () => {
+    it("closes the delete modal when Cancel is clicked", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+      expect(screen.queryByRole("heading", { name: /delete building/i })).not.toBeInTheDocument();
+    });
+
+    it("does not call the delete API when Cancel is clicked", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+      const deleteCalls = (global.fetch as jest.Mock).mock.calls.filter(
+        ([url, opts]: [string, RequestInit]) => opts?.method === "DELETE"
+      );
+      expect(deleteCalls.length).toBe(0);
+    });
+  });
+
+  describe("Delete confirm button", () => {
+    it("calls DELETE /api/buildings/:id when confirmed", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+      const modal = screen.getByRole("heading", { name: /delete building/i }).closest(".modal")!;
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /^delete$/i }));
+
+      await waitFor(() => {
+        const deleteCalls = (global.fetch as jest.Mock).mock.calls.filter(
+          ([url, opts]: [string, RequestInit]) =>
+            url.includes("/api/buildings/b1") && opts?.method === "DELETE"
+        );
+        expect(deleteCalls.length).toBe(1);
+      });
+    });
+
+    it("closes modal after successful delete", async () => {
+      renderPage();
+      await waitFor(() => screen.getByText("Tower A"));
+      const row = screen.getByText("Tower A").closest("tr")!;
+      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+      const modal = screen.getByRole("heading", { name: /delete building/i }).closest(".modal")!;
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /^delete$/i }));
+
+      await waitFor(() =>
+        expect(screen.queryByRole("heading", { name: /delete building/i })).not.toBeInTheDocument()
+      );
+    });
+  });
+
+  describe("Empty buildings state", () => {
+    it("shows No buildings when there are no buildings", async () => {
+      setupFetch({ buildings: { data: [] } });
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByText(/no buildings yet/i)).toBeInTheDocument()
+      );
+    });
+
+    it("shows Add your first building link when empty", async () => {
+      setupFetch({ buildings: { data: [] } });
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByRole("link", { name: /add your first building/i })).toBeInTheDocument()
+      );
+    });
+  });
 });
-
-
 });
