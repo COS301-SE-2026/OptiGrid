@@ -134,183 +134,137 @@ describe("DashboardPage", () => {
 
     it("renders the topbar area", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Tali Seaba")).toBeInTheDocument()
-      );
+      await screen.findByText("Tali Seaba");
     });
 
     it("renders user initials in the avatar", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("TS")).toBeInTheDocument()
-      );
+      await screen.findByText("TS");
     });
   });
 
   describe("Welcome heading", () => {
-    it("renders welcome hearding", async () => {
+    it("renders welcome heading", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByRole("heading", { name: /welcome back, tali/i })).toBeInTheDocument()
-      );
+      await screen.findByRole("heading", { name: /welcome back, tali/i });
     });
 
     it("renders the subtitle", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText(/portfolio overview - last updated/i)).toBeInTheDocument()
-      );
+      await screen.findByText(/portfolio overview - last updated/i);
     });
   });
 
   describe("Add building", () => {
     it("renders the Add building", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByRole("link", { name: /add building/i })).toBeInTheDocument()
-      );
+      await screen.findByRole("link", { name: /add building/i });
     });
 
     it("make sure add building link points to /buildings/add", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByRole("link", { name: /add building/i })).toHaveAttribute("href", "/buildings/add")
-      );
+      const link = await screen.findByRole("link", { name: /add building/i });
+      expect(link).toHaveAttribute("href", "/buildings/add");
     });
   });
 
   describe("KPI", () => {
     it("renders the Buildings KPI", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Buildings")).toBeInTheDocument()
-      );
+      await screen.findByText("Buildings");
     });
-
 
     it("renders Today's usage KPI", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Today's usage")).toBeInTheDocument()
-      );
+      await screen.findByText("Today's usage");
     });
 
     it("renders Est. cost KPI", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Est. cost")).toBeInTheDocument()
-      );
+      await screen.findByText("Est. cost");
     });
 
     it("renders Active alerts", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Active alerts")).toBeInTheDocument()
-      );
+      await screen.findByText("Active alerts");
     });
 
     it("renders estimated cost", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText(/R.*500/)).toBeInTheDocument()
-      );
+      await screen.findByText(/R.*500/);
     });
-
+  });
 
   describe("Portfolio consumption", () => {
     it("renders the chart heading", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText(/portfolio consumption, last 7 days/i)).toBeInTheDocument()
-      );
+      await screen.findByText(/portfolio consumption, last 7 days/i);
     });
 
     it("renders the kWh", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("kWh")).toBeInTheDocument()
-      );
+      await screen.findByText("kWh");
     });
 
     it("renders the chart after loading", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByTestId("chart-container")).toBeInTheDocument()
-      );
+      await screen.findByTestId("chart-container");
     });
   });
 
   describe("Buildings table", () => {
     it("renders the buildings table", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByRole("table")).toBeInTheDocument()
-      );
+      await screen.findByRole("table");
     });
 
     it("renders table headers: Name, Type, Today, Status, Actions", async () => {
       renderPage();
-      await waitFor(() => {
-        expect(screen.getByRole("columnheader", { name: /name/i })).toBeInTheDocument();
-        expect(screen.getByRole("columnheader", { name: /type/i })).toBeInTheDocument();
-        expect(screen.getByRole("columnheader", { name: /today/i })).toBeInTheDocument();
-        expect(screen.getByRole("columnheader", { name: /status/i })).toBeInTheDocument();
-        expect(screen.getByRole("columnheader", { name: /actions/i })).toBeInTheDocument();
-      });
+      await screen.findByRole("columnheader", { name: /name/i });
+      expect(screen.getByRole("columnheader", { name: /type/i })).toBeInTheDocument();
+      expect(screen.getByRole("columnheader", { name: /today/i })).toBeInTheDocument();
+      expect(screen.getByRole("columnheader", { name: /status/i })).toBeInTheDocument();
+      expect(screen.getByRole("columnheader", { name: /actions/i })).toBeInTheDocument();
     });
 
     it("renders Tower A building row", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Tower A")).toBeInTheDocument()
-      );
+      await screen.findByText("Tower A");
     });
 
     it("renders Tower B building row", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Tower B")).toBeInTheDocument()
-      );
+      await screen.findByText("Tower B");
     });
 
     it("renders building location", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("1 Main St")).toBeInTheDocument()
-      );
+      await screen.findByText("1 Main St");
     });
 
     it("renders building type", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Commercial")).toBeInTheDocument()
-      );
+      await screen.findByText("Commercial");
     });
 
     it("renders Normal status badge for Tower A", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Normal")).toBeInTheDocument()
-      );
+      await screen.findByText("Normal");
     });
 
     it("renders Offline status badge for Tower B", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("Offline")).toBeInTheDocument()
-      );
+      await screen.findByText("Offline");
     });
 
     it("renders today kWh metric for Tower A", async () => {
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText("120")).toBeInTheDocument()
-      );
+      await screen.findByText("120");
     });
 
     it("navigates to building view when row is clicked", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       fireEvent.click(screen.getByText("Tower A").closest("tr")!);
       expect(mockPush).toHaveBeenCalledWith("/buildings/b1/view");
     });
@@ -319,21 +273,21 @@ describe("DashboardPage", () => {
   describe("Edit link", () => {
     it("renders Edit link for Tower A", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       expect(within(row).getByRole("link", { name: /edit/i })).toBeInTheDocument();
     });
 
     it("Edit link points to /buildings/:id/edit", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       expect(within(row).getByRole("link", { name: /edit/i })).toHaveAttribute("href", "/buildings/b1/edit");
     });
 
     it("clicking Edit link does not navigate the row", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       const editLink = within(row).getByRole("link", { name: /edit/i });
       fireEvent.click(editLink);
@@ -344,7 +298,7 @@ describe("DashboardPage", () => {
   describe("Delete button for admin", () => {
     it("renders Delete button for admin user", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       expect(screen.getAllByRole("button", { name: /delete/i }).length).toBeGreaterThan(0);
     });
 
@@ -353,13 +307,13 @@ describe("DashboardPage", () => {
         session: { user: { firstName: "Bob", lastName: "User", roleType: "user", email: "bob@example.com" } },
       });
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
     });
 
     it("opens delete modal when Delete is clicked", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
       expect(screen.getByRole("heading", { name: /delete building/i })).toBeInTheDocument();
@@ -367,7 +321,7 @@ describe("DashboardPage", () => {
 
     it("modal shows the building name", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
       const modalContent = screen.getByText(/are you sure you want to delete/i);
@@ -377,7 +331,7 @@ describe("DashboardPage", () => {
 
     it("modal has a Cancel button", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
       expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
@@ -385,7 +339,7 @@ describe("DashboardPage", () => {
 
     it("modal has a Delete confirm button", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
       const modal = screen.getByRole("heading", { name: /delete building/i }).closest(".modal")!;
@@ -396,7 +350,7 @@ describe("DashboardPage", () => {
   describe("Cancel button", () => {
     it("closes the delete modal when Cancel is clicked", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
@@ -405,7 +359,7 @@ describe("DashboardPage", () => {
 
     it("does not call the delete API when Cancel is clicked", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
@@ -419,7 +373,7 @@ describe("DashboardPage", () => {
   describe("Delete confirm button", () => {
     it("calls DELETE /api/buildings/:id when confirmed", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
       const modal = screen.getByRole("heading", { name: /delete building/i }).closest(".modal")!;
@@ -436,7 +390,7 @@ describe("DashboardPage", () => {
 
     it("closes modal after successful delete", async () => {
       renderPage();
-      await waitFor(() => screen.getByText("Tower A"));
+      await screen.findByText("Tower A");
       const row = screen.getByText("Tower A").closest("tr")!;
       fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
       const modal = screen.getByRole("heading", { name: /delete building/i }).closest(".modal")!;
@@ -452,18 +406,13 @@ describe("DashboardPage", () => {
     it("shows No buildings when there are no buildings", async () => {
       setupFetch({ buildings: { data: [] } });
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByText(/no buildings yet/i)).toBeInTheDocument()
-      );
+      await screen.findByText(/no buildings yet/i);
     });
 
     it("shows Add your first building link when empty", async () => {
       setupFetch({ buildings: { data: [] } });
       renderPage();
-      await waitFor(() =>
-        expect(screen.getByRole("link", { name: /add your first building/i })).toBeInTheDocument()
-      );
+      await screen.findByRole("link", { name: /add your first building/i });
     });
   });
-});
 });

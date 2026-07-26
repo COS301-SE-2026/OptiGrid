@@ -148,7 +148,9 @@ describe("SettingsPage", () => {
       render(<SettingsPage />);
       fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
       expect(screen.getByText(/profile changes saved/i)).toBeInTheDocument();
-      act(() => { jest.advanceTimersByTime(3000); });
+      act(() => {
+        jest.advanceTimersByTime(3000);
+      });
       expect(screen.queryByText(/profile changes saved/i)).not.toBeInTheDocument();
     });
 
@@ -224,17 +226,13 @@ describe("SettingsPage", () => {
 
     it("calls toggle when theme button is clicked", async () => {
       render(<SettingsPage />);
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /switch to dark mode/i }));
-      });
+      fireEvent.click(screen.getByRole("button", { name: /switch to dark mode/i }));
       expect(mockToggle).toHaveBeenCalledTimes(1);
     });
 
     it("calls fetch to sync theme to backend", async () => {
       render(<SettingsPage />);
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /switch to dark mode/i }));
-      });
+      fireEvent.click(screen.getByRole("button", { name: /switch to dark mode/i }));
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/preferences/theme",
         expect.objectContaining({ method: "PUT" })
@@ -277,7 +275,9 @@ describe("SettingsPage", () => {
     it("redirects to /login after logout", () => {
       render(<SettingsPage />);
       fireEvent.click(screen.getByRole("button", { name: /logout/i }));
-      act(() => { jest.advanceTimersByTime(500); });
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
       expect(mockPush).toHaveBeenCalledWith("/login");
     });
 
@@ -285,7 +285,9 @@ describe("SettingsPage", () => {
       (window.confirm as jest.Mock).mockReturnValueOnce(false);
       render(<SettingsPage />);
       fireEvent.click(screen.getByRole("button", { name: /logout/i }));
-      act(() => { jest.advanceTimersByTime(500); });
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
       expect(mockPush).not.toHaveBeenCalled();
     });
   });
@@ -388,7 +390,9 @@ describe("SettingsPage", () => {
       fireEvent.change(getDeleteConfirmInput(), { target: { value: "DELETE" } });
       const btns = screen.getAllByRole("button", { name: /delete account/i });
       fireEvent.click(btns[btns.length - 1]);
-      act(() => { jest.advanceTimersByTime(500); });
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
       expect(mockPush).toHaveBeenCalledWith("/login");
     });
 

@@ -84,12 +84,7 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-
-
-
 const getSelects = () => screen.getAllByRole("combobox");
-const getRoleSelect = () => getSelects()[0];
-
 const getSortSelect = () => screen.getByRole("combobox");
 const getSearchInput = () =>
   screen.getByPlaceholderText(/name or email/i);
@@ -265,19 +260,14 @@ describe("UserManagementPage", () => {
     });
   });
 
-
- 
-
   describe("Reset button", () => {
-    
- 
     it("resets sort filter to 'latest'", () => {
       render(<UserManagementPage />);
       fireEvent.change(getSortSelect(), { target: { value: "oldest" } });
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
       expect((getSortSelect() as HTMLSelectElement).value).toBe("latest");
     });
- 
+
     it("clears search query", () => {
       render(<UserManagementPage />);
       fireEvent.change(getSearchInput(), { target: { value: "Alice" } });
@@ -286,94 +276,96 @@ describe("UserManagementPage", () => {
     });
   });
 
-  it("filters users using search", async () => {
-    render(<UserManagementPage />);
+  describe("Filter and search combined", () => {
+    it("filters users using search", async () => {
+      render(<UserManagementPage />);
 
-    await screen.findByText("Alice");
+      await screen.findByText("Alice");
 
-    fireEvent.change(
-      screen.getByPlaceholderText(/name or email/i),
-      {
-        target: {
-          value: "Alice",
-        },
-      }
-    );
+      fireEvent.change(
+        screen.getByPlaceholderText(/name or email/i),
+        {
+          target: {
+            value: "Alice",
+          },
+        }
+      );
 
-    expect(screen.getByText("Alice")).toBeInTheDocument();
-    expect(screen.queryByText("Bob")).not.toBeInTheDocument();
-  });
-
-
-  it("resets filters", async () => {
-    render(<UserManagementPage />);
-
-    await screen.findByText("Alice");
-
-    const search = screen.getByPlaceholderText(/name or email/i);
-
-    fireEvent.change(search, {
-      target: { value: "Alice" },
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+      expect(screen.queryByText("Bob")).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /reset/i }));
+    it("resets filters", async () => {
+      render(<UserManagementPage />);
 
-    expect(search).toHaveValue("");
+      await screen.findByText("Alice");
+
+      const search = screen.getByPlaceholderText(/name or email/i);
+
+      fireEvent.change(search, {
+        target: { value: "Alice" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /reset/i }));
+
+      expect(search).toHaveValue("");
+    });
   });
 
-  it("opens Assign modal", async () => {
-    render(<UserManagementPage />);
+  describe("Assign modal", () => {
+    it("opens Assign modal", async () => {
+      render(<UserManagementPage />);
 
-    await screen.findByText("Bob");
+      await screen.findByText("Bob");
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /^assign$/i,
-      })
-    );
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: /^assign$/i,
+        })
+      );
 
-    expect(
-      screen.getByRole("heading", {
-        name: /assign building/i,
-      })
-    ).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", {
+          name: /assign building/i,
+        })
+      ).toBeInTheDocument();
+    });
   });
 
-   it("loads fetched users", async () => {
-    render(<UserManagementPage />);
+  describe("Data loading", () => {
+    it("loads fetched users", async () => {
+      render(<UserManagementPage />);
 
-    expect(await screen.findByText("Alice")).toBeInTheDocument();
-    expect(await screen.findByText("Bob")).toBeInTheDocument();
+      expect(await screen.findByText("Alice")).toBeInTheDocument();
+      expect(await screen.findByText("Bob")).toBeInTheDocument();
+    });
   });
 
+  describe("Empty state", () => {
+    it("shows empty state when no users exist", async () => {
+      (global.fetch as jest.Mock).mockImplementation((url) => {
+        if (url === "/api/admin") {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ data: [] }),
+          });
+        }
 
-
-  it("shows empty state when no users exist", async () => {
-    (global.fetch as jest.Mock).mockImplementation((url) => {
-      if (url === "/api/admin") {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ data: [] }),
         });
-      }
-
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ data: [] }),
       });
+
+      render(<UserManagementPage />);
+
+      expect(
+        await screen.findByText(/no users match your filters/i)
+      ).toBeInTheDocument();
+
+      expect(
+        screen.getByText(/no managers found/i)
+      ).toBeInTheDocument();
     });
-
-    render(<UserManagementPage />);
-
-    expect(
-      await screen.findByText(/no users match your filters/i)
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByText(/no managers found/i)
-    ).toBeInTheDocument();
   });
-
-
-  
 });
