@@ -1,5 +1,6 @@
 import * as authServices from '../../../backend/core/src/services/user_auth.services';
 import prisma from '../../../backend/core/src/lib/prisma';
+import {Prisma} from "@prisma/client";
 import { createClient } from '@supabase/supabase-js';
 
 // Mock profile lookup queries executed after Supabase sign-in succeeds.
@@ -9,6 +10,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
         user: {
             findUnique: jest.fn(),
             upsert: jest.fn(),
+            update: jest.fn(),
         },
     },
 }));
@@ -24,6 +26,7 @@ const mockedPrisma = prisma as unknown as {
     user: {
         findUnique: jest.Mock;
         upsert: jest.Mock;
+        update: jest.Mock;
     };
 };
 
@@ -38,7 +41,7 @@ describe('User Authentication Service - Login', () => {
         email: 'test@testing.com',
         firstName: 'Test',
         lastName: 'User',
-        roleType: "VIEWER"
+        roleType: "VIEWER" as const
     };
 
     beforeEach(() => {
@@ -55,6 +58,8 @@ describe('User Authentication Service - Login', () => {
                 signInWithPassword: mockSignInWithPassword,
             },
         } as unknown as ReturnType<typeof createClient>);
+        //needed for the updateUserByRetry func
+        mockedPrisma.user.update.mockClear();
     });
 
     afterEach(() => {
@@ -171,4 +176,75 @@ describe('User Authentication Service - Login', () => {
             },
         });
     });
+    it("should_identify_P2003_errors_as_defined_in_isUserIdForeignKeyError", () => {
+        const err = new Prisma.PrismaClientKnownRequestError("FK Error", {
+            code: "P2003",
+            clientVersion: "1.0",
+            meta: {
+                field_name: "users_user_id_fkey"
+            }
+        });
+        //act n assert
+        expect(authServices.isUserIdForeignKeyError(err)).toBe(true);
+        expect(authServices.isUserIdForeignKeyError(new Error("some error with users_user_id_fkey inside"))).toBe(true);
+        //this should return false because it doesnt account for that case
+        expect(authServices.isUserIdForeignKeyError(new Error("Database Timeout"))).toBe(false);
+    });
+
+    it("should_identify_p2002_error", async () => {
+        const err = new Prisma.PrismaClientKnownRequestError("Unique error", {
+            code: "P2002",
+            clientVersion: "1.0",
+            meta: {
+                target: ["user_id"]
+            }
+        });
+        //act n assert
+        expect(authServices.isUserIdUniqueConstraintError(err)).toBe(true);
+        expect(authServices.isUserIdUniqueConstraintError(new Error("Database error: Unique constraint failed on the fields: (`user_id`)"))).toBe(true);
+        //this should return false because it doesnt account for that case
+        expect(authServices.isUserIdUniqueConstraintError(new Error("Database Timeout"))).toBe(false);
+    });
+
+    it("should_identify_P2025_error", async () => {
+        const err = new Prisma.PrismaClientKnownRequestError("Not found ", {
+            code: "P2025",
+            clientVersion: "1.0",
+        });
+        //act n assert
+        expect(authServices.isRecordNotFoundError(err)).toBe(true);
+        //this should return false because it doesnt account for that case
+        expect(authServices.isUserIdUniqueConstraintError(new Error("Database Timeout"))).toBe(false);
+    });
+
+    it("should_update_successfully_without_retrying", async () => {
+        mockedPrisma.user.update.mockResolvedValueOnce(mockUser);
+        //act
+        const out = await authServices.updateUserByUserIdWithRetry(mockUser);
+        //assert
+        expect(out).toEqual(mockUser);
+        expect(mockedPrisma.user.update).toHaveBeenCalled();
+    });
+
+    it("should_retry_if_error_is_P2025", async () => {
+        const err = new Prisma.PrismaClientKnownRequestError("Not found ", {
+            code: "P2025",
+            clientVersion: "1.0",
+        });
+        mockedPrisma.user.update.mockRejectedValueOnce(err)
+        .mockRejectedValueOnce(err)
+        .mockResolvedValue(mockUser);
+        //act
+        const out = await authServices.updateUserByUserIdWithRetry(mockUser);
+        //assert
+        expect(out).toEqual(mockUser);
+        expect(mockedPrisma.user.update).toHaveBeenCalledTimes(3);
+    });
+
+    it("should_not_rety_if_not_P2025_error", async () => {
+        mockedPrisma.user.update.mockRejectedValueOnce(new Error("No conn"));
+        //act n assert
+        await expect(authServices.updateUserByUserIdWithRetry(mockUser)).rejects
+        .toThrow("No conn");
+    })
 });
