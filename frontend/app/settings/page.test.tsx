@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SettingsPage from "./page";
 
@@ -23,7 +23,6 @@ jest.mock("../theme-provider", () => ({
 beforeAll(() => {
   jest.spyOn(window, "confirm").mockImplementation(() => true);
   jest.useFakeTimers();
-  global.fetch = jest.fn().mockResolvedValue({ ok: true });
 });
  
 afterAll(() => {
@@ -35,7 +34,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   (window.confirm as jest.Mock).mockImplementation(() => true);
   mockTheme = "light";
-  global.fetch = jest.fn().mockResolvedValue({ ok: true });
+  global.fetch = jest.fn().mockResolvedValue({ ok: false });
 });
 
 
@@ -94,4 +93,44 @@ beforeEach(() => {
     });
 
 
+  });
+
+  describe("Profile loading", () => {
+    const sessionProfile = {
+      userId: "user-123",
+      firstName: "Atidaishe",
+      lastName: "Mupanemunda",
+      email: "mupanemundaatidaishe@gmail.com",
+      roleType: "BUILDING_MANAGER",
+    };
+
+    function mockSessionProfile() {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(sessionProfile),
+      });
+    }
+
+    it("loads profile details from the authenticated session", async () => {
+      mockSessionProfile();
+      render(<SettingsPage />);
+
+      expect(await screen.findByDisplayValue(sessionProfile.firstName)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(sessionProfile.lastName)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(sessionProfile.email)).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Manager")).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenCalledWith("/api/auth/me", { cache: "no-store" });
+    });
+
+    it("resets edits to the loaded profile", async () => {
+      mockSessionProfile();
+      render(<SettingsPage />);
+
+      const firstName = await screen.findByDisplayValue(sessionProfile.firstName);
+      fireEvent.change(firstName, { target: { value: "Changed" } });
+      expect(firstName).toHaveValue("Changed");
+
+      fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
+      expect(firstName).toHaveValue(sessionProfile.firstName);
+    });
   });

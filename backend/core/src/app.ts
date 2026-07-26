@@ -8,6 +8,8 @@ import { authenticateRequest } from "./middleware/auth.middleware";
 import analyticsRoutes from "./routes/analytics.routes";
 import userPreferencesRoutes from "./routes/user_preferences.routes";
 import contactRoutes from "./routes/contact.routes";
+import accountRoutes from "./routes/account.routes";
+import adminUserRoutes from "./routes/admin_user.routes";
 import { rateLimiter } from "./middleware/rateLimiter.middleware";
 import cors from "cors";
 
@@ -30,6 +32,15 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 				title: "OptiGrid API Documentation",
 				version: "0.1.0",
 				description: "OptiGrid API documentation using swagger-jsdoc and swagger-ui-express",
+			},
+			components: {
+				securitySchemes: {
+					bearerAuth: {
+						type: "http",
+						scheme: "bearer",
+						bearerFormat: "JWT",
+					},
+				},
 			},
 			servers: [
 				{
@@ -56,6 +67,8 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use("/api/buildings", authenticateRequest, normalRate, buildingRoutes);
 	app.use("/api/preferences", authenticateRequest, normalRate, userPreferencesRoutes);
 	app.use("/api/contact", strictRate,contactRoutes);
+	app.use("/api/accounts", authenticateRequest, normalRate, accountRoutes);
+	app.use("/api/admin/users", authenticateRequest, strictRate, adminUserRoutes);
 	app.use("/api/users",authRate, userAuthRoutes)
 	//app.use("/api/admin/", authenticateRequest, normalRate, buildingRoutes);
 

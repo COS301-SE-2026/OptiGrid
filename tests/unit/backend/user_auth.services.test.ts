@@ -97,6 +97,7 @@ describe('User Authentication Service - Login', () => {
                 firstName: true,
                 lastName: true,
                 roleType: true,
+                accountStatus: true,
             },
         });
         expect(result).toEqual({
@@ -119,6 +120,24 @@ describe('User Authentication Service - Login', () => {
 
         await expect(authServices.login('test@testing.com', 'wrongpassword')).rejects.toThrow('Invalid email or password');
         expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+        expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects a deactivated account before issuing an OptiGrid session', async () => {
+        mockSignInWithPassword.mockResolvedValue({
+            data: {
+                user: { id: 'uuid-1234', email: 'test@testing.com' },
+                session: { access_token: 'token-123' },
+            },
+            error: null,
+        });
+        mockedPrisma.user.findUnique.mockResolvedValue({
+            ...mockUser,
+            accountStatus: 'DEACTIVATED',
+        });
+
+        await expect(authServices.login('test@testing.com', 'password1234'))
+            .rejects.toThrow('This account is deactivated. Recover the account to regain access.');
         expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
     });
 
@@ -247,4 +266,56 @@ describe('User Authentication Service - Login', () => {
         await expect(authServices.updateUserByUserIdWithRetry(mockUser)).rejects
         .toThrow("No conn");
     })
+
+    it('reactivates a deactivated account after valid credential verification', async () => {
+        mockSignInWithPassword.mockResolvedValue({
+            data: {
+                user: { id: 'uuid-1234', email: 'test@testing.com' },
+                session: { access_token: 'recovery-token' },
+            },
+            error: null,
+        });
+        mockedPrisma.user.findUnique.mockResolvedValue({
+            ...mockUser,
+            accountStatus: 'DEACTIVATED',
+        });
+        mockedPrisma.user.update.mockResolvedValue(mockUser);
+
+        await expect(authServices.recoverAccount('test@testing.com', 'password1234')).resolves.toEqual({
+            user: mockUser,
+            accessToken: 'recovery-token',
+        });
+        expect(mockedPrisma.user.update).toHaveBeenCalledWith({
+            where: { userId: 'uuid-1234' },
+            data: {
+                accountStatus: 'ACTIVE',
+                deactivatedAt: null,
+            },
+            select: {
+                userId: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                roleType: true,
+            },
+        });
+    });
+
+    it('does not reactivate an already active account', async () => {
+        mockSignInWithPassword.mockResolvedValue({
+            data: {
+                user: { id: 'uuid-1234', email: 'test@testing.com' },
+                session: { access_token: 'recovery-token' },
+            },
+            error: null,
+        });
+        mockedPrisma.user.findUnique.mockResolvedValue({
+            ...mockUser,
+            accountStatus: 'ACTIVE',
+        });
+
+        await expect(authServices.recoverAccount('test@testing.com', 'password1234'))
+            .rejects.toThrow('This account is already active. Please log in normally.');
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
 });
