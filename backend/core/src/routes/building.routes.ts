@@ -176,10 +176,11 @@ router.get("/manager", getManagerBuildingsController);
  *                   type: string
  *                   example: "Internal server error"
  */
-router.get('/', listBuildingsController);
 router.post('/', createBuildingController);
+
+router.get('/', listBuildingsController);
 router.get('/portfolio-consumption', getPortfolioConsumptionController);
-router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
+
 /**
  * @swagger
  * /api/buildings/{building_id}:
@@ -337,6 +338,8 @@ router.get('/:building_id', getBuildingDetailsController);
  *       500:
  *         description: Internal server error
  */
+router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
+
 /**
  * @swagger
  * /api/buildings/{building_id}:
@@ -429,6 +432,7 @@ router.get('/:building_id', getBuildingDetailsController);
  *         description: Internal server error
  */
 router.delete('/:building_id', deleteBuildingController);
+
 router.patch('/:building_id', updateBuildingController);
 
 /**
