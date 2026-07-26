@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
+import { promoteE2EUser } from "../helpers/user-role";
 
 const CORE_BASE_URL = process.env.E2E_CORE_URL ?? "http://localhost:4000";
 
@@ -6,7 +7,6 @@ type E2EUser = {
   email: string;
   password: string;
   name: string;
-  roleType: string;
 };
 
 type BuildingSeed = {
@@ -26,7 +26,6 @@ function buildUniqueUser(): E2EUser {
     email: `edit-building-e2e-${suffix}@optigrid.test`,
     password: "StrongPass123!",
     name: "Avery Building",
-    roleType: "ADMIN",
   };
 }
 
@@ -39,7 +38,6 @@ async function createUserInCore(
       email: user.email,
       password: user.password,
       name: user.name,
-      roleType: user.roleType,
     },
   });
 
@@ -128,6 +126,7 @@ test.describe("Edit building", () => {
     };
 
     await createUserInCore(request, user);
+    await promoteE2EUser(user.email, "BUILDING_MANAGER");
     const accessToken = await loginInCore(request, user);
     await createBuildingInCore(request, accessToken, originalBuilding);
 

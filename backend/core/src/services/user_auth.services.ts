@@ -1,7 +1,12 @@
 import prisma from '../lib/prisma';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
-import { Prisma, UserRole } from '@prisma/client';
+import { AccountStatus, Prisma, UserRole } from '@prisma/client';
+import {
+    AccountAlreadyActiveError,
+    AccountDeactivatedError,
+    AccountNotFoundError,
+} from '../errors/account.errors';
 
 const USER_EXISTS_ERROR = 'User already exists, please login instead.';
 // Reused public shape returned to API callers after signup.
@@ -19,7 +24,7 @@ type SignupCreateData = {
     email: string;
     firstName: string;
     lastName: string;
-    roleType?: UserRole;
+    roleType: UserRole;
 };
 
 // Captures the Supabase auth user id plus rollback behavior when app profile write fails.
@@ -146,7 +151,7 @@ async function updateUserByUserIdWithRetry(createData: SignupCreateData) {
                     email: createData.email,
                     firstName: createData.firstName,
                     lastName: createData.lastName,
-                    ...(createData.roleType ? { roleType: createData.roleType} : {}),
+                    roleType: createData.roleType,
                 },
                 select: SIGNUP_USER_SELECT,
             });
@@ -181,7 +186,7 @@ async function createOrUpsertUser(createData: SignupCreateData) {
             email: createData.email,
             firstName: createData.firstName,
             lastName: createData.lastName,
-            ...(createData.roleType ? { roleType: createData.roleType} : {}),
+            roleType: createData.roleType,
         },
         //we ensure not to show the password hash or return to frontend side
         select: SIGNUP_USER_SELECT,
@@ -280,7 +285,7 @@ async function provisionOrResolveAuthUser(email: string, password: string): Prom
 }
 
 //This function is used for the signup logic
-export const signup = async (email: string, password: string, name: string, roleType?: UserRole) => {
+export const signup = async (email: string, password: string, name: string) => {
     //we check if user exists, and if so he should login
     const userExists = await prisma.user.findUnique({
         where: { email },
@@ -291,9 +296,10 @@ export const signup = async (email: string, password: string, name: string, role
     const [firstName = '', ...otherNames] = name.trim().split(/\s+/);
     const lastName = otherNames.join(' ');
 
-    //assign manager to users ending with @optigrid.com, viewer by default
-    let role: UserRole = roleType ?? "VIEWER";
-    if(!roleType && email.trim().toLowerCase().endsWith("@optigrid.com")) role = "BUILDING_MANAGER";
+    // Public signup is deliberately limited to Viewer. Role changes are an
+    // administrative action; accepting a role from this request enables
+    // privilege escalation.
+    const role: UserRole = "VIEWER";
 
     // Prefer Supabase auth user id to satisfy schemas where users.user_id references auth.users.id.
     const provisionedAuthUser = await provisionOrResolveAuthUser(email, password);
@@ -342,12 +348,17 @@ export const login = async (email: string, password: string) => {
             firstName: true,
             lastName: true,
             roleType: true,
+            accountStatus: true,
         },
     });
 
-    //fallbacl for prisma, in case we harcdode in supabase or add login with google
-    let role: UserRole = "VIEWER";
-    if(email.trim().toLowerCase().endsWith("@optigrid.com")) role = "BUILDING_MANAGER";
+    if (existingUser?.accountStatus === AccountStatus.DEACTIVATED) {
+        throw new AccountDeactivatedError();
+    }
+
+    // A repaired profile is never granted a privileged role from identity
+    // metadata or an email address. An administrator may assign a role later.
+    const role: UserRole = "VIEWER";
 
     const user = existingUser ?? await createOrUpsertUser({
         userId: authUser.userId,
@@ -361,6 +372,42 @@ export const login = async (email: string, password: string) => {
         user,
         accessToken: authUser.accessToken,
     };
+};
+
+// Verifies credentials with Supabase, then restores only a previously
+// deactivated application profile. This is deliberately separate from normal
+// authenticated routes so inactive accounts can recover.
+export const recoverAccount = async (email: string, password: string) => {
+    const authUser = await authenticateAuthUser(email, password);
+    const existingUser = await prisma.user.findUnique({
+        where: { userId: authUser.userId },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            accountStatus: true,
+        },
+    });
+
+    if (!existingUser) {
+        throw new AccountNotFoundError();
+    }
+    if (existingUser.accountStatus === AccountStatus.ACTIVE) {
+        throw new AccountAlreadyActiveError();
+    }
+
+    const user = await prisma.user.update({
+        where: { userId: authUser.userId },
+        data: {
+            accountStatus: AccountStatus.ACTIVE,
+            deactivatedAt: null,
+        },
+        select: SIGNUP_USER_SELECT,
+    });
+
+    return { user, accessToken: authUser.accessToken };
 };
 
 export const getViewersService = async () => {
