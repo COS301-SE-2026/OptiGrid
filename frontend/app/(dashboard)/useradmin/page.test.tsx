@@ -217,46 +217,22 @@ describe("UserManagementPage", () => {
       ).toBe("latest");
     });
 
-    it("changes to Oldest Added", async () => {
+    it.each([
+      ["Oldest Added", "oldest"],
+      ["Name A-Z", "name_asc"],
+      ["Name Z-A", "name_desc"],
+    ])("changes to %s", async (_, value) => {
       render(<UserManagementPage />);
 
       await screen.findByText("Alice");
 
       fireEvent.change(getSortSelect(), {
-        target: { value: "oldest" },
+        target: { value },
       });
 
       expect(
         (getSortSelect() as HTMLSelectElement).value
-      ).toBe("oldest");
-    });
-
-    it("changes to Name A-Z", async () => {
-      render(<UserManagementPage />);
-
-      await screen.findByText("Alice");
-
-      fireEvent.change(getSortSelect(), {
-        target: { value: "name_asc" },
-      });
-
-      expect(
-        (getSortSelect() as HTMLSelectElement).value
-      ).toBe("name_asc");
-    });
-
-    it("changes to Name Z-A", async () => {
-      render(<UserManagementPage />);
-
-      await screen.findByText("Alice");
-
-      fireEvent.change(getSortSelect(), {
-        target: { value: "name_desc" },
-      });
-
-      expect(
-        (getSortSelect() as HTMLSelectElement).value
-      ).toBe("name_desc");
+      ).toBe(value);
     });
   });
 
