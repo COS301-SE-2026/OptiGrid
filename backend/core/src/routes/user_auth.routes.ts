@@ -248,6 +248,8 @@ router.post('/login', validateBody(loginSchema), login)
  *                   type: string
  *                   example: Internal Server Error
  */
+/**
+ * @swagger
  * /auth/recover-account:
  *   post:
  *     summary: Recover a deactivated account
