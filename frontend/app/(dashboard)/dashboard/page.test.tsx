@@ -134,31 +134,31 @@ describe("DashboardPage", () => {
 
     it("renders the topbar area", async () => {
       renderPage();
-      await screen.findByText("Tali Seaba");
+      expect(await screen.findByText("Tali Seaba")).toBeInTheDocument();
     });
 
     it("renders user initials in the avatar", async () => {
       renderPage();
-      await screen.findByText("TS");
+      expect(await screen.findByText("TS")).toBeInTheDocument();
     });
   });
 
   describe("Welcome heading", () => {
     it("renders welcome heading", async () => {
       renderPage();
-      await screen.findByRole("heading", { name: /welcome back, tali/i });
+      expect(await screen.findByRole("heading", { name: /welcome back, tali/i })).toBeInTheDocument();
     });
 
     it("renders the subtitle", async () => {
       renderPage();
-      await screen.findByText(/portfolio overview - last updated/i);
+      expect(await screen.findByText(/portfolio overview - last updated/i)).toBeInTheDocument();
     });
   });
 
   describe("Add building", () => {
     it("renders the Add building", async () => {
       renderPage();
-      await screen.findByRole("link", { name: /add building/i });
+      expect(await screen.findByRole("link", { name: /add building/i })).toBeInTheDocument();
     });
 
     it("make sure add building link points to /buildings/add", async () => {
@@ -171,51 +171,51 @@ describe("DashboardPage", () => {
   describe("KPI", () => {
     it("renders the Buildings KPI", async () => {
       renderPage();
-      await screen.findByText("Buildings");
+      expect(await screen.findByText("Buildings")).toBeInTheDocument();
     });
 
     it("renders Today's usage KPI", async () => {
       renderPage();
-      await screen.findByText("Today's usage");
+      expect(await screen.findByText("Today's usage")).toBeInTheDocument();
     });
 
     it("renders Est. cost KPI", async () => {
       renderPage();
-      await screen.findByText("Est. cost");
+      expect(await screen.findByText("Est. cost")).toBeInTheDocument();
     });
 
     it("renders Active alerts", async () => {
       renderPage();
-      await screen.findByText("Active alerts");
+      expect(await screen.findByText("Active alerts")).toBeInTheDocument();
     });
 
     it("renders estimated cost", async () => {
       renderPage();
-      await screen.findByText(/R.*500/);
+      expect(await screen.findByText(/R.*500/)).toBeInTheDocument();
     });
   });
 
   describe("Portfolio consumption", () => {
     it("renders the chart heading", async () => {
       renderPage();
-      await screen.findByText(/portfolio consumption, last 7 days/i);
+      expect(await screen.findByText(/portfolio consumption, last 7 days/i)).toBeInTheDocument();
     });
 
     it("renders the kWh", async () => {
       renderPage();
-      await screen.findByText("kWh");
+      expect(await screen.findByText("kWh")).toBeInTheDocument();
     });
 
     it("renders the chart after loading", async () => {
       renderPage();
-      await screen.findByTestId("chart-container");
+      expect(await screen.findByTestId("chart-container")).toBeInTheDocument();
     });
   });
 
   describe("Buildings table", () => {
     it("renders the buildings table", async () => {
       renderPage();
-      await screen.findByRole("table");
+      expect(await screen.findByRole("table")).toBeInTheDocument();
     });
 
     it("renders table headers: Name, Type, Today, Status, Actions", async () => {
@@ -229,37 +229,37 @@ describe("DashboardPage", () => {
 
     it("renders Tower A building row", async () => {
       renderPage();
-      await screen.findByText("Tower A");
+      expect(await screen.findByText("Tower A")).toBeInTheDocument();
     });
 
     it("renders Tower B building row", async () => {
       renderPage();
-      await screen.findByText("Tower B");
+      expect(await screen.findByText("Tower B")).toBeInTheDocument();
     });
 
     it("renders building location", async () => {
       renderPage();
-      await screen.findByText("1 Main St");
+      expect(await screen.findByText("1 Main St")).toBeInTheDocument();
     });
 
     it("renders building type", async () => {
       renderPage();
-      await screen.findByText("Commercial");
+      expect(await screen.findByText("Commercial")).toBeInTheDocument();
     });
 
     it("renders Normal status badge for Tower A", async () => {
       renderPage();
-      await screen.findByText("Normal");
+      expect(await screen.findByText("Normal")).toBeInTheDocument();
     });
 
     it("renders Offline status badge for Tower B", async () => {
       renderPage();
-      await screen.findByText("Offline");
+      expect(await screen.findByText("Offline")).toBeInTheDocument();
     });
 
     it("renders today kWh metric for Tower A", async () => {
       renderPage();
-      await screen.findByText("120");
+      expect(await screen.findByText("120")).toBeInTheDocument();
     });
 
     it("navigates to building view when row is clicked", async () => {
@@ -366,7 +366,7 @@ describe("DashboardPage", () => {
       const deleteCalls = (global.fetch as jest.Mock).mock.calls.filter(
         ([url, opts]: [string, RequestInit]) => opts?.method === "DELETE"
       );
-      expect(deleteCalls.length).toBe(0);
+      expect(deleteCalls).toHaveLength(0);
     });
   });
 
@@ -384,7 +384,7 @@ describe("DashboardPage", () => {
           ([url, opts]: [string, RequestInit]) =>
             url.includes("/api/buildings/b1") && opts?.method === "DELETE"
         );
-        expect(deleteCalls.length).toBe(1);
+        expect(deleteCalls).toHaveLength(1);
       });
     });
 
@@ -406,13 +406,13 @@ describe("DashboardPage", () => {
     it("shows No buildings when there are no buildings", async () => {
       setupFetch({ buildings: { data: [] } });
       renderPage();
-      await screen.findByText(/no buildings yet/i);
+      expect(await screen.findByText(/no buildings yet/i)).toBeInTheDocument();
     });
 
     it("shows Add your first building link when empty", async () => {
       setupFetch({ buildings: { data: [] } });
       renderPage();
-      await screen.findByRole("link", { name: /add your first building/i });
+      expect(await screen.findByRole("link", { name: /add your first building/i })).toBeInTheDocument();
     });
   });
 });
