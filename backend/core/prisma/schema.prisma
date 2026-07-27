@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["public"]
 }
 
 // ==========================================
@@ -13,6 +14,8 @@ datasource db {
 enum TelemetrySource {
   PHYSICAL
   EMULATOR
+  
+  @@schema("public")
 }
 
 enum UserRole {
@@ -21,6 +24,7 @@ enum UserRole {
   VIEWER           @map("Viewer")
 
   @@map("user_role")
+  @@schema("public")
 }
 
 enum ThemePreference {
@@ -29,6 +33,7 @@ enum ThemePreference {
   SYSTEM @map("system")
 
   @@map("theme_preference")
+  @@schema("public")
 }
 
 enum BuildingType {
@@ -40,6 +45,8 @@ enum BuildingType {
   Mixed_Use
   ShoppingCentre
   Other
+
+  @@schema("public")
 }
 
 enum SensorStatus {
@@ -48,6 +55,7 @@ enum SensorStatus {
   Maintenance
 
   @@map("sensor_status")
+  @@schema("public")
 }
 
 enum LifecycleState {
@@ -57,6 +65,7 @@ enum LifecycleState {
   INACTIVE            @map("inactive")
 
   @@map("lifecycle_state")
+  @@schema("public")
 }
 
 enum AnomalyStatus {
@@ -66,6 +75,7 @@ enum AnomalyStatus {
   Ignored
 
   @@map("anomaly_status")
+  @@schema("public")
 }
 
 enum RecommendationStatus {
@@ -74,6 +84,7 @@ enum RecommendationStatus {
   Dismissed
 
   @@map("recommendation_status")
+  @@schema("public")
 }
 
 enum NotificationChannel {
@@ -83,6 +94,7 @@ enum NotificationChannel {
   Push
 
   @@map("notification_channel")
+  @@schema("public")
 }
 
 // ==========================================
@@ -109,6 +121,7 @@ model User {
 
   @@index([tenantId])
   @@map("users")
+  @@schema("public")
 }
 
 model Tenant {
@@ -123,6 +136,7 @@ model Tenant {
   buildings Building[]
 
   @@map("tenants")
+  @@schema("public")
 }
 
 model Building {
@@ -159,6 +173,7 @@ model Building {
 
   @@index([tenant_id])
   @@map("buildings")
+  @@schema("public")
 }
 
 model UserBuildingAccess {
@@ -172,6 +187,7 @@ model UserBuildingAccess {
 
   @@unique([user_id, building_id])
   @@map("user_building_access")
+  @@schema("public")
 }
 
 model Sensor {
@@ -192,6 +208,7 @@ model Sensor {
 
   @@index([building_id])
   @@map("sensors")
+  @@schema("public")
 }
 
 model AlertThreshold {
@@ -211,6 +228,7 @@ model AlertThreshold {
   anomalies Anomaly[]
 
   @@map("alert_thresholds")
+  @@schema("public")
 }
 
 model Anomaly {
@@ -234,6 +252,7 @@ model Anomaly {
   notifications    Notification[]
 
   @@map("anomalies")
+  @@schema("public")
 }
 
 model AuditLog {
@@ -250,6 +269,7 @@ model AuditLog {
   user User? @relation(fields: [user_id], references: [userId], onDelete: SetNull)
 
   @@map("audit_logs")
+  @@schema("public")
 }
 
 model MaintenanceWindow {
@@ -263,6 +283,7 @@ model MaintenanceWindow {
   building Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("maintenance_windows")
+  @@schema("public")
 }
 
 model Notification {
@@ -278,6 +299,7 @@ model Notification {
   user    User?    @relation(fields: [user_id], references: [userId], onDelete: Cascade)
 
   @@map("notifications")
+  @@schema("public")
 }
 
 model OptimisationRecommendation {
@@ -293,6 +315,7 @@ model OptimisationRecommendation {
   building Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("optimisation_recommendations")
+  @@schema("public")
 }
 
 model UtilityTariff {
@@ -311,6 +334,7 @@ model UtilityTariff {
   building Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("utility_tariffs")
+  @@schema("public")
 }
 
 model BuildingAnalyticsWeekly {
@@ -331,6 +355,7 @@ model BuildingAnalyticsWeekly {
   building Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("building_analytics_weekly")
+  @@schema("public")
 }
 
 model BuildingAnalyticsMonthly {
@@ -351,4 +376,5 @@ model BuildingAnalyticsMonthly {
   building Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("building_analytics_monthly")
+  @@schema("public")
 }
