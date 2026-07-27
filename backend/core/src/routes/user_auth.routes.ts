@@ -187,28 +187,28 @@ router.post('/login', validateBody(loginSchema), login)
 
 /**
  * @swagger
- * /auth/viewers: 
+ * /auth/viewers:
  *   get:
  *     summary: Get users that have the roletype VIEWER.
  *     description: It fetches all viewers and thier assigned building ids, only available for admins.
- *     tags: 
+ *     tags:
  *       - User Access Control
  *     security:
- *       -  bearerAuth: []
- *     responses: 
+ *       - bearerAuth: []
+ *     responses:
  *       200:
  *         description: It successfully fetches the viewers
  *         content:
  *           application/json:
- *             schema: 
+ *             schema:
  *               type: object
- *               properties: 
- *                 data: 
+ *               properties:
+ *                 data:
  *                   type: array
- *                   items: 
+ *                   items:
  *                     type: object
- *                     properties: 
- *                       userId: 
+ *                     properties:
+ *                       userId:
  *                         type: string
  *                         format: uuid
  *                       email:
@@ -218,53 +218,53 @@ router.post('/login', validateBody(loginSchema), login)
  *                         type: string
  *                       lastName:
  *                         type: string
- *                       roleType: 
+ *                       roleType:
  *                         type: string
- *                       buildingIds: 
+ *                       buildingIds:
  *                         type: array
- *                         items: 
+ *                         items:
  *                           type: string
  *                           format: uuid
- *        401:
- *          description: No user found, unauthorised
- *        403: 
- *          description: No access, admin access needed
- *        500:
- *          description: Internal Server Error
- *          content: 
- *            application/json: 
- *              schema: 
- *                type: object
- *                properties: 
- *                  message: 
- *                    type: string
- *                    example: Internal Server Error
+ *       401:
+ *         description: No user found, unauthorised
+ *       403:
+ *         description: No access, admin access needed
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal Server Error
  */
 router.get('/viewers', authenticateRequest, reqRole([UserRole.ADMIN]), getViewersController);
 /**
  * @swagger
- * /auth/managers: 
+ * /auth/managers:
  *   get:
  *     summary: Get users that have the roletype BUILDING_MANAGER.
  *     description: It fetches all Building Managers and thier assigned building ids, only available for admins.
- *     tags: 
+ *     tags:
  *       - User Access Control
  *     security:
- *       -  bearerAuth: []
- *     responses: 
+ *       - bearerAuth: []
+ *     responses:
  *       200:
  *         description: It successfully fetches the managers
  *         content:
  *           application/json:
- *             schema: 
+ *             schema:
  *               type: object
- *               properties: 
- *                 data: 
+ *               properties:
+ *                 data:
  *                   type: array
- *                   items: 
+ *                   items:
  *                     type: object
- *                     properties: 
- *                       userId: 
+ *                     properties:
+ *                       userId:
  *                         type: string
  *                         format: uuid
  *                       email:
@@ -274,96 +274,96 @@ router.get('/viewers', authenticateRequest, reqRole([UserRole.ADMIN]), getViewer
  *                         type: string
  *                       lastName:
  *                         type: string
- *                       roleType: 
+ *                       roleType:
  *                         type: string
- *                       buildingIds: 
+ *                       buildingIds:
  *                         type: array
- *                         items: 
+ *                         items:
  *                           type: string
  *                           format: uuid
- *        401:
- *          description: No user found, unauthorised
- *        403: 
- *          description: No access, admin access needed
- *        500:
- *          description: Internal Server Error
- *          content: 
- *            application/json: 
- *              schema: 
- *                type: object
- *                properties: 
- *                  message: 
- *                    type: string
- *                    example: Internal Server Error
+ *       401:
+ *         description: No user found, unauthorised
+ *       403:
+ *         description: No access, admin access needed
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal Server Error
  */
 router.get('/managers', authenticateRequest, reqRole([UserRole.ADMIN]), getManagersController);
 /**
  * @swagger
- * /auth/assign: 
- *   post: 
- *     summary: Assign a Building_Manager to a building 
+ * /auth/assign:
+ *   post:
+ *     summary: Assign a Building_Manager to a building
  *     description: Assigns a manager to a specific building, need to be a admin to achieve this
- *     tags: 
+ *     tags:
  *       - User Access Control
- *     security: 
+ *     security:
  *       - bearerAuth: []
- *     requestBody: 
+ *     requestBody:
  *       required: true
- *       content: 
- *         application/json: 
- *           schema: 
+ *       content:
+ *         application/json:
+ *           schema:
  *             type: object
- *             required: 
+ *             required:
  *               - userId
  *               - buildingId
- *             properties: 
- *               userId: 
+ *             properties:
+ *               userId:
  *                 type: string
  *                 format: uuid
  *                 description: UUID of the building manager we want to assign the building to
- *               buildingId: 
+ *               buildingId:
  *                 type: string
  *                 format: uuid
- *                 description: UUID of the building being assigned  
- *      responses: 
- *        200: 
+ *                 description: UUID of the building being assigned
+ *     responses:
+ *       200:
  *          description: Successfully assigns a manager to the building
- *          content: 
- *            application/json: 
- *              schema: 
+ *          content:
+ *            application/json:
+ *              schema:
  *                type: object
- *                properties: 
- *                  success: 
+ *                properties:
+ *                  success:
  *                    type: boolean
  *                    example: true
- *                  message: 
+ *                  message:
  *                    type: string
  *                    example: Manger assigned to building successfully
- *       400: 
+ *       400:
  *         description: Missing required fields
- *         content: 
- *           application/json: 
- *             schema: 
+ *         content:
+ *           application/json:
+ *             schema:
  *               type: object
  *               properties:
- *                 status: 
+ *                 status:
  *                   type: string
  *                   example: error
- *                 message: 
+ *                 message:
  *                   type: string
  *                   example: Both UserId and BuildingId are required
- *        403: 
+ *       403:
  *          description: No access, admin access needed
- *        404: 
+ *       404:
  *          description: User not found
- *        500: 
+ *       500:
  *          description: Internal Server Error
- *          content: 
- *            application/json: 
- *              schema: 
+ *          content:
+ *            application/json:
+ *              schema:
  *                type: object
- *                properties: 
- *                  message: 
+ *                properties:
+ *                  message:
  *                    type: string
  *                    example: Internal Server Error
  */
@@ -371,71 +371,71 @@ router.post('/assign', authenticateRequest, reqRole([UserRole.ADMIN]), assignMan
 
 /**
  * @swagger
- * /auth/remove: 
- *   post: 
- *     summary: Removes a Building_Manager from a building 
+ * /auth/remove:
+ *   post:
+ *     summary: Removes a Building_Manager from a building
  *     description: Removes a manager from a specific building, need to be a admin to achieve this
- *     tags: 
+ *     tags:
  *       - User Access Control
- *     security: 
+ *     security:
  *       - bearerAuth: []
- *     requestBody: 
+ *     requestBody:
  *       required: true
- *       content: 
- *         application/json: 
- *           schema: 
+ *       content:
+ *         application/json:
+ *           schema:
  *             type: object
- *             required: 
+ *             required:
  *               - userId
  *               - buildingId
- *             properties: 
- *               userId: 
+ *             properties:
+ *               userId:
  *                 type: string
  *                 format: uuid
  *                 description: UUID of the building manager we want to remove the building from
- *               buildingId: 
+ *               buildingId:
  *                 type: string
  *                 format: uuid
- *                 description: UUID of the building being removed  
- *      responses: 
- *        200: 
+ *                 description: UUID of the building being removed
+ *     responses:
+ *       200:
  *          description: Successfully removes a manager from the building
- *          content: 
- *            application/json: 
- *              schema: 
+ *          content:
+ *            application/json:
+ *              schema:
  *                type: object
- *                properties: 
- *                  success: 
+ *                properties:
+ *                  success:
  *                    type: boolean
  *                    example: true
- *                  message: 
+ *                  message:
  *                    type: string
  *                    example: Manger removed from building successfully
- *       400: 
+ *       400:
  *         description: Missing required fields
- *         content: 
- *           application/json: 
- *             schema: 
+ *         content:
+ *           application/json:
+ *             schema:
  *               type: object
  *               properties:
- *                 status: 
+ *                 status:
  *                   type: string
  *                   example: error
- *                 message: 
+ *                 message:
  *                   type: string
  *                   example: Both UserId and BuildingId are required
- *        403: 
+ *       403:
  *          description: No access, admin access needed
- *        404: 
+ *       404:
  *          description: User not found
- *        500: 
+ *       500:
  *          description: Internal Server Error
- *          content: 
- *            application/json: 
- *              schema: 
+ *          content:
+ *            application/json:
+ *              schema:
  *                type: object
- *                properties: 
- *                  message: 
+ *                properties:
+ *                  message:
  *                    type: string
  *                    example: Internal Server Error
  */
