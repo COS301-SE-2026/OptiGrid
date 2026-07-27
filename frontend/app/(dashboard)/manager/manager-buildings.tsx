@@ -49,10 +49,12 @@ function getEnergyUsage(building: BuildingRecord): number | null {
     return typeof usage === "number" && Number.isFinite(usage) ? usage : null;
 }
 function getOwnerName(building: BuildingRecord): string {
-    const viewer = building.authorized_users?.find((access) => (access?.user?.roleType?.toUpperCase() === "VIEWER") || building.authorized_users?.[0])?.user;
-    if (!viewer) {
-        return "N/A";
-    }
+    let viewer = building.authorized_users?.find((access) => 
+        (access?.user?.roleType?.toUpperCase() === "VIEWER"
+    ))?.user;
+    
+    if(!viewer) viewer = building.authorized_users?.[0]?.user;
+    if (!viewer) return "N/A";
 
     const fullName = [viewer.firstName, viewer.lastName].filter(Boolean).join(" ").trim();
     return fullName || viewer.email || "N/A";

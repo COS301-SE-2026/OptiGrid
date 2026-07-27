@@ -686,16 +686,17 @@ export const getManagerBuildings = async (userId: string) => {
       catch(error) {
         console.error(`Failed to get the todays usage for this building: `, error)
       }
+      return todays_usage;
     })
   );
   //all things returned here are things expecte din frotnend
-  return building.map((build) => ({
+  return building.map((build, i) => ({
     building_id: build.building_id,
     building_name: build.building_name,
     building_type: build.building_type,
     physical_address: build.physical_address,
     lifecycle_state: build.lifecycle_state,
-    todays_usage: null,//will change when integrating, for now in frontend its null, just want to confirm everything works nicley bfr moving on
+    todays_usage: getUsage[i],
     authorized_users: build.authorized_users.map((allowed) => ({ user: allowed.user,})),
   }));
 };
