@@ -30,10 +30,12 @@ r = redis.Redis(
 )
 
 class TelemetryPoint(BaseModel):
-    building_id: str = Field(..., description="Unique UUID for core layout targeting mapping")
-    sensor_id: str = Field(..., description="Unique identifier for telemetry device node source")
-    meter_id: str = Field(..., description="Identifier for specific target measurement group metric")
-    kwh: float = Field(..., description="Calculated metric scalar reading data value")
+    building_id: str = Field(..., description="Unique UUID for building mapping")
+    sensor_id: str = Field(..., description="Unique identifier for sensor node")
+    source_type: Optional[str] = Field("EMULATOR", description="Telemetry source classification")
+    voltage_v: Optional[float] = Field(None, description="Measured RMS voltage in Volts")
+    current_a: Optional[float] = Field(None, description="Measured RMS current in Amperes")
+    power_kw: float = Field(..., description="Active power consumption in kilowatts")
     timestamp: Optional[str] = Field(None, description="ISO-8601 string timezone aware tracking format")
 
     @field_validator("timestamp", mode="before")
@@ -51,7 +53,7 @@ class BuildingInitPayload(BaseModel):
     max_current_threshold: Optional[float] = None
     influx_bucket: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-    
+
 @app.get("/health", status_code=status.HTTP_200_OK)
 def health_check():
     try:
@@ -75,22 +77,25 @@ def root():
         "docs_url": "/docs"
     }
 
-#endpoint to receives data from core-api
+# accept requests on both routes to eliminate 404 errors
 @app.post("/ingest", status_code=210)
+@app.post("/api/telemetry/ingest", status_code=210)
 def ingest_entry(payload: TelemetryPoint):
-    #pushes incoming data to redis queue (left push)
-    #worker will pick it up from right side (brpop)
     try:
         r.lpush("ingestion_queue", payload.model_dump_json())
-        return {"status": "success", "message": "Data buffered", "building_id": payload.building_id, "queue_length": r.llen("ingestion_queue")}
+        return {
+            "status": "success", 
+            "message": "Data buffered", 
+            "building_id": payload.building_id, 
+            "queue_length": r.llen("ingestion_queue")
+        }
     except redis.exceptions.ConnectionError:
         raise HTTPException(status_code=530, detail="Redis connection failed")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @app.post("/init-building", status_code=200)
 def init_building(payload: BuildingInitPayload):
-    """Registers building mappings into local metadata structures to guard against transactional data drift."""
     try:
         building_config = {
             "building_id": payload.building_id,
@@ -109,7 +114,6 @@ def init_building(payload: BuildingInitPayload):
             building_config["metadata"] = json.dumps(payload.metadata)
 
         r.hset(f"building:{payload.building_id}", mapping=building_config)
-        print(f"[Ingestion Service] Initialized tracking matrix context for: {payload.building_id}")
         return {
             "status": "success", 
             "message": "Ingestion pipeline initialized", 
