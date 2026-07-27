@@ -10,6 +10,11 @@ datasource db {
 // ENUMS
 // ==========================================
 
+enum TelemetrySource {
+  PHYSICAL
+  EMULATOR
+}
+
 enum UserRole {
   ADMIN            @map("Admin")
   BUILDING_MANAGER @map("Building_Manager")
@@ -138,6 +143,7 @@ model Building {
   max_current_threshold Float?         @default(60) @map("max_current_threshold")
   hardware_auth_token   String?        @map("hardware_auth_token") @db.VarChar
   lifecycle_state       LifecycleState @default(PROVISIONING) @map("lifecycle_state")
+  telemetry_source      TelemetrySource @default(EMULATOR)
 
   // Relations
   tenant              Tenant?                      @relation(fields: [tenant_id], references: [tenantId], onDelete: Cascade)
