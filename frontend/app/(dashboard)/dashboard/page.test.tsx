@@ -168,7 +168,7 @@ describe("DashboardPage", () => {
     });
   });
 
-  describe("KPI", () => {
+  /*describe("KPI", () => {
     it("renders the Buildings KPI", async () => {
       renderPage();
       expect(await screen.findByText("Buildings")).toBeInTheDocument();
@@ -193,7 +193,24 @@ describe("DashboardPage", () => {
       renderPage();
       expect(await screen.findByText(/R.*500/)).toBeInTheDocument();
     });
+  });*/
+
+  describe("KPI", () => {
+  it.each([
+    "Buildings",
+    "Today's usage",
+    "Est. cost",
+    "Active alerts",
+  ])("renders the %s KPI", async (label) => {
+    renderPage();
+    expect(await screen.findByText(label)).toBeInTheDocument();
   });
+
+  it("renders estimated cost", async () => {
+    renderPage();
+    expect(await screen.findByText(/R.*500/)).toBeInTheDocument();
+  });
+});
 
   describe("Portfolio consumption", () => {
     it("renders the chart heading", async () => {
@@ -227,7 +244,7 @@ describe("DashboardPage", () => {
       expect(screen.getByRole("columnheader", { name: /actions/i })).toBeInTheDocument();
     });
 
-    it("renders Tower A building row", async () => {
+    /*it("renders Tower A building row", async () => {
       renderPage();
       expect(await screen.findByText("Tower A")).toBeInTheDocument();
     });
@@ -260,7 +277,26 @@ describe("DashboardPage", () => {
     it("renders today kWh metric for Tower A", async () => {
       renderPage();
       expect(await screen.findByText("120")).toBeInTheDocument();
-    });
+    });*/
+
+    it.each([
+  ["Tower A"],
+  ["Tower B"],
+  ["1 Main St"],
+  ["Commercial"],
+  ["Normal"],
+  ["Offline"],
+  ["120"],
+])("renders %s", async (text) => {
+  renderPage();
+  expect(await screen.findByText(text)).toBeInTheDocument();
+});
+
+
+
+
+
+
 
     it("navigates to building view when row is clicked", async () => {
       renderPage();
