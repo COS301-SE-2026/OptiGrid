@@ -91,7 +91,7 @@ describe("ForecastPage", () => {
             screen.getByRole("heading", { name: "Demand Forecast" })
         ).toBeInTheDocument();
         expect(screen.getAllByText(/run a forecast/i).length).toBeGreaterThan(0);
-        expect(screen.getAllByRole("combobox")).toHaveLength(1);
+        expect(screen.getAllByRole("combobox")).toHaveLength(2);
         expect(
             screen.getByRole("button", { name: "Run forecast" })
         ).toBeDisabled();
@@ -115,6 +115,25 @@ describe("ForecastPage", () => {
 
         expect(mutate).toHaveBeenCalledWith({
             building_id: "1",
+            horizon: "weekly",
+        });
+    });
+
+    it("runs monthly forecast when horizon is changed to monthly", async () => {
+        setupQueries();
+        const mutate = setupMutation();
+        render(<ForecastPage />);
+
+        const user = userEvent.setup();
+        await user.selectOptions(screen.getByLabelText(/building/i), "1");
+        await user.selectOptions(screen.getByLabelText(/horizon/i), "monthly");
+
+        const runButton = screen.getByRole("button", { name: "Run forecast" });
+        await user.click(runButton);
+
+        expect(mutate).toHaveBeenCalledWith({
+            building_id: "1",
+            horizon: "monthly",
         });
     });
 

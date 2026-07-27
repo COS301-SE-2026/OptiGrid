@@ -58,7 +58,8 @@ export async function POST(
 	}
 
 	try {
-		const coreResponse = await fetch(`${getCoreUrl()}/api/analytics/forecast/${buildingId}`, {
+		const search = new URL(request.url).search;
+		const coreResponse = await fetch(`${getCoreUrl()}/api/analytics/forecast/${buildingId}${search}`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
