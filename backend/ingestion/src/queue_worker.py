@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timezone
 import redis
 from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client.client.write_api import SYNCHRONOUS
 
 try:
     from backend.ingestion.src.config import *
@@ -23,9 +24,9 @@ def run_queue_worker():
     )
 
     client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-    write_api = client.write_api()
+    write_api = client.write_api(write_options=SYNCHRONOUS)
 
-    print("Queue Worker active. Listening on Redis key.")
+    print("Queue Worker active. Listening on Redis.")
 
     while True:
         try:
@@ -69,8 +70,8 @@ def run_queue_worker():
             print(f"[WORKER] Flushed telemetry to InfluxDB for building {building_id[:8]} ({power_kw} kW)")
 
         except redis.exceptions.ConnectionError as e:
-            print(f"[WORKER ERROR] Redis connection error: {e}. Retrying in 3s...")
-            time.sleep(3)
+            print(f"[WORKER ERROR] Redis connection error: {e}. Retrying in 5s...")
+            time.sleep(5)
         except Exception as e:
             print(f"[WORKER ERROR] Failed to process payload: {e}")
 
