@@ -71,3 +71,16 @@ export const ingestTelemetry = async (req: Request, res: Response) => {
         return res.status(500).json({ status: 'error', message: 'Internal server error.' });
     }
 };
+
+export const streamTelemetry = (req: Request, res: Response) => {
+    const { building_id } = req.params;
+
+    // standard SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    // add to active broadcast pool
+    sseManager.addClient(building_id, res);
+};
