@@ -105,7 +105,7 @@ function isSupabaseInvalidCredentialsError(error: { message?: string; code?: str
     return code === 'invalid_credentials' || message.includes('invalid login credentials') || message.includes('invalid email or password');
 }
 
-function isUserIdForeignKeyError(error: unknown): boolean {
+export function isUserIdForeignKeyError(error: unknown): boolean {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
         const fieldName = String((error.meta as Record<string, unknown> | undefined)?.field_name ?? '').toLowerCase();
         return fieldName.includes('users_user_id_fkey') || fieldName.includes('user_id');
@@ -118,7 +118,7 @@ function isUserIdForeignKeyError(error: unknown): boolean {
     return false;
 }
 
-function isUserIdUniqueConstraintError(error: unknown): boolean {
+export function isUserIdUniqueConstraintError(error: unknown): boolean {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const target = (error.meta as Record<string, unknown> | undefined)?.target;
         const targetText = Array.isArray(target) ? target.join(',').toLowerCase() : String(target ?? '').toLowerCase();
@@ -132,11 +132,11 @@ function isUserIdUniqueConstraintError(error: unknown): boolean {
     return false;
 }
 
-function isRecordNotFoundError(error: unknown): boolean {
+export function isRecordNotFoundError(error: unknown): boolean {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
 }
 
-async function updateUserByUserIdWithRetry(createData: SignupCreateData) {
+export async function updateUserByUserIdWithRetry(createData: SignupCreateData) {
     const maxAttempts = 5;
     const retryDelayMs = 250;
 

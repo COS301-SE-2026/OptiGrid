@@ -195,6 +195,61 @@ router.post('/login', validateBody(loginSchema), login)
 
 /**
  * @swagger
+ * /auth/viewers:
+ *   get:
+ *     summary: Get users that have the roletype VIEWER.
+ *     description: It fetches all viewers and thier assigned building ids, only available for admins.
+ *     tags:
+ *       - User Access Control
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: It successfully fetches the viewers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       userId:
+ *                         type: string
+ *                         format: uuid
+ *                       email:
+ *                         type: string
+ *                         format: email
+ *                       firstName:
+ *                         type: string
+ *                       lastName:
+ *                         type: string
+ *                       roleType:
+ *                         type: string
+ *                       buildingIds:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                           format: uuid
+ *       401:
+ *         description: No user found, unauthorised
+ *       403:
+ *         description: No access, admin access needed
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal Server Error
+ */
+/**
+ * @swagger
  * /auth/recover-account:
  *   post:
  *     summary: Recover a deactivated account
@@ -228,8 +283,204 @@ router.post('/login', validateBody(loginSchema), login)
 router.post('/recover-account', validateBody(loginSchema), recoverAccount);
 
 router.get('/viewers', authenticateRequest, reqRole([UserRole.ADMIN]), getViewersController);
+/**
+ * @swagger
+ * /auth/managers:
+ *   get:
+ *     summary: Get users that have the roletype BUILDING_MANAGER.
+ *     description: It fetches all Building Managers and thier assigned building ids, only available for admins.
+ *     tags:
+ *       - User Access Control
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: It successfully fetches the managers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       userId:
+ *                         type: string
+ *                         format: uuid
+ *                       email:
+ *                         type: string
+ *                         format: email
+ *                       firstName:
+ *                         type: string
+ *                       lastName:
+ *                         type: string
+ *                       roleType:
+ *                         type: string
+ *                       buildingIds:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                           format: uuid
+ *       401:
+ *         description: No user found, unauthorised
+ *       403:
+ *         description: No access, admin access needed
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal Server Error
+ */
 router.get('/managers', authenticateRequest, reqRole([UserRole.ADMIN]), getManagersController);
+/**
+ * @swagger
+ * /auth/assign:
+ *   post:
+ *     summary: Assign a Building_Manager to a building
+ *     description: Assigns a manager to a specific building, need to be a admin to achieve this
+ *     tags:
+ *       - User Access Control
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - buildingId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: UUID of the building manager we want to assign the building to
+ *               buildingId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: UUID of the building being assigned
+ *     responses:
+ *       200:
+ *          description: Successfully assigns a manager to the building
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  success:
+ *                    type: boolean
+ *                    example: true
+ *                  message:
+ *                    type: string
+ *                    example: Manger assigned to building successfully
+ *       400:
+ *         description: Missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: Both UserId and BuildingId are required
+ *       403:
+ *          description: No access, admin access needed
+ *       404:
+ *          description: User not found
+ *       500:
+ *          description: Internal Server Error
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  message:
+ *                    type: string
+ *                    example: Internal Server Error
+ */
 router.post('/assign', authenticateRequest, reqRole([UserRole.ADMIN]), assignManagerController);
+
+/**
+ * @swagger
+ * /auth/remove:
+ *   post:
+ *     summary: Removes a Building_Manager from a building
+ *     description: Removes a manager from a specific building, need to be a admin to achieve this
+ *     tags:
+ *       - User Access Control
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - buildingId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: UUID of the building manager we want to remove the building from
+ *               buildingId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: UUID of the building being removed
+ *     responses:
+ *       200:
+ *          description: Successfully removes a manager from the building
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  success:
+ *                    type: boolean
+ *                    example: true
+ *                  message:
+ *                    type: string
+ *                    example: Manger removed from building successfully
+ *       400:
+ *         description: Missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: Both UserId and BuildingId are required
+ *       403:
+ *          description: No access, admin access needed
+ *       404:
+ *          description: User not found
+ *       500:
+ *          description: Internal Server Error
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  message:
+ *                    type: string
+ *                    example: Internal Server Error
+ */
 router.delete('/remove', authenticateRequest, reqRole([UserRole.ADMIN]), removeManagerController);
 
 export default router;
