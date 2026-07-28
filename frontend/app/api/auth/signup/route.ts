@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getTabSessionCookiePath, isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
 
 const CORE_URL = process.env.CORE_URL ?? "http://localhost:4000";
 const SESSION_COOKIE_NAME = "optigrid_session";
@@ -13,7 +14,7 @@ type SignupBody = {
     lastName?: unknown;
 };
 
-function setAuthCookies(response: NextResponse, payload: Record<string, unknown>) {
+function setAuthCookies(response: NextResponse, payload: Record<string, unknown>, tabSessionId: string | null) {
     const maybeUser = payload.user as Record<string, unknown> | undefined;
     const userId = typeof maybeUser?.userId === "string" ? maybeUser.userId : "";
     const emailValue = typeof maybeUser?.email === "string" ? maybeUser.email : "";
@@ -28,7 +29,7 @@ function setAuthCookies(response: NextResponse, payload: Record<string, unknown>
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
                 sameSite: "lax",
-                path: "/",
+                path: getTabSessionCookiePath(tabSessionId),
                 maxAge: SESSION_MAX_AGE_SECONDS,
             }
         );
@@ -40,13 +41,15 @@ function setAuthCookies(response: NextResponse, payload: Record<string, unknown>
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            path: "/",
+            path: getTabSessionCookiePath(tabSessionId),
             maxAge: SESSION_MAX_AGE_SECONDS,
         });
     }
 }
 
 export async function POST(request: Request) {
+	const requestedTabSessionId = request.headers.get(TAB_SESSION_HEADER);
+	const tabSessionId = isTabSessionId(requestedTabSessionId) ? requestedTabSessionId : null;
     let body: SignupBody;
 
     try {
@@ -98,7 +101,7 @@ export async function POST(request: Request) {
         const response = NextResponse.json(responsePayload, { status: responseStatus });
 
         if (loginResponse.ok) {
-            setAuthCookies(response, loginPayload);
+            setAuthCookies(response, loginPayload, tabSessionId);
         }
 
         return response;

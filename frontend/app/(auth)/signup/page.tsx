@@ -16,6 +16,7 @@ import {
     type SignupTouched,
 } from "./logic";
 import { initialSignupFormData, type SignupFormData } from "./validation";
+import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../../../lib/tab-session";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -51,7 +52,7 @@ export default function SignupPage() {
         try {
             const response = await fetch("/api/auth/signup", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", [TAB_SESSION_HEADER]: getTabSessionId() ?? "" },
                 body: JSON.stringify({
                     firstName: formData.firstName,
                     lastName: formData.lastName,
@@ -66,7 +67,7 @@ export default function SignupPage() {
                 throw new Error(payload?.message ?? "Registration failed. Please try again.");
             }
 
-            router.push("/dashboard");
+            router.push(getTabSessionPath("/dashboard"));
         } catch (err) {
             setApiError(
                 err instanceof Error ? err.message : "Registration failed. Please try again."

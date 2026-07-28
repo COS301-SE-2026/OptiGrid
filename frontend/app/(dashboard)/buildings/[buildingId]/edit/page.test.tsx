@@ -327,7 +327,7 @@ describe("Submit success", () => {
             expect(screen.getByText(/building updated successfully/i)).toBeInTheDocument(),
         );
         act(() => jest.advanceTimersByTime(1200));
-        expect(mockPush).toHaveBeenCalledWith("/dashboard");
+        expect(mockPush).toHaveBeenCalledWith(expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/dashboard$/));
     });
 
     it("calls router.refresh after the success timeout", async () => {
@@ -376,6 +376,6 @@ describe("Button states", () => {
     it("Cancel navigates to /dashboard", async () => {
         await renderAndLoad();
         fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
-        expect(mockPush).toHaveBeenCalledWith("/dashboard");
+        expect(mockPush).toHaveBeenCalledWith(expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/dashboard$/));
     });
 });

@@ -99,7 +99,7 @@ describe("SignupPage UI", () => {
         await user.click(screen.getByRole("button", { name: "Create account" }));
 
         await waitFor(() => {
-            expect(mockPush).toHaveBeenCalledWith("/dashboard");
+            expect(mockPush).toHaveBeenCalledWith(expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/dashboard$/));
         });
 
         const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];

@@ -4,6 +4,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getLoginError, initialLoginFormData, type LoginFormData } from "./validation";
+import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../../../lib/tab-session";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -50,7 +51,7 @@ export default function LoginPage() {
         try {
             const res = await fetch("/api/auth/login", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", [TAB_SESSION_HEADER]: getTabSessionId() ?? "" },
                 body: JSON.stringify(formData),
             });
 
@@ -63,7 +64,7 @@ export default function LoginPage() {
             const firstName = payload?.user?.firstName as string | undefined;
             setNotice(`Login successful${firstName ? `, ${firstName}` : ""}.`);
             setFormData(initialLoginFormData);
-            router.push("/dashboard");
+            router.push(getTabSessionPath("/dashboard"));
             router.refresh();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed. Please try again.");

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { NavLinks } from "./nav-links";
 import { buildDisplayName, parseSession, SESSION_COOKIE_NAME, type SessionUser } from "../../lib/session";
 import Link from "next/link";
+import { LogoutButton } from "./logout-button";
 
 function getInitials(user: SessionUser): string {
     const first = user.firstName?.[0] ?? "";
@@ -42,11 +43,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                         <Link href="/help" className="dashboard-link">Help Centre</Link>
                         <Link href="/contact" className="dashboard-link">Contact Us</Link>
                     </div>
-                    <form action="/api/auth/logout" method="post">
-                        <button type="submit" className="btn btn-secondary w-full">
-                            Logout
-                        </button>
-                    </form>
+                    <LogoutButton />
                 </aside>
                 <main className="dashboard-main">{children}</main>
             </div>
