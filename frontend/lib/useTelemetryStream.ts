@@ -44,7 +44,8 @@ export function useTelemetryStream(buildingId?: string) {
 
         eventSource.onerror = () => {
             setIsConnected(false);
-            setError(new Error("Telemetry stream connection error"));
+            setError(new Error("Lost connection to telemetry stream."));
+            eventSource.close();
         };
 
         return () => {

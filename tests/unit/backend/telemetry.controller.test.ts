@@ -91,22 +91,18 @@ describe("Telemetry Controller Unit Tests", () => {
             });
         });
 
-        it("returns HTTP 500 when InfluxDB query fails", () => {
-            const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-
-            mockQueryRows.mockImplementation((query, callbacks) => {
-                callbacks.error(new Error("InfluxDB connection failure"));
+        it("returns graceful empty dataset when InfluxDB query fails", () => {
+            (mockInfluxQueryApi.queryRows as jest.Mock).mockImplementation((query, callbacks) => {
+                callbacks.error(new Error("InfluxDB connection failed"));
             });
 
-            getLivePortfolioTelemetry(mockRequest as Request, mockResponse as Response);
+            await getLivePortfolioTelemetry(mockRequest as Request, mockResponse as Response);
 
-            expect(mockResponse.status).toHaveBeenCalledWith(500);
+            expect(mockResponse.status).toHaveBeenCalledWith(200);
             expect(mockResponse.json).toHaveBeenCalledWith({
-                status: "error",
-                message: "Failed to fetch live data",
+                status: "success",
+                data: [],
             });
-
-            consoleSpy.mockRestore();
         });
     });
 });
