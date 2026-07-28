@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { THEME_STORAGE_KEY } from "../lib/theme";
 
 type Theme = "light" | "dark";
 
@@ -14,6 +15,26 @@ const ThemeContext = createContext<ThemeContextValue>({
     toggle: () => undefined,
 });
 
+function isTheme(value: string | null): value is Theme {
+    return value === "light" || value === "dark";
+}
+
+function getPreferredTheme(): Theme {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (isTheme(savedTheme)) {
+        return savedTheme;
+    }
+
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme: Theme): void {
+    const root = document.documentElement;
+    root.classList.toggle("dark", theme === "dark");
+    root.setAttribute("data-theme", theme);
+    root.style.colorScheme = theme;
+}
+
 export function useTheme() {
     return useContext(ThemeContext);
 }
@@ -22,20 +43,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setTheme] = useState<Theme>("light");
 
     useEffect(() => {
-        const saved = localStorage.getItem("optigrid-theme") as Theme | null;
-        const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        const initial = saved ?? preferred;
+        const documentTheme = document.documentElement.getAttribute("data-theme");
+        const initial = isTheme(documentTheme) ? documentTheme : getPreferredTheme();
         setTheme(initial);
-        document.documentElement.classList.toggle("dark", initial === "dark");
-        document.documentElement.setAttribute("data-theme", initial);
+        applyTheme(initial);
     }, []);
 
     const toggle = () => {
         setTheme((prev) => {
             const next = prev === "light" ? "dark" : "light";
-            localStorage.setItem("optigrid-theme", next);
-            document.documentElement.classList.toggle("dark", next === "dark");
-            document.documentElement.setAttribute("data-theme", next);
+            localStorage.setItem(THEME_STORAGE_KEY, next);
+            applyTheme(next);
             return next;
         });
     };
