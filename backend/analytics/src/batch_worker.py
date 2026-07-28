@@ -20,7 +20,7 @@ def run_analytics_batch():
         #process all buildings, fetches data, calcs metrics, stores it
         engine.process_all_buildings()
     except Exception as e:
-        logger.error(f"Failed to process analytics batch: {str(e)}")
+        logger.exception(f"Failed to process analytics batch: {str(e)}")
     logger.info("Batch Job Complete")
 
 #schedule the job to run at the start of each hour

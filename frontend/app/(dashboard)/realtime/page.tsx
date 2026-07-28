@@ -72,13 +72,12 @@ async function fetchBuildings(): Promise<Building[]> {
     const response = await fetch("/api/buildings", { method: "GET", cache: "no-store" });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.message || "Unable to fetch buildings.");
-
     // Drop anything without an id, we have nothing to link or key it by.
     const rows = Array.isArray(payload.data) ? payload.data : [];
     return rows.map(mapBuilding).filter((building) => building.id.length > 0);
 }
 
-function Skeleton({ height = 80 }: { height?: number }) {
+function Skeleton({ height = 80 }: Readonly<{ height?: number }>) {
     return <div className="skeleton" style={{ height, borderRadius: 14 }} />;
 }
 
@@ -88,7 +87,7 @@ const GRID_STYLE = {
     gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
 } as const;
 
-function BuildingCard({ building }: { building: Building }) {
+function BuildingCard({ building }: Readonly<{ building: Building }>) {
     const statusStyle = STATUS_STYLES[building.status];
     const isOffline = building.status === "Offline";
 
@@ -135,7 +134,7 @@ function BuildingCard({ building }: { building: Building }) {
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
                     <span className="dashboard-kpi-value" style={{ fontSize: "1.05rem", lineHeight: 1 }}>
-                        {building.todayKwh !== null ? building.todayKwh : "--"}
+                        {building.todayKwh ?? "--"}
                     </span>
                     <span className="text-muted" style={{ fontSize: "0.75rem", fontWeight: 500 }}>
                         kWh today
@@ -145,7 +144,7 @@ function BuildingCard({ building }: { building: Building }) {
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--brand-border)", paddingTop: 10 }}>
                 <span className="text-muted" style={{ fontSize: "0.72rem", textTransform: "capitalize" }}>
-                    {building.type.replace(/_/g, " ")}
+                    {building.type.replaceAll("_", " ")}
                 </span>
             </div>
         </div>
@@ -159,6 +158,7 @@ export default function RealtimePage() {
     //we track a refreshes done by the user only so that the automatic background poll does not trigger the refresh animation
     const [isManualRefreshing, setIsManualRefreshing] = useState(false);
     const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
+    const [latestReadings, setLatestReadings] = useState<Record<string, { currentKw: number; timestamp: string }>>({});
 
     const { data: baseBuildings = [], isLoading: isMetadataLoading, isError, error, refetch } = useQuery({
         queryKey: ["buildings-metadata"],
@@ -168,11 +168,52 @@ export default function RealtimePage() {
 
     const { liveData, isConnected } = useTelemetryStream();
 
+    useQuery({
+        queryKey: ["live-telemetry-poll"],
+        queryFn: async () => {
+            const res = await fetch("/api/telemetry/live", { method: "GET", cache: "no-store" });
+            const payload = await res.json();
+            if (payload.status === "success" && Array.isArray(payload.data)) {
+                const initialMap: Record<string, { currentKw: number; timestamp: string }> = {};
+                payload.data.forEach((item: any) => {
+                    const kw = toNumber(item.current_kw ?? item.currentKw ?? item.kw);
+                    if (item.building_id && kw !== null) {
+                        initialMap[item.building_id] = {
+                            currentKw: kw,
+                            timestamp: item.timestamp || new Date().toISOString(),
+                        };
+                    }
+                });
+                setLatestReadings((prev) => ({ ...prev, ...initialMap }));
+                setLastRefreshedAt(new Date());
+            }
+            return payload;
+        },
+        refetchInterval: 5000,
+    });
+
+    // Listen for live SSE stream push updates
     useEffect(() => {
-        if (isConnected || liveData) {
+        if (liveData?.building_id) {
+            const kw = toNumber(liveData.power_kw ?? (liveData as any).current_kw ?? (liveData as any).kw);
+            if (kw !== null) {
+                setLatestReadings((prev) => ({
+                    ...prev,
+                    [liveData.building_id]: {
+                        currentKw: kw,
+                        timestamp: liveData.timestamp,
+                    },
+                }));
+                setLastRefreshedAt(new Date());
+            }
+        }
+    }, [liveData]);
+
+    useEffect(() => {
+        if (isConnected) {
             setLastRefreshedAt(new Date());
         }
-    }, [liveData, isConnected]);
+    }, [isConnected]);
 
     const handleManualRefresh = () => {
         setIsManualRefreshing(true);
@@ -186,25 +227,17 @@ export default function RealtimePage() {
         let currentKw = null;
         let isStale = false;
 
-        if (liveData) {
-            const live = (liveData as Record<string, any>)[b.id];
-            if (live) {
-                currentKw = toNumber(live.currentKw ?? live.current_kw ?? live.active_power_kw ?? live.kw ?? live.value);
-                isStale = !!live.timestamp && (new Date().getTime() - new Date(live.timestamp).getTime() > 5 * 60 * 1000);
-            } else if (Array.isArray(liveData)) {
-                const item = liveData.find((x: any) => String(x.building_id) === String(b.id) || String(x.id) === String(b.id));
-                if (item) {
-                    currentKw = toNumber(item.currentKw ?? item.current_kw ?? item.active_power_kw ?? item.kw ?? item.value);
-                    isStale = !!item.timestamp && (new Date().getTime() - new Date(item.timestamp).getTime() > 5 * 60 * 1000);
-                }
-            }
+        const live = latestReadings[b.id];
+        if (live) {
+            currentKw = live.currentKw;
+            isStale = !!live.timestamp && (Date.now() - new Date(live.timestamp).getTime() > 5 * 60 * 1000);
         }
 
         let status: BuildingStatus = b.status;
-        if (b.status === "Offline" || isStale) {
+        if (isStale) {
             status = "Offline";
-        } else if (b.status === "Peak alert") {
-            status = "Peak alert";
+        } else if (currentKw !== null && currentKw !== undefined) {
+            status = b.status === "Peak alert" ? "Peak alert" : "Normal";
         }
 
         return { ...b, currentKw, status };

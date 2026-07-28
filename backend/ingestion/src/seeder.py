@@ -135,7 +135,7 @@ def seed_calculated_buildings(building_ids: list, days_back: int = 14):
     current_time = start_time
     points_buffer = []
     total_points = 0
-    
+    rng = np.random.default_rng(seed=42)
     while current_time <= end_time:
         hour_fraction = current_time.hour + (current_time.minute / 60.0)
         
@@ -144,10 +144,10 @@ def seed_calculated_buildings(building_ids: list, days_back: int = 14):
             time_factor = np.sin((adjusted_hour - 6.0) * np.pi / 12.0)
             
             # Seeded noise
-            noise = np.random.uniform(-0.8, 0.8)
+            noise = rng.uniform(-0.8, 0.8)
             power_kw = max(1.0, prof["base_kw"] + (prof["amplitude_kw"] * time_factor) + noise)
             
-            voltage_v = round(prof["nominal_voltage"] + np.random.normal(0.0, 0.8), 2)
+            voltage_v = round(prof["nominal_voltage"] + rng.normal(0.0, 0.8), 2)
             current_a = round((power_kw * 1000.0) / voltage_v, 2)
             cost_zar = round(power_kw * SEEDER_COST_ZAR_PER_KWH, 2)
 

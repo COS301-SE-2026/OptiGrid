@@ -1,27 +1,32 @@
-"use client";
+import { useState, useEffect } from "react";
 
-import { useEffect, useState } from "react";
-
-type TelemetryData = {
+export type TelemetryData = {
     building_id: string;
     sensor_id: string;
-    source_type: string;
-    voltage_v: number;
-    current_a: number;
-    power_kw: number;
+    source_type?: string;
+    voltage_v?: number;
+    current_a?: number;
+    power_kw?: number;
     timestamp: string;
 };
 
-export function useTelemetryStream(buildingId: string) {
+export function useTelemetryStream(buildingId?: string) {
     const [liveData, setLiveData] = useState<TelemetryData | null>(null);
     const [error, setError] = useState<Error | null>(null);
-    const [isConnected, setIsConnected] = useState(false);
+    const [isConnected, setIsConnected] = useState<boolean>(false);
 
     useEffect(() => {
-        if (!buildingId) return;
+        const targetId = buildingId ? encodeURIComponent(buildingId) : "portfolio";
+        
+        // Dynamically resolve backend URL for the browser (bypasses Next.js proxy buffering)
+        const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
+        const apiBase = process.env.NEXT_PUBLIC_CORE_API_URL?.includes("core") 
+            ? `http://${host}:4000` 
+            : (process.env.NEXT_PUBLIC_CORE_API_URL || `http://${host}:4000`);
+            
+        const url = `${apiBase}/api/telemetry/stream/${targetId}`;
 
-        const API_BASE = process.env.NEXT_PUBLIC_CORE_API_URL || "http://localhost:4000";
-        const eventSource = new EventSource(`${API_BASE}/api/telemetry/stream/${buildingId}`);
+        const eventSource = new EventSource(url);
 
         eventSource.onopen = () => {
             setIsConnected(true);
@@ -30,22 +35,21 @@ export function useTelemetryStream(buildingId: string) {
 
         eventSource.onmessage = (event) => {
             try {
-                const data = JSON.parse(event.data);
-                setLiveData(data);
+                const parsed = JSON.parse(event.data);
+                setLiveData(parsed);
             } catch (err) {
-                console.error("Failed to parse SSE telemetry:", err);
+                console.error("Failed to parse telemetry event data:", err);
             }
         };
 
-        eventSource.onerror = (err) => {
-            console.error("SSE Connection Error:", err);
-            setError(new Error("Lost connection to telemetry stream."));
+        eventSource.onerror = () => {
             setIsConnected(false);
-            eventSource.close();
+            setError(new Error("Telemetry stream connection error"));
         };
 
         return () => {
             eventSource.close();
+            setIsConnected(false);
         };
     }, [buildingId]);
 

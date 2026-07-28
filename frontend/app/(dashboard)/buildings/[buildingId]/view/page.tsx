@@ -81,14 +81,14 @@ function formatZar(value: number | null | undefined): string {
 
 export default function ViewBuildingPage({
     params,
-}: {
-    params: Promise<{ buildingId: string }> | { buildingId: string };
-}) {
+}: Readonly<{
+    params: Promise<{ buildingId: string }>;
+}>) {
     const [buildingId, setBuildingId] = useState<string>("");
 
     useEffect(() => {
         let isMounted = true;
-        Promise.resolve(params).then((resolved) => {
+        params.then((resolved) => {
             if (isMounted && resolved?.buildingId) {
                 setBuildingId(resolved.buildingId);
             }
