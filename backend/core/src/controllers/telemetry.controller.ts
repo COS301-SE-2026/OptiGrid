@@ -1,15 +1,23 @@
-import {Request, Response} from 'express';
-import {PrismaClient} from '@prisma/client';
-import {InfluxDB, Point} from '@influxdata/influxdb-client';
-import {sseManager} from '../utils/sseManager';
+import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { InfluxDB, Point } from '@influxdata/influxdb-client';
+import { sseManager } from '../utils/sseManager';
 
-const prisma = new PrismaClient();
-const influx = new InfluxDB({
-    url: process.env.INFLUX_URL || 'https://localhost:8086',
-    token: process.env.INFLUX_TOKEN
+const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL,
 });
 
-const writeApi = influx.getWriteApi(process.env.INFLUX_ORG!, process.env.INFLUX_BUCKET!, 'ms');
+export const prisma = new PrismaClient({ adapter });
+
+const url = process.env.INFLUXDB_URL || process.env.INFLUX_URL || 'http://influxdb:8086';
+const token = process.env.INFLUXDB_TOKEN || process.env.INFLUX_TOKEN || 'dummy';
+const org = process.env.INFLUXDB_ORG || process.env.INFLUX_ORG || 'OptiGrid';
+const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'EnergyData';
+
+const influx = new InfluxDB({ url, token });
+
+const writeApi = influx.getWriteApi(org, bucket, 'ms');
 
 export const ingestTelemetry = async (req: Request, res: Response) => {
     try{
@@ -49,7 +57,7 @@ export const ingestTelemetry = async (req: Request, res: Response) => {
             .floatField('current_a', current_a)
             .floatField('power_kw', power_kw)
             .timestamp(time);
-        
+
         writeApi.writePoint(point);
         // flush in background
         writeApi.flush().catch(err => console.error('InfluxDB flush error:', err));
@@ -83,4 +91,48 @@ export const streamTelemetry = (req: Request, res: Response) => {
 
     // add to active broadcast pool
     sseManager.addClient(building_id, res);
+};
+
+export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
+    try {
+        const queryApi = influx.getQueryApi(org);
+
+        const fluxQuery = `
+            from(bucket: "${bucket}")
+                |> range(start: -24h)
+                |> filter(fn: (r) => r["_measurement"] == "energy_telemetry" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_consumption")
+                |> filter(fn: (r) => r["_field"] == "power_kw" or r["_field"] == "usage" or r["_field"] == "usage_kwh")
+                |> group(columns: ["building_id"])
+                |> last()
+        `;
+
+        const results: any[] = [];
+        queryApi.queryRows(fluxQuery, {
+            next(row, tableMeta) {
+                const o = tableMeta.toObject(row);
+                results.push({
+                    building_id: o.building_id,
+                    current_kw: o._value,
+                    timestamp: o._time
+                });
+            },
+            error(error) {
+                console.error('[INFLUX QUERY ERROR]:', error);
+                if (!res.headersSent) {
+                    res.status(500).json({ status: 'error', message: 'Failed to fetch live data' });
+                }
+            },
+            complete() {
+                console.log(`[LIVE TELEMETRY SUCCESS] Fetched ${results.length} active building metrics from InfluxDB.`);
+                if (!res.headersSent) {
+                    res.status(200).json({ status: 'success', data: results });
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Portfolio live query exception:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ status: 'error', message: 'Internal server error.' });
+        }
+    }
 };

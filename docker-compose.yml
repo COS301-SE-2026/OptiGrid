@@ -35,9 +35,7 @@ services:
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-EnergyData}
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-dummy}
     volumes:
-      - type: bind
-        source: ./infrastructure/docker/.data/influxdb
-        target: /var/lib/influxdb2
+      - influxdb_data:/var/lib/influxdb2
     healthcheck:
       test: ["CMD-SHELL", "influx ping || exit 1"]
       interval: 10s
@@ -102,3 +100,6 @@ services:
           condition: service_healthy
       ingestion-api:
         condition: service_started
+
+volumes:
+  influxdb_data:

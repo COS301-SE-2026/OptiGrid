@@ -141,6 +141,8 @@ const env = {
   supabaseKey: resolvedSupabaseKey,
   supabaseServiceRoleKey: resolvedSupabaseServiceRoleKey,
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "dummy",
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
+  hardwareApiKey: process.env.HARDWARE_API_KEY ?? "",
   influxUrl: normalizeLocalhostToServiceUrl(
     process.env.INFLUXDB_URL,
     influxServiceHost,
@@ -297,6 +299,8 @@ writeFileSync(
     `SUPABASE_KEY=${env.supabaseKey}`,
     `SUPABASE_SERVICE_ROLE_KEY=${env.supabaseServiceRoleKey}`,
     `SUPABASE_ANON_KEY=${env.supabaseAnonKey}`,
+    `RESEND_API_KEY=${env.resendApiKey}`,
+    `HARDWARE_API_KEY=${env.hardwareApiKey}`,
     `REDIS_HOST=${env.redisHost}`,
     `REDIS_PORT=${env.redisPort}`,
     `REDIS_URL=${env.redisUrl}`,

@@ -20,10 +20,7 @@ function runQuiet(cmd) {
 }
 
 if (existsSync(composeLocal) && existsSync(envLocal)) {
-  console.log("Stopping Docker Compose stack...");
-  run(`docker compose -f "${composeLocal}" --env-file "${envLocal}" down --remove-orphans`);
-  
-  console.log("Removing unused networks...");
+  console.log("Stopping Docker Compose stack and clearing volumes...");
   run(`docker compose -f "${composeLocal}" --env-file "${envLocal}" down --remove-orphans --volumes`);
 }
 

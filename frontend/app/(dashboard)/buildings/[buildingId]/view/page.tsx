@@ -1,7 +1,8 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useTelemetryStream } from "@/lib/useTelemetryStream";
 
 type BuildingRecord = {
     building_id: string;
@@ -83,6 +84,9 @@ export default function ViewBuildingPage({
 }: {
     params: Promise<{ buildingId: string }>;
 }) {
+    const { buildingId } = use(params);
+    const { liveData, error: sseError, isConnected } = useTelemetryStream(buildingId);
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [building, setBuilding] = useState<BuildingRecord>({
@@ -98,8 +102,6 @@ export default function ViewBuildingPage({
         let isMounted = true;
 
         const load = async () => {
-            const { buildingId } = await params;
-
             try {
                 const response = await fetch(`/api/buildings/${encodeURIComponent(buildingId)}`, {
                     method: "GET",
@@ -136,13 +138,12 @@ export default function ViewBuildingPage({
         return () => {
             isMounted = false;
         };
-    }, [params]);
+    }, [buildingId]);
 
     useEffect(() => {
         let isMounted = true;
 
         const loadConsumption = async () => {
-            const { buildingId } = await params;
             if (isMounted) {
                 setConsumptionLoading(true);
                 setConsumptionError("");
@@ -188,7 +189,7 @@ export default function ViewBuildingPage({
         return () => {
             isMounted = false;
         };
-    }, [params, timeRange]);
+    }, [buildingId, timeRange]);
 
     if (loading) {
         return (
@@ -203,15 +204,18 @@ export default function ViewBuildingPage({
             <div className="dashboard-header" style={{ marginBottom: "var(--space-6)" }}>
                 <div>
                     <h1 className="dashboard-title">Building Details</h1>
-                    <p className="dashboard-subtitle">View information.</p>
+                    <p className="dashboard-subtitle">
+                        {isConnected ? "🟢 Live telemetry stream connected" : "🔴 Reconnecting live stream..."}
+                    </p>
                 </div>
 
                 <div style={{ gap: "var(--space-3)", display: "flex" }}>
-                    {building.building_id && (<Link href={`/buildings/${building.building_id}/sensors`} className="btn btn-primary">Sensors</Link>)}
-                    <Link
-                        href="/dashboard"
-                        className="btn btn-secondary"
-                    >
+                    {building.building_id && (
+                        <Link href={`/buildings/${building.building_id}/sensors`} className="btn btn-primary">
+                            Sensors
+                        </Link>
+                    )}
+                    <Link href="/dashboard" className="btn btn-secondary">
                         Back
                     </Link>
                 </div>
@@ -235,6 +239,38 @@ export default function ViewBuildingPage({
                 className="card"
                 style={{ display: "grid", gap: "var(--space-6)", padding: "var(--space-6)" }}
             >
+                <DetailsSection title="Real-Time Telemetry">
+                    <Detail
+                        label="Stream Connection"
+                        value={isConnected ? "🟢 Online (Streaming)" : "🔴 Offline / Connecting"}
+                    />
+                    <Detail
+                        label="Live Power"
+                        value={displayValueWithUnit(formatNumber(liveData?.power_kw), "kW")}
+                    />
+                    <Detail
+                        label="Live Voltage"
+                        value={displayValueWithUnit(formatNumber(liveData?.voltage_v), "V")}
+                    />
+                    <Detail
+                        label="Live Current"
+                        value={displayValueWithUnit(formatNumber(liveData?.current_a), "A")}
+                    />
+                    <Detail
+                        label="Last Broadcast"
+                        value={
+                            liveData?.timestamp
+                                ? new Date(liveData.timestamp).toLocaleTimeString()
+                                : "-"
+                        }
+                    />
+                    {sseError && (
+                        <div style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
+                            {sseError.message}
+                        </div>
+                    )}
+                </DetailsSection>
+
                 <DetailsSection title="General Information">
                     <Detail label="Building Name" value={building.building_name} />
                     <Detail label="Building ID" value={building.building_id} />
@@ -300,7 +336,7 @@ export default function ViewBuildingPage({
                             <Detail label="Average Daily Usage" value={displayValueWithUnit(formatNumber(consumption.average_daily_kwh), "kWh")} />
                             <Detail label="Total Cost" value={formatZar(consumption.total_cost_zar)} />
                             <Detail label="Cost per kWh" value={formatZar(consumption.cost_per_kwh)} />
-                            <Detail label="Energy Use Intensity" value={displayValueWithUnit(formatNumber(consumption.eui), "kWh/mÂ²")} />
+                            <Detail label="Energy Use Intensity" value={displayValueWithUnit(formatNumber(consumption.eui), "kWh/m²")} />
                             <Detail label="Active Anomaly Alerts" value={consumption.total_anomaly_alerts} />
                             <Detail label="Recommendation Savings" value={formatZar(consumption.cost_saved_by_recommendations_zar)} />
 
