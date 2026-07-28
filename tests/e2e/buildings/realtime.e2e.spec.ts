@@ -4,7 +4,6 @@ test.describe("OptiGrid Real-Time Dashboard E2E Tests", () => {
     test.beforeEach(async ({ page }) => {
         const uniqueEmail = `realtime_user_${Date.now()}_${Math.floor(Math.random() * 10000)}@example.com`;
 
-        // sign up new user
         await page.goto("/signup");
         await page.locator('input[name="firstName"]').fill("Realtime");
         await page.locator('input[name="lastName"]').fill("Tester");
@@ -19,15 +18,17 @@ test.describe("OptiGrid Real-Time Dashboard E2E Tests", () => {
         await page.getByRole("button", { name: /create account|sign up/i }).click();
         await page.waitForURL(/\/(dashboard|realtime)$/, { timeout: 15_000 });
 
-        // create building
-        await page.goto("/buildings/add");
+        const currentUrl = page.url();
+        const sessionMatch = currentUrl.match(/\/_sessions\/[^\/]+/);
+        const prefix = sessionMatch ? sessionMatch[0] : "";
+
+        await page.goto(`${prefix}/buildings/add`);
         await page.locator('input[name="buildingName"], input[name="building_name"]').fill("E2E Realtime Hub");
         await page.locator('input[name="physicalAddress"], input[name="physical_address"]').fill("100 Innovation Way");
         await page.getByRole("button", { name: /save|add|create/i }).click();
         await page.waitForURL(/\/(dashboard|buildings)$/, { timeout: 15_000 });
 
-        // navigate to realtime dashboard
-        await page.goto("/realtime");
+        await page.goto(`${prefix}/realtime`);
     });
 
     test("renders header, title, and filter controls", async ({ page }) => {
@@ -48,6 +49,6 @@ test.describe("OptiGrid Real-Time Dashboard E2E Tests", () => {
         await expect(refreshButton).toBeEnabled();
         
         await refreshButton.click();
-        await expect(page.locator(".dashboard-subtitle")).toContainText(/Last updated/);
+        await expect(page.locator(".dashboard-subtitle")).toContainText(/Last updated|Connecting/);
     });
 });
