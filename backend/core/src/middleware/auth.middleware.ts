@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { createClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 import prisma from "../lib/prisma";
+import { AccountStatus } from "@prisma/client";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
@@ -38,6 +39,14 @@ function extractBearerToken(rawAuthorizationHeader: string | undefined): string 
 
 function respondUnauthorized(res: Response) {
 	return res.status(401).json({ status: "error", message: "Unauthorized" });
+}
+
+function respondAccountDeactivated(res: Response) {
+	return res.status(403).json({
+		status: "error",
+		code: "ACCOUNT_DEACTIVATED",
+		message: "This account is deactivated. Recover the account to regain access.",
+	});
 }
 
 // i added this offline check before we trust Supabase with a network connection so it confirms the token is well-formed three-part JWS 
@@ -85,8 +94,18 @@ export async function authenticateRequest(req: Request, res: Response, next: Nex
 
 		const profile = await prisma.user.findUnique({
 			where: { userId: data.user.id },
-			select: { tenantId: true, roleType: true },
+			select: { tenantId: true, roleType: true, accountStatus: true },
 		});
+
+		// An access token may remain cryptographically valid after a user has
+		// deactivated their account. The profile status is therefore checked on
+		// every protected request to enforce the soft delete immediately.
+		if (!profile) {
+			return respondUnauthorized(res);
+		}
+		if (profile.accountStatus === AccountStatus.DEACTIVATED) {
+			return respondAccountDeactivated(res);
+		}
 
 		//the tenant_id must come from our own DB only. so because supabase user_metadata is client-writable, we cannot trust it as users can self-assign a tenant
 		const userMetadata = {
@@ -98,7 +117,7 @@ export async function authenticateRequest(req: Request, res: Response, next: Nex
 			id: data.user.id,
 			//now the roleType is resolved from our own DB only and never from user_metadata because 
 			// otherwise a user could set their role as ADMIN and bypass the ownership checks (IDOR)
-			roleType: profile?.roleType ?? "VIEWER",
+			roleType: profile.roleType,
 			user_metadata: userMetadata,
 		};
 

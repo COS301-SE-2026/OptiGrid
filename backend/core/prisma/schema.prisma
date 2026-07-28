@@ -36,6 +36,15 @@ enum ThemePreference {
   @@schema("public")
 }
 
+// A user can deactivate their account without losing the profile and access
+// records needed to restore it later.
+enum AccountStatus {
+  ACTIVE      @map("active")
+  DEACTIVATED @map("deactivated")
+
+  @@map("account_status")
+}
+
 enum BuildingType {
   Residential
   Commercial
@@ -109,6 +118,8 @@ model User {
   firstName      String?         @map("first_name") @db.VarChar
   lastName       String?         @map("last_name") @db.VarChar
   preferredTheme ThemePreference @default(SYSTEM) @map("preferred_theme")
+  accountStatus  AccountStatus   @default(ACTIVE) @map("account_status")
+  deactivatedAt  DateTime?       @map("deactivated_at") @db.Timestamptz
   createdAt      DateTime?       @default(now()) @map("created_at") @db.Timestamptz
   updatedAt      DateTime?       @default(now()) @map("updated_at") @db.Timestamptz
 
