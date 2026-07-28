@@ -59,11 +59,11 @@ test.describe("Tab-isolated authentication sessions", () => {
       expect(artiDashboardUrl).not.toBe(teammateDashboardUrl);
       await artiTab.reload();
       await expect(artiTab.getByRole("heading", { name: `Welcome back, ${arti.firstName}` })).toBeVisible();
-      await expect(artiTab.locator(".dashboard-user")).toContainText(arti.firstName);
+      await expect(artiTab.getByRole("complementary").locator(".dashboard-user")).toContainText(arti.firstName);
 
       await teammateTab.reload();
       await expect(teammateTab.getByRole("heading", { name: `Welcome back, ${teammate.firstName}` })).toBeVisible();
-      await expect(teammateTab.locator(".dashboard-user")).toContainText(teammate.firstName);
+      await expect(teammateTab.getByRole("complementary").locator(".dashboard-user")).toContainText(teammate.firstName);
 
       const artiSession = await artiTab.evaluate(async () => {
         const response = await fetch("/api/auth/me");

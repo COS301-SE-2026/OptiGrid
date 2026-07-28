@@ -134,3 +134,14 @@ beforeEach(() => {
       expect(firstName).toHaveValue(sessionProfile.firstName);
     });
   });
+
+  describe("Account deletion", () => {
+    it("opens a confirmation dialog before deleting the account", () => {
+      render(<SettingsPage />);
+
+      fireEvent.click(screen.getByRole("button", { name: /^delete account$/i }));
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByLabelText(/type delete to confirm/i)).toBeInTheDocument();
+    });
+  });
