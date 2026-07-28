@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../lib/tab-session";
 
 function isSameOriginApiRequest(url: URL): boolean {
@@ -39,6 +40,7 @@ function installScopedFetch(tabSessionId: string): () => void {
 }
 
 export function TabSessionProvider({ children }: { children: ReactNode }) {
+	const router = useRouter();
 	const cleanupFetchRef = useRef<(() => void) | null>(null);
 	if (typeof window !== "undefined" && cleanupFetchRef.current === null) {
 		const tabSessionId = getTabSessionId();
@@ -74,14 +76,14 @@ export function TabSessionProvider({ children }: { children: ReactNode }) {
 			}
 
 			event.preventDefault();
-			window.location.assign(getTabSessionPath(`${destination.pathname}${destination.search}${destination.hash}`, tabSessionId));
+			router.push(getTabSessionPath(`${destination.pathname}${destination.search}${destination.hash}`, tabSessionId));
 		};
 
 		document.addEventListener("click", scopeInternalNavigation, true);
 		return () => {
 			document.removeEventListener("click", scopeInternalNavigation, true);
 		};
-	}, []);
+	}, [router]);
 
 	return children;
 }
