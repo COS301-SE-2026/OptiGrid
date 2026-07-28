@@ -11,8 +11,8 @@ import contactRoutes from "./routes/contact.routes";
 import accountRoutes from "./routes/account.routes";
 import adminUserRoutes from "./routes/admin_user.routes";
 import { rateLimiter } from "./middleware/rateLimiter.middleware";
-import cors from "cors";
-
+import telemetryRoutes from './routes/telemetry.routes';
+import cors from 'cors';
 
 export interface CreateAppOptions {
 	routeMiddleware?: RequestHandler[];
@@ -52,12 +52,19 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 		apis: ["./src/routes/*.ts"],
 	});
 
-
 	const authRate = rateLimiter(5, 1/60); //max 5, with 1 refill every min
 	const homeRate = rateLimiter(50,5); //max 50, 5 refill every second
 	const normalRate = rateLimiter(30, 2); //max30, 2 refill every sec
 	const strictRate = rateLimiter(3, 1/60); //max 3, 1 refill every min
+	
 	app.use(express.json());
+
+	app.use(cors({
+		origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+		methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+		credentials: true
+	}));
+
 	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
 
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -67,10 +74,8 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use("/api/buildings", authenticateRequest, normalRate, buildingRoutes);
 	app.use("/api/preferences", authenticateRequest, normalRate, userPreferencesRoutes);
 	app.use("/api/contact", strictRate,contactRoutes);
-	app.use("/api/accounts", authenticateRequest, normalRate, accountRoutes);
-	app.use("/api/admin/users", authenticateRequest, strictRate, adminUserRoutes);
-	app.use("/api/users",authRate, userAuthRoutes)
-	//app.use("/api/admin/", authenticateRequest, normalRate, buildingRoutes);
+	app.use("/api/users",authRate, userAuthRoutes);
+	app.use('/api/telemetry', telemetryRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });

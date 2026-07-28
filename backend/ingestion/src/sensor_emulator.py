@@ -1,98 +1,109 @@
-import math
-import time
+import os
+import asyncio
+import hashlib
 import random
-from datetime import datetime
-from influxdb_client import InfluxDBClient, Point, WritePrecision
-from influxdb_client.client.write_api import SYNCHRONOUS
+import aiohttp
+import numpy as np
+from datetime import datetime, timezone
+from supabase import create_client, Client
 
 try:
-    from backend.ingestion.src.config import (
-        INFLUXDB_BUCKET,
-        INFLUXDB_ORG,
-        INFLUXDB_TOKEN,
-        INFLUXDB_URL,
-        require_influx_config,
-    )
-except ModuleNotFoundError:
-    from config import (
-        INFLUXDB_BUCKET,
-        INFLUXDB_ORG,
-        INFLUXDB_TOKEN,
-        INFLUXDB_URL,
-        require_influx_config,
-    )
+    from dotenv import load_dotenv
+    load_dotenv(".env.local")
+    load_dotenv(".env")
+except ImportError:
+    pass
 
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-def calculate_usage(building_index: int, current_time: datetime) -> float:
-    # base power draw, varies per building using the building index
-    base_load = 24.0 + (building_index * 0.6)
-    multiplier = 11.0 + (building_index * 0.3)
-    # diurnal model
-    hour = current_time.hour + (current_time.minute / 60.0) + (current_time.second / 3600.0)
-    # sine wave offset to make sure that peak load is around 14:00
-    time_factor = math.sin((hour - 6.0) * math.pi / 12.0)
-    noise = random.uniform(-3.0, 3.0)
-    calculated_value = (base_load + (multiplier * time_factor)) * noise
-    calculated_value = max(8.0, calculated_value)
+raw_ingest_url = os.getenv("API_INGEST_URL", "http://localhost:8000/api/telemetry/ingest")
+if "ingestion-api" in raw_ingest_url and not os.path.exists("/.dockerenv"):
+    API_INGEST_URL = raw_ingest_url.replace("ingestion-api", "localhost")
+else:
+    API_INGEST_URL = raw_ingest_url
+
+HARDWARE_API_KEY = os.getenv("HARDWARE_API_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("SUPABASE_URL and SUPABASE_KEY (or SUPABASE_SERVICE_ROLE_KEY) must be provided.")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def get_building_profile(building_id: str) -> dict:
+    """same deterministic parameter generator matching seeder.py"""
+    h = int(hashlib.sha256(building_id.encode("utf-8")).hexdigest(), 16)
     
-    # 2% chance of anomalies
-    anomaly_chance = random.random()
-    if anomaly_chance < 0.02:
-        anomaly_type = random.choice(["spike", "dropout"])
-        if anomaly_type == "spike":
-            calculated_value *= random.uniform(3.5, 4.5)  # Spikes out of bounds
-        elif anomaly_type == "dropout":
-            calculated_value = random.uniform(0.0, 0.5)  # Dropouts fall to near-zero
-    return round(calculated_value, 2)
+    base_kw = 12.0 + ((h % 5300) / 100.0)
+    amplitude_kw = 6.0 + (((h >> 16) % 1800) / 100.0)
+    phase_shift_hrs = (((h >> 32) % 400) / 100.0) - 2.0
+    nominal_voltage = 228.0 + (((h >> 48) % 400) / 100.0)
 
+    return {
+        "base_kw": base_kw,
+        "amplitude_kw": amplitude_kw,
+        "phase_shift_hrs": phase_shift_hrs,
+        "nominal_voltage": nominal_voltage,
+    }
 
-def emulate_sensor():
-    # mock buidlings with their sensors and meters
-    require_influx_config()
+async def post_telemetry(session, payload):
+    headers = {"X-Sensor-Key": HARDWARE_API_KEY, "Content-Type": "application/json"}
+    try:
+        async with session.post(API_INGEST_URL, json=payload, headers=headers) as resp:
+            if resp.status == 422:
+                print(f"[WARN] Rejected by guardrail for {payload['building_id'][:8]} (Likely set to PHYSICAL)")
+    except Exception as e:
+        print(f"[ERROR] Failed to post telemetry: {e}")
 
-    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-    write_api = client.write_api(write_options=SYNCHRONOUS)
-    building_profiles = [
-        "f3df9051-99b4-468f-8253-c5a821fe59e7",
-        "50a61dd2-66cc-4eea-a236-df2ad5307c43",
-        "6ea1d4d8-ca58-4aca-9820-54e19e005995",
-        "ccf876ce-a06d-4c09-ae93-210b8e75f028",
-        "06be3e23-2590-4939-808a-9a563064f51b",
-        "50a635ea-847b-4121-8305-50fdbc9801b2",
-        # Buildings assigned to the test account.
-        "21895355-69be-4bed-add7-d10340b13cfa",  # Spar 2.0
-        "23fe0a04-a7aa-4306-9e1f-d4301b1fc66c",  # Spar 2.0
-        "b68ba0b8-8c46-48d8-9470-7a2297bfb468",  # SSpar 2.0
-        "9e95afa2-797b-4ff8-a3b2-b4753692f96a",  # UP
-    ]
-    print("IoT Hardware Emulator Started.")
-    while True:
-        points_batch = []
-        current_time = datetime.utcnow()
-        
-        for idx, building_id in enumerate(building_profiles):
-            usage = calculate_usage(idx, current_time)
-            
-            # creating influx data point
-            point = Point("energy_telemetry") \
-                .tag("building_id", building_id) \
-                .field("usage", usage) \
-                .time(current_time, WritePrecision.NS)
+async def run_global_emulator():
+    print("Starting Global Multi-Building Emulator Worker.")
+    
+    # generate unique base loads for randomness across buildings
+    building_profiles = {}
+
+    async with aiohttp.ClientSession() as session:
+        while True:
+            # periodically sync active emulator buildings from supabase
+            try:
+                res = supabase.table("buildings").select("building_id, telemetry_source").eq("telemetry_source", "EMULATOR").execute()
+                active_emulator_ids = [b["building_id"] for b in res.data]
+            except Exception as e:
+                print(f"Supabase sync failed: {e}")
+                active_emulator_ids = []
+
+            now = datetime.now(timezone.utc)
+            timestamp = now.isoformat()
+            hour_fraction = now.hour + (now.minute / 60.0) + (now.second / 3600.0)
+            tasks = []
+            for b_id in active_emulator_ids:
+                if b_id not in building_profiles:
+                    building_profiles[b_id] = get_building_profile(b_id)
                 
-            # adding to batch
-            points_batch.append(point)
-            
-        try:
-            write_api.write(bucket=INFLUXDB_BUCKET, record=points_batch)
-            print(f"[{current_time.strftime('%H:%M:%S')}] Streamed batch successfully.")
-        except Exception as e:
-            print(f"Write error encountered: {e}")
-            
-        time.sleep(2)  # waiting before next batch
+                prof = building_profiles[b_id]
+                adjusted_hour = hour_fraction + prof["phase_shift_hrs"]
+                time_factor = np.sin((adjusted_hour - 6.0) * np.pi / 12.0)
+                
+                noise = random.uniform(-0.5, 0.5)
+                power_kw = max(1.0, prof["base_kw"] + (prof["amplitude_kw"] * time_factor) + noise)
+                
+                voltage_v = round(prof["nominal_voltage"] + random.gauss(0.0, 0.8), 2)
+                current_a = round((power_kw * 1000.0) / voltage_v, 2)
 
+                payload = {
+                    "building_id": b_id,
+                    "sensor_id": f"emu_node_{b_id[:8]}",
+                    "source_type": "EMULATOR",
+                    "voltage_v": voltage_v,
+                    "current_a": current_a,
+                    "power_kw": round(power_kw, 3),
+                    "timestamp": timestamp
+                }
+                tasks.append(post_telemetry(session, payload))
+
+            if tasks:
+                await asyncio.gather(*tasks)
+            
+            await asyncio.sleep(1.0)  # 1 hz tick rate
 
 if __name__ == "__main__":
-    try:
-        emulate_sensor()
-    except KeyboardInterrupt:
-        print("\nIoT Hardware Emulator stopped by user.")
+    asyncio.run(run_global_emulator())

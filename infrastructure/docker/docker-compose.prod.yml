@@ -2,6 +2,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -26,10 +28,10 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - ../.data/influxdb:/var/lib/influxdb2
+      - influxdb_data:/var/lib/influxdb2
 
   mlflow:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
+    image: ghcr.io/local/optigrid-analytics:latest
     restart: unless-stopped
     command:
       [
@@ -56,7 +58,7 @@ services:
       start_period: 20s
 
   frontend:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-frontend:latest
+    image: ghcr.io/local/optigrid-frontend:latest
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -74,7 +76,7 @@ services:
         condition: service_healthy
 
   core:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-core:latest
+    image: ghcr.io/local/optigrid-core:latest
     restart: unless-stopped
     ports:
       - "${CORE_PORT:-4000}:4000"
@@ -108,7 +110,7 @@ services:
       start_period: 20s
 
   ingestion-api:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-ingestion:latest
+    image: ghcr.io/local/optigrid-ingestion:latest
     restart: unless-stopped
     ports:
       - "${INGESTION_PORT:-8000}:8000"
@@ -121,15 +123,41 @@ services:
         condition: service_healthy
 
   ingestion:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-ingestion:latest
+      image: ghcr.io/local/optigrid-ingestion:latest
+      restart: unless-stopped
+      command: ["python", "-m", "backend.ingestion.src.queue_worker"]
+      environment:
+        REDIS_HOST: ${REDIS_HOST:-redis}
+        REDIS_PORT: ${REDIS_PORT:-6379}
+        INFLUXDB_URL: ${INFLUXDB_URL}
+        INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+        INFLUXDB_ORG: ${INFLUXDB_ORG}
+        INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+        SUPABASE_URL: ${SUPABASE_URL}
+        SUPABASE_KEY: ${SUPABASE_KEY:-${SUPABASE_SERVICE_ROLE_KEY}}
+        SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      depends_on:
+        redis:
+          condition: service_healthy
+        influxdb:
+          condition: service_healthy
+
+  sensor-emulator:
+    image: ghcr.io/local/optigrid-ingestion:latest
     restart: unless-stopped
+    command: ["python", "-m", "backend.ingestion.src.sensor_emulator"]
     environment:
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      INFLUXDB_URL: ${INFLUXDB_URL}
+      INFLUXDB_URL: ${INFLUXDB_URL:-http://influxdb:8086}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
       INFLUXDB_ORG: ${INFLUXDB_ORG}
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY:-${SUPABASE_SERVICE_ROLE_KEY}}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      API_INGEST_URL: http://ingestion-api:8000/api/telemetry/ingest
+      HARDWARE_API_KEY: ${HARDWARE_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
@@ -137,7 +165,7 @@ services:
         condition: service_healthy
 
   analytics:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/optigrid-analytics:latest
+    image: ghcr.io/local/optigrid-analytics:latest
     restart: unless-stopped
     command: ["python", "-m", "uvicorn", "backend.analytics.src.main:app", "--host", "0.0.0.0", "--port", "5001"]
     ports:
@@ -148,7 +176,7 @@ services:
       INFLUXDB_ORG: ${INFLUXDB_ORG}
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
       SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      SUPABASE_KEY: ${SUPABASE_KEY:-${SUPABASE_SERVICE_ROLE_KEY}}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
     depends_on:
@@ -159,3 +187,4 @@ services:
 
 volumes:
   mlflow_data:
+  influxdb_data:

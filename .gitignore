@@ -76,6 +76,7 @@ supabase/.temp/*
 scripts/run-core-integration.mjs
 
 infrastructure/docker/.data/
+infrastructure/.data/
 infrastructure/docker/.generated/
 
 .mypy_cache/

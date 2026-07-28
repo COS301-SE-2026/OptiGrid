@@ -4,11 +4,19 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["public"]
 }
 
 // ==========================================
 // ENUMS
 // ==========================================
+
+enum TelemetrySource {
+  PHYSICAL
+  EMULATOR
+  
+  @@schema("public")
+}
 
 enum UserRole {
   ADMIN            @map("Admin")
@@ -16,6 +24,7 @@ enum UserRole {
   VIEWER           @map("Viewer")
 
   @@map("user_role")
+  @@schema("public")
 }
 
 enum ThemePreference {
@@ -24,6 +33,7 @@ enum ThemePreference {
   SYSTEM @map("system")
 
   @@map("theme_preference")
+  @@schema("public")
 }
 
 // A user can deactivate their account without losing the profile and access
@@ -33,6 +43,7 @@ enum AccountStatus {
   DEACTIVATED @map("deactivated")
 
   @@map("account_status")
+  @@schema("public")
 }
 
 enum BuildingType {
@@ -44,6 +55,8 @@ enum BuildingType {
   Mixed_Use
   ShoppingCentre
   Other
+
+  @@schema("public")
 }
 
 enum SensorStatus {
@@ -52,6 +65,7 @@ enum SensorStatus {
   Maintenance
 
   @@map("sensor_status")
+  @@schema("public")
 }
 
 enum LifecycleState {
@@ -61,6 +75,7 @@ enum LifecycleState {
   INACTIVE            @map("inactive")
 
   @@map("lifecycle_state")
+  @@schema("public")
 }
 
 enum AnomalyStatus {
@@ -70,6 +85,7 @@ enum AnomalyStatus {
   Ignored
 
   @@map("anomaly_status")
+  @@schema("public")
 }
 
 enum RecommendationStatus {
@@ -78,6 +94,7 @@ enum RecommendationStatus {
   Dismissed
 
   @@map("recommendation_status")
+  @@schema("public")
 }
 
 enum NotificationChannel {
@@ -87,6 +104,7 @@ enum NotificationChannel {
   Push
 
   @@map("notification_channel")
+  @@schema("public")
 }
 
 // ==========================================
@@ -115,6 +133,7 @@ model User {
 
   @@index([tenantId])
   @@map("users")
+  @@schema("public")
 }
 
 model Tenant {
@@ -129,26 +148,28 @@ model Tenant {
   buildings Building[]
 
   @@map("tenants")
+  @@schema("public")
 }
 
 model Building {
-  building_id           String         @id @default(dbgenerated("gen_random_uuid()")) @map("building_id") @db.Uuid
-  tenant_id             String?        @map("tenant_id") @db.Uuid
-  building_name         String         @map("building_name") @db.VarChar
-  square_footage        Decimal?       @map("square_footage") @db.Decimal
-  physical_address      String?        @map("physical_address")
-  timezone              String?        @default("UTC") @db.VarChar
-  max_occupancy         Int?           @map("max_occupancy")
-  created_at            DateTime?      @default(now()) @map("created_at") @db.Timestamptz
-  updated_at            DateTime?      @default(now()) @map("updated_at") @db.Timestamptz
-  building_type         BuildingType?  @default(Residential) @map("building_type")
+  building_id           String          @id @default(dbgenerated("gen_random_uuid()")) @map("building_id") @db.Uuid
+  tenant_id             String?         @map("tenant_id") @db.Uuid
+  building_name         String          @map("building_name") @db.VarChar
+  square_footage        Decimal?        @map("square_footage") @db.Decimal
+  physical_address      String?         @map("physical_address")
+  timezone              String?         @default("UTC") @db.VarChar
+  max_occupancy         Int?            @map("max_occupancy")
+  created_at            DateTime?       @default(now()) @map("created_at") @db.Timestamptz
+  updated_at            DateTime?       @default(now()) @map("updated_at") @db.Timestamptz
+  building_type         BuildingType?   @default(Residential) @map("building_type")
   latitude              Float?
   longitude             Float?
-  geohash               String?        @db.VarChar
-  nominal_voltage       Float?         @default(230) @map("nominal_voltage")
-  max_current_threshold Float?         @default(60) @map("max_current_threshold")
-  hardware_auth_token   String?        @map("hardware_auth_token") @db.VarChar
-  lifecycle_state       LifecycleState @default(PROVISIONING) @map("lifecycle_state")
+  geohash               String?         @db.VarChar
+  nominal_voltage       Float?          @default(230) @map("nominal_voltage")
+  max_current_threshold Float?          @default(60) @map("max_current_threshold")
+  hardware_auth_token   String?         @map("hardware_auth_token") @db.VarChar
+  lifecycle_state       LifecycleState  @default(PROVISIONING) @map("lifecycle_state")
+  telemetry_source      TelemetrySource @default(EMULATOR)
 
   // Relations
   tenant              Tenant?                      @relation(fields: [tenant_id], references: [tenantId], onDelete: Cascade)
@@ -164,6 +185,7 @@ model Building {
 
   @@index([tenant_id])
   @@map("buildings")
+  @@schema("public")
 }
 
 model UserBuildingAccess {
@@ -177,6 +199,7 @@ model UserBuildingAccess {
 
   @@unique([user_id, building_id])
   @@map("user_building_access")
+  @@schema("public")
 }
 
 model Sensor {
@@ -197,6 +220,7 @@ model Sensor {
 
   @@index([building_id])
   @@map("sensors")
+  @@schema("public")
 }
 
 model AlertThreshold {
@@ -216,6 +240,7 @@ model AlertThreshold {
   anomalies Anomaly[]
 
   @@map("alert_thresholds")
+  @@schema("public")
 }
 
 model Anomaly {
@@ -239,6 +264,7 @@ model Anomaly {
   notifications    Notification[]
 
   @@map("anomalies")
+  @@schema("public")
 }
 
 model AuditLog {
@@ -255,6 +281,7 @@ model AuditLog {
   user User? @relation(fields: [user_id], references: [userId], onDelete: SetNull)
 
   @@map("audit_logs")
+  @@schema("public")
 }
 
 model MaintenanceWindow {
@@ -268,6 +295,7 @@ model MaintenanceWindow {
   building Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("maintenance_windows")
+  @@schema("public")
 }
 
 model Notification {
@@ -283,6 +311,7 @@ model Notification {
   user    User?    @relation(fields: [user_id], references: [userId], onDelete: Cascade)
 
   @@map("notifications")
+  @@schema("public")
 }
 
 model OptimisationRecommendation {
@@ -298,6 +327,7 @@ model OptimisationRecommendation {
   building Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("optimisation_recommendations")
+  @@schema("public")
 }
 
 model UtilityTariff {
@@ -316,6 +346,7 @@ model UtilityTariff {
   building Building? @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("utility_tariffs")
+  @@schema("public")
 }
 
 model BuildingAnalyticsWeekly {
@@ -336,6 +367,7 @@ model BuildingAnalyticsWeekly {
   building Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("building_analytics_weekly")
+  @@schema("public")
 }
 
 model BuildingAnalyticsMonthly {
@@ -356,4 +388,5 @@ model BuildingAnalyticsMonthly {
   building Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
 
   @@map("building_analytics_monthly")
+  @@schema("public")
 }
