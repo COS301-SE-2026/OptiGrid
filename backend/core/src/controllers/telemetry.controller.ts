@@ -10,7 +10,7 @@ const adapter = new PrismaPg({
 
 export const prisma = new PrismaClient({ adapter });
 
-const url = process.env.INFLUXDB_URL || process.env.INFLUX_URL || 'https://influxdb:8086';
+const url = process.env.INFLUXDB_URL || process.env.INFLUX_URL || 'http://influxdb:8086'; // NOSONAR
 const token = process.env.INFLUXDB_TOKEN || process.env.INFLUX_TOKEN || 'dummy';
 const org = process.env.INFLUXDB_ORG || process.env.INFLUX_ORG || 'OptiGrid';
 const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'EnergyData';

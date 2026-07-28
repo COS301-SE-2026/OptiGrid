@@ -158,8 +158,12 @@ export default function RealtimePage() {
     const [filter, setFilter] = useState<Filter>("all");
     //we track a refreshes done by the user only so that the automatic background poll does not trigger the refresh animation
     const [isManualRefreshing, setIsManualRefreshing] = useState(false);
-    const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
+    const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
     const [latestReadings, setLatestReadings] = useState<Record<string, { currentKw: number; timestamp: string }>>({});
+
+    useEffect(() => {
+        setLastRefreshedAt(new Date());
+    }, []);
 
     const { data: baseBuildings = [], isLoading: isMetadataLoading, isError, error, refetch } = useQuery({
         queryKey: ["buildings-metadata"],
@@ -267,7 +271,7 @@ export default function RealtimePage() {
                     <p className="text-muted">
                         {error instanceof Error ? error.message : "Unable to load readings."}
                     </p>
-                    <button type="button"className="btn btn-secondary" onClick={() => refetch()} style={{ marginTop: 12 }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => refetch()} style={{ marginTop: 12 }}>
                         Try again
                     </button>
                 </div>

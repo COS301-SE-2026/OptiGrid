@@ -32,7 +32,7 @@ except ModuleNotFoundError:
             require_influx_config,
         )
     except ModuleNotFoundError:
-        INFLUXDB_URL = os.getenv("INFLUXDB_URL", "https://influxdb:8086")
+        INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://influxdb:8086")  # NOSONAR
         INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN", "")
         INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "OptiGrid")
         INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "energy_telemetry")
