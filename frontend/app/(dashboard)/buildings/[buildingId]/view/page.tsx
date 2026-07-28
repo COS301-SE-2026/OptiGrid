@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, use, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
 
@@ -82,9 +82,22 @@ function formatZar(value: number | null | undefined): string {
 export default function ViewBuildingPage({
     params,
 }: {
-    params: Promise<{ buildingId: string }>;
+    params: Promise<{ buildingId: string }> | { buildingId: string };
 }) {
-    const { buildingId } = use(params);
+    const [buildingId, setBuildingId] = useState<string>("");
+
+    useEffect(() => {
+        let isMounted = true;
+        Promise.resolve(params).then((resolved) => {
+            if (isMounted && resolved?.buildingId) {
+                setBuildingId(resolved.buildingId);
+            }
+        });
+        return () => {
+            isMounted = false;
+        };
+    }, [params]);
+
     const { liveData, error: sseError, isConnected } = useTelemetryStream(buildingId);
 
     const [loading, setLoading] = useState(true);
@@ -99,6 +112,7 @@ export default function ViewBuildingPage({
     const [consumptionError, setConsumptionError] = useState("");
 
     useEffect(() => {
+        if (!buildingId) return;
         let isMounted = true;
 
         const load = async () => {
@@ -141,6 +155,7 @@ export default function ViewBuildingPage({
     }, [buildingId]);
 
     useEffect(() => {
+        if (!buildingId) return;
         let isMounted = true;
 
         const loadConsumption = async () => {
@@ -191,7 +206,7 @@ export default function ViewBuildingPage({
         };
     }, [buildingId, timeRange]);
 
-    if (loading) {
+    if (loading && !error) {
         return (
             <div className="card">
                 <p className="text-muted">Loading building details...</p>

@@ -1,3 +1,8 @@
+
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/optigrid_test?schema=public";
+}
+
 import { forwardToIngestionService } from '../../../backend/core/src/services/sensor.services';
 
 describe('sensor service unit tests', () => {

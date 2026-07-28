@@ -4,6 +4,14 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import ViewBuildingPage from "./page";
 
+jest.mock("@/lib/useTelemetryStream", () => ({
+    useTelemetryStream: jest.fn().mockReturnValue({
+        liveData: null,
+        isConnected: true,
+        error: null,
+    }),
+}));
+
 jest.mock("next/link", () => ({
   __esModule: true,
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
