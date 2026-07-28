@@ -6,7 +6,7 @@ load_dotenv()
 
 isDocker = os.path.exists("/.dockerenv" )
 
-_raw_influx_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
+_raw_influx_url = os.getenv("INFLUXDB_URL", "https://influxdb:8086")
 if not isDocker and "influxdb" in _raw_influx_url:
     INFLUXDB_URL = _raw_influx_url.replace("influxdb", "localhost")
 elif isDocker and "localhost" in _raw_influx_url:

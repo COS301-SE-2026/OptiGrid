@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom";
 
-if (typeof global.EventSource === "undefined") {
+if (global.EventSource === undefined) {
     class MockEventSource {
         url: string;
         onopen: (() => void) | null = null;

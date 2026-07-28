@@ -27,6 +27,7 @@ type RawBuilding = {
 
 // how often we poll the API for fresh readings. I have it currentlt at 10 seconds
 const REFETCH_METADATA_MS = 60_000;
+const SKELETON_KEYS = ["sk-1", "sk-2", "sk-3", "sk-4", "sk-5", "sk-6"];
 
 // this maps each status to its badge class and its accent colour
 const STATUS_STYLES: Record<BuildingStatus, { badge: string; color: string }> = {
@@ -249,6 +250,74 @@ export default function RealtimePage() {
         .filter((building) => (filter === "alerts" ? building.status !== "Normal" : true))
         .sort((a, b) => (b.currentKw ?? b.todayKwh ?? -1) - (a.currentKw ?? a.todayKwh ?? -1));
 
+    const renderMainContent = () => {
+        if (isMetadataLoading) {
+            return (
+                <div style={GRID_STYLE}>
+                    {SKELETON_KEYS.map((key) => (
+                        <Skeleton key={key} height={180} />
+                    ))}
+                </div>
+            );
+        }
+
+        if (isError) {
+            return (
+                <div className="card dashboard-empty">
+                    <p className="text-muted">
+                        {error instanceof Error ? error.message : "Unable to load readings."}
+                    </p>
+                    <button className="btn btn-secondary" onClick={() => refetch()} style={{ marginTop: 12 }}>
+                        Try again
+                    </button>
+                </div>
+            );
+        }
+
+        if (mergedBuildings.length === 0) {
+            return (
+                <div className="card dashboard-empty">
+                    <p className="text-muted">No buildings to monitor. Add a building to get started.</p>
+                </div>
+            );
+        }
+
+        return (
+            <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 8 }}>
+                        <button type="button" className={`live-chip ${filter === "all" ? "on" : ""}`} onClick={() => setFilter("all")}>
+                            All ({mergedBuildings.length})
+                        </button>
+                        <button
+                            type="button"
+                            className={`live-chip ${filter === "alerts" ? "on" : ""}`}
+                            onClick={() => setFilter("alerts")}
+                            disabled={alertCount === 0}
+                        >
+                            Alerts ({alertCount})
+                        </button>
+                    </div>
+                    <span className="text-muted" style={{ fontSize: "0.72rem" }}>
+                        Sorted by live active power (kW)
+                    </span>
+                </div>
+
+                {visibleBuildings.length === 0 ? (
+                    <div className="card dashboard-empty">
+                        <p className="text-muted">No buildings with active alerts.</p>
+                    </div>
+                ) : (
+                    <div style={GRID_STYLE}>
+                        {visibleBuildings.map((building) => (
+                            <BuildingCard key={building.id} building={building} />
+                        ))}
+                    </div>
+                )}
+            </>
+        );
+    };
+
     return (
         <>
             <div className="card" style={{ marginBottom: 20 }}>
@@ -269,55 +338,7 @@ export default function RealtimePage() {
                 </div>
             </div>
 
-            {isMetadataLoading ? (
-                <div style={GRID_STYLE}>
-                    {[...Array(6)].map((_, index) => <Skeleton key={index} height={180} />)}
-                </div>
-            ) : isError ? (
-                <div className="card dashboard-empty">
-                    <p className="text-muted">
-                        {error instanceof Error ? error.message : "Unable to load readings."}
-                    </p>
-                    <button className="btn btn-secondary" onClick={() => refetch()} style={{ marginTop: 12 }}>Try again</button>
-                </div>
-            ) : mergedBuildings.length === 0 ? (
-                <div className="card dashboard-empty">
-                    <p className="text-muted">No buildings to monitor. Add a building to get started.</p>
-                </div>
-            ) : (
-                <>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-                        <div style={{ display: "flex", gap: 8 }}>
-                            <button type="button" className={`live-chip ${filter === "all" ? "on" : ""}`} onClick={() => setFilter("all")}>
-                                All ({mergedBuildings.length})
-                            </button>
-                            <button
-                                type="button"
-                                className={`live-chip ${filter === "alerts" ? "on" : ""}`}
-                                onClick={() => setFilter("alerts")}
-                                disabled={alertCount === 0}
-                            >
-                                Alerts ({alertCount})
-                            </button>
-                        </div>
-                        <span className="text-muted" style={{ fontSize: "0.72rem" }}>
-                            Sorted by live active power (kW)
-                        </span>
-                    </div>
-
-                    {visibleBuildings.length === 0 ? (
-                        <div className="card dashboard-empty">
-                            <p className="text-muted">No buildings with active alerts.</p>
-                        </div>
-                    ) : (
-                        <div style={GRID_STYLE}>
-                            {visibleBuildings.map((building) => (
-                                <BuildingCard key={building.id} building={building} />
-                            ))}
-                        </div>
-                    )}
-                </>
-            )}
+            {renderMainContent()}
         </>
     );
 }
