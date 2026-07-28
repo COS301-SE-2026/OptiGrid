@@ -267,7 +267,7 @@ export default function RealtimePage() {
                     <p className="text-muted">
                         {error instanceof Error ? error.message : "Unable to load readings."}
                     </p>
-                    <button className="btn btn-secondary" onClick={() => refetch()} style={{ marginTop: 12 }}>
+                    <button type="button"className="btn btn-secondary" onClick={() => refetch()} style={{ marginTop: 12 }}>
                         Try again
                     </button>
                 </div>
@@ -332,7 +332,7 @@ export default function RealtimePage() {
                         </div>
                     </div>
 
-                    <button className="btn btn-secondary" onClick={handleManualRefresh} disabled={isManualRefreshing}>
+                    <button type="button" className="btn btn-secondary" onClick={handleManualRefresh} disabled={isManualRefreshing}>
                         {isManualRefreshing ? "Refreshing..." : "Refresh"}
                     </button>
                 </div>

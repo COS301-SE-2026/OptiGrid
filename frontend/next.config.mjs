@@ -4,7 +4,7 @@ const nextConfig = {
         const coreApiUrl =
             process.env.CORE_API_URL ||
             process.env.NEXT_PUBLIC_CORE_API_URL ||
-            "http://core:4000";
+            "https://core:4000";
 
         return [
             {
