@@ -91,8 +91,8 @@ describe("Telemetry Controller Unit Tests", () => {
             });
         });
 
-        it("returns graceful empty dataset when InfluxDB query fails", () => {
-            (mockInfluxQueryApi.queryRows as jest.Mock).mockImplementation((query, callbacks) => {
+        it("returns graceful empty dataset when InfluxDB query fails", async () => {
+            mockQueryRows.mockImplementation((query, callbacks) => {
                 callbacks.error(new Error("InfluxDB connection failed"));
             });
 

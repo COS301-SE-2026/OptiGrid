@@ -71,7 +71,7 @@ def seeded_cost_zar(usage_kwh: float) -> float:
 
 def get_building_profile(building_id: str) -> dict:
     """Derive a unique, deterministic profile parameters from building UUID hash."""
-    h = int(hashlib.md5(building_id.encode("utf-8")).hexdigest(), 16)
+    h = int(hashlib.sha256(building_id.encode("utf-8")).hexdigest(), 16)
     
     # base load: 12.0 kW to 65.0 kW
     base_kw = 12.0 + ((h % 5300) / 100.0)

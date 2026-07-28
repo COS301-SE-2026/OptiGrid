@@ -32,7 +32,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_building_profile(building_id: str) -> dict:
     """same deterministic parameter generator matching seeder.py"""
-    h = int(hashlib.md5(building_id.encode("utf-8")).hexdigest(), 16)
+    h = int(hashlib.sha256(building_id.encode("utf-8")).hexdigest(), 16)
     
     base_kw = 12.0 + ((h % 5300) / 100.0)
     amplitude_kw = 6.0 + (((h >> 16) % 1800) / 100.0)
