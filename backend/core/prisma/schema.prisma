@@ -43,6 +43,7 @@ enum AccountStatus {
   DEACTIVATED @map("deactivated")
 
   @@map("account_status")
+  @@schema("public")
 }
 
 enum BuildingType {
@@ -151,23 +152,23 @@ model Tenant {
 }
 
 model Building {
-  building_id           String         @id @default(dbgenerated("gen_random_uuid()")) @map("building_id") @db.Uuid
-  tenant_id             String?        @map("tenant_id") @db.Uuid
-  building_name         String         @map("building_name") @db.VarChar
-  square_footage        Decimal?       @map("square_footage") @db.Decimal
-  physical_address      String?        @map("physical_address")
-  timezone              String?        @default("UTC") @db.VarChar
-  max_occupancy         Int?           @map("max_occupancy")
-  created_at            DateTime?      @default(now()) @map("created_at") @db.Timestamptz
-  updated_at            DateTime?      @default(now()) @map("updated_at") @db.Timestamptz
-  building_type         BuildingType?  @default(Residential) @map("building_type")
+  building_id           String          @id @default(dbgenerated("gen_random_uuid()")) @map("building_id") @db.Uuid
+  tenant_id             String?         @map("tenant_id") @db.Uuid
+  building_name         String          @map("building_name") @db.VarChar
+  square_footage        Decimal?        @map("square_footage") @db.Decimal
+  physical_address      String?         @map("physical_address")
+  timezone              String?         @default("UTC") @db.VarChar
+  max_occupancy         Int?            @map("max_occupancy")
+  created_at            DateTime?       @default(now()) @map("created_at") @db.Timestamptz
+  updated_at            DateTime?       @default(now()) @map("updated_at") @db.Timestamptz
+  building_type         BuildingType?   @default(Residential) @map("building_type")
   latitude              Float?
   longitude             Float?
-  geohash               String?        @db.VarChar
-  nominal_voltage       Float?         @default(230) @map("nominal_voltage")
-  max_current_threshold Float?         @default(60) @map("max_current_threshold")
-  hardware_auth_token   String?        @map("hardware_auth_token") @db.VarChar
-  lifecycle_state       LifecycleState @default(PROVISIONING) @map("lifecycle_state")
+  geohash               String?         @db.VarChar
+  nominal_voltage       Float?          @default(230) @map("nominal_voltage")
+  max_current_threshold Float?          @default(60) @map("max_current_threshold")
+  hardware_auth_token   String?         @map("hardware_auth_token") @db.VarChar
+  lifecycle_state       LifecycleState  @default(PROVISIONING) @map("lifecycle_state")
   telemetry_source      TelemetrySource @default(EMULATOR)
 
   // Relations
