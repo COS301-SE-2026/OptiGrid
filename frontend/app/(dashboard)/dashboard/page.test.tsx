@@ -180,7 +180,7 @@ describe("DashboardPage", () => {
 
      fireEvent.click(screen.getByText("Sandton HQ"));
 
-    expect(mockPush).toHaveBeenCalledWith("/buildings/1/view");
+    expect(mockPush).toHaveBeenCalledWith(expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/buildings\/1\/view$/));
 
 
 

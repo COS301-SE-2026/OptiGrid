@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getTabSessionCookiePath, isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
 
 const CORE_URL = process.env.CORE_URL ?? "http://localhost:4000";
 const SESSION_COOKIE_NAME = "optigrid_session";
@@ -11,6 +12,8 @@ type LoginBody = {
 };
 
 export async function POST(request: Request) {
+	const requestedTabSessionId = request.headers.get(TAB_SESSION_HEADER);
+	const tabSessionId = isTabSessionId(requestedTabSessionId) ? requestedTabSessionId : null;
 	let body: LoginBody;
 
 	try {
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === "production",
 				sameSite: "lax",
-				path: "/",
+				path: getTabSessionCookiePath(tabSessionId),
 				maxAge: SESSION_MAX_AGE_SECONDS,
 			});
 		}
@@ -65,7 +68,7 @@ export async function POST(request: Request) {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === "production",
 				sameSite: "lax",
-				path: "/",
+				path: getTabSessionCookiePath(tabSessionId),
 				maxAge: SESSION_MAX_AGE_SECONDS,
 			});
 		}

@@ -14,6 +14,7 @@ import {
     YAxis,
 } from "recharts";
 import { buildDisplayName, type SessionUser } from "../../../lib/session";
+import { getTabSessionPath } from "../../../lib/tab-session";
 
 
 
@@ -528,7 +529,7 @@ export default function DashboardPage() {
                             <tbody>
                                 {buildingsWithTelemetry.map((building) => (
                                     <tr key={building.id}
-                                    onClick={() => router.push(`/buildings/${building.id}/view`)}
+                                    onClick={() => router.push(getTabSessionPath(`/buildings/${building.id}/view`))}
 
                                     >
                                         <td>

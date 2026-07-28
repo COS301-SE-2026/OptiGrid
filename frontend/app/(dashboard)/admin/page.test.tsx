@@ -123,7 +123,7 @@ describe("AdminPage", () => {
       render(<AdminPage />);
       await clickInRow("sandtonhq", /^edit$/i);
 
-      expect(pushMock).toHaveBeenCalledWith("/buildings/1/edit");
+      expect(pushMock).toHaveBeenCalledWith(expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/buildings\/1\/edit$/));
     });
   });
 

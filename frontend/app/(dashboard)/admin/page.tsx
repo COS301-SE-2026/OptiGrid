@@ -4,6 +4,7 @@ import { useState, useMemo,useEffect } from "react";
 import Link from "next/link";
 
 import { useRouter } from "next/navigation";
+import { getTabSessionPath } from "../../../lib/tab-session";
 
 
 type lifecycle_state = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED" | "INACTIVE";
@@ -77,7 +78,7 @@ export default function AdminPage() {
   }, [buildings]);
 
   const handleeditbuilding = (building: Building) => {
-    router.push(`/buildings/${building.building_id}/edit`)
+    router.push(getTabSessionPath(`/buildings/${building.building_id}/edit`))
   };
   //integration logic to delte building
   const handledeletebuilding = async (id: string) => {
