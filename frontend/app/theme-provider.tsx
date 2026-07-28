@@ -29,9 +29,9 @@ function getPreferredTheme(): Theme {
 }
 
 function applyTheme(theme: Theme): void {
-    const root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
-    root.setAttribute("data-theme", theme);
+	const root = document.documentElement;
+	root.classList.toggle("dark", theme === "dark");
+	root.dataset.theme = theme;
     root.style.colorScheme = theme;
 }
 
@@ -43,7 +43,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setTheme] = useState<Theme>("light");
 
     useEffect(() => {
-        const documentTheme = document.documentElement.getAttribute("data-theme");
+		const documentTheme = document.documentElement.dataset.theme ?? null;
         const initial = isTheme(documentTheme) ? documentTheme : getPreferredTheme();
         setTheme(initial);
         applyTheme(initial);

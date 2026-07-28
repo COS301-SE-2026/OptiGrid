@@ -11,6 +11,83 @@ type LoginBody = {
 	password?: unknown;
 };
 
+type LoginCredentials = {
+	email: string;
+	password: string;
+};
+
+type SessionUser = {
+	userId: string;
+	email: string;
+	firstName: string;
+	lastName: string;
+	roleType: string;
+};
+
+function getLoginCredentials(body: LoginBody): LoginCredentials | null {
+	const email = typeof body.email === "string" ? body.email.trim() : "";
+	const password = typeof body.password === "string" ? body.password : "";
+
+	return email && password ? { email, password } : null;
+}
+
+function getStringValue(value: unknown): string {
+	return typeof value === "string" ? value : "";
+}
+
+function getSessionUser(payload: Record<string, unknown>): SessionUser {
+	const user = payload.user as Record<string, unknown> | undefined;
+
+	return {
+		userId: getStringValue(user?.userId),
+		email: getStringValue(user?.email),
+		firstName: getStringValue(user?.firstName),
+		lastName: getStringValue(user?.lastName),
+		roleType: getStringValue(user?.roleType) || "VIEWER",
+	};
+}
+
+function setSessionCookie(
+	response: NextResponse,
+	user: SessionUser,
+	tabSessionId: string | null,
+): void {
+	if (!user.userId || !user.email) {
+		return;
+	}
+
+	response.cookies.set(
+		SESSION_COOKIE_NAME,
+		JSON.stringify(user),
+		{
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "production",
+			sameSite: "lax",
+			path: getTabSessionCookiePath(tabSessionId),
+			maxAge: SESSION_MAX_AGE_SECONDS,
+		},
+	);
+}
+
+function setAccessTokenCookie(
+	response: NextResponse,
+	payload: Record<string, unknown>,
+	tabSessionId: string | null,
+): void {
+	const accessToken = getStringValue(payload.accessToken);
+	if (!accessToken) {
+		return;
+	}
+
+	response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, accessToken, {
+		httpOnly: true,
+		secure: process.env.NODE_ENV === "production",
+		sameSite: "lax",
+		path: getTabSessionCookiePath(tabSessionId),
+		maxAge: SESSION_MAX_AGE_SECONDS,
+	});
+}
+
 export async function POST(request: Request) {
 	const requestedTabSessionId = request.headers.get(TAB_SESSION_HEADER);
 	const tabSessionId = isTabSessionId(requestedTabSessionId) ? requestedTabSessionId : null;
@@ -22,10 +99,8 @@ export async function POST(request: Request) {
 		return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
 	}
 
-	const email = typeof body.email === "string" ? body.email.trim() : "";
-	const password = typeof body.password === "string" ? body.password : "";
-
-	if (!email || !password) {
+	const credentials = getLoginCredentials(body);
+	if (!credentials) {
 		return NextResponse.json({ message: "Email and password are required fields." }, { status: 400 });
 	}
 
@@ -35,7 +110,7 @@ export async function POST(request: Request) {
 			headers: {
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({ email, password }),
+			body: JSON.stringify(credentials),
 			cache: "no-store",
 		});
 
@@ -44,33 +119,9 @@ export async function POST(request: Request) {
 		}))) as Record<string, unknown>;
 
 		const response = NextResponse.json(payload, { status: coreResponse.status });
-		const maybeUser = payload.user as Record<string, unknown> | undefined;
-		const userId = typeof maybeUser?.userId === "string" ? maybeUser.userId : "";
-		const emailValue = typeof maybeUser?.email === "string" ? maybeUser.email : "";
-		const firstName = typeof maybeUser?.firstName === "string" ? maybeUser.firstName : "";
-		const lastName = typeof maybeUser?.lastName === "string" ? maybeUser.lastName : "";
-		const roleType = typeof maybeUser?.roleType === "string" ? maybeUser.roleType : "VIEWER"
-
-		if (coreResponse.ok && userId && emailValue) {
-			const sessionPayload = JSON.stringify({ userId, email: emailValue, firstName, lastName, roleType });
-			response.cookies.set(SESSION_COOKIE_NAME, sessionPayload, {
-				httpOnly: true,
-				secure: process.env.NODE_ENV === "production",
-				sameSite: "lax",
-				path: getTabSessionCookiePath(tabSessionId),
-				maxAge: SESSION_MAX_AGE_SECONDS,
-			});
-		}
-
-		const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
-		if (coreResponse.ok && accessToken) {
-			response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, accessToken, {
-				httpOnly: true,
-				secure: process.env.NODE_ENV === "production",
-				sameSite: "lax",
-				path: getTabSessionCookiePath(tabSessionId),
-				maxAge: SESSION_MAX_AGE_SECONDS,
-			});
+		if (coreResponse.ok) {
+			setSessionCookie(response, getSessionUser(payload), tabSessionId);
+			setAccessTokenCookie(response, payload, tabSessionId);
 		}
 
 		return response;
