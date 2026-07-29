@@ -1,6 +1,6 @@
 import RealtimePage from "./page";
 import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
 
@@ -115,48 +115,23 @@ describe("Sorting", () => {
         expectOrder(["Midrand Warehouse", "Sandton Office", "Rosebank Store"]);
     });
 });
-describe("Filtering", () => {
-    it("only keeps the buildings in alert state once the alerts filter is on", async () => {
+describe("Building list", () => {
+    it("shows every building with the total count without an alerts filter", async () => {
         mockBuildings([sandtonOffice, midrandWarehouse, rosebankStore]);
         renderPage();
         await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
-        fireEvent.click(screen.getByRole("button", { name: /alerts \(2\)/i }));
-
-        expect(screen.queryByText("Sandton Office")).not.toBeInTheDocument();
+        // the alerts filter is removed forr now until anomaly detection is implemented later
+        expect(screen.queryByRole("button", { name: /alerts/i })).not.toBeInTheDocument();
+        expect(screen.getByText(/all \(3\)/i)).toBeInTheDocument();
         expect(screen.getByText("Midrand Warehouse")).toBeInTheDocument();
         expect(screen.getByText("Rosebank Store")).toBeInTheDocument();
     });
 
-    it("makes the alert filter's color grey when nothing is in alert", async () => {
+    it("does not render a manual refresh button", async () => {
         mockBuildings([sandtonOffice]);
         renderPage();
         await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
-        expect(screen.getByRole("button", { name: /alerts \(0\)/i })).toBeDisabled();
-    });
-
-    it("brings everyone back when you switch to All", async () => {
-        mockBuildings([sandtonOffice, midrandWarehouse, rosebankStore]);
-        renderPage();
-        await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
-
-        fireEvent.click(screen.getByRole("button", { name: /alerts \(2\)/i }));
-        fireEvent.click(screen.getByRole("button", { name: /all \(3\)/i }));
-        expect(screen.getByText("Sandton Office")).toBeInTheDocument();
-    });
-});
-
-describe("Manual refresh", () => {
-    it("fetches again when you hit Refresh", async () => {
-        mockBuildings([sandtonOffice]);
-        renderPage();
-        await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
-
-        const callsSoFar = (global.fetch as jest.Mock).mock.calls.length;
-        fireEvent.click(screen.getByRole("button", { name: /^refresh$/i }));
-
-        await waitFor(() =>
-            expect((global.fetch as jest.Mock).mock.calls.length).toBeGreaterThan(callsSoFar),
-        );
+        expect(screen.queryByRole("button", { name: /^refresh$/i })).not.toBeInTheDocument();
     });
 });
 

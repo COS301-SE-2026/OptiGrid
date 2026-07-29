@@ -152,12 +152,7 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
     );
 }
 
-type Filter = "all" | "alerts";
-
 export default function RealtimePage() {
-    const [filter, setFilter] = useState<Filter>("all");
-    //we track a refreshes done by the user only so that the automatic background poll does not trigger the refresh animation
-    const [isManualRefreshing, setIsManualRefreshing] = useState(false);
     const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
     const [latestReadings, setLatestReadings] = useState<Record<string, { currentKw: number; timestamp: string }>>({});
 
@@ -220,14 +215,6 @@ export default function RealtimePage() {
         }
     }, [isConnected]);
 
-    const handleManualRefresh = () => {
-        setIsManualRefreshing(true);
-        refetch().finally(() => {
-            setIsManualRefreshing(false);
-            setLastRefreshedAt(new Date());
-        });
-    };
-
     const mergedBuildings: Building[] = baseBuildings.map((b) => {
         let currentKw = null;
         let isStale = false;
@@ -248,10 +235,7 @@ export default function RealtimePage() {
         return { ...b, currentKw, status };
     });
 
-    const alertCount = mergedBuildings.filter((b) => b.status !== "Normal").length;
-
     const visibleBuildings = [...mergedBuildings]
-        .filter((building) => (filter === "alerts" ? building.status !== "Normal" : true))
         .sort((a, b) => (b.currentKw ?? b.todayKwh ?? -1) - (a.currentKw ?? a.todayKwh ?? -1));
 
     const renderMainContent = () => {
@@ -289,35 +273,19 @@ export default function RealtimePage() {
         return (
             <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                        <button type="button" className={`live-chip ${filter === "all" ? "on" : ""}`} onClick={() => setFilter("all")}>
-                            All ({mergedBuildings.length})
-                        </button>
-                        <button
-                            type="button"
-                            className={`live-chip ${filter === "alerts" ? "on" : ""}`}
-                            onClick={() => setFilter("alerts")}
-                            disabled={alertCount === 0}
-                        >
-                            Alerts ({alertCount})
-                        </button>
-                    </div>
+                    <span className="live-chip on">
+                        All ({mergedBuildings.length})
+                    </span>
                     <span className="text-muted" style={{ fontSize: "0.72rem" }}>
                         Sorted by live active power (kW)
                     </span>
                 </div>
 
-                {visibleBuildings.length === 0 ? (
-                    <div className="card dashboard-empty">
-                        <p className="text-muted">No buildings with active alerts.</p>
-                    </div>
-                ) : (
-                    <div style={GRID_STYLE}>
-                        {visibleBuildings.map((building) => (
-                            <BuildingCard key={building.id} building={building} />
-                        ))}
-                    </div>
-                )}
+                <div style={GRID_STYLE}>
+                    {visibleBuildings.map((building) => (
+                        <BuildingCard key={building.id} building={building} />
+                    ))}
+                </div>
             </>
         );
     };
@@ -336,9 +304,6 @@ export default function RealtimePage() {
                         </div>
                     </div>
 
-                    <button type="button" className="btn btn-secondary" onClick={handleManualRefresh} disabled={isManualRefreshing}>
-                        {isManualRefreshing ? "Refreshing..." : "Refresh"}
-                    </button>
                 </div>
             </div>
 
