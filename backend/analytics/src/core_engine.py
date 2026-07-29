@@ -117,7 +117,7 @@ class AnalyticsEngine:
                 time_factor = np.sin((hour - 6) * np.pi / 12)
                 base_load = 25.0
                 multiplier = 12.0
-                noise = rng.uniform(-3.0, 3.0)
+                noise = rng.normal(loc=-3.0, scale=3.0)
                 
                 raw_usage = max(1.5, base_load + (multiplier * time_factor) + noise)
                 cost_zar = round(raw_usage * UTILITY_RATE_KWH, 2)

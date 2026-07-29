@@ -10,7 +10,7 @@ const token = process.env.INFLUXDB_TOKEN || process.env.INFLUX_TOKEN || 'example
 const org = process.env.INFLUXDB_ORG || process.env.INFLUX_ORG || 'optigrid';
 const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'energy_data';
 
-const allowedTimeRanges = new Set(['7d', '30d', '90d', '1y']);
+const allowedTimeRanges = new Set(['1d', '7d', '30d', '90d', '1y']);
 const telemetryMeasurements = ['energy_consumption', 'building_energy_usage', 'energy_telemetry'];
 const usageFields = ['usage', 'usage_kwh'];
 const costFields = ['cost_usd', 'cost_zar'];
@@ -90,6 +90,7 @@ async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: s
         |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(telemetryFields)}))
+        |> integral(unit: 1h)
         |> group(columns: ["_field"])
         |> sum()
     `;
@@ -133,7 +134,7 @@ async function queryBucketPeakUsage(
         |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(usageFields)}))
-        |> aggregateWindow(every: 1h, fn: sum, createEmpty: false)
+        |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
         |> group(columns: ["_time"])
         |> sum(column: "_value")
         |> group()
@@ -190,7 +191,7 @@ async function queryBucketUsageSeries(
         |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(telemetryFields)}))
-        |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: sum, createEmpty: false)
+        |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
         |> keep(columns: ["_time", "_field", "_value"])
     `;
 

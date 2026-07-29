@@ -143,11 +143,15 @@ def seed_calculated_buildings(building_ids: list, days_back: int = 14):
             adjusted_hour = hour_fraction + prof["phase_shift_hrs"]
             time_factor = np.sin((adjusted_hour - 6.0) * np.pi / 12.0)
             
-            # Seeded noise
-            noise = rng.uniform(-0.8, 0.8)
-            power_kw = max(1.0, prof["base_kw"] + (prof["amplitude_kw"] * time_factor) + noise)
+            evening_bump = np.exp(-0.5 * ((adjusted_hour - 18.0) / 2.0)**2) * 0.4
+            weekday = current_time.weekday()
+            weekend_factor = 0.6 if weekday >= 5 else 1.0
             
-            voltage_v = round(prof["nominal_voltage"] + rng.normal(0.0, 0.8), 2)
+            noise = rng.normal(loc=0.0, scale=max(0.8, prof["amplitude_kw"] * 0.15))
+            
+            power_kw = max(1.0, (prof["base_kw"] + (prof["amplitude_kw"] * (time_factor + evening_bump))) * weekend_factor + noise)
+            
+            voltage_v = round(prof["nominal_voltage"] + rng.normal(loc=0.0, scale=0.8), 2)
             current_a = round((power_kw * 1000.0) / voltage_v, 2)
             cost_zar = round(power_kw * SEEDER_COST_ZAR_PER_KWH, 2)
 

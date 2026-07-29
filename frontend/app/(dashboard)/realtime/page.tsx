@@ -135,7 +135,7 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
                     <span className="dashboard-kpi-value" style={{ fontSize: "1.05rem", lineHeight: 1 }}>
-                        {building.todayKwh ?? "--"}
+                        {building.todayKwh !== null && building.todayKwh !== undefined ? building.todayKwh.toFixed(2) : "--"}
                     </span>
                     <span className="text-muted" style={{ fontSize: "0.75rem", fontWeight: 500 }}>
                         kWh today
