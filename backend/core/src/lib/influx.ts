@@ -242,7 +242,7 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
 
     const normalizedRange = normalizeTimeRange(timeRange);
     const influxClient = new InfluxDB({ url, token });
-    const queryApi = influxClient.getQueryApi(org);
+    const queryApi = influxClient.getQueryApi(org, {timeout: 30000});
     const bucketsToTry = uniqueBuckets(buildingId);
     let lastError: unknown;
 
