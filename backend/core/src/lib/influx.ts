@@ -108,6 +108,12 @@ async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: s
         total_cost_zar: 0,
     };
 
+    // Some of the writers send the same reading under both "usage" and "usage_kwh" on the very same point. now we only use one of them
+    //thats why our site was reporting double energy readings
+    let usageTotal = 0;
+    let usageKwhTotal = 0;
+    let gotUsageField = false;
+
     for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
         const rowObject = tableMeta.toObject(values);
         const field = String(rowObject._field);
@@ -117,14 +123,20 @@ async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: s
             continue;
         }
 
-        if (usageFields.includes(field)) {
-            totals.total_kwh += value;
+        if (field === 'usage') {
+            usageTotal += value;
+            gotUsageField = true;
+        } else if (field === 'usage_kwh') {
+            usageKwhTotal += value;
         } else if (field === 'cost_usd') {
             totals.total_cost_usd += value;
         } else if (field === 'cost_zar') {
             totals.total_cost_zar += value;
         }
     }
+
+    // "usage" is the field we get from the live ingestion so it is preferred and "usage_kwh" is only used when a data source ingest this field alone
+    totals.total_kwh = gotUsageField ? usageTotal : usageKwhTotal;
 
     return totals;
 }
@@ -135,6 +147,8 @@ async function queryBucketPeakUsage(
     timeRange: string,
     bucketName: string,
 ): Promise<PeakUsageTime[]> {
+    // two grouping stages. the first sums each usage field across every sensor in the building for multi sensor buidlings. 
+    // The second takes the max across the usage field names so we dont count double for writers that write both usage and usagekwh
     const fluxQuery = `
         import "date"
         from(bucket: ${fluxString(bucketName)})
@@ -144,8 +158,10 @@ async function queryBucketPeakUsage(
         |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(usageFields)}))
         |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
         |> map(fn: (r) => ({ r with _value: r._value * 1.0 }))
-        |> group(columns: ["_time"])
+        |> group(columns: ["_time", "_field"])
         |> sum(column: "_value")
+        |> group(columns: ["_time"])
+        |> max(column: "_value")
         |> group()
         |> sort(columns: ["_value"], desc: true)
         |> limit(n: 5)
@@ -206,7 +222,8 @@ async function queryBucketUsageSeries(
         |> keep(columns: ["_time", "_field", "_value"])
     `;
 
-    const points = new Map<string, { kwh: number; costZar: number; costUsd: number }>();
+    // "usage" and "usage_kwh" are tracked separately per point here as well
+    const points = new Map<string, { usage: number; usageKwh: number; sawUsage: boolean; costZar: number; costUsd: number }>();
 
     for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
         const rowObject = tableMeta.toObject(values);
@@ -218,9 +235,12 @@ async function queryBucketUsageSeries(
             continue;
         }
 
-        const point = points.get(timestamp) ?? { kwh: 0, costZar: 0, costUsd: 0 };
-        if (usageFields.includes(field)) {
-            point.kwh += value;
+        const point = points.get(timestamp) ?? { usage: 0, usageKwh: 0, sawUsage: false, costZar: 0, costUsd: 0 };
+        if (field === 'usage') {
+            point.usage += value;
+            point.sawUsage = true;
+        } else if (field === 'usage_kwh') {
+            point.usageKwh += value;
         } else if (field === 'cost_zar') {
             point.costZar += value;
         } else if (field === 'cost_usd') {
@@ -231,11 +251,14 @@ async function queryBucketUsageSeries(
 
     return Array.from(points.entries())
         .sort(([left], [right]) => left.localeCompare(right))
-        .map(([timestamp, point]) => ({
-            timestamp,
-            kwh: point.kwh,
-            cost_zar: point.costZar > 0 ? point.costZar : (point.costUsd > 0 ? point.costUsd : point.kwh * UTILITY_COST_ZAR_PER_KWH),
-        }));
+        .map(([timestamp, point]) => {
+            const kwh = point.sawUsage ? point.usage : point.usageKwh;
+            return {
+                timestamp,
+                kwh,
+                cost_zar: point.costZar > 0 ? point.costZar : (point.costUsd > 0 ? point.costUsd : kwh * UTILITY_COST_ZAR_PER_KWH),
+            };
+        });
 }
 
 // Query InfluxDB for total energy and cost for a building over a validated range.
