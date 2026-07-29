@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
     try {
-        const coreApiUrl = process.env.NEXT_PUBLIC_CORE_API_URL || "http://localhost:4000";
+        const coreApiUrl = process.env.CORE_URL || "http://localhost:4000";
         const response = await fetch(`${coreApiUrl}/api/telemetry/live`, {
             method: "GET",
             headers: {

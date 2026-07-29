@@ -18,13 +18,7 @@ export function useTelemetryStream(buildingId?: string) {
     useEffect(() => {
         const targetId = buildingId ? encodeURIComponent(buildingId) : "portfolio";
         
-        // Dynamically resolve backend URL for the browser (bypasses Next.js proxy buffering)
-        const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
-        const apiBase = process.env.NEXT_PUBLIC_CORE_API_URL?.includes("core") 
-            ? `http://${host}:4000` 
-            : (process.env.NEXT_PUBLIC_CORE_API_URL || `http://${host}:4000`);
-            
-        const url = `${apiBase}/api/telemetry/stream/${targetId}`;
+        const url = `/api/telemetry/stream/${targetId}`;
 
         const eventSource = new EventSource(url);
 
