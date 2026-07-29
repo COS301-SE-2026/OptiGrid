@@ -96,7 +96,7 @@ export const listBuildingsController = async (req: Request, res: Response) => {
       buildings.map(async (b) => {
         let todays_usage: number | null = null;
         try {
-          const data = await queryTotalKwh(b.building_id, "1d");
+          const data = await queryTotalKwh(b.building_id, "today");
           todays_usage = typeof data === "number" ? data : data?.total_kwh ?? null;
         } catch (error) {
           console.error(`Failed to get the todays usage for this building: `, error);

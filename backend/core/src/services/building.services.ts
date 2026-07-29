@@ -332,16 +332,45 @@ export const getPortfolioConsumption = async (userId: string): Promise<Portfolio
   );
   let hasCostData = false;
 
-  const buildingSeries = await Promise.all(
-    buildings.map(async (building) => ({
-      buildingId: building.building_id,
-      points: await queryUsageSeries(building.building_id, '7d'),
-    })),
-  );
+  const [buildingSeries, todayUsageList] = await Promise.all([
+    Promise.all(
+      buildings.map(async (building) => ({
+        buildingId: building.building_id,
+        points: await queryUsageSeries(building.building_id, '7d'),
+      })),
+    ),
+    Promise.all(
+      buildings.map(async (building) => {
+        try {
+          const res = await queryTotalKwh(building.building_id, 'today');
+          return {
+            buildingId: building.building_id,
+            kwh: typeof res === 'number' ? res : res?.total_kwh ?? 0,
+            costZar: typeof res === 'number' ? 0 : res?.total_cost_zar ?? 0,
+          };
+        } catch {
+          return { buildingId: building.building_id, kwh: 0, costZar: 0 };
+        }
+      })
+    )
+  ]);
+
+  for (const item of todayUsageList) {
+    todayUsageByBuilding[item.buildingId] = item.kwh;
+    hasCostData ||= item.costZar !== 0;
+    const daily = dailyTotals.get(todayDate);
+    if (daily) {
+      daily.kwh += item.kwh;
+      daily.costZar += item.costZar;
+    }
+  }
 
   for (const { buildingId, points } of buildingSeries) {
     for (const point of points ?? []) {
       const date = point.timestamp.slice(0, 10);
+      if (date === todayDate) {
+        continue;
+      }
       const daily = dailyTotals.get(date);
       if (!daily) {
         continue;
@@ -350,10 +379,6 @@ export const getPortfolioConsumption = async (userId: string): Promise<Portfolio
       daily.kwh += point.kwh;
       daily.costZar += point.cost_zar;
       hasCostData ||= point.cost_zar !== 0;
-
-      if (date === todayDate) {
-        todayUsageByBuilding[buildingId] = (todayUsageByBuilding[buildingId] ?? 0) + point.kwh;
-      }
     }
   }
 
@@ -680,7 +705,7 @@ export const getManagerBuildings = async (userId: string) => {
     building.map(async (b) => {
       let todays_usage: number | null = null;
       try {
-        const data = await queryTotalKwh(b.building_id, "1d");
+        const data = await queryTotalKwh(b.building_id, "today");
         todays_usage = typeof data === "number" ? data : data?.total_kwh ?? null;
       }
       catch(error) {

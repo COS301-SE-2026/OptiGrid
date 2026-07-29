@@ -359,7 +359,7 @@ export default function DashboardPage() {
 
     const buildingsWithTelemetry = buildings.map((building) => ({
         ...building,
-        todayKwh: portfolioConsumption?.today_kwh_by_building[building.id] ?? null,
+        todayKwh: building.todayKwh,
     }));
     const consumption: ConsumptionPoint[] = (portfolioConsumption?.daily ?? []).map((point) => ({
         day: new Date(`${point.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "short" }),
