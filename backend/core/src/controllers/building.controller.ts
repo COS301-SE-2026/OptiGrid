@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
-  getPortfolioConsumption, listBuildingsForUser, updateBuildingService, getManagerBuildings } from '../services/building.services';
-import { getBuildingDetails } from '../services/building.services';
+  getPortfolioConsumption, listBuildingsForUser, getBuildingDetails, updateBuildingService, getManagerBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 
@@ -222,12 +221,14 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
 
     const validatedQuery = compareBuildingsSchema.parse(req.query);
 
+    const { building_id_a, building_id_b, time_range } = validatedQuery;
+    
     // we give the data to the service layer to handle
     const comparisonData = await compareBuildingsService(
       userId,
-      validatedQuery.building_id_a,
-      validatedQuery.building_id_b,
-      validatedQuery.time_range
+      building_id_a,
+      building_id_b,
+      time_range
     );
     const successResponse = {
       status: 'success',

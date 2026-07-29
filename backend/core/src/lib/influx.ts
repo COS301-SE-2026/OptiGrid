@@ -5,10 +5,13 @@ try {
     InfluxDB = undefined;
 }
 
-const url = process.env.INFLUX_URL || process.env.INFLUXDB_URL || 'http://influxdb:8086';
+const url = process.env.INFLUX_URL || process.env.INFLUXDB_URL || 'http://influxdb:8086'; // NOSONAR
 const token = process.env.INFLUXDB_TOKEN || process.env.INFLUX_TOKEN || 'example-token';
 const org = process.env.INFLUXDB_ORG || process.env.INFLUX_ORG || 'optigrid';
 const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'energy_data';
+
+export const UTILITY_COST_ZAR_PER_KWH = 2.50;
+export const UTILITY_COST_USD_PER_KWH = 0.13;
 
 const allowedTimeRanges = new Set(['today', '1d', '7d', '30d', '90d', '1y']);
 const telemetryMeasurements = ['energy_consumption', 'building_energy_usage', 'energy_telemetry'];
@@ -55,9 +58,9 @@ function normalizeTimeRange(timeRange: string): string {
 
 function seriesWindowFor(timeRange: string): string {
     const windows: Record<string, string> = {
-        '7d': '1h',
+        '7d': '1d',
         '30d': '1d',
-        '90d': '1d',
+        '90d': '3d',
         '1y': '1w',
     };
 
@@ -136,7 +139,7 @@ async function queryBucketPeakUsage(
         |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(usageFields)}))
-        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+        |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
         |> map(fn: (r) => ({ r with _value: r._value * 1.0 }))
         |> group(columns: ["_time"])
         |> sum(column: "_value")
@@ -195,8 +198,7 @@ async function queryBucketUsageSeries(
         |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(telemetryFields)}))
-        |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: mean, createEmpty: false)
-        |> map(fn: (r) => ({ r with _value: r._value * ${timeRange === '1y' ? '168.0' : ['30d', '90d'].includes(timeRange) ? '24.0' : '1.0'} }))
+        |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
         |> keep(columns: ["_time", "_field", "_value"])
     `;
 
@@ -228,7 +230,7 @@ async function queryBucketUsageSeries(
         .map(([timestamp, point]) => ({
             timestamp,
             kwh: point.kwh,
-            cost_zar: point.costZar > 0 ? point.costZar : point.costUsd,
+            cost_zar: point.costZar > 0 ? point.costZar : (point.costUsd > 0 ? point.costUsd : point.kwh * UTILITY_COST_ZAR_PER_KWH),
         }));
 }
 

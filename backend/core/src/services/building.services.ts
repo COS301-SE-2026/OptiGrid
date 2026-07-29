@@ -1,8 +1,8 @@
 import prisma from '../lib/prisma';
 import { Building, BuildingType, LifecycleState } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
-import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries } from '../lib/influx';
-import crypto from 'crypto';
+import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries, UTILITY_COST_ZAR_PER_KWH, UTILITY_COST_USD_PER_KWH } from '../lib/influx';
+import crypto from 'node:crypto';
 import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
 
 const buildingDetailsSelect = {
@@ -343,10 +343,13 @@ export const getPortfolioConsumption = async (userId: string): Promise<Portfolio
       buildings.map(async (building) => {
         try {
           const res = await queryTotalKwh(building.building_id, 'today');
+          const kwh = typeof res === 'number' ? res : res?.total_kwh ?? 0;
+          const rawCost = typeof res === 'number' ? 0 : res?.total_cost_zar ?? 0;
+          const costZar = rawCost > 0 ? rawCost : kwh * UTILITY_COST_ZAR_PER_KWH;
           return {
             buildingId: building.building_id,
-            kwh: typeof res === 'number' ? res : res?.total_kwh ?? 0,
-            costZar: typeof res === 'number' ? 0 : res?.total_cost_zar ?? 0,
+            kwh,
+            costZar,
           };
         } catch {
           return { buildingId: building.building_id, kwh: 0, costZar: 0 };
@@ -396,11 +399,11 @@ export const getPortfolioConsumption = async (userId: string): Promise<Portfolio
     todayUsageByBuilding[buildingId] = value === null ? null : roundMetric(value);
   }
 
-  const totalCostZar = daily.reduce((total, point) => total + point.cost_zar, 0);
+  const todayCostZar = daily.at(-1)?.cost_zar ?? 0;
   return {
     daily,
     today_kwh_by_building: todayUsageByBuilding,
-    estimated_cost_zar: hasCostData ? roundMetric(totalCostZar) : null,
+    estimated_cost_zar: hasCostData ? roundMetric(todayCostZar) : null,
     active_alerts: 0,
   };
 };
@@ -561,24 +564,37 @@ export const compareBuildingsService = async (
 
   if (!buildingA || !buildingB) throw new Error('Building not found');
 
-  // then we get data from influx for both buildings in parallel
-  const [influxA, influxB, seriesA, seriesB] = await Promise.all([
-    queryTotalKwh(buildingId_1, timeRange),
-    queryTotalKwh(buildingId_2, timeRange),
+  // then we get series data from influx for both buildings in parallel
+  const [seriesA, seriesB] = await Promise.all([
     queryUsageSeries(buildingId_1, timeRange),
     queryUsageSeries(buildingId_2, timeRange),
   ]);
 
+  const calculateTotals = (series: any[]) => ({
+    total_kwh: series.reduce((sum, p) => sum + p.kwh, 0),
+    total_cost_zar: series.reduce((sum, p) => sum + p.cost_zar, 0)
+  });
+
+  const influxA = calculateTotals(seriesA);
+  const influxB = calculateTotals(seriesB);
+
   // we calculate metrics such as EUI, cost per sq ft and cost per kwh, ensuring no division by 0
   const calculateMetrics = (building: Building, influxData: any) => {
     const totalKwh = typeof influxData === 'number' ? influxData : toFiniteNumber(influxData?.total_kwh);
-    const totalCostUsd = typeof influxData === 'number' ? 0 : toFiniteNumber(influxData?.total_cost_usd);
+    const rawTotalCostUsd = typeof influxData === 'number' ? 0 : toFiniteNumber(influxData?.total_cost_usd);
     const rawTotalCostZar = typeof influxData === 'number' ? 0 : toFiniteNumber(influxData?.total_cost_zar);
+    
     const totalCostZar = typeof influxData === 'number'
-      ? 0
+      ? totalKwh * UTILITY_COST_ZAR_PER_KWH
       : rawTotalCostZar > 0
         ? rawTotalCostZar
-        : totalCostUsd;
+        : (rawTotalCostUsd > 0 ? rawTotalCostUsd : totalKwh * UTILITY_COST_ZAR_PER_KWH);
+        
+    const totalCostUsd = typeof influxData === 'number'
+      ? totalKwh * UTILITY_COST_USD_PER_KWH
+      : rawTotalCostUsd > 0
+        ? rawTotalCostUsd
+        : totalKwh * UTILITY_COST_USD_PER_KWH;
     const sqFt = Number(building.square_footage);
     const hasSquareFootage = Number.isFinite(sqFt) && sqFt > 0;
     const eui = hasSquareFootage ? totalKwh / sqFt : null;

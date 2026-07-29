@@ -87,7 +87,7 @@ class AnalyticsEngine:
             return []
         try:
             # query buildings table for active buildings only
-            res = self.supabase.table("buildings").select("building_id").filter("lifecycle_state", "eq", "ACTIVE").execute()
+            res = self.supabase.table("buildings").select("building_id").filter("lifecycle_state", "eq", "active").execute()
             if res.data:
                 # extract building_id fromeach row, filter out rows missing the field
                 return [row["building_id"] for row in res.data if "building_id" in row]
@@ -152,6 +152,8 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -7d) 
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
+            |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
         # get influx data
@@ -174,7 +176,7 @@ class AnalyticsEngine:
         df['usage'] = pd.to_numeric(df['usage'], errors='coerce').fillna(0.0)
         df = df.set_index('timestamp')
 
-        hourly_df = df['usage'].resample('h').mean().ffill().fillna(0.0).reset_index()
+        hourly_df = df['usage'].resample('h').sum().fillna(0.0).reset_index()
         if hourly_df.empty:
             return {}
 
@@ -370,6 +372,7 @@ class AnalyticsEngine:
             |> range(start: -30d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
+            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
         
@@ -379,6 +382,7 @@ class AnalyticsEngine:
             |> range(start: -180d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
+            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
 
@@ -425,8 +429,8 @@ class AnalyticsEngine:
         weekly_payloads = []
         # process each building
         for b_id, group in df_weekly.groupby('building_id'):
-            # resample to hourly averags
-            hourly_group = group.set_index('timestamp')[['usage']].resample('h').mean().ffill().fillna(0.0).reset_index()
+            # resample to hourly totals
+            hourly_group = group.set_index('timestamp')[['usage']].resample('h').sum().fillna(0.0).reset_index()
             
             # calculating today's usage from midnight to lastest timestamp
             latest_time = hourly_group['timestamp'].max()

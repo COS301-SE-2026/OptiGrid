@@ -133,7 +133,7 @@ describe('Building integration - Compare Buildings', () => {
 
 	it('fails gracefully on validation error (missing parameters)', async () => {
 		const response = await request(harness.app)
-			.post(`/api/buildings/compare?building_id_a=${buildingIdA}&building_id_b=${buildingIdB}`)
+			.post(`/api/buildings/compare?building_id_a=${buildingIdA}`)
 			.set(authHeaders);
 
 		expect(response.status).toBe(400);
