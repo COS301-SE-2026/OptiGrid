@@ -287,8 +287,8 @@ class AnalyticsEngine:
             next_features = pd.DataFrame([{'hour': next_time.hour, 'day_of_week': next_time.dayofweek, 'lag_1': current_lag}])
             pred = best_model.predict(next_features)[0]
             
-            trend_drift += np.random.normal(0, recent_std * 0.05)
-            noise = np.random.normal(0, recent_std * 0.15)
+            trend_drift += np.random.normal(0, recent_std * 0.05)  # NOSONAR
+            noise = np.random.normal(0, recent_std * 0.15)  # NOSONAR
             pred_with_noise = max(0.1, pred + trend_drift + noise)
             
             forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred_with_noise, 2)})
@@ -402,8 +402,8 @@ class AnalyticsEngine:
             pred = best_model.predict(next_features)[0]
             
             # add some noise
-            trend_drift += np.random.normal(0, recent_std * 0.1)
-            noise = np.random.normal(0, recent_std * 0.2)
+            trend_drift += np.random.normal(0, recent_std * 0.1)  # NOSONAR
+            noise = np.random.normal(0, recent_std * 0.2)  # NOSONAR
             pred_with_noise = max(0.1, pred + trend_drift + noise)
             
             forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred_with_noise, 2)})
@@ -573,7 +573,7 @@ class AnalyticsEngine:
 
         logger.info("Found %d ACTIVE buildings missing telemetry in InfluxDB. Auto-seeding...", len(missing_ids))
         for b_id in missing_ids:
-            self.seed_missing_influx_telemetry(b_id, days_back=180)
+            self.seed_missing_influx_telemetry(b_id)
 
         try:
             # retry queries after seeding
@@ -589,14 +589,14 @@ class AnalyticsEngine:
     def _run_batch_analytics(self, df_weekly: pd.DataFrame, df_monthly: pd.DataFrame):
         if df_weekly is not None and not df_weekly.empty and "building_id" in df_weekly.columns:
             # cleaning up column names and data types
-            df_weekly = df_weekly.rename(columns={"_time": "timestamp"})
+            df_weekly = df_weekly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
             df_weekly['timestamp'] = pd.to_datetime(df_weekly['timestamp'])
             df_weekly['usage'] = pd.to_numeric(df_weekly['usage'], errors='coerce').fillna(0.0)
             self._process_weekly_batch(df_weekly)
 
         # process monthly data
         if df_monthly is not None and not df_monthly.empty and "building_id" in df_monthly.columns:
-            df_monthly = df_monthly.rename(columns={"_time": "timestamp"})
+            df_monthly = df_monthly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
             df_monthly['timestamp'] = pd.to_datetime(df_monthly['timestamp'])
             df_monthly['usage'] = pd.to_numeric(df_monthly['usage'], errors='coerce').fillna(0.0)
             self._process_monthly_batch(df_monthly)

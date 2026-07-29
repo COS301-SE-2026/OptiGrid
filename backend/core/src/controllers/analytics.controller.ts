@@ -128,7 +128,7 @@ export const getForecastController = async (req: Request, res: Response) => {
             };
         }).filter((point: NormalizedForecastPoint | null): point is NormalizedForecastPoint => point !== null);
 
-        const historicalKwh = horizon === 'weekly' && normalizedForecastSeries.length > 0
+        const historicalKwh = horizon === 'weekly' && normalizedForecastSeries.length > 0 && analytics.todays_usage && analytics.todays_usage > normalizedForecastSeries[0].yhat * 10
             ? normalizedForecastSeries[0].yhat
             : Number(analytics.todays_usage) || 0;
 

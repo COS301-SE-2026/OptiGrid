@@ -564,37 +564,51 @@ export const compareBuildingsService = async (
 
   if (!buildingA || !buildingB) throw new Error('Building not found');
 
-  // then we get series data from influx for both buildings in parallel
-  const [seriesA, seriesB] = await Promise.all([
+  const [seriesA, seriesB, totalsA, totalsB] = await Promise.all([
     queryUsageSeries(buildingId_1, timeRange),
     queryUsageSeries(buildingId_2, timeRange),
+    queryTotalKwh(buildingId_1, timeRange),
+    queryTotalKwh(buildingId_2, timeRange),
   ]);
 
-  const calculateTotals = (series: any[]) => ({
-    total_kwh: series.reduce((sum, p) => sum + p.kwh, 0),
-    total_cost_zar: series.reduce((sum, p) => sum + p.cost_zar, 0)
-  });
+  const extractTotalKwh = (totals: any, series: any[]): number => {
+    if (typeof totals === 'number') return totals;
+    if (totals && typeof totals.total_kwh === 'number') return totals.total_kwh;
+    return series.reduce((sum: number, p: any) => sum + (p.kwh ?? 0), 0);
+  };
+  const extractTotalCostZar = (totals: any, series: any[]): number => {
+    if (typeof totals === 'object' && totals && typeof totals.total_cost_zar === 'number') return totals.total_cost_zar;
+    return series.reduce((sum: number, p: any) => sum + (p.cost_zar ?? 0), 0);
+  };
+  const extractTotalCostUsd = (totals: any): number => {
+    if (typeof totals === 'object' && totals && typeof totals.total_cost_usd === 'number') return totals.total_cost_usd;
+    return 0;
+  };
 
-  const influxA = calculateTotals(seriesA);
-  const influxB = calculateTotals(seriesB);
+  const influxA = {
+    total_kwh: extractTotalKwh(totalsA, seriesA),
+    total_cost_zar: extractTotalCostZar(totalsA, seriesA),
+    total_cost_usd: extractTotalCostUsd(totalsA),
+  };
+  const influxB = {
+    total_kwh: extractTotalKwh(totalsB, seriesB),
+    total_cost_zar: extractTotalCostZar(totalsB, seriesB),
+    total_cost_usd: extractTotalCostUsd(totalsB),
+  };
 
   // we calculate metrics such as EUI, cost per sq ft and cost per kwh, ensuring no division by 0
   const calculateMetrics = (building: Building, influxData: any) => {
-    const totalKwh = typeof influxData === 'number' ? influxData : toFiniteNumber(influxData?.total_kwh);
-    const rawTotalCostUsd = typeof influxData === 'number' ? 0 : toFiniteNumber(influxData?.total_cost_usd);
-    const rawTotalCostZar = typeof influxData === 'number' ? 0 : toFiniteNumber(influxData?.total_cost_zar);
+    const totalKwh = toFiniteNumber(influxData?.total_kwh);
+    const rawTotalCostUsd = toFiniteNumber(influxData?.total_cost_usd);
+    const rawTotalCostZar = toFiniteNumber(influxData?.total_cost_zar);
     
-    const totalCostZar = typeof influxData === 'number'
-      ? totalKwh * UTILITY_COST_ZAR_PER_KWH
-      : rawTotalCostZar > 0
-        ? rawTotalCostZar
-        : (rawTotalCostUsd > 0 ? rawTotalCostUsd : totalKwh * UTILITY_COST_ZAR_PER_KWH);
+    const totalCostZar = rawTotalCostZar > 0
+      ? rawTotalCostZar
+      : (rawTotalCostUsd > 0 ? rawTotalCostUsd : totalKwh * UTILITY_COST_ZAR_PER_KWH);
         
-    const totalCostUsd = typeof influxData === 'number'
-      ? totalKwh * UTILITY_COST_USD_PER_KWH
-      : rawTotalCostUsd > 0
-        ? rawTotalCostUsd
-        : totalKwh * UTILITY_COST_USD_PER_KWH;
+    const totalCostUsd = rawTotalCostUsd > 0
+      ? rawTotalCostUsd
+      : totalKwh * UTILITY_COST_USD_PER_KWH;
     const sqFt = Number(building.square_footage);
     const hasSquareFootage = Number.isFinite(sqFt) && sqFt > 0;
     const eui = hasSquareFootage ? totalKwh / sqFt : null;
