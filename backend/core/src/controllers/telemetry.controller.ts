@@ -104,7 +104,8 @@ export const streamTelemetry = (req: Request, res: Response) => {
 
 export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
     try {
-        const queryApi = influx.getQueryApi(org);
+        // @ts-ignore
+        const queryApi = influx.getQueryApi(org, { timeout: 30000 });
 
         const fluxQuery = `
             from(bucket: "${bucket}")

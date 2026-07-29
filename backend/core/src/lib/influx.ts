@@ -58,13 +58,15 @@ function normalizeTimeRange(timeRange: string): string {
 
 function seriesWindowFor(timeRange: string): string {
     const windows: Record<string, string> = {
+        'today': '1h',
+        '1d': '1h',
         '7d': '1d',
         '30d': '1d',
         '90d': '3d',
         '1y': '1w',
     };
 
-    return windows[normalizeTimeRange(timeRange)];
+    return windows[normalizeTimeRange(timeRange)] || '1h';
 }
 
 function toFiniteNumber(value: unknown): number | null {
@@ -94,6 +96,7 @@ async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: s
         |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(telemetryFields)}))
+        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
         |> integral(unit: 1h)
         |> group(columns: ["_field"])
         |> sum()
@@ -139,7 +142,7 @@ async function queryBucketPeakUsage(
         |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(usageFields)}))
-        |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
         |> map(fn: (r) => ({ r with _value: r._value * 1.0 }))
         |> group(columns: ["_time"])
         |> sum(column: "_value")
@@ -198,7 +201,8 @@ async function queryBucketUsageSeries(
         |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(telemetryFields)}))
-        |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+        |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: sum, createEmpty: false)
         |> keep(columns: ["_time", "_field", "_value"])
     `;
 
@@ -256,9 +260,9 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
             }
         }
     }
-
-    console.error(`[InfluxDB] Failed to query energy usage for building ${buildingId}:`, lastError);
-    throw new Error('Internal server error, failed to retrieve time-series telemetry from InfluxDB');
+    //added to help debig whys its failing on vercel
+    console.warn(`[InfluxDB] Failed to query energy usage for building ${buildingId}. Returning fallback. Error:`, lastError);
+    return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 };
 };
 
 export const queryUsageDetails = async (buildingId: string, timeRange: string): Promise<UsageDetails> => {
@@ -283,8 +287,8 @@ export const queryUsageDetails = async (buildingId: string, timeRange: string): 
         }
     }
 
-    console.error(`[InfluxDB] Failed to query detailed energy usage for building ${buildingId}:`, lastError);
-    throw new Error('Internal server error, failed to retrieve detailed telemetry from InfluxDB');
+    console.warn(`[InfluxDB] Failed to query detailed energy usage for building ${buildingId}. Returning fallback. Error:`, lastError);
+    return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [] };
 };
 
 // Query an aggregated telemetry series for a building. The selected range determines
@@ -311,8 +315,8 @@ export const queryUsageSeries = async (buildingId: string, timeRange: string): P
         }
     }
 
-    console.error(`[InfluxDB] Failed to query telemetry series for building ${buildingId}:`, lastError);
-    throw new Error('Internal server error, failed to retrieve time-series telemetry from InfluxDB');
+    console.warn(`[InfluxDB] Failed to query telemetry series for building ${buildingId}. Returning fallback. Error:`, lastError);
+    return [];
 };
 
 export const queryTotalKwh = queryUsage;
