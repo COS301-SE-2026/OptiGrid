@@ -101,43 +101,51 @@ class AnalyticsEngine:
         clean_id = str(building_id).replace("\r", "").replace("\n", "")
         logger.info("Seeding baseline historical telemetry in InfluxDB for building: %s", clean_id)
         try:
-            # initialise influx writer
             write_api = self.influx.write_api()
             end_time = datetime.now(timezone.utc)
             start_time = end_time - timedelta(days=days_back)
             
-            current_time = start_time
-            points_buffer = []  # batch buffer
+            import hashlib
+            import random
+            h = int(hashlib.sha256(clean_id.encode("utf-8")).hexdigest(), 16)
+            base_kw = 12.0 + ((h % 5300) / 100.0)
+            amplitude_kw = 6.0 + (((h >> 16) % 1800) / 100.0)
+            phase_shift_hrs = (((h >> 32) % 400) / 100.0) - 2.0
             
-            rng = np.random.default_rng(seed=42)
-            # generate one data point per hour for the specific duration
+            current_time = start_time
+            points_buffer = []
+            
             while current_time <= end_time:
-                hour = current_time.hour
-                # create daily usage pattern: higher during day, lower at night
-                time_factor = np.sin((hour - 6) * np.pi / 12)
-                base_load = 25.0
-                multiplier = 12.0
-                noise = rng.normal(loc=-3.0, scale=3.0)
+                hour_fraction = current_time.hour + (current_time.minute / 60.0) + (current_time.second / 3600.0)
+                adjusted_hour = hour_fraction + phase_shift_hrs
+                time_factor = np.sin((adjusted_hour - 6.0) * np.pi / 12.0)
                 
-                raw_usage = max(1.5, base_load + (multiplier * time_factor) + noise)
+                evening_bump = np.exp(-0.5 * ((adjusted_hour - 18.0) / 2.0)**2) * 0.4
+                weekday = current_time.weekday()
+                weekend_factor = 0.6 if weekday >= 5 else 1.0
+                
+                month_fraction = current_time.month + (current_time.day / 30.0)
+                seasonal_factor = 1.0 + 0.25 * np.cos(4.0 * np.pi * (month_fraction - 1.0) / 12.0)
+                
+                noise = random.gauss(0.0, max(0.8, amplitude_kw * 0.15))
+                
+                raw_usage = max(1.0, (base_kw + (amplitude_kw * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise)
                 cost_zar = round(raw_usage * UTILITY_RATE_KWH, 2)
                 
-                # creating influx data point
                 point = Point("energy_telemetry") \
                     .tag("building_id", clean_id) \
                     .field("usage", round(raw_usage, 2)) \
+                    .field("usage_kwh", round(raw_usage, 2)) \
                     .field("cost_zar", cost_zar) \
                     .time(current_time, WritePrecision.NS)
                 
                 points_buffer.append(point)
-                current_time += timedelta(hours=1)  # move to next hour
+                current_time += timedelta(minutes=15)
                 
-                # write in batches of 1000 points to avoid memory issues
                 if len(points_buffer) >= 1000:
                     write_api.write(bucket=INFLUXDB_BUCKET, record=points_buffer)
-                    points_buffer = []  # clean point buffer
+                    points_buffer = []
             
-            # write remaining points
             if points_buffer:
                 write_api.write(bucket=INFLUXDB_BUCKET, record=points_buffer)
             
@@ -153,7 +161,7 @@ class AnalyticsEngine:
             |> range(start: -7d) 
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
-            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
         # get influx data
@@ -259,15 +267,32 @@ class AnalyticsEngine:
         best_model.fit(X, y)
 
         last_timestamp = df['timestamp'].iloc[-1]
+
+        historical_max = df['usage'].max()
+        historical_median = df['usage'].median()
         current_lag = df['usage'].iloc[-1]
+        if current_lag > historical_max * 1.5:
+            current_lag = historical_median
+        
+        recent_std = df['usage'].tail(24).std()
+        if pd.isna(recent_std) or recent_std == 0:
+            recent_std = df['usage'].mean() * 0.05
         
         # predicting each hour in the upcoming week
         forecast_series = []
+        trend_drift = 0.0
+        
         for i in range(1, 169):
             next_time = last_timestamp + timedelta(hours=i)
             next_features = pd.DataFrame([{'hour': next_time.hour, 'day_of_week': next_time.dayofweek, 'lag_1': current_lag}])
             pred = best_model.predict(next_features)[0]
-            forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred, 2)})
+            
+            trend_drift += np.random.normal(0, recent_std * 0.05)
+            noise = np.random.normal(0, recent_std * 0.15)
+            pred_with_noise = max(0.1, pred + trend_drift + noise)
+            
+            forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred_with_noise, 2)})
+            
             current_lag = pred
 
         daily_sums = [sum(f["predicted_usage"] for f in forecast_series[i:i+24]) for i in range(0, 168, 24)]
@@ -292,10 +317,17 @@ class AnalyticsEngine:
         df_ml = df.copy()
         df_ml['week'] = df_ml['timestamp'].dt.isocalendar().week.astype(int)
         df_ml['month'] = df_ml['timestamp'].dt.month
+        
+        # cyclical encoding for tree based model extrapolation
+        df_ml['week_sin'] = np.sin(2 * np.pi * df_ml['week'] / 52.0)
+        df_ml['week_cos'] = np.cos(2 * np.pi * df_ml['week'] / 52.0)
+        df_ml['month_sin'] = np.sin(2 * np.pi * df_ml['month'] / 12.0)
+        df_ml['month_cos'] = np.cos(2 * np.pi * df_ml['month'] / 12.0)
+        
         df_ml['lag_1'] = df_ml['usage'].shift(1)
         df_ml = df_ml.dropna()
 
-        features = ['week', 'month', 'lag_1']
+        features = ['week_sin', 'week_cos', 'month_sin', 'month_cos', 'lag_1']
         X = df_ml[features]
         y = df_ml['usage']
 
@@ -340,14 +372,41 @@ class AnalyticsEngine:
         best_model.fit(X, y)
 
         last_timestamp = df['timestamp'].iloc[-1]
+        
+        # clamp current lag
+        historical_max = df['usage'].max()
+        historical_median = df['usage'].median()
         current_lag = df['usage'].iloc[-1]
+        if current_lag > historical_max * 1.5:
+            current_lag = historical_median
+            
+        recent_std = df['usage'].tail(4).std()
+        if pd.isna(recent_std) or recent_std == 0:
+            recent_std = df['usage'].mean() * 0.05
+            
+        trend_drift = 0.0
         
         forecast_series = []
         for i in range(1, 13):
             next_time = last_timestamp + timedelta(weeks=i)
-            next_features = pd.DataFrame([{'week': next_time.isocalendar().week, 'month': next_time.month, 'lag_1': current_lag}])
+            wk = next_time.isocalendar().week
+            mo = next_time.month
+            
+            next_features = pd.DataFrame([{
+                'week_sin': np.sin(2 * np.pi * wk / 52.0),
+                'week_cos': np.cos(2 * np.pi * wk / 52.0),
+                'month_sin': np.sin(2 * np.pi * mo / 12.0),
+                'month_cos': np.cos(2 * np.pi * mo / 12.0),
+                'lag_1': current_lag
+            }])
             pred = best_model.predict(next_features)[0]
-            forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred, 2)})
+            
+            # add some noise
+            trend_drift += np.random.normal(0, recent_std * 0.1)
+            noise = np.random.normal(0, recent_std * 0.2)
+            pred_with_noise = max(0.1, pred + trend_drift + noise)
+            
+            forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred_with_noise, 2)})
             current_lag = pred
 
         return {
@@ -382,7 +441,7 @@ class AnalyticsEngine:
             |> range(start: -180d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
-            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
 
@@ -413,14 +472,26 @@ class AnalyticsEngine:
 
         # process weekly analytics
         if df_weekly is not None and not df_weekly.empty:
-            df_weekly = df_weekly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+            df_weekly = df_weekly.rename(columns={"_time": "timestamp"})
+            if 'usage_kwh' in df_weekly.columns:
+                if 'usage' in df_weekly.columns:
+                    df_weekly['usage'] = df_weekly['usage'].fillna(df_weekly['usage_kwh'])
+                    df_weekly = df_weekly.drop(columns=['usage_kwh'])
+                else:
+                    df_weekly = df_weekly.rename(columns={'usage_kwh': 'usage'})
             df_weekly['timestamp'] = pd.to_datetime(df_weekly['timestamp'])
             df_weekly['usage'] = pd.to_numeric(df_weekly['usage'], errors='coerce').fillna(0.0)
             self._process_weekly_batch(df_weekly)
 
         # process monthly analytics
         if df_monthly is not None and not df_monthly.empty:
-            df_monthly = df_monthly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+            df_monthly = df_monthly.rename(columns={"_time": "timestamp"})
+            if 'usage_kwh' in df_monthly.columns:
+                if 'usage' in df_monthly.columns:
+                    df_monthly['usage'] = df_monthly['usage'].fillna(df_monthly['usage_kwh'])
+                    df_monthly = df_monthly.drop(columns=['usage_kwh'])
+                else:
+                    df_monthly = df_monthly.rename(columns={'usage_kwh': 'usage'})
             df_monthly['timestamp'] = pd.to_datetime(df_monthly['timestamp'])
             df_monthly['usage'] = pd.to_numeric(df_monthly['usage'], errors='coerce').fillna(0.0)
             self._process_monthly_batch(df_monthly)
@@ -502,7 +573,7 @@ class AnalyticsEngine:
 
         logger.info("Found %d ACTIVE buildings missing telemetry in InfluxDB. Auto-seeding...", len(missing_ids))
         for b_id in missing_ids:
-            self.seed_missing_influx_telemetry(b_id)
+            self.seed_missing_influx_telemetry(b_id, days_back=180)
 
         try:
             # retry queries after seeding
@@ -518,14 +589,14 @@ class AnalyticsEngine:
     def _run_batch_analytics(self, df_weekly: pd.DataFrame, df_monthly: pd.DataFrame):
         if df_weekly is not None and not df_weekly.empty and "building_id" in df_weekly.columns:
             # cleaning up column names and data types
-            df_weekly = df_weekly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+            df_weekly = df_weekly.rename(columns={"_time": "timestamp"})
             df_weekly['timestamp'] = pd.to_datetime(df_weekly['timestamp'])
             df_weekly['usage'] = pd.to_numeric(df_weekly['usage'], errors='coerce').fillna(0.0)
             self._process_weekly_batch(df_weekly)
 
         # process monthly data
         if df_monthly is not None and not df_monthly.empty and "building_id" in df_monthly.columns:
-            df_monthly = df_monthly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+            df_monthly = df_monthly.rename(columns={"_time": "timestamp"})
             df_monthly['timestamp'] = pd.to_datetime(df_monthly['timestamp'])
             df_monthly['usage'] = pd.to_numeric(df_monthly['usage'], errors='coerce').fillna(0.0)
             self._process_monthly_batch(df_monthly)
@@ -541,18 +612,20 @@ class AnalyticsEngine:
         query_weekly = f'''
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -30d) 
-            |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+            |> filter(fn: (r) => r["_field"] == "usage")
+            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> group()
+            |> group(columns: ["building_id"])
         '''
         
         # query to fetch last 180 days usage for monthly analysis
         query_monthly = f'''
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -180d) 
-            |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+            |> filter(fn: (r) => r["_field"] == "usage")
+            |> aggregateWindow(every: 1d, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> group()
+            |> group(columns: ["building_id"])
         '''
 
         try:

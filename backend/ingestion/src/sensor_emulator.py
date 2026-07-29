@@ -87,9 +87,12 @@ async def run_global_emulator():
                 weekday = now.weekday()
                 weekend_factor = 0.6 if weekday >= 5 else 1.0
                 
+                month_fraction = now.month + (now.day / 30.0)
+                seasonal_factor = 1.0 + 0.25 * np.cos(4.0 * np.pi * (month_fraction - 1.0) / 12.0)
+                
                 noise = random.gauss(0.0, max(0.8, prof["amplitude_kw"] * 0.15))
                 
-                power_kw = max(1.0, (prof["base_kw"] + (prof["amplitude_kw"] * (time_factor + evening_bump))) * weekend_factor + noise)
+                power_kw = max(1.0, (prof["base_kw"] + (prof["amplitude_kw"] * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise)
                 
                 voltage_v = round(prof["nominal_voltage"] + random.gauss(0.0, 0.8), 2)
                 current_a = round((power_kw * 1000.0) / voltage_v, 2)
