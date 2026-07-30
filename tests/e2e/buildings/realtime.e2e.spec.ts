@@ -33,7 +33,7 @@ test.describe("OptiGrid Real-Time Dashboard E2E Tests", () => {
 
     test("renders header, title, and filter controls", async ({ page }) => {
         await expect(page.locator("h1.dashboard-title", { hasText: "Live readings" })).toBeVisible({ timeout: 10000 });
-        await expect(page.locator("button.live-chip", { hasText: /All/ })).toBeVisible();
+        await expect(page.locator("span.live-chip", { hasText: /All/ })).toBeVisible();
     });
 
     test("loads building records and populates active live telemetry metrics", async ({ page }) => {

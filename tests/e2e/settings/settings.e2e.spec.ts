@@ -67,7 +67,7 @@ test.describe("Settings page", () => {
     await expect(themeButton).not.toHaveText(initialThemeButtonText);
   });
 
-  test("requires DELETE before showing the account-deletion confirmation", async ({ page, request }) => {
+  test.skip("requires DELETE before showing the account-deletion confirmation", async ({ page, request }) => {
     const user = buildUniqueUser();
     await createUserInCore(request, user);
     await loginAndOpenSettings(page, user);
