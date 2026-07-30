@@ -254,7 +254,7 @@ export function ComparisonChart({
                         Last {dateRange} days - {metric === "R" ? "cost" : "energy"}
                     </span>
                 </div>
-                {hasComparison ? <span className="badge badge-success">Live telemetry</span> : null}
+                {/* {hasComparison ? <span className="badge badge-success">Live telemetry</span> : null} */}
             </div>
 
             {loading ? (

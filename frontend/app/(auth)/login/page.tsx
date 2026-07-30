@@ -146,6 +146,7 @@ export default function LoginPage() {
                         type="submit"
                         disabled={loading}
                         className="btn btn-primary w-full"
+                        style={{ marginTop: "24px" }}
                     >
                         {loading ? "Logging in..." : "Log in"}
                     </button>

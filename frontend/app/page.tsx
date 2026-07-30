@@ -108,6 +108,8 @@ export default function LandingPage() {
                     <nav className="landing-links" aria-label="Primary">
                         <a href="#features">Features</a>
                         <a href="#outcomes">Outcomes</a>
+                        <Link href="/contact">Contact us</Link>
+                        <Link href="/help">Help</Link>
                     </nav>
                     <div className="landing-nav-actions">
                         <Link href="/login" className="btn btn-secondary">

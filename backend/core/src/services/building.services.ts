@@ -441,7 +441,7 @@ export const getBuildingEnergyConsumptionDetails = async (
   const totalKwh = toFiniteNumber(usageDetails.total_kwh);
   const totalCostUsd = toFiniteNumber(usageDetails.total_cost_usd);
   const rawTotalCostZar = toFiniteNumber(usageDetails.total_cost_zar);
-  const totalCostZar = rawTotalCostZar > 0 ? rawTotalCostZar : totalCostUsd;
+  const totalCostZar = rawTotalCostZar > 0 ? rawTotalCostZar : totalKwh * UTILITY_COST_ZAR_PER_KWH;
   const sqFt = toFiniteNumber(building.square_footage, 0);
   const hasSquareFootage = sqFt > 0;
   const days = timeRangeToDays(timeRange);
@@ -604,7 +604,7 @@ export const compareBuildingsService = async (
     
     const totalCostZar = rawTotalCostZar > 0
       ? rawTotalCostZar
-      : (rawTotalCostUsd > 0 ? rawTotalCostUsd : totalKwh * UTILITY_COST_ZAR_PER_KWH);
+      : totalKwh * UTILITY_COST_ZAR_PER_KWH;
         
     const totalCostUsd = rawTotalCostUsd > 0
       ? rawTotalCostUsd

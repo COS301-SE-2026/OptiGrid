@@ -256,7 +256,7 @@ async function queryBucketUsageSeries(
             return {
                 timestamp,
                 kwh,
-                cost_zar: point.costZar > 0 ? point.costZar : (point.costUsd > 0 ? point.costUsd : kwh * UTILITY_COST_ZAR_PER_KWH),
+                cost_zar: point.costZar > 0 ? point.costZar : kwh * UTILITY_COST_ZAR_PER_KWH,
             };
         });
 }

@@ -220,7 +220,7 @@ export default function ViewBuildingPage({
                 <div>
                     <h1 className="dashboard-title">Building Details</h1>
                     <p className="dashboard-subtitle">
-                        {isConnected ? "🟢 Live telemetry stream connected" : "🔴 Reconnecting live stream..."}
+                        {/* {isConnected ? "🟢 Live telemetry stream connected" : "🔴 Reconnecting live stream..."} */}
                     </p>
                 </div>
 
@@ -254,7 +254,7 @@ export default function ViewBuildingPage({
                 className="card"
                 style={{ display: "grid", gap: "var(--space-6)", padding: "var(--space-6)" }}
             >
-                <DetailsSection title="Real-Time Telemetry">
+                {/* <DetailsSection title="Real-Time Telemetry">
                     <Detail
                         label="Stream Connection"
                         value={isConnected ? "🟢 Online (Streaming)" : "🔴 Offline / Connecting"}
@@ -284,7 +284,7 @@ export default function ViewBuildingPage({
                             {sseError.message}
                         </div>
                     )}
-                </DetailsSection>
+                </DetailsSection> */}
 
                 <DetailsSection title="General Information">
                     <Detail label="Building Name" value={building.building_name} />
