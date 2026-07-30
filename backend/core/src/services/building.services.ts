@@ -572,11 +572,18 @@ export const compareBuildingsService = async (
 
   if (!buildingA || !buildingB) throw new Error('Building not found');
 
+  const fetchSeries = async (id: string, range: string) => {
+    try { return await queryUsageSeries(id, range); } catch (e) { console.error(e); return []; }
+  };
+  const fetchTotals = async (id: string, range: string) => {
+    try { return await queryTotalKwh(id, range); } catch (e) { console.error(e); return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 }; }
+  };
+
   const [seriesA, seriesB, totalsA, totalsB] = await Promise.all([
-    queryUsageSeries(buildingId_1, timeRange),
-    queryUsageSeries(buildingId_2, timeRange),
-    queryTotalKwh(buildingId_1, timeRange),
-    queryTotalKwh(buildingId_2, timeRange),
+    fetchSeries(buildingId_1, timeRange),
+    fetchSeries(buildingId_2, timeRange),
+    fetchTotals(buildingId_1, timeRange),
+    fetchTotals(buildingId_2, timeRange),
   ]);
 
   const extractTotalKwh = (totals: any, series: any[]): number => {
