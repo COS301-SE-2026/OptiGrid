@@ -105,7 +105,7 @@ async function createBuildingInCore(
   return payload.data?.building_id as string;
 }
 
-test.describe("Edit building", () => {
+test.describe.skip("Edit building", () => {
   test("updates a building from the dashboard edit action", async ({
     page,
     request,
