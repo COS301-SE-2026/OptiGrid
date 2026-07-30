@@ -28,7 +28,6 @@ Built by **[Coreflow](https://github.com/OptiGrid)**
 ---
 
 ## Project Description
-![OptiGrid](docs/images/Screenshot%202026-05-21%20224726.png)
 
 OptiGrid is a comprehensive software platform designed for intelligent energy optimisation and predictive analytics, utilising smart grid technology to help buildings reduce energy waste and optimise consumption.
 The system connects building managers and energy grids through a sophisticated data pipeline that facilitates telemetry ingestion, communicates forecasts, manages configurations, and provides real-time monitoring – all without fundamentally changing the existing building's physical infrastructure.
@@ -80,8 +79,8 @@ The system connects building managers and energy grids through a sophisticated d
 ---
 
 ## Team: Coreflow
-**Team Logo:**
-![Team Photo](docs/images/image.png)
+
+![Team Logo](docs/images/Screenshot%202026-05-21%20224726.png)
 
 | Name | Student Number | GitHub | LinkedIn | Profile |
 |------|---------------|--------|----------|-----------|
@@ -91,9 +90,9 @@ The system connects building managers and energy grids through a sophisticated d
 | Talifhani Seaba | u23657350 | [GitHub](https://github.com/TalifhaniSeaba) | [LinkedIn](https://www.linkedin.com/in/talifhani-seaba-2172bb32b/) | Frontend Developer. |
 | Atidaishe Mupanemunda | u22747886 | [GitHub](https://github.com/WillyDoo428) | [LinkedIn](https://www.linkedin.com/in/atidaishe-m-218ba3388/) | Cloud & Infrastructure Engineer. |
 
-✉ **Team Email:** cos301.coreflow@gmail.com
+**Team Email:** cos301.coreflow@gmail.com
 
-📷 **Team Photo:**
+**Team Photo:**
 
 ![Team Photo](docs/images/image.png)
 
@@ -232,7 +231,7 @@ Ensure the following are installed on your machine before proceeding:
 
 - [Node.js 18+](https://nodejs.org/)
 - [Python 3.11+](https://www.python.org/)
-- [pnpm](https://pnpm.io/installation) — `npm install -g pnpm`
+- [pnpm](https://pnpm.io/installation) - `npm install -g pnpm`
 - [Docker](https://www.docker.com/get-started/) & Docker Compose
 - [Redis](https://redis.io/docs/getting-started/) (or run via Docker)
 
