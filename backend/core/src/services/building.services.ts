@@ -334,10 +334,18 @@ export const getPortfolioConsumption = async (userId: string): Promise<Portfolio
 
   const [buildingSeries, todayUsageList] = await Promise.all([
     Promise.all(
-      buildings.map(async (building) => ({
-        buildingId: building.building_id,
-        points: await queryUsageSeries(building.building_id, '7d'),
-      })),
+      buildings.map(async (building) => {
+        let points: any[] = [];
+        try {
+          points = await queryUsageSeries(building.building_id, '7d');
+        } catch (error) {
+          console.error(`Failed to get usage series for building ${building.building_id}:`, error);
+        }
+        return {
+          buildingId: building.building_id,
+          points,
+        };
+      }),
     ),
     Promise.all(
       buildings.map(async (building) => {
