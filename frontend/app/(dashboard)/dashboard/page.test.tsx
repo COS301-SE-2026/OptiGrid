@@ -303,7 +303,7 @@ describe("DashboardPage", () => {
       await screen.findByText("Tower A");
       fireEvent.click(screen.getByText("Tower A").closest("tr")!);
       expect(mockPush).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/buildings\/b1\/view$/),
+        expect.stringMatching(/^\/_sessions\/[0-9a-z-]+\/buildings\/b1\/view$/),
       );
     });
   });
