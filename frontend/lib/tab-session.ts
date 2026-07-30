@@ -17,7 +17,7 @@ export function getTabSessionId(): string | null {
 		return existing;
 	}
 
-	const tabSessionId = crypto.randomUUID();
+	const tabSessionId = Date.now().toString(36) + Math.random().toString(36).substring(2);
 	window.sessionStorage.setItem(TAB_SESSION_STORAGE_KEY, tabSessionId);
 	return tabSessionId;
 }

@@ -49,10 +49,7 @@ export type ForwardHeaderOptions = {
 }
 
 function createIdempotencyKey(prefix = "buildings"): string {
-	const randomId =
-		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-			? crypto.randomUUID()
-			: `${Date.now()}-${Math.random()}`;
+	const randomId = Date.now().toString(36) + Math.random().toString(36).substring(2);
 
 	return `${prefix}-${randomId}`;
 }

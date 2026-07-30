@@ -26,7 +26,7 @@ function readCookieValue(cookieHeader: string | null, cName: string): string | n
 }
 
 function createIdempotencyKey(prefix = "buildings"): string {
-    return `${prefix}-${crypto.randomUUID()}`;
+    return `${prefix}-${Date.now().toString(36) + Math.random().toString(36).substring(2)}`;
 }
 
  function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {

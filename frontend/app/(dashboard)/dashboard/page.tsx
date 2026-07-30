@@ -322,10 +322,7 @@ export default function DashboardPage() {
 
     const deleteBuildingMutation = useMutation({
         mutationFn: async (buildingId: string) => {
-            const idempotencyKey =
-                typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-                    ? `delete-building-${crypto.randomUUID()}`
-                    : `delete-building-${Date.now()}-${Math.random()}`;
+            const idempotencyKey = `delete-building-${Date.now().toString(36) + Math.random().toString(36).substring(2)}`;
 
             const response = await fetch(`/api/buildings/${buildingId}`, {
                 method: "DELETE",
