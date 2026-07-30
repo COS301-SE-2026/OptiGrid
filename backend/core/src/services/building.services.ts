@@ -1,9 +1,9 @@
-import prisma from '../lib/prisma';
-import { Building, BuildingType, LifecycleState } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
-import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries, UTILITY_COST_ZAR_PER_KWH, UTILITY_COST_USD_PER_KWH } from '../lib/influx';
+import { Building, BuildingType, LifecycleState } from '@prisma/client';
 import crypto from 'node:crypto';
-import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
+import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries, UTILITY_COST_USD_PER_KWH, UTILITY_COST_ZAR_PER_KWH } from '../lib/influx';
+import prisma from '../lib/prisma';
+import { deleteInfluxBucket, queueBuildingProvisioning } from './provisioning.service';
 
 const buildingDetailsSelect = {
   building_id: true,
@@ -168,7 +168,7 @@ export interface updateBuildingPayload {
   physical_address?: string;
   timezone?: string;
   max_occupancy?: number;
-  latitude ?: number;
+  latitude?: number;
   longitude?: number;
   nominal_voltage?: number;
   max_current_threshold?: number;
@@ -247,7 +247,7 @@ export const createBuilding = async (
       where: { building_id: newBuilding.building_id },
       data: { hardware_auth_token: finalHardwareAuthToken },
     });
-    
+
     //ensure we give access
     await tx.userBuildingAccess.create({
       data: {
@@ -441,7 +441,7 @@ export const getBuildingEnergyConsumptionDetails = async (
   const totalKwh = toFiniteNumber(usageDetails.total_kwh);
   const totalCostUsd = toFiniteNumber(usageDetails.total_cost_usd);
   const rawTotalCostZar = toFiniteNumber(usageDetails.total_cost_zar);
-  const totalCostZar = rawTotalCostZar > 0 ? rawTotalCostZar : totalKwh * UTILITY_COST_ZAR_PER_KWH;
+  const totalCostZar = rawTotalCostZar > 0 ? rawTotalCostZar : totalCostUsd;
   const sqFt = toFiniteNumber(building.square_footage, 0);
   const hasSquareFootage = sqFt > 0;
   const days = timeRangeToDays(timeRange);
@@ -476,7 +476,7 @@ export const updateBuildingService = async (
   role: string = "VIEWER",
 ) => {
   // admins bypass the per-building access check but everyone else must own the building
-  if(role !== "ADMIN") {
+  if (role !== "ADMIN") {
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
         user_id_building_id: {
@@ -490,16 +490,16 @@ export const updateBuildingService = async (
       throw new Error('Access Denied: You do not have permission to update this building.');
     }
   }
-  
+
 
   const exists = await prisma.building.findUnique({
-    where: { building_id: buildingId},
+    where: { building_id: buildingId },
   });
 
-  if(!exists) throw new Error("Building does not exist");
+  if (!exists) throw new Error("Building does not exist");
 
   let buildingState = payload.lifecycle_state;
-  if(payload.lifecycle_state === "ACTIVE" && exists.lifecycle_state !== "ACTIVE") {
+  if (payload.lifecycle_state === "ACTIVE" && exists.lifecycle_state !== "ACTIVE") {
     try {
       await queueBuildingProvisioning(
         exists.building_id,
@@ -511,7 +511,7 @@ export const updateBuildingService = async (
       );
       buildingState = "ACTIVE"
     }
-    catch(error:any) {
+    catch (error: any) {
       buildingState = "PROVISIONING_FAILED";
       console.error(`Provisioning failed due to unexpected errors`, error);
     }
@@ -527,12 +527,12 @@ export const updateBuildingService = async (
       ...(payload.physical_address !== undefined ? { physical_address: payload.physical_address } : {}),
       ...(payload.timezone !== undefined ? { timezone: payload.timezone } : {}),
       ...(payload.max_occupancy !== undefined ? { max_occupancy: payload.max_occupancy } : {}),
-      ...(payload.latitude !== undefined ? {latitude: payload.latitude} : {}),
-      ...(payload.longitude !== undefined ? {longitude: payload.longitude} : {}),
-      ...(payload.nominal_voltage !== undefined ? {nominal_voltage: payload.nominal_voltage} : {}),
-      ...(payload.max_current_threshold !== undefined ? {max_current_threshold: payload.max_current_threshold} : {}),
-      ...(buildingState !== undefined ? {lifecycle_state: buildingState} : {}),
-      ...(payload.geohash !== undefined ? {geohash: payload.geohash} : {}),
+      ...(payload.latitude !== undefined ? { latitude: payload.latitude } : {}),
+      ...(payload.longitude !== undefined ? { longitude: payload.longitude } : {}),
+      ...(payload.nominal_voltage !== undefined ? { nominal_voltage: payload.nominal_voltage } : {}),
+      ...(payload.max_current_threshold !== undefined ? { max_current_threshold: payload.max_current_threshold } : {}),
+      ...(buildingState !== undefined ? { lifecycle_state: buildingState } : {}),
+      ...(payload.geohash !== undefined ? { geohash: payload.geohash } : {}),
     },
   });
 };
@@ -601,11 +601,11 @@ export const compareBuildingsService = async (
     const totalKwh = toFiniteNumber(influxData?.total_kwh);
     const rawTotalCostUsd = toFiniteNumber(influxData?.total_cost_usd);
     const rawTotalCostZar = toFiniteNumber(influxData?.total_cost_zar);
-    
+
     const totalCostZar = rawTotalCostZar > 0
       ? rawTotalCostZar
-      : totalKwh * UTILITY_COST_ZAR_PER_KWH;
-        
+      : (rawTotalCostUsd > 0 ? rawTotalCostUsd : totalKwh * UTILITY_COST_ZAR_PER_KWH);
+
     const totalCostUsd = rawTotalCostUsd > 0
       ? rawTotalCostUsd
       : totalKwh * UTILITY_COST_USD_PER_KWH;
@@ -654,12 +654,12 @@ export const compareBuildingsService = async (
 };
 
 export const deleteBuildingService = async (
-  userId: string, 
+  userId: string,
   buildingId: string,
   role: string = "VIEWER",
 ) => {
 
-  if(role !== "ADMIN") {
+  if (role !== "ADMIN") {
     //verify user has access to this building
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
@@ -691,14 +691,14 @@ export const deleteBuildingService = async (
 export const getAllBuildings = async (lifecycle_state?: LifecycleState) => {
   return prisma.building.findMany({
     where: {
-      ...(lifecycle_state !== undefined ? { lifecycle_state} : {}),
+      ...(lifecycle_state !== undefined ? { lifecycle_state } : {}),
     },
     orderBy: {
       created_at: "desc"
     },
     include: {
       authorized_users: {
-        include: { user: true}
+        include: { user: true }
       }
     }
   });
@@ -708,7 +708,7 @@ export const getManagerBuildings = async (userId: string) => {
   const building = await prisma.building.findMany({
     where: {
       authorized_users: {
-        some: { user_id: userId}
+        some: { user_id: userId }
       }
     },
     //this is to get viewer
@@ -738,7 +738,7 @@ export const getManagerBuildings = async (userId: string) => {
         const data = await queryTotalKwh(b.building_id, "today");
         todays_usage = typeof data === "number" ? data : data?.total_kwh ?? null;
       }
-      catch(error) {
+      catch (error) {
         console.error(`Failed to get the todays usage for this building: `, error)
       }
       return todays_usage;
@@ -752,6 +752,6 @@ export const getManagerBuildings = async (userId: string) => {
     physical_address: build.physical_address,
     lifecycle_state: build.lifecycle_state,
     todays_usage: getUsage[i],
-    authorized_users: build.authorized_users.map((allowed) => ({ user: allowed.user,})),
+    authorized_users: build.authorized_users.map((allowed) => ({ user: allowed.user, })),
   }));
 };

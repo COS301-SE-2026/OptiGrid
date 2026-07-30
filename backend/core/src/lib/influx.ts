@@ -93,9 +93,9 @@ async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: s
         import "date"
         from(bucket: ${fluxString(bucketName)})
         |> range(start: ${timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`})
-        |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
+        |> filter(fn: (r) => r["_measurement"] =~ /^(energy_consumption|building_energy_usage|energy_telemetry)$/)
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
-        |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(telemetryFields)}))
+        |> filter(fn: (r) => r["_field"] =~ /^(usage|usage_kwh|cost_usd|cost_zar)$/)
         |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
         |> integral(unit: 1h)
         |> group(columns: ["_field"])
@@ -153,9 +153,9 @@ async function queryBucketPeakUsage(
         import "date"
         from(bucket: ${fluxString(bucketName)})
         |> range(start: ${timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`})
-        |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
+        |> filter(fn: (r) => r["_measurement"] =~ /^(energy_consumption|building_energy_usage|energy_telemetry)$/)
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
-        |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(usageFields)}))
+        |> filter(fn: (r) => r["_field"] =~ /^(usage|usage_kwh)$/)
         |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
         |> map(fn: (r) => ({ r with _value: r._value * 1.0 }))
         |> group(columns: ["_time", "_field"])
@@ -214,9 +214,9 @@ async function queryBucketUsageSeries(
         import "date"
         from(bucket: ${fluxString(bucketName)})
         |> range(start: ${timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`})
-        |> filter(fn: (r) => contains(value: r["_measurement"], set: ${fluxStringArray(telemetryMeasurements)}))
+        |> filter(fn: (r) => r["_measurement"] =~ /^(energy_consumption|building_energy_usage|energy_telemetry)$/)
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
-        |> filter(fn: (r) => contains(value: r["_field"], set: ${fluxStringArray(telemetryFields)}))
+        |> filter(fn: (r) => r["_field"] =~ /^(usage|usage_kwh|cost_usd|cost_zar)$/)
         |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
         |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: sum, createEmpty: false)
         |> keep(columns: ["_time", "_field", "_value"])
@@ -256,7 +256,7 @@ async function queryBucketUsageSeries(
             return {
                 timestamp,
                 kwh,
-                cost_zar: point.costZar > 0 ? point.costZar : kwh * UTILITY_COST_ZAR_PER_KWH,
+                cost_zar: point.costZar > 0 ? point.costZar : (point.costUsd > 0 ? point.costUsd : kwh * UTILITY_COST_ZAR_PER_KWH),
             };
         });
 }
@@ -269,7 +269,7 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
 
     const normalizedRange = normalizeTimeRange(timeRange);
     const influxClient = new InfluxDB({ url, token });
-    const queryApi = influxClient.getQueryApi(org, {timeout: 30000});
+    const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
     const bucketsToTry = uniqueBuckets(buildingId);
     let lastError: unknown;
 
@@ -295,7 +295,7 @@ export const queryUsageDetails = async (buildingId: string, timeRange: string): 
 
     const normalizedRange = normalizeTimeRange(timeRange);
     const influxClient = new InfluxDB({ url, token });
-    const queryApi = influxClient.getQueryApi(org, {timeout: 30000});
+    const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
     const bucketsToTry = uniqueBuckets(buildingId);
     let lastError: unknown;
 
@@ -323,7 +323,7 @@ export const queryUsageSeries = async (buildingId: string, timeRange: string): P
 
     const normalizedRange = normalizeTimeRange(timeRange);
     const influxClient = new InfluxDB({ url, token });
-    const queryApi = influxClient.getQueryApi(org, {timeout:30000});
+    const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
     const bucketsToTry = uniqueBuckets(buildingId);
     let lastError: unknown;
 

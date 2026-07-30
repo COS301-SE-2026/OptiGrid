@@ -317,20 +317,6 @@ export default function ViewBuildingPage({
                         <p className="text-muted" style={{ margin: 0 }}>
                             Usage and cost metrics for this building.
                         </p>
-                        <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                            <span className="text-muted">Time range</span>
-                            <select
-                                aria-label="Energy consumption time range"
-                                value={timeRange}
-                                onChange={(event) => setTimeRange(event.target.value as EnergyTimeRange)}
-                                disabled={consumptionLoading}
-                            >
-                                <option value="7d">Last 7 days</option>
-                                <option value="30d">Last 30 days</option>
-                                <option value="90d">Last 90 days</option>
-                                <option value="1y">Last year</option>
-                            </select>
-                        </label>
                     </div>
 
                     {consumptionLoading && (
