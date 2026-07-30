@@ -326,6 +326,7 @@ The users of the OptiGrid system are expected to fit into the following groups:
 
 ### Use Cases Diagram
 ![Administration Use Case Diagram](./images/Administration.png)
+![Building Management Use Case Diagram](./images/Building_Management.png)
 
 ***
 
@@ -475,7 +476,7 @@ Non-functional requirements describe the quality attributes and operational char
 
 ## 7. Domain Model
 
-![domain model](./images/domain_model.png)
+![domain model](./images/Domain_Model.png)
 
 
 ***
