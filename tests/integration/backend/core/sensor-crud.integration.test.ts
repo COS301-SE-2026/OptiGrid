@@ -1,6 +1,6 @@
 const { Client } = require('pg');
 const request = require('supertest');
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 import { insertIntegrationUsers } from './harness/user-fixtures';
 import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
 
@@ -49,7 +49,7 @@ describe('Sensor CRUD Integration', () => {
 				[viewerId],
 			);
 			await client.query(
-				`update users set role_type = 'Admin' where user_id = $1`,
+				`update users set role_type = 'ADMIN' where user_id = $1`,
 				[adminId],
 			);
 		} finally {

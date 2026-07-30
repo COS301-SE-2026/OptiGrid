@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 const request = require('supertest');
 import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 jest.mock('../../../../backend/core/src/lib/influx', () => ({
 	queryTotalKwh: jest.fn(),

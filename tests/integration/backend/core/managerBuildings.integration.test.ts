@@ -3,7 +3,7 @@ import { insertIntegrationUsers } from "./harness/user-fixtures";
 
 const {Client } = require("pg");
 const req = require("supertest");
-const {v4: uuidv4} = require("uuid");
+import { v4 as uuidv4 } from 'uuid';
 
 jest.mock("../../../../backend/core/src/lib/influx", () => ({
     queryTotalKwh: jest.fn().mockResolvedValue(null),

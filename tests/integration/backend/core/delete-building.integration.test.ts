@@ -2,7 +2,7 @@ const { Client } = require('pg');
 const request = require('supertest');
 import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
 import { insertIntegrationUsers } from './harness/user-fixtures';
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 describe('Building integration - Delete Building', () => {
 	let harness: CoreApiHarness;
@@ -36,7 +36,7 @@ describe('Building integration - Delete Building', () => {
 			]);
 			await client.query(`
 				UPDATE users
-				SET role_type = 'Admin'
+				SET role_type = 'ADMIN'
 				WHERE user_id = $1`, 
 				[userId]
 			)

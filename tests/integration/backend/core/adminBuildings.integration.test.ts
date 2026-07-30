@@ -3,7 +3,7 @@ import { insertIntegrationUsers } from "./harness/user-fixtures";
 
 const {Client } = require("pg");
 const req = require("supertest");
-const {v4: uuidv4} = require("uuid");
+import { v4 as uuidv4 } from 'uuid';
 
 describe("Get all buildings and manage state for admin and building manager", () => {
     let harness: CoreApiHarness;
@@ -53,7 +53,7 @@ describe("Get all buildings and manage state for admin and building manager", ()
                 },
             ]);
             await client.query(
-                `UPDATE users SET role_type = 'Admin'
+                `UPDATE users SET role_type = 'ADMIN'
                 WHERE user_id= $1`, [adminUserId] 
             );
         }
