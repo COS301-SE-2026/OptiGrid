@@ -25,7 +25,7 @@
 ## 2. Project Vision and Objectives
 
 ### Background and Vision
-The vision of OptiGrid is to design and implement a scalable, intelligent energy optimisation platform. The system addresses the critical need for effective resource management by providing a centralized, dashboard-first environment for monitoring real-time and historical energy consumption across multiple buildings. 
+The vision of OptiGrid is to design and implement a scalable, intelligent energy optimisation platform. The system addresses the critical need for effective resource management by providing a centralised, dashboard-first environment for monitoring real-time and historical energy consumption across multiple buildings. 
 
 ### Core Objectives
 To achieve this vision and solve the problem of undetected energy waste, the system aims to:
@@ -38,48 +38,86 @@ To achieve this vision and solve the problem of undetected energy waste, the sys
 ***
 
 ## 3. User Stories & User Characteristics 
-### 3.1 User Characteristics
-Based on the role-based access control requirements and use cases, the system accommodates three primary users:
 
-* **Admin:** A highly technical user, like a system admin, responsible for all the configuration of the project. They manage building profiles, provision IoT sensor connections, handle data models, and dictate role-based access for all other users.
-* **Facility Manager:** An operational and tactical user responsible for one or more buildings. They rely on the platform to monitor daily consumption, investigate anomaly alerts, and implement the system’s load-shifting recommendations to reduce utility costs. 
-* **Viewer:** A general, non-technical user requiring read-only access. They use the platform purely for visibility into the energy consumption of their specific assigned building or zone, without any authority to alter configurations or view cross-tenant data.
+### 3.1 User Characteristics
+The users of the OptiGrid system are expected to fit into the following groups:
+
+#### Administrator User Characteristics
+| Attribute | Description |
+| :--- | :--- |
+| **Digital Literacy** | High. Comfortable managing system configurations, API credentials, and role-based access control. |
+| **Access to Reliable Internet and Data** | Excellent. Operates primarily from desktop computers in corporate office environments with high speed internet. |
+| **Concerns Around Trust and Safety** | High concern for data breaches, system vulnerabilities, and unauthorized access to IoT endpoints. |
+| **Reasons for Using the Platform** | To manage the entire OptiGrid platform, configure building profiles, handle sensor connectivity, and assign user permissions across the organisation. |
+| **Platform Interaction Needs** | Needs comprehensive tools to add/edit/delete buildings, register IoT sensors, manage users, and view system wide diagnostics. |
+| **Goals and Incentives for Using the App** | Maintain a secure, accurately configured platform to ensure reliable data flow and system availability for all other users. |
+
+#### Building Manager User Characteristics
+| Attribute | Description |
+| :--- | :--- |
+| **Digital Literacy** | Moderate to high. Comfortable with data dashboards, interpreting charts, and managing building operations. |
+| **Access to Reliable Internet and Data** | Good. Operates from office environments or on site via laptops and mobile devices, generally with stable WiFi. |
+| **Concerns Around Trust and Safety** | Worries about misconfiguration leading to loss of sensor data or inaccurate billing estimates. |
+| **Reasons for Using the Platform** | To monitor real time energy consumption, receive anomaly alerts, and view demand forecasts for their assigned buildings to reduce operational costs. |
+| **Platform Interaction Needs** | Needs to view detailed building energy profiles, compare energy usage between facilities, review predictive analytics, and export reports. |
+| **Goals and Incentives for Using the App** | To identify energy waste, reduce utility bills, and optimise building energy performance using data driven insights. |
+
+#### Viewer User Characteristics
+| Attribute | Description |
+| :--- | :--- |
+| **Digital Literacy** | Varies widely. Ranges from executives needing high level summaries to general staff members. |
+| **Access to Reliable Internet and Data** | Good. Accesses the platform via standard web browsers on various devices. |
+| **Concerns Around Trust and Safety** | Low direct risk, but expects personal data and passwords to be handled securely. |
+| **Reasons for Using the Platform** | To gain visibility into the energy performance of specific buildings or zones without needing to alter configurations. |
+| **Platform Interaction Needs** | Needs simple, read-only dashboards with clear visual indicators of current energy usage and historical trends. |
+| **Goals and Incentives for Using the App** | Stay informed about energy consumption targets and overall sustainability metrics of their assigned facilities. |
 
 ### 3.2 User Stories
-#### 3.2.1 Create Building
-**As a** Admin, 
-**I want to** register a new building profile in the system, 
-**so that** I can begin linking IoT meters and monitoring its specific energy consumption.
 
-#### 3.2.2 Edit Building
-**As a** Admin, 
-**I want to** update an existing building's metadata (such as square footage or operating hours), 
-**so that** the energy use intensity calculations and forecasting models remain accurate.
+#### Administrator User Stories
+| User Story | Acceptance Criteria | Definition of Done |
+| :--- | :--- | :--- |
+| **Account Registration & Login**<br>As an Admin, I want to log in to my account,<br>so that I can securely access the platform. | Given that I am on the landing page,<br>When I submit valid login credentials,<br>Then I should be authenticated and redirected to the dashboard. | Based on my input credentials, I am securely authenticated and taken to the home page. |
+| **View Real-Time Dashboard**<br>As an Admin, I want to view all buildings on a dashboard,<br>so that I can quickly assess current energy status. | Given I am logged in,<br>When I open the dashboard,<br>Then I should see buildings, total energy usage, and active alerts. | The dashboard successfully loads and accurately displays metrics for the buildings. |
+| **Compare Building Energy Usage**<br>As an Admin, I want to compare the energy usage of multiple buildings,<br>so that I can identify which facilities are underperforming. | Given I am on the comparison page,<br>When I select two buildings and a time range,<br>Then the system displays a comparative chart of their energy consumption. | A comparative chart is generated displaying the energy data of the selected buildings. |
+| **Export Energy Report**<br>As an Admin, I want to export data,<br>so that I can share building performance metrics. | Given I have filtered the dashboard data,<br>When I click "Export",<br>Then I should receive a downloadable report. | The report file is successfully generated and downloaded to the user's device. |
+| **View Optimisation Recommendations**<br>As an Admin, I want to view load shifting strategies,<br>so that I understand how the building can save on utility costs. | Given I am on the insights panel,<br>When I review the list of suggestions,<br>Then I should see actionable recommendations for the building. | Optimisation suggestions are populated and visible. |
+| **View Energy Forecast**<br>As an Admin, I want to view an energy demand forecast,<br>so that I can proactively adjust operations for peak loads. | Given I am viewing a specific building,<br>When I request a forecast,<br>Then the system displays a chart showing predicted energy demand. | The ML model generates and displays the forecast chart. |
+| **Review Optimisation Insights**<br>As an Admin, I want to review detailed cost saving estimates,<br>so that I can approve or dismiss an insight. | Given I select an optimisation insight,<br>When I review the details,<br>Then I can click "Approve" or "Dismiss". | The system logs the action and updates the insight status. |
+| **Manage Anomaly Alerts**<br>As an Admin, I want to investigate and close anomaly alerts,<br>so that my team knows the issue is handled. | Given I receive an alert,<br>When I mark it as "Investigating" and close it,<br>Then the ticket status updates. | The ticket is closed in the system and removed from the active alerts list. |
+| **Create Building**<br>As an Admin, I want to register a new building profile,<br>so that I can begin linking IoT meters. | Given I am on the dashboard,<br>When I choose "Add Building" and submit details,<br>Then the building should be saved. | The building is created and visible in the database and dashboard list. |
+| **Edit Building**<br>As an Admin, I want to update a building's metadata,<br>so that calculations remain accurate. | Given I am viewing building details,<br>When I modify the attributes and save,<br>Then changes immediately reflect on the dashboard. | Metadata is successfully updated in the system. |
+| **Delete Building**<br>As an Admin, I want to delete a building from the platform,<br>so that the system portfolio reflects only managed properties. | Given I select a building,<br>When I click "Delete" and confirm,<br>Then it is removed from my view. | The building is successfully deleted and removed from lists. |
+| **Register Sensor**<br>As an Admin, I want to register an IoT sensor to a building,<br>so that telemetry data can be ingested correctly. | Given I am on the manage sensors page,<br>When I enter a valid MAC address and details,<br>Then the sensor is linked to the building. | The sensor is successfully registered and begins routing data. |
+| **Remove Sensor**<br>As an Admin, I want to remove a sensor from a building,<br>so that discontinued hardware no longer impacts readings. | Given I select an existing sensor,<br>When I click "Remove",<br>Then the telemetry link is severed. | The sensor is archived and its data stream is stopped. |
+| **Edit Sensor Details**<br>As an Admin, I want to edit a sensor's metadata,<br>so that location names and thresholds are accurate. | Given I select a sensor,<br>When I modify its location name and save,<br>Then the updated details are saved. | The sensor metadata is updated across all dashboard views. |
+| **Upload Historical Batch Data**<br>As an Admin, I want to upload historical CSV data,<br>so that the machine learning models have training data. | Given I am on the data storage portal,<br>When I upload a valid CSV file,<br>Then the data is parsed and stored. | The admin receives a notification that the batch data was successfully processed. |
+| **Monitor System Health**<br>As an Admin, I want to monitor the DevOps health dashboard,<br>so that I can ensure API ingestion and microservices are running. | Given I open the health dashboard,<br>When the page loads,<br>Then I see live operational metrics. | Real time metrics for API ingestion and database uptime are displayed. |
+| **Delete Data**<br>As an Admin, I want to delete legacy batch data,<br>so that I can free up database storage. | Given I select a historical timeframe,<br>When I click "Delete Data",<br>Then the records are permanently purged. | The selected records are successfully deleted from the database. |
+| **Update Forecast Model**<br>As an Admin, I want to upload a new ML forecasting model,<br>so that predictions become more accurate. | Given I upload a new model file,<br>When it passes validation,<br>Then it hot swaps with the current version. | The new model is active and future forecasts are generated using it. |
+| **Delete Forecast Model**<br>As an Admin, I want to delete a deprecated forecast model,<br>so that it is no longer used by the system. | Given I select an old model,<br>When I click "Delete",<br>Then it is removed from the repository. | The model is permanently removed from the system. |
+| **Update Tariff Rates**<br>As an Admin, I want to update seasonal Time of Use rates,<br>so that cost saving recommendations are financially accurate. | Given I navigate to billing settings,<br>When I input new TOU rates,<br>Then all future cost insights are recalculated. | The new rates are stored and actively used in the optimisation engine. |
 
-#### 3.2.3 Delete Building
-**As a** Global Admin, 
-**I want to** delete a building from the platform, 
-**so that** the system portfolio only reflects currently managed properties and avoids processing stale data.
+#### Building Manager User Stories
+| User Story | Acceptance Criteria | Definition of Done |
+| :--- | :--- | :--- |
+| **Account Registration & Login**<br>As a Manager, I want to log in to my account,<br>so that I can securely access the platform. | Given that I am on the landing page,<br>When I submit valid login credentials,<br>Then I should be authenticated and redirected to the dashboard. | Based on my input credentials, I am securely authenticated and taken to the home page. |
+| **View Real-Time Dashboard**<br>As a Manager, I want to view my assigned buildings on a dashboard,<br>so that I can quickly assess current energy status. | Given I am logged in,<br>When I open the dashboard,<br>Then I should see my buildings, total energy usage, and active alerts. | The dashboard successfully loads and accurately displays metrics for the assigned buildings. |
+| **Compare Building Energy Usage**<br>As a Manager, I want to compare the energy usage of multiple buildings,<br>so that I can identify which facilities are underperforming. | Given I am on the comparison page,<br>When I select two buildings and a time range,<br>Then the system displays a comparative chart of their energy consumption. | A comparative chart is generated displaying the energy data of the selected buildings. |
+| **Export Energy Report**<br>As a Manager, I want to export data,<br>so that I can share building performance metrics. | Given I have filtered the dashboard data,<br>When I click "Export",<br>Then I should receive a downloadable report. | The report file is successfully generated and downloaded to the user's device. |
+| **View Optimisation Recommendations**<br>As a Manager, I want to view load shifting strategies,<br>so that I understand how the building can save on utility costs. | Given I am on the insights panel,<br>When I review the list of suggestions,<br>Then I should see actionable recommendations for the building. | Optimisation suggestions are populated and visible. |
+| **View Energy Forecast**<br>As a Manager, I want to view an energy demand forecast,<br>so that I can proactively adjust operations for peak loads. | Given I am viewing a specific building,<br>When I request a forecast,<br>Then the system displays a chart showing predicted energy demand. | The ML model generates and displays the forecast chart. |
+| **Review Optimisation Insights**<br>As a Manager, I want to review detailed cost saving estimates,<br>so that I can approve or dismiss an insight. | Given I select an optimisation insight,<br>When I review the details,<br>Then I can click "Approve" or "Dismiss". | The system logs the action and updates the insight status. |
+| **Manage Anomaly Alerts**<br>As a Manager, I want to investigate and close anomaly alerts,<br>so that my team knows the issue is handled. | Given I receive an alert,<br>When I mark it as "Investigating" and close it,<br>Then the ticket status updates. | The ticket is closed in the system and removed from the active alerts list. |
 
-#### 3.2.4 Compare Building Energy Usage
-**As a** Facility Manager, 
-**I want to** compare the energy usage of multiple buildings on a single chart, 
-**so that** I can identify which facilities are underperforming or drawing excess power.
-
-#### 3.2.5 View Forecast
-**As a** Manager, 
-**I want to** view a energy demand forecast for my assigned building, 
-**so that** I can proactively adjust operations to prepare for peak load times.
-
-#### 3.2.6 Signup
-**As a** new User, 
-**I want to** self-register for an account via the portal, 
-**so that** I can request access to my organization's energy dashboards.
-
-#### 3.2.7 Login
-**As a** registered User, 
-**I want to** securely authenticate into the platform using my credentials, 
-**so that** I can access my role-specific dashboard and tools.
+#### Viewer User Stories
+| User Story | Acceptance Criteria | Definition of Done |
+| :--- | :--- | :--- |
+| **Account Registration & Login**<br>As a Viewer, I want to sign up and log in to my account,<br>so that I can securely access the platform. | Given that I am on the landing page,<br>When I submit valid registration or login credentials,<br>Then I should be authenticated and redirected to the dashboard. | Based on my input credentials, I am securely authenticated and taken to the home page. |
+| **View Real-Time Dashboard**<br>As a Viewer, I want to view my assigned buildings on a dashboard,<br>so that I can quickly assess current energy status. | Given I am logged in,<br>When I open the dashboard,<br>Then I should see my buildings, total energy usage, and active alerts. | The dashboard successfully loads and accurately displays metrics for the assigned buildings. |
+| **Compare Building Energy Usage**<br>As a Viewer, I want to compare the energy usage of multiple buildings,<br>so that I can identify which facilities are underperforming. | Given I am on the comparison page,<br>When I select two buildings and a time range,<br>Then the system displays a comparative chart of their energy consumption. | A comparative chart is generated displaying the energy data of the selected buildings. |
+| **Export Energy Report**<br>As a Viewer, I want to export data,<br>so that I can share building performance metrics. | Given I have filtered the dashboard data,<br>When I click "Export",<br>Then I should receive a downloadable report. | The report file is successfully generated and downloaded to the user's device. |
+| **View Optimisation Recommendations**<br>As a Viewer, I want to view load shifting strategies,<br>so that I understand how the building can save on utility costs. | Given I am on the insights panel,<br>When I review the list of suggestions,<br>Then I should see actionable recommendations for the building. | Optimisation suggestions are populated and visible. |
 
 ***
 
@@ -298,12 +336,12 @@ Based on the role-based access control requirements and use cases, the system ac
 #### R1.1: Protocol & Format Support
 * **R1.1.1:** The system shall natively ingest telemetry data via API push endpoints.
 * **R1.1.2:** The system shall support manual and automated batch ingestion of CSV and JSON file formats.
-* **R1.1.3:** The system shall standardize all incoming data payloads into a unified JSON schema before storage.
-* **R1.1.4:** The system shall normalize all timestamps to UTC and convert regional units (e.g., BTUs, Joules) to standard Kilowatt-hours (kWh).
+* **R1.1.3:** The system shall standardise all incoming data payloads into a unified JSON schema before storage.
+* **R1.1.4:** The system shall normalise all timestamps to UTC and convert regional units (e.g., BTUs, Joules) to standard Kilowatt-hours (kWh).
 
 #### R1.2: Processing Modes & Resiliency
 * **R1.2.1:** The system shall process real-time incoming telemetry with a latency of no more than 2 seconds.
-* **R1.2.2:** The system shall utilize a message broker to queue incoming data during database unavailability to prevent data loss.
+* **R1.2.2:** The system shall utilise a message broker to queue incoming data during database unavailability to prevent data loss.
 * **R1.2.3:** The system shall reject malformed payloads and log the specific validation error in an error log for admin review.
 
 #### R1.3: Multi-Building Support
@@ -319,7 +357,7 @@ Based on the role-based access control requirements and use cases, the system ac
 
 #### R2.1: Centralised Time-Series Storage
 * **R2.1.1:** The system shall store all valid telemetry data in a time-series database which is InfluxDB.
-* **R2.1.2:** The system shall partition database records to optimize multi-tenant query speeds.
+* **R2.1.2:** The system shall partition database records to optimise multi-tenant query speeds.
 
 #### R2.2: Historical Analytics Capability
 * **R2.2.1:** The system shall execute background tasks to automatically pre-aggregate high-frequency data into 15-minute, 1-hour, and 24-hour roll-ups.
@@ -331,13 +369,13 @@ Based on the role-based access control requirements and use cases, the system ac
 
 ### R3: Energy Monitoring Dashboard
 
-#### R3.1: Building Energy Visualization
+#### R3.1: Building Energy Visualisation
 * **R3.1.1:** The system shall render charts detailing energy usage per building.
 * **R3.1.2:** The system shall allow users to interact with charts via zoom, pan.
 
 #### R3.2: Building Comparison
 * **R3.2.1:** The system shall provide a multi-select interface allowing users to overlay up to five different buildings on a single chart axis.
-* **R3.2.2:** The system shall mathematically normalize comparison data by square footage, Energy Use Intensity when buildings are of different sizes.
+* **R3.2.2:** The system shall mathematically normalise comparison data by square footage, Energy Use Intensity when buildings are of different sizes.
 
 #### R3.3: Export & Reporting
 * **R3.3.1:** The system shall allow users to export the raw data of any currently viewed chart into a CSV format.
@@ -363,7 +401,7 @@ Based on the role-based access control requirements and use cases, the system ac
 ### R5: Energy Demand Forecasting
 
 #### R5.1: Prediction Models
-* **R5.1.1:** The system shall utilize historical consumption data to generate localized short-term demand forecasts (up to 7 days in advance).
+* **R5.1.1:** The system shall utilise historical consumption data to generate localized short-term demand forecasts (up to 7 days in advance).
 
 #### R5.2: Contextual Inputs
 * **R5.2.1:** The system shall automatically query external third-party APIs to ingest local weather forecasts (temperature, humidity) into the prediction model.
@@ -378,7 +416,7 @@ Based on the role-based access control requirements and use cases, the system ac
 ### R6: Optimisation Recommendation Engine
 
 #### R6.1: Load Shifting & Adjustments
-* **R6.1.1:** The system shall analyze forecasted peak demand times against active utility tariff schedules.
+* **R6.1.1:** The system shall analyse forecasted peak demand times against active utility tariff schedules.
 * **R6.1.2:** The system shall generate text-based recommendations for off-peak usage adjustments (e.g., "Pre-cool building at 05:00 AM").
 
 #### R6.2: Financial Insights
@@ -388,7 +426,7 @@ Based on the role-based access control requirements and use cases, the system ac
 ### R7: Administrative & Role-Based Access (RBAC)
 
 #### R7.1: Multi-Tenant Isolation
-* **R7.1.1:** The system shall enforce strict row-level security on all database queries, ensuring users can only access telemetry linked to their assigned tenant organization.
+* **R7.1.1:** The system shall enforce strict row-level security on all database queries, ensuring users can only access telemetry linked to their assigned tenant organisation.
 
 #### R7.2: Access Control
 * **R7.2.1:** The system shall enforce secure login procedures including password complexity rules and optional Multi-Factor Authentication (MFA).
