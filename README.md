@@ -21,28 +21,49 @@ Built by **[Coreflow](https://github.com/OptiGrid)**
 
 *In partnership with **EPI-USE***
 
+**[Live System URL](https://YOUR-DEPLOYMENT-URL-HERE.com)** *(Click to view)*
+
 </div>
 
 ---
 
 ## Documentation
 
-| Document | Link |
-|----------|------|
-| ‣ Software Requirements Specification (SRS) | [View SRS →](docs/SRS.md) |
-| ‣ Design Specification and Brand Style Guide | [View →](docs/Design_Specifications.md) |
-| ‣ CI/CD Pipeline | [View CI/CD →](.github/workflows/ci.yml) |
-| ‣ GitHub Project Board | [View Board →](https://github.com/orgs/COS301-SE-2026/projects) |
-| ‣ Wireframes | [View Wireframes →](docs/wireframes.html) |
-| ‣ Brand Guidelines | [View Brand Guidelines →](docs/Brand_Guidelines.html) |
+**Project Management:** ‣ [View GitHub Project Board →](https://github.com/orgs/COS301-SE-2026/projects)
+
+<details open>
+  <summary><b>Demo 2 (Latest)</b></summary>
+  <br>
+  
+  | Document | Link |
+  |----------|------|
+  | ‣ System Requirements Specification (SRS) | [View SRS →](docs/SRS.md) |
+  | ‣ Software Architecture Specification (SAS) | [View SAS →](docs/SAS.md) |
+  | ‣ Coding Standards | [View Coding Standards →](docs/Coding_Standards.md) |
+  | ‣ Testing Policy | [View Testing Policy →](docs/Testing_Policy.md) |
+  | ‣ User Manual | [View User Manual →](docs/User_Manual.md) |
+  | ‣ Brand Style Guide | [View Brand Style Guide →](docs/Brand_Guidelines.html) |
+  | ‣ Wireframes / Figma Panels | [View Wireframes →](docs/wireframes.html) |
+  
+</details>
+<details>
+  <summary><b>Demo 1</b></summary>
+  <br>
+  
+  | Document | Link |
+  |----------|------|
+  | ‣ System Requirements Specification (SRS) | [View SRS →](docs/SRS.md) |
+  | ‣ Design Specification and Brand Style Guide | [View Design Spec →](docs/Design_Specifications.md) |
+  
+</details>
 
 ---
 
 ## Team — Coreflow
 
-| Name | Student Number | GitHub | LinkedIn |
-|------|---------------|--------|----------|
-| Hamdaan Mirza | u24631494 | [GitHub](https://github.com/Hamdaan-Mirza) | [LinkedIn](https://www.linkedin.com/in/hamdaan-mirza/) |
+| Name | Student Number | GitHub | LinkedIn | Profile |
+|------|---------------|--------|----------|-----------|
+| Hamdaan Mirza | u24631494 | [GitHub](https://github.com/Hamdaan-Mirza) | [LinkedIn](https://www.linkedin.com/in/hamdaan-mirza/) | Team Lead, Backend Developer. 
 | Abdelrahman Ahmed | u24898008 | [GitHub](https://github.com/abdlrhmanhabish) | [LinkedIn](https://www.linkedin.com/in/abdelrahman-esam-9055413b4) |
 | Abhay Rooplall | u24568792 | [GitHub](https://github.com/AbhayR1) | [LinkedIn](https://www.linkedin.com/in/abhay-rooplall/) |
 | Talifhani Seaba | u23657350 | [GitHub](https://github.com/TalifhaniSeaba) | [LinkedIn](https://www.linkedin.com/in/talifhani-seaba-2172bb32b/) |
@@ -68,7 +89,6 @@ OptiGrid
 │  │  ├─ Dockerfile
 │  │  ├─ requirements.txt
 │  │  └─ src
-│  │     └─ main.py
 │  ├─ configuration
 │  ├─ core
 │  │  ├─ .eslintignore
@@ -90,17 +110,10 @@ OptiGrid
 │     ├─ prisma/
 │     ├─ requirements.txt
 │     └─ src
-│        ├─ data.csv
-│        ├─ main.py
-│        ├─ sensor_emulator.py
-│        └─ worker.py
 ├─ docker-compose.yml
 ├─ docs
-│  ├─ Brand_Guidelines.html
-│  ├─ Design_Specifications.md
 │  ├─ SRS.md
-│  ├─ images/
-│  └─ wireframes.html
+│  |_ images/
 ├─ eslint.config.cjs
 ├─ frontend
 │  ├─ .storybook
@@ -126,37 +139,26 @@ OptiGrid
 │  ├─ eslint.config.mjs
 │  ├─ jest.config.cjs
 │  ├─ jest.setup.ts
-│  ├─ next-env.d.ts
 │  └─ tailwind.config.ts
 ├─ infrastructure
-│  ├─ docker
-│  │  └─ docker-compose.prod.yml
-│  └─ terraform
-│     ├─ .terraform.lock.hcl
-│     ├─ docker-user-data.sh
-│     ├─ main.tf
-│     ├─ outputs.tf
-│     ├─ providers.tf
-│     ├─ tests/
-│     └─ variables.tf
+│  ├─ docker/
+│  └─ terraform/
 ├─ playwright.config.ts
 ├─ pnpm-lock.yaml
 ├─ pnpm-workspace.yaml
 ├─ scripts/
-├─ supabase
-│  └─ seed.sql
+├─ supabase/
 └─ tests
    ├─ integration/
-   └─ unit
-      ├─ analytics/
-      ├─ backend/
-      └─ ingestion/
+   └─ unit/
+   |_e2e/
 ```
 
 ---
 
 ## ◈ Technology Stack
 
+### Justification for tech stack included in SAS.md, can be accessed through the link
 #### Frontend
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -375,5 +377,5 @@ This project follows **GitFlow**: a structured branching model that separates on
 ---
 
 <div align="center">
-  <sub>© 2026 Coreflow · Built for COS301 in partnership with EPI-USE</sub>
+  <sub>© 2026 Coreflow · In partnership with EPI-USE</sub>
 </div>
