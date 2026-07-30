@@ -65,7 +65,7 @@ The users of the OptiGrid system are expected to fit into the following groups:
 #### Viewer User Characteristics
 | Attribute | Description |
 | :--- | :--- |
-| **Digital Literacy** | Varies widely. Ranges from executives needing high level summaries to general staff members. |
+| **Digital Literacy** | Varies widely. Ranges from both ends of the digital literacy spectrum |
 | **Access to Reliable Internet and Data** | Good. Accesses the platform via standard web browsers on various devices. |
 | **Concerns Around Trust and Safety** | Low direct risk, but expects personal data and passwords to be handled securely. |
 | **Reasons for Using the Platform** | To gain visibility into the energy performance of specific buildings or zones without needing to alter configurations. |
