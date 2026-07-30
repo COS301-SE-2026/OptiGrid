@@ -350,7 +350,7 @@ The Supabase E2E launcher reads `supabase status -o env` and maps the local `DB_
 
 ## Branching Strategy
 
-This project follows **GitFlow** — a structured branching model that separates ongoing development from stable releases, enabling parallel feature work without destabilising production code.
+This project follows **GitFlow**: a structured branching model that separates ongoing development from stable releases, enabling parallel feature work without destabilising production code.
 
 | Branch | Purpose |
 |--------|---------|

@@ -10,9 +10,8 @@
 * [3. User Stories & User Characteristics](#3-user-stories--user-characteristics)
 * [4. Use Cases](#4-use-cases)
 * [5. Functional Requirements](#5-functional-requirements)
-* [6. API Service Contracts](#6-api-service-contracts)
+* [6. Non-Functional Requirements](#6-non-functional-requirements)
 * [7. Domain Model](#7-domain-model)
-* [8. Architectural Requirements](#8-architectural-requirements)
 
 ***
 
@@ -422,72 +421,23 @@ Based on the role-based access control requirements and use cases, the system ac
 
 ***
 
-## 6. API Service Contracts
+## 6. Non-Functional Requirements
 
-The system utilizes Swagger as the API service contract layer, ensuring seamless communication between the frontend and backend services. This approach establishes a "single source of truth," allowing for parallel development and reducing integration errors.
+Non-functional requirements describe the quality attributes and operational characteristics of the system. For each quality requirement, a quantification is provided.
+
+* **Performance** – The system should respond to user requests within 2 seconds for 95% of requests under normal operating conditions and support at least 500 concurrent users.
+* **Scalability** – The system should support an increase in workload of up to 200% without requiring major architectural changes or experiencing more than a 10% decrease in performance.
+* **Security** – All sensitive user data should be encrypted using AES-256 encryption, and the system should enforce multi-factor authentication for administrative accounts.
+* **Reliability** – The system should achieve 99.9% uptime and recover from critical failures within 5 minutes.
+* **Maintainability** – New features or bug fixes should be deployable within 2 hours, and the codebase should maintain at least 80% automated test coverage.
+* **Usability** – A new user should be able to complete core tasks within 5 minutes of first using the system, with at least 85% user satisfaction during usability testing.
+* **Availability** – The system should be available 24/7, excluding scheduled maintenance periods not exceeding 2 hours per month.
 
 ***
 
 ## 7. Domain Model
 
 ![domain model](./images/domain_model.png)
-
-***
-
-## 8. Architectural Requirements
-
-• Microservice-based architecture
-• Separation of ingestion, analytics, and presentation layers
-• Horizontal scalability for multi-building environments
-• RESTful API-first design
-• Containerised deployment (Docker)Secure authentication & RBAC
-• High availability design (minimum 95% uptime)
-
-
-### 8.1 Quality Requirements
-
-These requirements define the system's performance, security, and operational standards.
-
-* **R10: System Monitoring**
-    * **R10.1.1:** The system shall monitor ingestion rate, processing failures, and latency, providing real-time visibility into the ingestion pipeline.
-    * **R10.1.2:** The system shall trigger automated alerts to administrators upon detection of critical system-level failures.
-* **R11: Data Access & API Security**
-    * **R11.1.1:** The system shall provide secure, authenticated APIs for authorized third-party systems to query energy data.
-    * **R11.1.2:** The system shall enforce strict rate-limiting and authentication (OAuth/JWT) on all exposed API endpoints to prevent abuse.
-* **R12: Backup & Recovery**
-    * **R12.1.1:** The system shall perform automated daily backups of the PostgreSQL metadata database and InfluxDB telemetry data.
-    * **R12.1.2:** The system shall provide defined procedures for data restoration to ensure minimal downtime in the event of hardware or system failure.
-* **Scalability & Performance:**
-    * **R13.1:** The architecture shall support horizontal scaling of the ingestion and processing services to accommodate increased concurrent building data streams.
-    * **R13.2:** The system shall maintain an uptime of at least 95% (High Availability).
-* **Maintainability:**
-    * **R14.1:** The system shall adhere to standardized code quality gates (e.g., automated linting and 80% test coverage) to ensure long-term maintainability.
-
-### 8.2 Architectural Patterns
-
-* **Microservices Architecture:** The system is decomposed into independent services (Ingestion, Analytics, Dashboard, Auth) to allow for isolated deployment, scaling, and failure management.
-* **Layered Architecture:** The system uses a strict separation between the **Data Ingestion Layer**, the **Configuration Layer**, **Analytics Layer**, and the **Presentation Layer**.
-* **Event-Driven Ingestion:** To ensure high resiliency, incoming telemetry is placed on a message broker (queue) before being processed, preventing data loss if the database is temporarily unreachable.
-
-#### High-Level Architecuture Diagram
-![System Architecture Diagram](images/Architecture_Diagram.png)
-
-### 8.3 Design Patterns
-
-* **Chain of Responsibility:** * Used within the Express `app.ts` to manage request flow.
-    * Requests pass through a sequential chain of middleware (e.g., `express.json()`, `auth middleware`) where each component processes the request and calls `next()` to pass control to the subsequent handler.
-
-* **Singleton:** * Implemented in `lib/prisma.ts` and `lib/redis.ts` to manage shared resources.
-    * Ensures that only one instance of the database client or Redis connection exists throughout the application's lifecycle.
-    * In development environments, the instance is attached to the `global` object to prevent the creation of multiple connections during hot-reloads, ensuring resource efficiency and stability.
-
-### 8.4 Constraints
-Constraints for the project
-
-* Limited access to real building infrastructure (simulated data may be used)
-* Budget constraints for hosting
-* No access to proprietary smart grid systems
-* Must rely on open APIs or simulated IoT feeds
 
 
 ***
