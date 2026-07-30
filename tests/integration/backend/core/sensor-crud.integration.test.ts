@@ -49,7 +49,7 @@ describe('Sensor CRUD Integration', () => {
 				[viewerId],
 			);
 			await client.query(
-				`update users set role_type = 'ADMIN' where user_id = $1`,
+				`update users set role_type = 'Admin' where user_id = $1`,
 				[adminId],
 			);
 		} finally {

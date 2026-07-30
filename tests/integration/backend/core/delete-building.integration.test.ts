@@ -36,7 +36,7 @@ describe('Building integration - Delete Building', () => {
 			]);
 			await client.query(`
 				UPDATE users
-				SET role_type = 'ADMIN'
+				SET role_type = 'Admin'
 				WHERE user_id = $1`, 
 				[userId]
 			)

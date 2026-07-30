@@ -53,7 +53,7 @@ describe("Get all buildings and manage state for admin and building manager", ()
                 },
             ]);
             await client.query(
-                `UPDATE users SET role_type = 'ADMIN'
+                `UPDATE users SET role_type = 'Admin'
                 WHERE user_id= $1`, [adminUserId] 
             );
         }
