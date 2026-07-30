@@ -33,7 +33,7 @@ services:
   mlflow:
     image: ghcr.io/cos301-se-2026/optigrid-analytics:latest
     build:
-      context: .
+      context: ../../
       dockerfile: backend/analytics/Dockerfile
     restart: unless-stopped
     command:
@@ -63,7 +63,7 @@ services:
   frontend:
     image: ghcr.io/cos301-se-2026/optigrid-frontend:latest
     build:
-      context: .
+      context: ../../
       dockerfile: frontend/Dockerfile
     restart: unless-stopped
     ports:
@@ -84,7 +84,7 @@ services:
   core:
     image: ghcr.io/cos301-se-2026/optigrid-core:latest
     build:
-      context: .
+      context: ../../
       dockerfile: backend/core/Dockerfile
     restart: unless-stopped
     ports:
@@ -121,7 +121,7 @@ services:
   ingestion-api:
     image: ghcr.io/cos301-se-2026/optigrid-ingestion:latest
     build:
-      context: .
+      context: ../../
       dockerfile: backend/ingestion/Dockerfile
     restart: unless-stopped
     ports:
@@ -137,7 +137,7 @@ services:
   ingestion:
       image: ghcr.io/cos301-se-2026/optigrid-ingestion:latest
       build:
-        context: .
+        context: ../../
         dockerfile: backend/ingestion/Dockerfile
       restart: unless-stopped
       command: ["python", "-m", "backend.ingestion.src.queue_worker"]
@@ -160,7 +160,7 @@ services:
   sensor-emulator:
     image: ghcr.io/cos301-se-2026/optigrid-ingestion:latest
     build:
-      context: .
+      context: ../../
       dockerfile: backend/ingestion/Dockerfile
     restart: unless-stopped
     command: ["python", "-m", "backend.ingestion.src.sensor_emulator"]
@@ -185,7 +185,7 @@ services:
   analytics:
     image: ghcr.io/cos301-se-2026/optigrid-analytics:latest
     build:
-      context: .
+      context: ../../
       dockerfile: backend/analytics/Dockerfile
     restart: unless-stopped
     command: ["python", "-m", "uvicorn", "backend.analytics.src.main:app", "--host", "0.0.0.0", "--port", "5001"]
