@@ -6,7 +6,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Next.js for frontend
-*.js
 .next/
 out/
 build/
@@ -80,4 +79,3 @@ infrastructure/.data/
 infrastructure/docker/.generated/
 
 .mypy_cache/
-tsconfig.tsbuildinfo
