@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 export const TAB_SESSION_HEADER = "x-optigrid-tab-id";
 export const TAB_SESSION_STORAGE_KEY = "optigrid_tab_session_id";
 
@@ -17,7 +18,7 @@ export function getTabSessionId(): string | null {
 		return existing;
 	}
 
-	const tabSessionId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+	const tabSessionId = uuidv4();
 	window.sessionStorage.setItem(TAB_SESSION_STORAGE_KEY, tabSessionId);
 	return tabSessionId;
 }

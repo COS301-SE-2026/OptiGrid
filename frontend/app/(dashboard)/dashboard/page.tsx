@@ -1,4 +1,5 @@
 "use client";
+import { v4 as uuidv4 } from "uuid";
 import { useRouter } from "next/navigation";
 import { useState, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -322,7 +323,7 @@ export default function DashboardPage() {
 
     const deleteBuildingMutation = useMutation({
         mutationFn: async (buildingId: string) => {
-            const idempotencyKey = `delete-building-${Date.now().toString(36) + Math.random().toString(36).substring(2)}`;
+            const idempotencyKey = `delete-building-${uuidv4()}`;
 
             const response = await fetch(`/api/buildings/${buildingId}`, {
                 method: "DELETE",

@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 
 const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
@@ -32,7 +33,7 @@ function readCookieValue(cookieHeader: string | null, cookieName: string): strin
 }
 
 function createIdempotencyKey(prefix = "buildings"): string {
-	const randomId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+	const randomId = uuidv4();
 
 	return `${prefix}-${randomId}`;
 }
