@@ -49,17 +49,11 @@ The system connects building managers and energy grids through a sophisticated d
 [Design Specification and Brand Style Guide](docs/Design_Specifications.md)
 
 ## Demo 2
-**Presentation:**
-[Watch the Presentation Video](#)
-
 **SRS Document:**
 [Functional Requirements (SRS)](docs/SRS.md)
 
 **SAS Document:**
-[Functional Requirements (SAS)](docs/SAS.md)
-
-**Architectural Requirements Document:**
-[Architectural Requirements](docs/)
+[Functional Requirements (SAS)](docs/SAS.pdf)
 
 **Coding Standards Document:**
 [Coding Standards](docs/Coding_Standards.pdf)
@@ -73,8 +67,6 @@ The system connects building managers and energy grids through a sophisticated d
 **Brand Style Guide:**
 [Brand Style Guide](docs/Brand_Style_Guide.pdf)
 
-**Deployment and CI/CD Guide:**
-[Deployment and CI/CD Guide](docs/Deployment_and_CICD_Guide.pdf)
 
 ---
 
