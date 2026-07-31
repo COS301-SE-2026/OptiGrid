@@ -40,14 +40,6 @@ The system connects building managers and energy grids through a sophisticated d
 ## GitHub Project Board
 [View GitHub Project Board →](https://github.com/orgs/COS301-SE-2026/projects)
 
-## Demo 1
-
-**SRS Document:**
-[Functional Requirements (SRS)](docs/SRS.md)
-
-**Design Specification:**
-[Design Specification and Brand Style Guide](docs/Design_Specifications.md)
-
 ## Demo 2
 **SRS Document:**
 [Functional Requirements (SRS)](docs/SRS.md)
@@ -67,6 +59,13 @@ The system connects building managers and energy grids through a sophisticated d
 **Brand Style Guide:**
 [Brand Style Guide](docs/Brand_Style_Guide.pdf)
 
+## Demo 1
+
+**SRS Document:**
+[Functional Requirements (SRS)](docs/SRS.md)
+
+**Design Specification:**
+[Design Specification and Brand Style Guide](docs/Brand_Style_Guide.pdf)
 
 ---
 
