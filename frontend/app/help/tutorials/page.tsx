@@ -10,26 +10,27 @@ const tutorials: Tutorial[] = [
     {
         title: "Sign up for an OptiGrid account",
         description: "Walk through the first-time registration flow and learn what details are required before you can access the platform.",
+        sourceUrl: "/help/tutorials/signup.mp4",
     },
     {
-        title: "Log in and recover access",
-        description: "See the standard login flow plus the quickest way to recover access when a password needs to be reset.",
+        title: "Log in",
+        description: "See the standard login flow.",
+        sourceUrl: "/help/tutorials/login.mp4",
     },
     {
         title: "Add a building",
         description: "Create a new building record so it can be tracked, compared, and included in forecasts.",
-    },
-    {
-        title: "Edit or delete a building",
-        description: "Manage an existing building when details change or when a record should be removed.",
+        sourceUrl: "/help/tutorials/add_building.mp4",
     },
     {
         title: "Compare two buildings",
         description: "Compare building performance side by side to identify which sites are using more energy than expected.",
+        sourceUrl: "/help/tutorials/compare_buildings.mp4",
     },
     {
         title: "Review demand forecasts",
         description: "Check the forecast view to see how OptiGrid projects near-term demand for your selected building.",
+        sourceUrl: "/help/tutorials/run_forecast.mp4",
     },
 ];
 

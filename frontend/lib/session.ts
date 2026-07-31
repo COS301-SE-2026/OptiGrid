@@ -8,9 +8,9 @@ export type SessionUser = {
 
 export const SESSION_COOKIE_NAME = "optigrid_session";
 
-function parseJsonSession(value: string): Partial<SessionUser> | null {
+function parseJsonSession(value: string): Partial<SessionUser> | string | null {
 	try {
-		return JSON.parse(value) as Partial<SessionUser>;
+		return JSON.parse(value) as Partial<SessionUser> | string;
 	} catch {
 		return null;
 	}
@@ -22,8 +22,14 @@ export function parseSession(rawValue: string | undefined): SessionUser | null {
 	}
 
 	let candidate = rawValue;
-	for (let attempt = 0; attempt < 3; attempt += 1) {
+	for (let attempt = 0; attempt < 6; attempt += 1) {
 		const parsed = parseJsonSession(candidate);
+
+		if (typeof parsed === "string") {
+			candidate = parsed;
+			continue;
+		}
+
 		if (!parsed?.userId || !parsed.email) {
 			try {
 				const decoded = decodeURIComponent(candidate);

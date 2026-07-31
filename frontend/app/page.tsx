@@ -108,6 +108,11 @@ export default function LandingPage() {
                     <nav className="landing-links" aria-label="Primary">
                         <a href="#features">Features</a>
                         <a href="#outcomes">Outcomes</a>
+                        <Link href="/help">Help</Link>
+                    
+                        <a href="/brand_style_guide (1).pdf" download="optigrid_brand_style_guide.pdf">
+                        Brand Guide
+                        </a>
                     </nav>
                     <div className="landing-nav-actions">
                         <Link href="/login" className="btn btn-secondary">

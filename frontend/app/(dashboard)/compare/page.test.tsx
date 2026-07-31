@@ -122,8 +122,8 @@ describe("CompareBuildingPage", () => {
         setupQueries();
         render(<CompareBuildingPage />);
 
-        expect(await screen.findByText("R 12,500")).toBeInTheDocument();
-        expect(screen.getByText("R 9,800")).toBeInTheDocument();
+        expect(await screen.findByText("R 12,500.00")).toBeInTheDocument();
+        expect(screen.getByText("R 9,800.00")).toBeInTheDocument();
         expect(screen.getByText("2,500 m2")).toBeInTheDocument();
         expect(screen.getByText("1,800 m2")).toBeInTheDocument();
         expect(screen.getByText(/Building A is higher for the selected metric/)).toBeInTheDocument();
@@ -136,9 +136,9 @@ describe("CompareBuildingPage", () => {
         const user = userEvent.setup();
         await user.selectOptions(screen.getByLabelText("Metric"), "kWh");
 
-        expect(await screen.findByText("8,200 kWh")).toBeInTheDocument();
-        expect(screen.getByText("6,000 kWh")).toBeInTheDocument();
-        expect(screen.getByText(/30 days - energy/i)).toBeInTheDocument();
+        expect(await screen.findByText("8,200.00 kWh")).toBeInTheDocument();
+        expect(screen.getByText("6,000.00 kWh")).toBeInTheDocument();
+        expect(screen.getByText(/Last 30 days - energy/i)).toBeInTheDocument();
     });
 
     it("shows a useful empty state when fewer than two buildings are assigned", () => {

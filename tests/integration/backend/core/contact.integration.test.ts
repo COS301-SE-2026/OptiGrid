@@ -1,7 +1,7 @@
 import { createCoreApiHarness, type CoreApiHarness } from "./harness/core-api-harness";
 
 const req = require("supertest");
-const { v4: uuidv4 } = require("uuid");
+import { randomUUID as uuidv4 } from 'crypto';
 
 describe.skip("Will enable later when needed", () => {
 describe("Contact-Us Page Integration Tests", () => {

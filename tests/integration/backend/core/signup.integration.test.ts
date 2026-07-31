@@ -1,6 +1,26 @@
 import request from "supertest";
 import { createCoreApiHarness, type CoreApiHarness } from "./harness/core-api-harness";
 
+process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost:54321';
+process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'test-anon-key';
+process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-service-role-key';
+
+jest.mock("@supabase/supabase-js", () => ({
+	createClient: jest.fn(() => ({
+		auth: {
+			admin: {
+				createUser: jest.fn().mockImplementation(() =>
+					Promise.resolve({
+						data: { user: { id: require("crypto").randomUUID() } },
+						error: null,
+					})
+				),
+				deleteUser: jest.fn().mockResolvedValue({ data: {}, error: null }),
+			},
+		},
+	})),
+}));
+
 function uniqueEmail(prefix: string) {
 	return `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2)}@optigrid.test`;
 }

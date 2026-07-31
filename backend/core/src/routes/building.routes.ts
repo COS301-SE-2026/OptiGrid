@@ -4,14 +4,161 @@ import {
   createBuildingController,
   deleteBuildingController,
   getAllBuildingsController,
+  getBuildingDetailsController,
+  getBuildingEnergyConsumptionController,
   getPortfolioConsumptionController,
   listBuildingsController,
-  updateBuildingController,
+  updateBuildingController, getManagerBuildingsController,
 } from '../controllers/building.controller';
 
 const router = Router();
 
+/**
+ * @swagger
+ * /admin:
+ *   get:
+ *     summary: Get all buildings
+ *     description: It fetches all buildings that are in the database, need to be an ADMIN to achieve this
+ *     tags:
+ *       - Buildings
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: lifecycle_state
+ *         schema:
+ *           type: string
+ *           enum: [PROVISIONING, ACTIVE, PROVISIONING_FAILED]
+ *         required: false
+ *         description: Filter buildings by their lifecycle state
+ *     responses:
+ *       200:
+ *         description: Successfully fetches all buildings
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       building_id:
+ *                         type: string
+ *                         format: uuid
+ *                       building_name:
+ *                         type: string
+ *                       building_type:
+ *                         type: string
+ *                       physical_address:
+ *                         type: string
+ *                       lifecycle_state:
+ *                         type: string
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       authorized_users:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             user:
+ *                               type: object
+ *       400:
+ *         description: Invalid request payload(e.g. invalid lifecycle_state)
+ *       401:
+ *         description: No user found, unauthorised
+ *       403:
+ *         description: No access, admin access needed
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal Server Error
+ */
 router.get('/admin', getAllBuildingsController);
+
+/**
+ * @swagger
+ * /manager:
+ *   get:
+ *     summary: Get all buildings assigned to a manager
+ *     description: It fetches all buildings that are in the database that are assigned to the manager, need to be a manager to achieve this
+ *     tags:
+ *       - Buildings
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetches all buildings
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       building_id:
+ *                         type: string
+ *                         format: uuid
+ *                       building_name:
+ *                         type: string
+ *                       building_type:
+ *                         type: string
+ *                       physical_address:
+ *                         type: string
+ *                       lifecycle_state:
+ *                         type: string
+ *                       todays_usage:
+ *                         type: number
+ *                         nullable: true
+ *                       authorized_users:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             user:
+ *                               type: object
+ *                               properties:
+ *                                 userId:
+ *                                   type: string
+ *                                   format: uuid
+ *                                 buildingId:
+ *                                   type: string
+ *                                 lastName:
+ *                                   type: string
+ *                                 email:
+ *                                   type: string
+ *                                   format: email
+ *                                 roleType:
+ *                                   type: string
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal Server Error
+ */
+router.get("/manager", getManagerBuildingsController);
 
 /**
  * @swagger
@@ -66,7 +213,7 @@ router.get('/admin', getAllBuildingsController);
  *                 type: number
  *                 description: Latitude coordinate of the building (-90 to 90, optional)
  *                 example: 15.23456
- *               longitude: 
+ *               longitude:
  *                 type: number
  *                 description: Longitude coordinate of the building(-180 to 180, optional)
  *                 example: -30.768997
@@ -127,7 +274,7 @@ router.get('/admin', getAllBuildingsController);
  *                     created_at:
  *                       type: string
  *                       format: date-time
- *                     latitude: 
+ *                     latitude:
  *                       type: number
  *                     longitude:
  *                       type: number
@@ -172,9 +319,67 @@ router.get('/admin', getAllBuildingsController);
  *                   type: string
  *                   example: "Internal server error"
  */
-router.get('/', listBuildingsController);
 router.post('/', createBuildingController);
+
+router.get('/', listBuildingsController);
 router.get('/portfolio-consumption', getPortfolioConsumptionController);
+
+/**
+ * @swagger
+ * /api/buildings/{building_id}:
+ *   get:
+ *     summary: View individual building details
+ *     description: Returns all non-sensitive stored details for one building when the authenticated user has access to it.
+ *     tags:
+ *       - Buildings
+ *     parameters:
+ *       - name: building_id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Building identifier
+ *     responses:
+ *       200:
+ *         description: Building details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     building_id: { type: string, format: uuid }
+ *                     tenant_id: { type: string, format: uuid, nullable: true }
+ *                     building_name: { type: string }
+ *                     building_type: { type: string, nullable: true }
+ *                     square_footage: { type: number, nullable: true }
+ *                     physical_address: { type: string, nullable: true }
+ *                     timezone: { type: string, nullable: true }
+ *                     max_occupancy: { type: integer, nullable: true }
+ *                     nominal_voltage: { type: number, nullable: true }
+ *                     max_current_threshold: { type: number, nullable: true }
+ *                     lifecycle_state: { type: string }
+ *                     created_at: { type: string, format: date-time, nullable: true }
+ *                     updated_at: { type: string, format: date-time, nullable: true }
+ *                     latitude: { type: number, nullable: true }
+ *                     longitude: { type: number, nullable: true }
+ *                     geohash: { type: string, nullable: true }
+ *       400:
+ *         description: Invalid building identifier
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Building not found
+ */
+router.get('/:building_id', getBuildingDetailsController);
 /**
  * @swagger
  * /api/buildings/{building_id}/energy-consumption:
@@ -276,6 +481,8 @@ router.get('/portfolio-consumption', getPortfolioConsumptionController);
  *       500:
  *         description: Internal server error
  */
+router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
+
 /**
  * @swagger
  * /api/buildings/{building_id}:

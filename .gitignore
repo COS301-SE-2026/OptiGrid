@@ -6,7 +6,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Next.js for frontend
-*.js
 .next/
 out/
 build/
@@ -76,6 +75,7 @@ supabase/.temp/*
 scripts/run-core-integration.mjs
 
 infrastructure/docker/.data/
+infrastructure/.data/
 infrastructure/docker/.generated/
 
 .mypy_cache/

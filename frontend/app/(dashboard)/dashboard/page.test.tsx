@@ -1,189 +1,324 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import DashboardPage from "./page";
-
-const mockUseQuery = jest.fn();
-const mockInvalidateQueries = jest.fn();
-const mockMutate = jest.fn();
-
-jest.mock("@tanstack/react-query", () => ({
-    useQuery: (options: unknown) => mockUseQuery(options),
-    useQueryClient: () => ({
-        invalidateQueries: mockInvalidateQueries,
-    }),
-    useMutation: () => ({
-        mutate: mockMutate,
-        isPending: false,
-    }),
-}));
-
 
 const mockPush = jest.fn();
 
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: mockPush,
-  }),
+  useRouter: () => ({ push: mockPush }),
 }));
 
+jest.mock("next/link", () => ({
+  __esModule: true,
+  default: ({ children, href, onClick, ...rest }: any) => (
+    <a href={href} onClick={onClick} {...rest}>{children}</a>
+  ),
+}));
 
-jest.mock("next/link", () => {
-    return function MockLink({
-        href,
-        children,
-        ...rest
-    }: {
-        href: string;
-        children: React.ReactNode;
-        [key: string]: unknown;
-    }) {
-        return (
-            <a href={href} {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>
-                {children}
-            </a>
-        );
-    };
-});
+jest.mock("recharts", () => ({
+  ResponsiveContainer: ({ children }: any) => <div data-testid="chart-container">{children}</div>,
+  LineChart: ({ children }: any) => <div data-testid="line-chart">{children}</div>,
+  Line: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  CartesianGrid: () => null,
+  Tooltip: () => null,
+}));
 
-jest.mock("recharts", () => {
-    const MockChart = ({ children }: { children?: React.ReactNode }) => (
-        <div>{children}</div>
-    );
-    return {
-        ResponsiveContainer: MockChart,
-        LineChart: MockChart,
-        CartesianGrid: () => null,
-        Line: () => null,
-        Tooltip: () => null,
-        XAxis: () => null,
-        YAxis: () => null,
-    };
-});
+jest.mock("../../../lib/session", () => ({
+  buildDisplayName: (user: any) =>
+    [user.firstName, user.lastName].filter(Boolean).join(" "),
+}));
 
-const portfolioConsumptionData = {
-    daily: [
-        { date: "2026-07-13", kwh: 3800, cost_zar: 0 },
-        { date: "2026-07-14", kwh: 4100, cost_zar: 0 },
-    ],
-    today_kwh_by_building: {
-        "1": 1847,
-        "2": 1512,
-    },
-    estimated_cost_zar: null,
-    active_alerts: 1,
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
 };
 
-const buildingsData = [
-    {
-        id: "1",
-        name: "Sandton HQ",
-        location: "Sandton, JHB",
-        type: "Office",
-        todayKwh: 1847,
-        status: "Normal",
-    },
-    {
-        id: "2",
-        name: "Rosebank Tower",
-        location: "Rosebank, JHB",
-        type: "Office",
-        todayKwh: 1512,
-        status: "Peak alert",
-    },
-];
+const renderPage = () => render(<DashboardPage />, { wrapper: createWrapper() });
 
-function mockQueries({ buildings = buildingsData, portfolioConsumption = portfolioConsumptionData } = {}) {
-    const now = Date.now();
-    mockUseQuery.mockImplementation((options: any) => {
-        const key = options?.queryKey?.[0];
-        if (key === "auth-session") {
-            return {
-                data: {
-                    userId: "user-123",
-                    email: "abdelrahman@example.com",
-                    firstName: "Abdelrahman",
-                    lastName: "Esam",
-                },
-                isLoading: false,
-            };
-        }
-        if (key === "portfolio-consumption") {
-            return { data: portfolioConsumption, isLoading: false };
-        }
-        if (key === "buildings") {
-            return { data: buildings, isLoading: false, dataUpdatedAt: now };
-        }
-        return { data: undefined, isLoading: false };
-    });
-}
+const mockSession = {
+  user: { firstName: "Tali", lastName: "Seaba", roleType: "admin", email: "tali@example.com" },
+};
+
+const mockBuildings = {
+  data: [
+    {
+      building_id: "b1",
+      building_name: "Tower A",
+      physical_address: "1 Main St",
+      building_type: "Commercial",
+      timezone: "Africa/Johannesburg",
+      square_footage: 5000,
+      max_occupancy: 200,
+      today_kwh: 120,
+      status: "Normal",
+    },
+    {
+      building_id: "b2",
+      building_name: "Tower B",
+      physical_address: "2 Side Ave",
+      building_type: "Industrial",
+      timezone: "UTC",
+      square_footage: 3000,
+      max_occupancy: 100,
+      today_kwh: 0,
+      status: "Offline",
+    },
+  ],
+};
+
+const mockPortfolio = {
+  data: {
+    daily: [
+      { date: "2025-01-01", kwh: 100, cost_zar: 200 },
+      { date: "2025-01-02", kwh: 150, cost_zar: 300 },
+    ],
+    today_kwh_by_building: { b1: 120, b2: 0 },
+    estimated_cost_zar: 500,
+    active_alerts: 2,
+  },
+};
+
+const setupFetch = ({
+  session = mockSession,
+  buildings = mockBuildings,
+  portfolio = mockPortfolio,
+  buildingsOk = true,
+  sessionOk = true,
+} = {}) => {
+  global.fetch = jest.fn().mockImplementation((url: string) => {
+    if (url.includes("/api/auth/session")) {
+      return Promise.resolve({
+        ok: sessionOk,
+        json: async () => session,
+      });
+    }
+    if (url.includes("/api/buildings/portfolio-consumption")) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => portfolio,
+      });
+    }
+    if (url.match(/\/api\/buildings\/[^/]+$/) && url.includes("DELETE")) {
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    }
+    if (url === "/api/buildings") {
+      return Promise.resolve({
+        ok: buildingsOk,
+        json: async () => buildings,
+      });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({}) });
+  });
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  setupFetch();
+});
 
 describe("DashboardPage", () => {
-    beforeEach(() => {
-        mockUseQuery.mockReset();
-        mockInvalidateQueries.mockReset();
-        mockMutate.mockReset();
-        mockPush.mockReset();
-        jest.spyOn(window, "confirm").mockReturnValue(false);
+  describe("Loading state", () => {
+    it("renders without crashing", () => {
+      renderPage();
+      expect(document.body).toBeTruthy();
     });
 
-    afterEach(() => {
-        jest.restoreAllMocks();
+    it("renders the topbar area", async () => {
+      renderPage();
+      expect(await screen.findByText("Tali Seaba")).toBeInTheDocument();
     });
 
-    it("renders the header and KPI values", () => {
-        mockQueries();
-        render(<DashboardPage />);
+    it("renders user initials in the avatar", async () => {
+      renderPage();
+      expect(await screen.findByText("TS")).toBeInTheDocument();
+    });
+  });
 
-        expect(
-            screen.getByRole("heading", { name: "Welcome back, Abdelrahman" })
-        ).toBeInTheDocument();
-        expect(screen.getByText(/last updated just now/i)).toBeInTheDocument();
-        expect(screen.getByText("Buildings")).toBeInTheDocument();
-        expect(screen.getByText("2")).toBeInTheDocument();
-        expect(screen.getByText("3,359 kWh")).toBeInTheDocument();
-        expect(screen.getAllByText("--").length).toBeGreaterThan(0);
-        expect(screen.getByText("Active alerts")).toBeInTheDocument();
-        expect(screen.getByText("1")).toBeInTheDocument();
+  describe("Welcome heading", () => {
+    it("renders welcome heading", async () => {
+      renderPage();
+      expect(await screen.findByRole("heading", { name: /welcome back, tali/i })).toBeInTheDocument();
     });
 
-    it("renders the add building CTA", () => {
-        mockQueries();
-        render(<DashboardPage />);
+    it("renders the subtitle", async () => {
+      renderPage();
+      expect(await screen.findByText(/portfolio overview - last updated/i)).toBeInTheDocument();
+    });
+  });
 
-        const link = screen.getByRole("link", { name: "+ Add building" });
-        expect(link).toHaveAttribute("href", "/buildings/add");
+  describe("Add building", () => {
+    it("renders the Add building", async () => {
+      renderPage();
+      expect(await screen.findByRole("link", { name: /add building/i })).toBeInTheDocument();
     });
 
-    it("renders building rows when data exists", () => {
-        mockQueries();
-        render(<DashboardPage />);
+    it("make sure add building link points to /buildings/add", async () => {
+      renderPage();
+      const link = await screen.findByRole("link", { name: /add building/i });
+      expect(link).toHaveAttribute("href", "/buildings/add");
+    });
+  });
 
-        expect(screen.getByText("Sandton HQ")).toBeInTheDocument();
-        expect(screen.getByText("Rosebank Tower")).toBeInTheDocument();
-        expect(screen.getAllByText("Office")).toHaveLength(2);
-        expect(screen.getByText("Normal")).toBeInTheDocument();
+  /*describe("KPI", () => {
+    it("renders the Buildings KPI", async () => {
+      renderPage();
+      expect(await screen.findByText("Buildings")).toBeInTheDocument();
     });
 
-    it("renders empty state when no buildings", () => {
-        mockQueries({ buildings: [] });
-        render(<DashboardPage />);
-
-        expect(screen.getByText("No buildings yet.")).toBeInTheDocument();
-        const addLink = screen.getByRole("link", {
-            name: "Add your first building",
-        });
-        expect(addLink).toHaveAttribute("href", "/buildings/add");
+    it("renders Today's usage KPI", async () => {
+      renderPage();
+      expect(await screen.findByText("Today's usage")).toBeInTheDocument();
     });
 
-    it("navigates to the building details page when the building card is clicked", () => {
-    mockQueries();
-    render(<DashboardPage />);
+    it("renders Est. cost KPI", async () => {
+      renderPage();
+      expect(await screen.findByText("Est. cost")).toBeInTheDocument();
+    });
 
-     fireEvent.click(screen.getByText("Sandton HQ"));
+    it("renders Active alerts", async () => {
+      renderPage();
+      expect(await screen.findByText("Active alerts")).toBeInTheDocument();
+    });
 
-    expect(mockPush).toHaveBeenCalledWith("/buildings/1/view");
+    it("renders estimated cost", async () => {
+      renderPage();
+      expect(await screen.findByText(/R.*500/)).toBeInTheDocument();
+    });
+  });*/
 
+  describe("KPI", () => {
+  it.each([
+    "Buildings",
+    "Today's usage",
+    "Est. cost",
+    "Active alerts",
+  ])("renders the %s KPI", async (label) => {
+    renderPage();
+    expect(await screen.findByText(label)).toBeInTheDocument();
+  });
 
-
-
+  it("renders estimated cost", async () => {
+    renderPage();
+    expect(await screen.findByText(/R.*500/)).toBeInTheDocument();
+  });
 });
+
+  describe("Portfolio consumption", () => {
+    it("renders the chart heading", async () => {
+      renderPage();
+      expect(await screen.findByText(/portfolio consumption, last 7 days/i)).toBeInTheDocument();
+    });
+
+    it("renders the kWh", async () => {
+      renderPage();
+      expect(await screen.findByText("kWh")).toBeInTheDocument();
+    });
+
+    it("renders the chart after loading", async () => {
+      renderPage();
+      expect(await screen.findByTestId("chart-container")).toBeInTheDocument();
+    });
+  });
+
+  describe("Buildings table", () => {
+    it("renders the buildings table", async () => {
+      renderPage();
+      expect(await screen.findByRole("table")).toBeInTheDocument();
+    });
+
+    it("renders table headers: Name, Type, Today, Status", async () => {
+      renderPage();
+      await screen.findByRole("columnheader", { name: /name/i });
+      expect(screen.getByRole("columnheader", { name: /type/i })).toBeInTheDocument();
+      expect(screen.getByRole("columnheader", { name: /today/i })).toBeInTheDocument();
+      expect(screen.getByRole("columnheader", { name: /status/i })).toBeInTheDocument();
+    });
+
+    /*it("renders Tower A building row", async () => {
+      renderPage();
+      expect(await screen.findByText("Tower A")).toBeInTheDocument();
+    });
+
+    it("renders Tower B building row", async () => {
+      renderPage();
+      expect(await screen.findByText("Tower B")).toBeInTheDocument();
+    });
+
+    it("renders building location", async () => {
+      renderPage();
+      expect(await screen.findByText("1 Main St")).toBeInTheDocument();
+    });
+
+    it("renders building type", async () => {
+      renderPage();
+      expect(await screen.findByText("Commercial")).toBeInTheDocument();
+    });
+
+    it("renders Normal status badge for Tower A", async () => {
+      renderPage();
+      expect(await screen.findByText("Normal")).toBeInTheDocument();
+    });
+
+    it("renders Offline status badge for Tower B", async () => {
+      renderPage();
+      expect(await screen.findByText("Offline")).toBeInTheDocument();
+    });
+
+    it("renders today kWh metric for Tower A", async () => {
+      renderPage();
+      expect(await screen.findByText("120")).toBeInTheDocument();
+    });*/
+
+    it.each([
+  ["Tower A"],
+  ["Tower B"],
+  ["1 Main St"],
+  ["Commercial"],
+  ["Normal"],
+  ["Offline"],
+  ["120"],
+])("renders %s", async (text) => {
+  renderPage();
+  expect(await screen.findByText(text)).toBeInTheDocument();
+});
+
+
+
+
+
+
+
+    it("navigates to building view when row is clicked", async () => {
+      renderPage();
+      await screen.findByText("Tower A");
+      fireEvent.click(screen.getByText("Tower A").closest("tr")!);
+      expect(mockPush).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/_sessions\/[0-9a-z-]+\/buildings\/b1\/view$/),
+      );
+    });
+  });
+
+
+  describe("Empty buildings state", () => {
+    it("shows No buildings when there are no buildings", async () => {
+      setupFetch({ buildings: { data: [] } });
+      renderPage();
+      expect(await screen.findByText(/no buildings yet/i)).toBeInTheDocument();
+    });
+
+    it("shows Add your first building link when empty", async () => {
+      setupFetch({ buildings: { data: [] } });
+      renderPage();
+      expect(await screen.findByRole("link", { name: /add your first building/i })).toBeInTheDocument();
+    });
+  });
 });

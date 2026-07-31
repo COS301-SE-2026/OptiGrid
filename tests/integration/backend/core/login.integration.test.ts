@@ -2,6 +2,48 @@ import request from 'supertest';
 import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
 const { Client } = require('pg');
 
+process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost:54321';
+process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'test-anon-key';
+process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-service-role-key';
+
+jest.mock('@supabase/supabase-js', () => {
+	const { randomUUID } = require('crypto');
+	const mockUsers = new Map();
+	(global as any).__supabaseMockUsers = mockUsers;
+
+	return {
+		createClient: jest.fn(() => ({
+			auth: {
+				admin: {
+					createUser: jest.fn().mockImplementation(async ({ email, password }) => {
+						const id = randomUUID();
+						mockUsers.set(String(email).toLowerCase(), { id, email, password });
+						return { data: { user: { id, email } }, error: null };
+					}),
+					deleteUser: jest.fn().mockResolvedValue({ data: {}, error: null }),
+				},
+				signInWithPassword: jest.fn().mockImplementation(async ({ email, password }) => {
+					const user = mockUsers.get(String(email).toLowerCase());
+					if (!user || user.password !== password) {
+						return { data: { user: null, session: null }, error: { message: 'Invalid login credentials' } };
+					}
+					return {
+						data: {
+							user: { id: user.id, email: user.email },
+							session: {
+								access_token: `mock-access-token-${user.id}`,
+								refresh_token: `mock-refresh-token-${user.id}`,
+								user: { id: user.id, email: user.email },
+							},
+						},
+						error: null,
+					};
+				}),
+			},
+		})),
+	};
+})
+
 function uniqueEmail(prefix: string) {
 	return `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2)}@optigrid.test`;
 }
@@ -17,12 +59,16 @@ describe('Login integration', () => {
 		if (harness) {
 			await harness.resetDatabase();
 		}
+		const users = (global as any).__supabaseMockUsers;
+		if (users) users.clear();
 	});
 
 	afterAll(async () => {
 		if (harness) {
 			await harness.stop();
 		}
+		const users = (global as any).__supabaseMockUsers;
+		if (users) users.clear();
 	});
 
 	it('boots the express app and responds on /health', async () => {

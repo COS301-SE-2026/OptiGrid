@@ -1,10 +1,23 @@
 import { Request, Response } from 'express';
-import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, getPortfolioConsumption, listBuildingsForUser, updateBuildingService } from '../services/building.services';
+import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
+  getPortfolioConsumption, listBuildingsForUser, getBuildingDetails, updateBuildingService, getManagerBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
-import { adminBuildingsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export const getRole = (req: Request) => {
+  const user = req.user;
+  const userId= user?.id;
+
+  if(!userId) throw new Error("Userid missing")
+    
+  return {
+    userId: userId as string,
+    role:user.roleType,
+    tenantId: toUuidOrUndefined(user?.user_metadata?.tenant_id),
+  };
+}
 function toUuidOrUndefined(value: unknown): string | undefined {
   if (typeof value !== 'string') {
     return undefined;
@@ -63,6 +76,8 @@ export const createBuildingController = async (req: Request, res: Response) => {
   }
 };
 
+import { queryTotalKwh } from '../lib/influx';
+
 export const listBuildingsController = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
@@ -75,12 +90,66 @@ export const listBuildingsController = async (req: Request, res: Response) => {
     }
     
     const buildings = await listBuildingsForUser(userId);
+    
+    const getUsage = await Promise.all(
+      buildings.map(async (b) => {
+        let todays_usage: number | null = null;
+        try {
+          const data = await queryTotalKwh(b.building_id, "today");
+          todays_usage = typeof data === "number" ? data : data?.total_kwh ?? null;
+        } catch (error) {
+          console.error(`Failed to get the todays usage for this building: `, error);
+        }
+        return todays_usage;
+      })
+    );
+
+    const enrichedBuildings = buildings.map((build, i) => ({
+      ...build,
+      today_kwh: getUsage[i],
+    }));
+
     return res.status(200).json({
       status: 'success',
-      data: buildings,
+      data: enrichedBuildings,
     });
   } catch (error) {
     console.error('listBuildingsController error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+export const getBuildingDetailsController = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+
+    const { building_id } = buildingDetailsParamsSchema.parse(req.params);
+    const building = await getBuildingDetails(req.user.id, building_id);
+
+    return res.status(200).json({
+      status: 'success',
+      data: building,
+    });
+  } catch (error: any) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid request parameters',
+        details: error.errors ?? error.issues,
+      });
+    }
+
+    if (error.message?.includes('Access Denied')) {
+      return res.status(403).json({ status: 'error', message: error.message });
+    }
+
+    if (error.message === 'Building not found') {
+      return res.status(404).json({ status: 'error', message: 'Building not found' });
+    }
+
+    console.error('getBuildingDetailsController error:', error);
     return res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
@@ -152,12 +221,14 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
 
     const validatedQuery = compareBuildingsSchema.parse(req.query);
 
+    const { building_id_a, building_id_b, time_range } = validatedQuery;
+    
     // we give the data to the service layer to handle
     const comparisonData = await compareBuildingsService(
       userId,
-      validatedQuery.building_id_a,
-      validatedQuery.building_id_b,
-      validatedQuery.time_range
+      building_id_a,
+      building_id_b,
+      time_range
     );
     const successResponse = {
       status: 'success',
@@ -330,3 +401,21 @@ export const getAllBuildingsController = async (req:Request, resp: Response) => 
     });
   }
 }
+
+export const getManagerBuildingsController = async (req:Request, resp: Response) => {
+  try{
+    const {userId} = getRole(req);
+    const building = await getManagerBuildings(userId);
+    return resp.status(200).json({
+      status: "success",
+      data: building
+    });
+  }
+  catch(error: any) {
+    console.error("Error when fecthing all buildings for manager in controller: ", error);
+    return resp.status(500).json({
+      status: "error",
+      message: "Unexpected error"
+    });
+  }
+};

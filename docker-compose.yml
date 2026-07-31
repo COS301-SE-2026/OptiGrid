@@ -29,15 +29,13 @@ services:
           memory: 512M
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
-      DOCKER_INFLUXDB_INIT_USERNAME: admin
-      DOCKER_INFLUXDB_INIT_PASSWORD: pass1234
-      DOCKER_INFLUXDB_INIT_ORG: OptiGrid
-      DOCKER_INFLUXDB_INIT_BUCKET: EnergyData
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: dummy
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_INIT_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_INIT_PASSWORD:-pass1234}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-OptiGrid}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-EnergyData}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-dummy}
     volumes:
-      - type: bind
-        source: ./infrastructure/docker/.data/influxdb
-        target: /var/lib/influxdb2
+      - influxdb_data:/var/lib/influxdb2
     healthcheck:
       test: ["CMD-SHELL", "influx ping || exit 1"]
       interval: 10s
@@ -52,11 +50,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - REDIS_HOST=optigrid_redis
-      - INFLUXDB_URL=http://localhost:8086
-      - INFLUXDB_TOKEN=token-1234
-      - INFLUXDB_ORG=OptiGrid
-      - INFLUXDB_BUCKET=EnergyData
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-dummy}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
     volumes:
       - .:/app
     depends_on:
@@ -66,20 +65,41 @@ services:
         condition: service_healthy
 
   ingestion-worker:
+      build: 
+        context: .
+        dockerfile: ./backend/ingestion/Dockerfile
+      command: python -m backend.ingestion.src.queue_worker
+      environment:
+        - REDIS_HOST=redis
+        - REDIS_PORT=6379
+        - INFLUXDB_URL=http://influxdb:8086
+        - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-token-1234}
+        - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
+        - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
+      volumes:
+        - .:/app
+      depends_on:
+        redis:
+          condition: service_healthy
+        influxdb:
+          condition: service_healthy
+
+  emulator-worker:
     build: 
       context: .
       dockerfile: ./backend/ingestion/Dockerfile
-    command: python -m backend.ingestion.src.worker
+    command: python -m backend.ingestion.src.sensor_emulator
     environment:
-      - REDIS_HOST=optigrid_redis
-      - INFLUXDB_URL=http://localhost:8086
-      - INFLUXDB_TOKEN=token-1234
-      - INFLUXDB_ORG=OptiGrid
-      - INFLUXDB_BUCKET=EnergyData
+      - API_INGEST_URL=http://ingestion-api:8000/api/telemetry/ingest
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
     volumes:
       - .:/app
     depends_on:
       redis:
-        condition: service_healthy
-      influxdb:
-        condition: service_healthy
+          condition: service_healthy
+      ingestion-api:
+        condition: service_started
+
+volumes:
+  influxdb_data:

@@ -1,8 +1,32 @@
-import prisma from '../lib/prisma';
+import type { Prisma } from '@prisma/client';
 import { Building, BuildingType, LifecycleState } from '@prisma/client';
-import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries } from '../lib/influx';
-import crypto from 'crypto';
-import { queueBuildingProvisioning, deleteInfluxBucket } from './provisioning.service';
+import crypto from 'node:crypto';
+import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries, UTILITY_COST_USD_PER_KWH, UTILITY_COST_ZAR_PER_KWH } from '../lib/influx';
+import prisma from '../lib/prisma';
+import { deleteInfluxBucket, queueBuildingProvisioning } from './provisioning.service';
+
+const buildingDetailsSelect = {
+  building_id: true,
+  tenant_id: true,
+  building_name: true,
+  building_type: true,
+  square_footage: true,
+  physical_address: true,
+  timezone: true,
+  max_occupancy: true,
+  nominal_voltage: true,
+  max_current_threshold: true,
+  lifecycle_state: true,
+  created_at: true,
+  updated_at: true,
+  latitude: true,
+  longitude: true,
+  geohash: true,
+} satisfies Prisma.BuildingSelect;
+
+export type BuildingDetails = Prisma.BuildingGetPayload<{
+  select: typeof buildingDetailsSelect;
+}>;
 
 function toFiniteNumber(value: unknown, fallback = 0): number {
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -144,7 +168,7 @@ export interface updateBuildingPayload {
   physical_address?: string;
   timezone?: string;
   max_occupancy?: number;
-  latitude ?: number;
+  latitude?: number;
   longitude?: number;
   nominal_voltage?: number;
   max_current_threshold?: number;
@@ -223,7 +247,7 @@ export const createBuilding = async (
       where: { building_id: newBuilding.building_id },
       data: { hardware_auth_token: finalHardwareAuthToken },
     });
-    
+
     //ensure we give access
     await tx.userBuildingAccess.create({
       data: {
@@ -258,6 +282,35 @@ export const listBuildingsForUser = async (userId: string) => {
   });
 };
 
+export const getBuildingDetails = async (
+  userId: string,
+  buildingId: string,
+): Promise<BuildingDetails> => {
+  const accessRecord = await prisma.userBuildingAccess.findUnique({
+    where: {
+      user_id_building_id: {
+        user_id: userId,
+        building_id: buildingId,
+      },
+    },
+  });
+
+  if (!accessRecord) {
+    throw new Error('Access Denied: You do not have permission to view this building.');
+  }
+
+  const building = await prisma.building.findUnique({
+    where: { building_id: buildingId },
+    select: buildingDetailsSelect,
+  });
+
+  if (!building) {
+    throw new Error('Building not found');
+  }
+
+  return building;
+};
+
 function lastSevenUtcDateKeys(now = new Date()): string[] {
   const currentDay = new Date(now);
   currentDay.setUTCHours(0, 0, 0, 0);
@@ -279,16 +332,56 @@ export const getPortfolioConsumption = async (userId: string): Promise<Portfolio
   );
   let hasCostData = false;
 
-  const buildingSeries = await Promise.all(
-    buildings.map(async (building) => ({
-      buildingId: building.building_id,
-      points: await queryUsageSeries(building.building_id, '7d'),
-    })),
-  );
+  const [buildingSeries, todayUsageList] = await Promise.all([
+    Promise.all(
+      buildings.map(async (building) => {
+        let points: any[] = [];
+        try {
+          points = await queryUsageSeries(building.building_id, '7d');
+        } catch (error) {
+          console.error(`Failed to get usage series for building ${building.building_id}:`, error);
+        }
+        return {
+          buildingId: building.building_id,
+          points,
+        };
+      }),
+    ),
+    Promise.all(
+      buildings.map(async (building) => {
+        try {
+          const res = await queryTotalKwh(building.building_id, 'today');
+          const kwh = typeof res === 'number' ? res : res?.total_kwh ?? 0;
+          const rawCost = typeof res === 'number' ? 0 : res?.total_cost_zar ?? 0;
+          const costZar = rawCost > 0 ? rawCost : kwh * UTILITY_COST_ZAR_PER_KWH;
+          return {
+            buildingId: building.building_id,
+            kwh,
+            costZar,
+          };
+        } catch {
+          return { buildingId: building.building_id, kwh: 0, costZar: 0 };
+        }
+      })
+    )
+  ]);
+
+  for (const item of todayUsageList) {
+    todayUsageByBuilding[item.buildingId] = item.kwh;
+    hasCostData ||= item.costZar !== 0;
+    const daily = dailyTotals.get(todayDate);
+    if (daily) {
+      daily.kwh += item.kwh;
+      daily.costZar += item.costZar;
+    }
+  }
 
   for (const { buildingId, points } of buildingSeries) {
     for (const point of points ?? []) {
       const date = point.timestamp.slice(0, 10);
+      if (date === todayDate) {
+        continue;
+      }
       const daily = dailyTotals.get(date);
       if (!daily) {
         continue;
@@ -297,10 +390,6 @@ export const getPortfolioConsumption = async (userId: string): Promise<Portfolio
       daily.kwh += point.kwh;
       daily.costZar += point.cost_zar;
       hasCostData ||= point.cost_zar !== 0;
-
-      if (date === todayDate) {
-        todayUsageByBuilding[buildingId] = (todayUsageByBuilding[buildingId] ?? 0) + point.kwh;
-      }
     }
   }
 
@@ -318,11 +407,11 @@ export const getPortfolioConsumption = async (userId: string): Promise<Portfolio
     todayUsageByBuilding[buildingId] = value === null ? null : roundMetric(value);
   }
 
-  const totalCostZar = daily.reduce((total, point) => total + point.cost_zar, 0);
+  const todayCostZar = daily.at(-1)?.cost_zar ?? 0;
   return {
     daily,
     today_kwh_by_building: todayUsageByBuilding,
-    estimated_cost_zar: hasCostData ? roundMetric(totalCostZar) : null,
+    estimated_cost_zar: hasCostData ? roundMetric(todayCostZar) : null,
     active_alerts: 0,
   };
 };
@@ -395,7 +484,7 @@ export const updateBuildingService = async (
   role: string = "VIEWER",
 ) => {
   // admins bypass the per-building access check but everyone else must own the building
-  if(role !== "ADMIN") {
+  if (role !== "ADMIN") {
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
         user_id_building_id: {
@@ -409,16 +498,16 @@ export const updateBuildingService = async (
       throw new Error('Access Denied: You do not have permission to update this building.');
     }
   }
-  
+
 
   const exists = await prisma.building.findUnique({
-    where: { building_id: buildingId},
+    where: { building_id: buildingId },
   });
 
-  if(!exists) throw new Error("Building does not exist");
+  if (!exists) throw new Error("Building does not exist");
 
   let buildingState = payload.lifecycle_state;
-  if(payload.lifecycle_state === "ACTIVE" && exists.lifecycle_state !== "ACTIVE") {
+  if (payload.lifecycle_state === "ACTIVE" && exists.lifecycle_state !== "ACTIVE") {
     try {
       await queueBuildingProvisioning(
         exists.building_id,
@@ -430,7 +519,7 @@ export const updateBuildingService = async (
       );
       buildingState = "ACTIVE"
     }
-    catch(error:any) {
+    catch (error: any) {
       buildingState = "PROVISIONING_FAILED";
       console.error(`Provisioning failed due to unexpected errors`, error);
     }
@@ -446,12 +535,12 @@ export const updateBuildingService = async (
       ...(payload.physical_address !== undefined ? { physical_address: payload.physical_address } : {}),
       ...(payload.timezone !== undefined ? { timezone: payload.timezone } : {}),
       ...(payload.max_occupancy !== undefined ? { max_occupancy: payload.max_occupancy } : {}),
-      ...(payload.latitude !== undefined ? {latitude: payload.latitude} : {}),
-      ...(payload.longitude !== undefined ? {longitude: payload.longitude} : {}),
-      ...(payload.nominal_voltage !== undefined ? {nominal_voltage: payload.nominal_voltage} : {}),
-      ...(payload.max_current_threshold !== undefined ? {max_current_threshold: payload.max_current_threshold} : {}),
-      ...(buildingState !== undefined ? {lifecycle_state: buildingState} : {}),
-      ...(payload.geohash !== undefined ? {geohash: payload.geohash} : {}),
+      ...(payload.latitude !== undefined ? { latitude: payload.latitude } : {}),
+      ...(payload.longitude !== undefined ? { longitude: payload.longitude } : {}),
+      ...(payload.nominal_voltage !== undefined ? { nominal_voltage: payload.nominal_voltage } : {}),
+      ...(payload.max_current_threshold !== undefined ? { max_current_threshold: payload.max_current_threshold } : {}),
+      ...(buildingState !== undefined ? { lifecycle_state: buildingState } : {}),
+      ...(payload.geohash !== undefined ? { geohash: payload.geohash } : {}),
     },
   });
 };
@@ -483,24 +572,58 @@ export const compareBuildingsService = async (
 
   if (!buildingA || !buildingB) throw new Error('Building not found');
 
-  // then we get data from influx for both buildings in parallel
-  const [influxA, influxB, seriesA, seriesB] = await Promise.all([
-    queryTotalKwh(buildingId_1, timeRange),
-    queryTotalKwh(buildingId_2, timeRange),
-    queryUsageSeries(buildingId_1, timeRange),
-    queryUsageSeries(buildingId_2, timeRange),
+  const fetchSeries = async (id: string, range: string) => {
+    try { return await queryUsageSeries(id, range); } catch (e) { console.error(e); return []; }
+  };
+  const fetchTotals = async (id: string, range: string) => {
+    try { return await queryTotalKwh(id, range); } catch (e) { console.error(e); return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 }; }
+  };
+
+  const [seriesA, seriesB, totalsA, totalsB] = await Promise.all([
+    fetchSeries(buildingId_1, timeRange),
+    fetchSeries(buildingId_2, timeRange),
+    fetchTotals(buildingId_1, timeRange),
+    fetchTotals(buildingId_2, timeRange),
   ]);
+
+  const extractTotalKwh = (totals: any, series: any[]): number => {
+    if (typeof totals === 'number') return totals;
+    if (totals && typeof totals.total_kwh === 'number') return totals.total_kwh;
+    return series.reduce((sum: number, p: any) => sum + (p.kwh ?? 0), 0);
+  };
+  const extractTotalCostZar = (totals: any, series: any[]): number => {
+    if (typeof totals === 'object' && totals && typeof totals.total_cost_zar === 'number') return totals.total_cost_zar;
+    return series.reduce((sum: number, p: any) => sum + (p.cost_zar ?? 0), 0);
+  };
+  const extractTotalCostUsd = (totals: any): number => {
+    if (typeof totals === 'object' && totals && typeof totals.total_cost_usd === 'number') return totals.total_cost_usd;
+    return 0;
+  };
+
+  const influxA = {
+    total_kwh: extractTotalKwh(totalsA, seriesA),
+    total_cost_zar: extractTotalCostZar(totalsA, seriesA),
+    total_cost_usd: extractTotalCostUsd(totalsA),
+  };
+  const influxB = {
+    total_kwh: extractTotalKwh(totalsB, seriesB),
+    total_cost_zar: extractTotalCostZar(totalsB, seriesB),
+    total_cost_usd: extractTotalCostUsd(totalsB),
+  };
 
   // we calculate metrics such as EUI, cost per sq ft and cost per kwh, ensuring no division by 0
   const calculateMetrics = (building: Building, influxData: any) => {
-    const totalKwh = typeof influxData === 'number' ? influxData : toFiniteNumber(influxData?.total_kwh);
-    const totalCostUsd = typeof influxData === 'number' ? 0 : toFiniteNumber(influxData?.total_cost_usd);
-    const rawTotalCostZar = typeof influxData === 'number' ? 0 : toFiniteNumber(influxData?.total_cost_zar);
-    const totalCostZar = typeof influxData === 'number'
-      ? 0
-      : rawTotalCostZar > 0
-        ? rawTotalCostZar
-        : totalCostUsd;
+    const totalKwh = toFiniteNumber(influxData?.total_kwh);
+    const rawTotalCostUsd = toFiniteNumber(influxData?.total_cost_usd);
+    const rawTotalCostZar = toFiniteNumber(influxData?.total_cost_zar);
+
+    const totalCostZar = rawTotalCostZar > 0
+      ? rawTotalCostZar
+      : (rawTotalCostUsd > 0 ? rawTotalCostUsd : totalKwh * UTILITY_COST_ZAR_PER_KWH);
+
+    const totalCostUsd = rawTotalCostUsd > 0
+      ? rawTotalCostUsd
+      : totalKwh * UTILITY_COST_USD_PER_KWH;
     const sqFt = Number(building.square_footage);
     const hasSquareFootage = Number.isFinite(sqFt) && sqFt > 0;
     const eui = hasSquareFootage ? totalKwh / sqFt : null;
@@ -546,12 +669,12 @@ export const compareBuildingsService = async (
 };
 
 export const deleteBuildingService = async (
-  userId: string, 
+  userId: string,
   buildingId: string,
   role: string = "VIEWER",
 ) => {
 
-  if(role !== "ADMIN") {
+  if (role !== "ADMIN") {
     //verify user has access to this building
     const accessRecord = await prisma.userBuildingAccess.findUnique({
       where: {
@@ -583,15 +706,67 @@ export const deleteBuildingService = async (
 export const getAllBuildings = async (lifecycle_state?: LifecycleState) => {
   return prisma.building.findMany({
     where: {
-      ...(lifecycle_state !== undefined ? { lifecycle_state} : {}),
+      ...(lifecycle_state !== undefined ? { lifecycle_state } : {}),
     },
     orderBy: {
       created_at: "desc"
     },
     include: {
       authorized_users: {
-        include: { user: true}
+        include: { user: true }
       }
     }
   });
+};
+
+export const getManagerBuildings = async (userId: string) => {
+  const building = await prisma.building.findMany({
+    where: {
+      authorized_users: {
+        some: { user_id: userId }
+      }
+    },
+    //this is to get viewer
+    include: {
+      authorized_users: {
+        include: {
+          user: {
+            select: {
+              userId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              roleType: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      created_at: "desc"
+    },
+  });
+  const getUsage = await Promise.all(
+    building.map(async (b) => {
+      let todays_usage: number | null = null;
+      try {
+        const data = await queryTotalKwh(b.building_id, "today");
+        todays_usage = typeof data === "number" ? data : data?.total_kwh ?? null;
+      }
+      catch (error) {
+        console.error(`Failed to get the todays usage for this building: `, error)
+      }
+      return todays_usage;
+    })
+  );
+  //all things returned here are things expecte din frotnend
+  return building.map((build, i) => ({
+    building_id: build.building_id,
+    building_name: build.building_name,
+    building_type: build.building_type,
+    physical_address: build.physical_address,
+    lifecycle_state: build.lifecycle_state,
+    todays_usage: getUsage[i],
+    authorized_users: build.authorized_users.map((allowed) => ({ user: allowed.user, })),
+  }));
 };

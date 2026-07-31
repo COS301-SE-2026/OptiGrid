@@ -49,10 +49,12 @@ function getEnergyUsage(building: BuildingRecord): number | null {
     return typeof usage === "number" && Number.isFinite(usage) ? usage : null;
 }
 function getOwnerName(building: BuildingRecord): string {
-    const viewer = building.authorized_users?.find((access) => access?.user?.roleType === "VIEWER",)?.user;
-    if (!viewer) {
-        return "N/A";
-    }
+    let viewer = building.authorized_users?.find((access) => 
+        (access?.user?.roleType?.toUpperCase() === "VIEWER"
+    ))?.user;
+    
+    if(!viewer) viewer = building.authorized_users?.[0]?.user;
+    if (!viewer) return "N/A";
 
     const fullName = [viewer.firstName, viewer.lastName].filter(Boolean).join(" ").trim();
     return fullName || viewer.email || "N/A";
@@ -70,7 +72,7 @@ export default function ManagerBuildings() {
         let isMounted = true;
         const load = async () => {
             try {
-                const response = await fetch("/api/buildings", {
+                const response = await fetch("/api/buildings/manager", {
                     method: "GET",
                     cache: "no-store",
                 });
@@ -259,16 +261,28 @@ export default function ManagerBuildings() {
                                             <td>{getOwnerName(building)}</td>
 
                                             <td>
-                                                <Link
-                                                    href={`/buildings/${building.building_id}/edit`}
-                                                    className="btn btn-primary"
-                                                    style={{
-                                                        padding: "4px 12px",
-                                                        fontSize: "var(--fs-small)"
-                                                    }}
-                                                >
-                                                    Edit
-                                                </Link>
+                                                <div style={{ display: "flex", flexWrap: "wrap",  gap: "var(--space-2)" }}>
+                                                    <Link
+                                                        href={`/buildings/${building.building_id}/edit`}
+                                                        className="btn btn-primary"
+                                                        style={{
+                                                            padding: "4px 12px",
+                                                            fontSize: "var(--fs-small)"
+                                                        }}
+                                                    >
+                                                        Edit
+                                                    </Link>
+                                                    <Link
+                                                        href={`/buildings/${building.building_id}/sensors`}
+                                                        className="btn btn-secondary"
+                                                        style={{
+                                                            padding: "4px 12px",
+                                                            fontSize: "var(--fs-small)"
+                                                        }}
+                                                    >
+                                                        Sensors
+                                                    </Link>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

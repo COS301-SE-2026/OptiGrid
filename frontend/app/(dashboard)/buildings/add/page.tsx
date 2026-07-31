@@ -3,6 +3,7 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { getTabSessionPath } from "../../../../lib/tab-session";
 
 const BUILDING_TYPES = [
     "Residential",
@@ -122,7 +123,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data?.message ?? "Failed to create building.");
-            router.push("/dashboard");
+            router.push(getTabSessionPath("/dashboard"));
         } catch (err) {
             setApiError(err instanceof Error ? err.message : "Failed to create building.");
         } finally {

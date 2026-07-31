@@ -11,7 +11,7 @@ export default defineConfig({
     {
       command: "node scripts/e2e-core-server.mjs",
       url: "http://localhost:4000/health",
-      reuseExistingServer: false,
+      reuseExistingServer: !process.env.CI,
       timeout: 180_000,
     },
     {
@@ -21,7 +21,7 @@ export default defineConfig({
         ...process.env,
         CORE_URL: "http://localhost:4000",
       },
-      reuseExistingServer: false,
+      reuseExistingServer: !process.env.CI,
       timeout: 180_000,
       stdout: "pipe",
       stderr: "pipe",

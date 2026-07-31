@@ -1,5 +1,6 @@
 import prisma from '../../../backend/core/src/lib/prisma';
-import { createBuilding, buildingPayload, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, getPortfolioConsumption } from '../../../backend/core/src/services/building.services';
+import { createBuilding, buildingPayload, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
+	getPortfolioConsumption, getManagerBuildings, getBuildingDetails } from '../../../backend/core/src/services/building.services';
 import { BuildingType } from '@prisma/client';
 import { deleteInfluxBucket } from "../../../backend/core/src/services/provisioning.service"
 // Mock Prisma with 
@@ -24,6 +25,7 @@ const mockedPrisma = prisma as unknown as {
     };
     building: {
         delete: jest.Mock;
+		findUnique: jest.Mock;
 		findMany: jest.Mock;
     };
 };
@@ -34,6 +36,8 @@ jest.mock('../../../backend/core/src/lib/influx', () => ({
 	queryTotalKwh: jest.fn(),
 	queryUsageDetails: jest.fn(),
 	queryUsageSeries: jest.fn(),
+	UTILITY_COST_ZAR_PER_KWH: 2.5,
+	UTILITY_COST_USD_PER_KWH: 0.15,
 }));
 
 // Mock provisioning service to avoid actual InfluxDB calls in tests
@@ -488,6 +492,55 @@ describe('Building Services, happy path', () => {
     });
 });
 
+describe('getBuildingDetails', () => {
+	const mockUserId = 'user-building-details';
+	const mockBuildingId = '11111111-1111-4111-8111-111111111111';
+
+	beforeEach(() => {
+		(mockedPrisma as any).userBuildingAccess = { findUnique: jest.fn() };
+		(mockedPrisma as any).building = { findUnique: jest.fn() };
+	});
+
+	it('returns_the_authorized_building_and_excludes_the_hardware_token_from_the_query', async () => {
+		(mockedPrisma as any).userBuildingAccess.findUnique.mockResolvedValue({
+			user_id: mockUserId,
+			building_id: mockBuildingId,
+		});
+		(mockedPrisma as any).building.findUnique.mockResolvedValue({
+			building_id: mockBuildingId,
+			building_name: 'Main Office',
+			lifecycle_state: 'ACTIVE',
+		});
+
+		const result = await getBuildingDetails(mockUserId, mockBuildingId);
+
+		expect(result).toEqual({
+			building_id: mockBuildingId,
+			building_name: 'Main Office',
+			lifecycle_state: 'ACTIVE',
+		});
+		const query = (mockedPrisma as any).building.findUnique.mock.calls[0][0];
+		expect(query.select.hardware_auth_token).toBeUndefined();
+	});
+
+	it('throws_when_the_user_has_no_access_to_the_building', async () => {
+		(mockedPrisma as any).userBuildingAccess.findUnique.mockResolvedValue(null);
+
+		await expect(getBuildingDetails(mockUserId, mockBuildingId)).rejects.toThrow('Access Denied');
+		expect((mockedPrisma as any).building.findUnique).not.toHaveBeenCalled();
+	});
+
+	it('throws_when_the_building_does_not_exist', async () => {
+		(mockedPrisma as any).userBuildingAccess.findUnique.mockResolvedValue({
+			user_id: mockUserId,
+			building_id: mockBuildingId,
+		});
+		(mockedPrisma as any).building.findUnique.mockResolvedValue(null);
+
+		await expect(getBuildingDetails(mockUserId, mockBuildingId)).rejects.toThrow('Building not found');
+	});
+});
+
 describe('getBuildingEnergyConsumptionDetails', () => {
 	const mockUserId = 'user-energy';
 	const mockBuildingId = '11111111-1111-1111-1111-111111111111';
@@ -619,14 +672,14 @@ describe('compareBuildingsService', () => {
 				.mockResolvedValueOnce({ building_id: buildingA, square_footage: 1000, building_name: 'A Tower' })
 				.mockResolvedValueOnce({ building_id: buildingB, square_footage: 2000, building_name: 'B Plaza' }),
 		};
-		mockedInflux.queryTotalKwh.mockResolvedValueOnce(5000);
-		mockedInflux.queryTotalKwh.mockResolvedValueOnce(4000);
+		mockedInflux.queryUsageSeries.mockResolvedValueOnce([{ timestamp: '1', kwh: 5000, cost_zar: 0 }]);
+		mockedInflux.queryUsageSeries.mockResolvedValueOnce([{ timestamp: '1', kwh: 4000, cost_zar: 0 }]);
 
 		//act
 		const result = await compareBuildingsService(mockUserId, buildingA, buildingB, '30d');
 
 		// assert
-		expect(mockedInflux.queryTotalKwh).toHaveBeenCalledTimes(2);
+		expect(mockedInflux.queryUsageSeries).toHaveBeenCalledTimes(2);
 		expect((mockedPrisma as any).building.findUnique).toHaveBeenCalledTimes(2);
 		expect(result.buildingA.eui).toBeCloseTo(5);
 		expect(result.buildingB.eui).toBeCloseTo(2);
@@ -643,9 +696,9 @@ describe('compareBuildingsService', () => {
 				.mockResolvedValueOnce({ building_id: buildingA, square_footage: 1000, building_name: 'A Tower' })
 				.mockResolvedValueOnce({ building_id: buildingB, square_footage: 2000, building_name: 'B Plaza' }),
 		};
-		mockedInflux.queryTotalKwh
-			.mockResolvedValueOnce({ total_kwh: 5000, total_cost_usd: 200, total_cost_zar: 3600 })
-			.mockResolvedValueOnce({ total_kwh: 4000, total_cost_usd: 150, total_cost_zar: 0 });
+		mockedInflux.queryUsageSeries
+			.mockResolvedValueOnce([{ timestamp: '1', kwh: 5000, cost_zar: 3600 }])
+			.mockResolvedValueOnce([{ timestamp: '1', kwh: 4000, cost_zar: 0 }]);
 
 		// act
 		const result = await compareBuildingsService(mockUserId, buildingA, buildingB, '30d');
@@ -653,9 +706,9 @@ describe('compareBuildingsService', () => {
 		// assert
 		expect(result.buildingA.total_kwh).toBe(5000);
 		expect(result.buildingA.total_cost_zar).toBe(3600);
-		expect(result.buildingA.total_cost_usd).toBe(200);
+		expect(result.buildingA.total_cost_usd).toBe(750);
 		expect(result.buildingA.cost_per_kwh).toBe(0.72);
-		expect(result.buildingB.total_cost_zar).toBe(150);
+		expect(result.buildingB.total_cost_zar).toBe(10000);
 	});
 
 	it('authorization_error_when_user_has_no_access_and_influx_not_called', async () => {
@@ -668,7 +721,7 @@ describe('compareBuildingsService', () => {
 		await expect(compareBuildingsService(mockUserId, buildingA, buildingB, '7d')).rejects.toThrow('Access Denied');
 
 		// assert
-		expect(mockedInflux.queryTotalKwh).not.toHaveBeenCalled();
+		expect(mockedInflux.queryUsageSeries).not.toHaveBeenCalled();
 	});
 
 	it('_influx_errors_and_prisma_missing_building', async () => {
@@ -676,7 +729,7 @@ describe('compareBuildingsService', () => {
 		(mockedPrisma as any).userBuildingAccess = { findFirst: jest.fn().mockResolvedValue({ user_id: mockUserId, building_id: buildingA }) };
 		(mockedPrisma as any).building = { findUnique: jest.fn().mockResolvedValueOnce({ building_id: buildingA, square_footage: 1000, building_name: 'A' }).mockResolvedValueOnce(null) };
 
-		mockedInflux.queryTotalKwh.mockRejectedValue(new Error('Influx query failed'));
+		mockedInflux.queryUsageSeries.mockRejectedValue(new Error('Influx query failed'));
 
 		//act and assert
 		await expect(compareBuildingsService(mockUserId, buildingA, buildingB, '30d')).rejects.toThrow();
@@ -694,8 +747,8 @@ describe('compareBuildingsService', () => {
 				.mockResolvedValueOnce({ building_id: buildingB, square_footage: null, building_name: 'B Null' }),
 		};
 
-		mockedInflux.queryTotalKwh.mockResolvedValueOnce(1000);
-		mockedInflux.queryTotalKwh.mockResolvedValueOnce(2000);
+		mockedInflux.queryUsageSeries.mockResolvedValueOnce([{ timestamp: '1', kwh: 1000, cost_zar: 0 }]);
+		mockedInflux.queryUsageSeries.mockResolvedValueOnce([{ timestamp: '1', kwh: 2000, cost_zar: 0 }]);
 
 		// act
 		const result = await compareBuildingsService(mockUserId, buildingA, buildingB, '7d');
@@ -728,6 +781,9 @@ describe('getPortfolioConsumption', () => {
 			.mockResolvedValueOnce([
 				{ timestamp: '2026-07-14T09:00:00Z', kwh: 50, cost_zar: 25 },
 			]);
+		mockedInflux.queryTotalKwh
+			.mockResolvedValueOnce(100)
+			.mockResolvedValueOnce({ total_kwh: 50, total_cost_zar: 25 });
 
 		const result = await getPortfolioConsumption(mockUserId);
 
@@ -745,9 +801,9 @@ describe('getPortfolioConsumption', () => {
 		expect(result.daily.at(-1)).toEqual({
 			date: '2026-07-14',
 			kwh: 150,
-			cost_zar: 25,
+			cost_zar: 275,
 		});
-		expect(result.estimated_cost_zar).toBe(25);
+		expect(result.estimated_cost_zar).toBe(275);
 	});
 });
 
@@ -863,4 +919,72 @@ describe("Get All Buildings Services Test", () => {
 			},
 		});
 	});
+});
+
+
+describe("Get All Manager Buildings Services Unit Tests", () => {
+	beforeEach(() => {
+		if(!mockedPrisma.building) (mockedPrisma as any).building = {}
+		mockedPrisma.building.findMany = jest.fn();
+	});
+
+	it("should_return_buildings correctly", async() => {
+		const userId = "manager";
+		const building = [
+			{
+				building_id: "building1",
+				building_name: "Building",
+				building_type: "Residential",
+				physical_address: "Something",
+				lifecycle_state: "ACTIVE",
+				authorized_users: [
+					{
+						user: {
+							userId: "user123",
+							firstName: "John",
+							lastName: "Doe",
+							email: "johndoe@gmail.com",
+							roleType: "Viewer"
+						}
+					}
+				]
+			}
+		];
+		const expected = [
+			{
+				building_id: "building1",
+				building_name: "Building",
+				building_type: "Residential",
+				physical_address: "Something",
+				lifecycle_state: "ACTIVE",
+				todays_usage: null,
+				authorized_users: [
+					{
+						user: {
+							userId: "user123",
+							firstName: "John",
+							lastName: "Doe",
+							email: "johndoe@gmail.com",
+							roleType: "Viewer"
+						}
+					}
+				]
+			}
+		];
+		(prisma.building.findMany as jest.Mock).mockResolvedValue(building);
+		//act
+		const out = await getManagerBuildings(userId);
+		//assert
+		expect(out).toEqual(expected);
+		expect(prisma.building.findMany).toHaveBeenCalledTimes(1); 
+	});
+	it("should_return_empty_array_when_no_buildings", async () => {
+		const userId = "manager";
+		(prisma.building.findMany as jest.Mock).mockResolvedValue([]);
+		//act
+		const out = await getManagerBuildings(userId);
+		//assert
+		expect(out).toEqual([]);
+		expect(prisma.building.findMany).toHaveBeenCalledTimes(1);
+	})
 });

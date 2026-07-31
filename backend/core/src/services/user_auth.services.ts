@@ -1,7 +1,12 @@
 import prisma from '../lib/prisma';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
-import { Prisma, UserRole } from '@prisma/client';
+import { AccountStatus, Prisma, UserRole } from '@prisma/client';
+import {
+    AccountAlreadyActiveError,
+    AccountDeactivatedError,
+    AccountNotFoundError,
+} from '../errors/account.errors';
 
 const USER_EXISTS_ERROR = 'User already exists, please login instead.';
 // Reused public shape returned to API callers after signup.
@@ -19,7 +24,7 @@ type SignupCreateData = {
     email: string;
     firstName: string;
     lastName: string;
-    roleType?: UserRole;
+    roleType: UserRole;
 };
 
 // Captures the Supabase auth user id plus rollback behavior when app profile write fails.
@@ -100,7 +105,7 @@ function isSupabaseInvalidCredentialsError(error: { message?: string; code?: str
     return code === 'invalid_credentials' || message.includes('invalid login credentials') || message.includes('invalid email or password');
 }
 
-function isUserIdForeignKeyError(error: unknown): boolean {
+export function isUserIdForeignKeyError(error: unknown): boolean {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
         const fieldName = String((error.meta as Record<string, unknown> | undefined)?.field_name ?? '').toLowerCase();
         return fieldName.includes('users_user_id_fkey') || fieldName.includes('user_id');
@@ -113,7 +118,7 @@ function isUserIdForeignKeyError(error: unknown): boolean {
     return false;
 }
 
-function isUserIdUniqueConstraintError(error: unknown): boolean {
+export function isUserIdUniqueConstraintError(error: unknown): boolean {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const target = (error.meta as Record<string, unknown> | undefined)?.target;
         const targetText = Array.isArray(target) ? target.join(',').toLowerCase() : String(target ?? '').toLowerCase();
@@ -127,11 +132,11 @@ function isUserIdUniqueConstraintError(error: unknown): boolean {
     return false;
 }
 
-function isRecordNotFoundError(error: unknown): boolean {
+export function isRecordNotFoundError(error: unknown): boolean {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
 }
 
-async function updateUserByUserIdWithRetry(createData: SignupCreateData) {
+export async function updateUserByUserIdWithRetry(createData: SignupCreateData) {
     const maxAttempts = 5;
     const retryDelayMs = 250;
 
@@ -146,7 +151,7 @@ async function updateUserByUserIdWithRetry(createData: SignupCreateData) {
                     email: createData.email,
                     firstName: createData.firstName,
                     lastName: createData.lastName,
-                    ...(createData.roleType ? { roleType: createData.roleType} : {}),
+                    roleType: createData.roleType,
                 },
                 select: SIGNUP_USER_SELECT,
             });
@@ -181,7 +186,7 @@ async function createOrUpsertUser(createData: SignupCreateData) {
             email: createData.email,
             firstName: createData.firstName,
             lastName: createData.lastName,
-            ...(createData.roleType ? { roleType: createData.roleType} : {}),
+            roleType: createData.roleType,
         },
         //we ensure not to show the password hash or return to frontend side
         select: SIGNUP_USER_SELECT,
@@ -280,7 +285,7 @@ async function provisionOrResolveAuthUser(email: string, password: string): Prom
 }
 
 //This function is used for the signup logic
-export const signup = async (email: string, password: string, name: string, roleType?: UserRole) => {
+export const signup = async (email: string, password: string, name: string) => {
     //we check if user exists, and if so he should login
     const userExists = await prisma.user.findUnique({
         where: { email },
@@ -291,9 +296,10 @@ export const signup = async (email: string, password: string, name: string, role
     const [firstName = '', ...otherNames] = name.trim().split(/\s+/);
     const lastName = otherNames.join(' ');
 
-    //assign manager to users ending with @optigrid.com, viewer by default
-    let role: UserRole = roleType ?? "VIEWER";
-    if(!roleType && email.trim().toLowerCase().endsWith("@optigrid.com")) role = "BUILDING_MANAGER";
+    // Public signup is deliberately limited to Viewer. Role changes are an
+    // administrative action; accepting a role from this request enables
+    // privilege escalation.
+    const role: UserRole = "VIEWER";
 
     // Prefer Supabase auth user id to satisfy schemas where users.user_id references auth.users.id.
     const provisionedAuthUser = await provisionOrResolveAuthUser(email, password);
@@ -342,12 +348,17 @@ export const login = async (email: string, password: string) => {
             firstName: true,
             lastName: true,
             roleType: true,
+            accountStatus: true,
         },
     });
 
-    //fallbacl for prisma, in case we harcdode in supabase or add login with google
-    let role: UserRole = "VIEWER";
-    if(email.trim().toLowerCase().endsWith("@optigrid.com")) role = "BUILDING_MANAGER";
+    if (existingUser?.accountStatus === AccountStatus.DEACTIVATED) {
+        throw new AccountDeactivatedError();
+    }
+
+    // A repaired profile is never granted a privileged role from identity
+    // metadata or an email address. An administrator may assign a role later.
+    const role: UserRole = "VIEWER";
 
     const user = existingUser ?? await createOrUpsertUser({
         userId: authUser.userId,
@@ -361,4 +372,152 @@ export const login = async (email: string, password: string) => {
         user,
         accessToken: authUser.accessToken,
     };
+};
+
+// Verifies credentials with Supabase, then restores only a previously
+// deactivated application profile. This is deliberately separate from normal
+// authenticated routes so inactive accounts can recover.
+export const recoverAccount = async (email: string, password: string) => {
+    const authUser = await authenticateAuthUser(email, password);
+    const existingUser = await prisma.user.findUnique({
+        where: { userId: authUser.userId },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            accountStatus: true,
+        },
+    });
+
+    if (!existingUser) {
+        throw new AccountNotFoundError();
+    }
+    if (existingUser.accountStatus === AccountStatus.ACTIVE) {
+        throw new AccountAlreadyActiveError();
+    }
+
+    const user = await prisma.user.update({
+        where: { userId: authUser.userId },
+        data: {
+            accountStatus: AccountStatus.ACTIVE,
+            deactivatedAt: null,
+        },
+        select: SIGNUP_USER_SELECT,
+    });
+
+    return { user, accessToken: authUser.accessToken };
+};
+
+export const getViewersService = async () => {
+    const viewers = await prisma.user.findMany({
+        where: {
+            roleType: "VIEWER"
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            buildingAccess: {
+                select: {
+                    building_id: true
+                }
+            }
+        },
+    });
+
+    return viewers.map(viewer => ({
+        ...viewer,
+        buildingIds: viewer.buildingAccess.map( 
+            building => building.building_id
+        ),
+        buildingAccess: undefined
+    }));
+};
+
+export const getManagersService = async () =>{
+    const managers = await prisma.user.findMany({
+        where: {
+            roleType: "BUILDING_MANAGER"
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            buildingAccess: {
+                select: {
+                    building_id: true
+                }
+            }
+        },
+    });
+
+    return managers.map(manager => ({
+        ...manager,
+        buildingIds: manager.buildingAccess.map( 
+            building => building.building_id
+        ),
+        buildingAccess: undefined
+    }));
+};
+
+export const assignMangerToBuilding = async (
+    userId: string,
+    buildingId: string
+) => {
+    try{
+        await prisma?.userBuildingAccess.create({
+            data: {
+                user_id: userId,
+                building_id: buildingId
+            }
+        });
+        return {
+            success: true,
+            message: "Manger assigned to building successfully"
+        };
+    }
+    catch(error:any) {   
+        if(error.code === "P2002"){
+            return {
+                success:true,
+                message: "Building was already assigned to another manager"
+            };
+        }
+        throw error;
+    }
+};
+
+export const removeAssignment = async (
+    userId: string,
+    buildingId: string
+) => {
+    try{
+        await prisma?.userBuildingAccess.delete({
+            where: {
+                user_id_building_id: {
+                    user_id: userId,
+                    building_id: buildingId
+                }
+            }
+        });
+        return {
+            success: true,
+            message: "Manger removed from building successfully"
+        };
+    }
+    catch(error:any) {   
+        if(error.code === "P2025"){//p2025 is for record not found
+            return {
+                success:true,
+                message: "Building was not assigned to this manager"
+            };
+        }
+        throw error;
+    }
 };

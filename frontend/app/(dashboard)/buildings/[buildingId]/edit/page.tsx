@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { getTabSessionPath } from "../../../../../lib/tab-session";
 
 type BuildingRecord = {
     building_id: string;
@@ -190,7 +191,7 @@ export default function EditBuildingPage({
 
             setSuccess(true);
             setTimeout(() => {
-                router.push("/dashboard");
+                router.push(getTabSessionPath("/dashboard"));
                 router.refresh();
             }, 1200);
         } catch (submitError) {
@@ -422,7 +423,7 @@ export default function EditBuildingPage({
                     <button
                         type="button"
                         className="btn btn-secondary"
-                        onClick={() => router.push("/dashboard")}
+                        onClick={() => router.push(getTabSessionPath("/dashboard"))}
                         disabled={saving}
                     >
                         Cancel

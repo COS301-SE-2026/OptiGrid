@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Providers } from "./providers";
+import { themeInitializationScript } from "../lib/theme";
 import "../styles/optigrid-theme.css";
 
 export const metadata = {
@@ -9,7 +10,10 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
+			<head>
+				<script dangerouslySetInnerHTML={{ __html: themeInitializationScript }} />
+			</head>
 			<body>
 				<Providers>{children}</Providers>
 			</body>

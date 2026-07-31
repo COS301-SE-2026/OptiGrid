@@ -18,4 +18,4 @@ RUN pip install --no-cache-dir -r backend/ingestion/requirements.txt
 
 COPY backend/ingestion/src ./backend/ingestion/src
 
-CMD ["python", "-m", "backend.ingestion.src.worker"]
+CMD ["python", "-m", "backend.ingestion.src.sensor_emulator"]

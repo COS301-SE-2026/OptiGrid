@@ -11,10 +11,6 @@ export const signupSchema = z.object({
             message:'Password must include at least one uppercase letter, one number, and one special character',
         }),
     name: z.string().min(3, { message: 'Name must be 3 or more characters' }),
-    roleType: z.preprocess(
-        (value) => (typeof value === 'string' ? value.toUpperCase() : value),
-        z.enum(['ADMIN', 'BUILDING_MANAGER', 'VIEWER'])
-    ).optional(),
 }).strict();
 
 // we need a schema here to validate login credentials
@@ -51,3 +47,10 @@ export const validateSignUp = (schema: ZodTypeAny) => {
 
 //this is a generic alias. this middleware validates any body schema not just signup
 export const validateBody = validateSignUp;
+
+export const userBuildingsSchema = z.object({
+    body: z.object({
+        userId: z.string({message: "User ID is missing",}),
+        buildingId: z.string({message: "Building ID is missing",}),
+    }),
+}).strict();
