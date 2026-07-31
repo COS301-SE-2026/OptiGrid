@@ -282,7 +282,7 @@ if (!process.env.SUPABASE_ANON_KEY) {
   process.exit(1);
 }
 
-const compose = readFileSync(composeProd, "utf8").replaceAll("YOUR_GITHUB_USERNAME", "local");
+const compose = readFileSync(composeProd, "utf8").replaceAll("YOUR_GITHUB_USERNAME", "local").replaceAll("cos301-se-2026", "local");
 mkdirSync(generatedDir, { recursive: true });
 writeFileSync(composeLocal, compose);
 

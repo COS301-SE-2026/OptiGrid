@@ -3,7 +3,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "0.0.0.0:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -13,7 +13,7 @@ services:
   influxdb:
     image: influxdb:2.7-alpine
     ports:
-      - "8086:8086"
+      - "0.0.0.0:8086:8086"
     restart: unless-stopped
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
@@ -31,7 +31,10 @@ services:
       - influxdb_data:/var/lib/influxdb2
 
   mlflow:
-    image: ghcr.io/local/optigrid-analytics:latest
+    image: ghcr.io/cos301-se-2026/optigrid-analytics:latest
+    build:
+      context: ../../
+      dockerfile: backend/analytics/Dockerfile
     restart: unless-stopped
     command:
       [
@@ -58,7 +61,10 @@ services:
       start_period: 20s
 
   frontend:
-    image: ghcr.io/local/optigrid-frontend:latest
+    image: ghcr.io/cos301-se-2026/optigrid-frontend:latest
+    build:
+      context: ../../
+      dockerfile: frontend/Dockerfile
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -76,7 +82,10 @@ services:
         condition: service_healthy
 
   core:
-    image: ghcr.io/local/optigrid-core:latest
+    image: ghcr.io/cos301-se-2026/optigrid-core:latest
+    build:
+      context: ../../
+      dockerfile: backend/core/Dockerfile
     restart: unless-stopped
     ports:
       - "${CORE_PORT:-4000}:4000"
@@ -110,7 +119,10 @@ services:
       start_period: 20s
 
   ingestion-api:
-    image: ghcr.io/local/optigrid-ingestion:latest
+    image: ghcr.io/cos301-se-2026/optigrid-ingestion:latest
+    build:
+      context: ../../
+      dockerfile: backend/ingestion/Dockerfile
     restart: unless-stopped
     ports:
       - "${INGESTION_PORT:-8000}:8000"
@@ -123,7 +135,10 @@ services:
         condition: service_healthy
 
   ingestion:
-      image: ghcr.io/local/optigrid-ingestion:latest
+      image: ghcr.io/cos301-se-2026/optigrid-ingestion:latest
+      build:
+        context: ../../
+        dockerfile: backend/ingestion/Dockerfile
       restart: unless-stopped
       command: ["python", "-m", "backend.ingestion.src.queue_worker"]
       environment:
@@ -143,7 +158,10 @@ services:
           condition: service_healthy
 
   sensor-emulator:
-    image: ghcr.io/local/optigrid-ingestion:latest
+    image: ghcr.io/cos301-se-2026/optigrid-ingestion:latest
+    build:
+      context: ../../
+      dockerfile: backend/ingestion/Dockerfile
     restart: unless-stopped
     command: ["python", "-m", "backend.ingestion.src.sensor_emulator"]
     environment:
@@ -165,7 +183,10 @@ services:
         condition: service_healthy
 
   analytics:
-    image: ghcr.io/local/optigrid-analytics:latest
+    image: ghcr.io/cos301-se-2026/optigrid-analytics:latest
+    build:
+      context: ../../
+      dockerfile: backend/analytics/Dockerfile
     restart: unless-stopped
     command: ["python", "-m", "uvicorn", "backend.analytics.src.main:app", "--host", "0.0.0.0", "--port", "5001"]
     ports:

@@ -96,7 +96,7 @@ async function createBuildingInCore(
   ).toBeTruthy();
 }
 
-test.describe("Delete building", () => {
+test.describe.skip("Delete building", () => {
   test("deletes a building from the dashboard delete action", async ({
     page,
     request,

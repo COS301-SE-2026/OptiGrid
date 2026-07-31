@@ -109,12 +109,6 @@ export const getForecastController = async (req: Request, res: Response) => {
             return res.status(404).json({ status: 'error', message: 'Forecast models are currently being generated for this building. Please check back later.' });
         }
         
-        //build historical data point from last usage
-        const synthesisedHistorical = [{
-            timestamp: analytics.updated_at || new Date().toISOString(),
-            kwh: Number(analytics.todays_usage) || 0
-        }];
-
         // parse and normalise forecast series data from JSON
         const rawForecastSeries = Array.isArray(analytics.forecast_series) ? analytics.forecast_series : [];
         const normalizedForecastSeries = rawForecastSeries.map((point: Record<string, unknown>) => {
@@ -133,6 +127,15 @@ export const getForecastController = async (req: Request, res: Response) => {
                 yhat_upper: Math.max(lowerBound, upperBound),
             };
         }).filter((point: NormalizedForecastPoint | null): point is NormalizedForecastPoint => point !== null);
+
+        const historicalKwh = horizon === 'weekly' && normalizedForecastSeries.length > 0 && analytics.todays_usage && analytics.todays_usage > normalizedForecastSeries[0].yhat * 10
+            ? normalizedForecastSeries[0].yhat
+            : Number(analytics.todays_usage) || 0;
+
+        const synthesisedHistorical = [{
+            timestamp: analytics.updated_at || new Date().toISOString(),
+            kwh: historicalKwh
+        }];
 
         //building final response with historical data, forecast and summary metric
         const result = {

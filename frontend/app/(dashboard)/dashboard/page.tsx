@@ -1,9 +1,10 @@
 "use client";
+import { v4 as uuidv4 } from "uuid";
 import { useRouter } from "next/navigation";
 import { useState, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-
+import DeleteModal from "@/components/DeleteModal";
 import {
     CartesianGrid,
     Line,
@@ -257,38 +258,7 @@ function KpiCard({
     );
 }
 
-function DeleteModal({
-    buildingName,
-    onConfirm,
-    onCancel,
-    deleting,
-}: {
-    buildingName: string;
-    onConfirm: () => void;
-    onCancel: () => void;
-    deleting: boolean;
-}) {
-    return (
-        <div className="modal-overlay" onClick={onCancel}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-                <h2 style={{ marginBottom: "8px", fontSize: "1.1rem", fontWeight: 600 }}>Delete building</h2>
-                <p style={{ color: "var(--brand-ink-muted)", fontSize: "0.9rem", marginBottom: "24px" }}>
-                    Are you sure you want to delete <strong>{buildingName}</strong>? This cannot be undone.
-                </p>
-                <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-                    <button className="btn" onClick={onCancel} disabled={deleting}>Cancel</button>
-                    <button
-                        className="btn btn-danger"
-                        onClick={onConfirm}
-                        disabled={deleting}
-                    >
-                        {deleting ? "Deleting..." : "Delete"}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
+
 
 export default function DashboardPage() {
     const queryClient = useQueryClient();
@@ -322,10 +292,7 @@ export default function DashboardPage() {
 
     const deleteBuildingMutation = useMutation({
         mutationFn: async (buildingId: string) => {
-            const idempotencyKey =
-                typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-                    ? `delete-building-${crypto.randomUUID()}`
-                    : `delete-building-${Date.now()}-${Math.random()}`;
+            const idempotencyKey = `delete-building-${uuidv4()}`;
 
             const response = await fetch(`/api/buildings/${buildingId}`, {
                 method: "DELETE",
@@ -359,7 +326,7 @@ export default function DashboardPage() {
 
     const buildingsWithTelemetry = buildings.map((building) => ({
         ...building,
-        todayKwh: portfolioConsumption?.today_kwh_by_building[building.id] ?? null,
+        todayKwh: building.todayKwh,
     }));
     const consumption: ConsumptionPoint[] = (portfolioConsumption?.daily ?? []).map((point) => ({
         day: new Date(`${point.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "short" }),
@@ -523,7 +490,7 @@ export default function DashboardPage() {
                                     <th>Type</th>
                                     <th>Today (kWh)</th>
                                     <th>Status</th>
-                                    <th style={{ textAlign: "right" }}>Actions</th>
+                                    {/* <th style={{ textAlign: "right" }}>Actions</th> */}
                                 </tr>
                             </thead>
                             <tbody>
@@ -548,17 +515,15 @@ export default function DashboardPage() {
                                             <StatusBadge status={building.status} />
                                         </td>
 
-                                        <td>
-                                            {/*{(user?.roleType?.toUpperCase() === "ADMIN" || user?.roleType?.toUpperCase() === "BUILDING_MANAGER") && (*/}
-                                                <Link
-                                                    href={`/buildings/${building.id}/edit`}
-                                                    className="icon-button"
-                                                    aria-label={"Edit"}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <PencilIcon />
-                                                </Link>
-                                            {/*})}*/}
+                                        {/* <td>
+                                            <Link
+                                                href={`/buildings/${building.id}/edit`}
+                                                className="icon-button"
+                                                aria-label={"Edit"}
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <PencilIcon />
+                                            </Link>
 
                                             {user?.roleType?.toUpperCase() === "ADMIN" && !deleteTarget && (
                                                 <button
@@ -572,8 +537,7 @@ export default function DashboardPage() {
                                                     <TrashIcon />
                                                 </button>
                                             )}
-
-                                        </td>
+                                        </td> */}
                                     
                                     </tr>
                                 ))}
@@ -585,7 +549,8 @@ export default function DashboardPage() {
 
             {deleteTarget && (
                 <DeleteModal
-                    buildingName={deleteTarget.name}
+                    title="Delete building"
+                    targetName={deleteTarget.name}
                     onConfirm={() => deleteBuildingMutation.mutate(deleteTarget.id)}
                     onCancel={() => setDeleteTarget(null)}
                     deleting={deleteBuildingMutation.isPending}

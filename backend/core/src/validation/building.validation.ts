@@ -37,7 +37,7 @@ export const compareBuildingsSchema = z.object({
     //we check if ids valid, then time range has to match
     building_id_a: z.string().regex(/^[0-9a-fA-F-]{36}$/, "building_id_a must be a valid UUID"),
     building_id_b: z.string().regex(/^[0-9a-fA-F-]{36}$/, "building_id_b must be a valid UUID"),
-    time_range: z.enum(['7d', '30d', '90d', '1y']),
+    time_range: z.enum(['7d', '30d', '90d', '1y']).default('30d'),
 }).refine((data) => data.building_id_a !== data.building_id_b, {
     message: "buildingID_1 and buildingID_2 cannot be the same",
     path: ['building_id_b'],

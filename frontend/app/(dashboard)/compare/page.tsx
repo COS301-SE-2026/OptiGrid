@@ -93,19 +93,24 @@ export default function CompareBuildingPage() {
         }
 
         const toSeriesValue = (point: ComparisonSeriesPoint) =>
-            metric === "R" ? point.cost_zar : point.kwh;
+            Number((metric === "R" ? point.cost_zar : point.kwh).toFixed(2));
+        
+        const sortedA = [...(comparison.series?.buildingA ?? [])].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+        const sortedB = [...(comparison.series?.buildingB ?? [])].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
         const pointsByTimestamp = new Map<string, { A: number; B: number }>();
 
-        for (const point of comparison.series?.buildingA ?? []) {
+        for (const point of sortedA) {
             pointsByTimestamp.set(point.timestamp, {
-                ...(pointsByTimestamp.get(point.timestamp) ?? { A: 0, B: 0 }),
                 A: toSeriesValue(point),
+                B: 0,
             });
         }
 
-        for (const point of comparison.series?.buildingB ?? []) {
+        for (const point of sortedB) {
+            const existing = pointsByTimestamp.get(point.timestamp);
             pointsByTimestamp.set(point.timestamp, {
-                ...(pointsByTimestamp.get(point.timestamp) ?? { A: 0, B: 0 }),
+                A: existing ? existing.A : 0,
                 B: toSeriesValue(point),
             });
         }
@@ -140,19 +145,13 @@ export default function CompareBuildingPage() {
     const loadingComparison = buildingsLoading || comparisonLoading || comparisonFetching;
 
     return (
-        <div>
-            <div
-                className="dashboard-section"
-                style={{
-                    borderBottom: "1px solid var(--brand-border)",
-                    paddingBottom: "var(--space-4)",
-                }}
-            >
-                <h1 className="dashboard-title">Compare Buildings</h1>
-                <p className="dashboard-subtitle">
-                    Compare assigned buildings across energy use, cost, and floor-area efficiency.
-                </p>
-            </div>
+        <main className="dashboard-content">
+            <header className="dashboard-header">
+                <div>
+                    <h1 className="dashboard-title">Compare Buildings</h1>
+                    <p className="dashboard-subtitle">Analyze performance metrics across your portfolio</p>
+                </div>
+            </header>
 
             <CompareControls
                 buildings={buildings}
@@ -205,6 +204,6 @@ export default function CompareBuildingPage() {
                 totalDifference={totalDifference}
                 getBuildingName={getBuildingName}
             />
-        </div>
+        </main>
     );
 }

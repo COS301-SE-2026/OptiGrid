@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 
 const getUrl = () => process.env.CORE_URL ?? "http://core:4000";
@@ -5,9 +6,7 @@ const getUrl = () => process.env.CORE_URL ?? "http://core:4000";
 //create the idempotency key for our controller to confirm
 function createKey() : string {
     let key: string;
-    if(typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") 
-        key= crypto.randomUUID();//random key from crypto library
-    else key = `${Date.now()}-${Math.random()}`;//if crypto bugs then we return it old way
+    key = uuidv4();
     //works by returning ms from 1 Jan 1970  n a radom no, from math library
     return `contact-${key}`;
 }

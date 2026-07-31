@@ -220,7 +220,7 @@ export default function ViewBuildingPage({
                 <div>
                     <h1 className="dashboard-title">Building Details</h1>
                     <p className="dashboard-subtitle">
-                        {isConnected ? "🟢 Live telemetry stream connected" : "🔴 Reconnecting live stream..."}
+                        {/* {isConnected ? "🟢 Live telemetry stream connected" : "🔴 Reconnecting live stream..."} */}
                     </p>
                 </div>
 
@@ -254,7 +254,7 @@ export default function ViewBuildingPage({
                 className="card"
                 style={{ display: "grid", gap: "var(--space-6)", padding: "var(--space-6)" }}
             >
-                <DetailsSection title="Real-Time Telemetry">
+                {/* <DetailsSection title="Real-Time Telemetry">
                     <Detail
                         label="Stream Connection"
                         value={isConnected ? "🟢 Online (Streaming)" : "🔴 Offline / Connecting"}
@@ -284,7 +284,7 @@ export default function ViewBuildingPage({
                             {sseError.message}
                         </div>
                     )}
-                </DetailsSection>
+                </DetailsSection> */}
 
                 <DetailsSection title="General Information">
                     <Detail label="Building Name" value={building.building_name} />
@@ -317,20 +317,6 @@ export default function ViewBuildingPage({
                         <p className="text-muted" style={{ margin: 0 }}>
                             Usage and cost metrics for this building.
                         </p>
-                        <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                            <span className="text-muted">Time range</span>
-                            <select
-                                aria-label="Energy consumption time range"
-                                value={timeRange}
-                                onChange={(event) => setTimeRange(event.target.value as EnergyTimeRange)}
-                                disabled={consumptionLoading}
-                            >
-                                <option value="7d">Last 7 days</option>
-                                <option value="30d">Last 30 days</option>
-                                <option value="90d">Last 90 days</option>
-                                <option value="1y">Last year</option>
-                            </select>
-                        </label>
                     </div>
 
                     {consumptionLoading && (

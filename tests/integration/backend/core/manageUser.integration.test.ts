@@ -3,7 +3,7 @@ import { insertIntegrationUsers } from "./harness/user-fixtures";
 
 const {Client } = require("pg");
 const req = require("supertest");
-const {v4: uuidv4} = require("uuid");
+import { randomUUID as uuidv4 } from 'crypto';
 
 jest.mock("../../../../backend/core/src/services/provisioning.service", () => {
     queueBuildingProvisioning: jest.fn().mockResolvedValue(true);

@@ -13,6 +13,8 @@ if (global.EventSource === undefined) {
         close() {
             // leave comment hear so sonar qube does not flag
         }
-    }
+}
     global.EventSource = MockEventSource as unknown as typeof EventSource;
 }
+
+jest.mock("uuid", () => ({ v4: () => { const crypto = require("crypto"); return crypto.randomUUID(); } }));

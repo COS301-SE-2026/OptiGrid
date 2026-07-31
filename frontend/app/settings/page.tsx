@@ -358,7 +358,7 @@ export default function SettingsPage() {
                 Logout
               </button>
 
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setShowDeleteModal(true)}
                 className="btn btn-danger"
@@ -368,7 +368,7 @@ export default function SettingsPage() {
                 }}
               >
                 Delete Account
-              </button>
+              </button> */}
             </div>
           </div>
 

@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
-  getPortfolioConsumption, listBuildingsForUser, updateBuildingService, getManagerBuildings } from '../services/building.services';
-import { getBuildingDetails } from '../services/building.services';
+  getPortfolioConsumption, listBuildingsForUser, getBuildingDetails, updateBuildingService, getManagerBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 
@@ -77,6 +76,8 @@ export const createBuildingController = async (req: Request, res: Response) => {
   }
 };
 
+import { queryTotalKwh } from '../lib/influx';
+
 export const listBuildingsController = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
@@ -89,9 +90,28 @@ export const listBuildingsController = async (req: Request, res: Response) => {
     }
     
     const buildings = await listBuildingsForUser(userId);
+    
+    const getUsage = await Promise.all(
+      buildings.map(async (b) => {
+        let todays_usage: number | null = null;
+        try {
+          const data = await queryTotalKwh(b.building_id, "today");
+          todays_usage = typeof data === "number" ? data : data?.total_kwh ?? null;
+        } catch (error) {
+          console.error(`Failed to get the todays usage for this building: `, error);
+        }
+        return todays_usage;
+      })
+    );
+
+    const enrichedBuildings = buildings.map((build, i) => ({
+      ...build,
+      today_kwh: getUsage[i],
+    }));
+
     return res.status(200).json({
       status: 'success',
-      data: buildings,
+      data: enrichedBuildings,
     });
   } catch (error) {
     console.error('listBuildingsController error:', error);
@@ -201,12 +221,14 @@ export const compareBuildingsController = async (req: Request, res: Response) =>
 
     const validatedQuery = compareBuildingsSchema.parse(req.query);
 
+    const { building_id_a, building_id_b, time_range } = validatedQuery;
+    
     // we give the data to the service layer to handle
     const comparisonData = await compareBuildingsService(
       userId,
-      validatedQuery.building_id_a,
-      validatedQuery.building_id_b,
-      validatedQuery.time_range
+      building_id_a,
+      building_id_b,
+      time_range
     );
     const successResponse = {
       status: 'success',

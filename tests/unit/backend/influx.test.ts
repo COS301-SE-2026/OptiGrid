@@ -130,7 +130,7 @@ describe('Influx usage queries', () => {
 
         await expect(queryUsageSeries('abc', '30d')).resolves.toEqual([
             { timestamp: '2026-07-10T00:00:00Z', kwh: 12, cost_zar: 30 },
-            { timestamp: '2026-07-11T00:00:00Z', kwh: 8, cost_zar: 0 },
+            { timestamp: '2026-07-11T00:00:00Z', kwh: 8, cost_zar: 20 },
         ]);
 
         expect(iterateRows.mock.calls[0][0]).toContain('"energy_telemetry"');

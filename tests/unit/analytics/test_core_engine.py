@@ -29,7 +29,7 @@ def sample_weekly_timeseries():
     dates = pd.date_range(end=now, periods=336, freq='h')  # 14 * 24 = 336 hours
     df = pd.DataFrame({
         'timestamp': dates,
-        'usage': np.random.uniform(50.0, 150.0, size=336),  # random usage value between 50-150 kwh
+        'usage': np.random.normal(50.0, 150.0, size=336),  # random usage value between 50-150 kwh
         'building_id': 'bld_test_1'
     })
     return df
@@ -41,7 +41,7 @@ def sample_monthly_timeseries():
     dates = pd.date_range(end=now, periods=12, freq='W')  # 12 weeks
     df = pd.DataFrame({
         'timestamp': dates,
-        'usage': np.random.uniform(300.0, 1000.0, size=12),  # weekly usage between 300-1000 kwh
+        'usage': np.random.normal(300.0, 1000.0, size=12),  # weekly usage between 300-1000 kwh
         'building_id': 'bld_test_1'
     })
     return df

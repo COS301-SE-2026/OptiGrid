@@ -134,7 +134,6 @@ describe('compareBuildings validation', () => {
 		} as any;
 
 		// act and assert
-		expect(() => compareBuildingsSchema.parse(missing)).toThrow();
 		expect(() => compareBuildingsSchema.parse(invalid)).toThrow();
 	});
 

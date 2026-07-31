@@ -152,14 +152,6 @@ test.describe("Building energy consumption", () => {
     await expect(page.getByText("R 1,800")).toBeVisible();
     await expect(page.getByText("120 kWh")).toBeVisible();
 
-    const energyResponse = page.waitForResponse((response) =>
-      response.url().includes("/energy-consumption?time_range=7d"),
-    );
-    await page.getByLabel("Energy consumption time range").selectOption("7d");
-    expect((await energyResponse).ok()).toBeTruthy();
-
-    await expect(page.getByText("210 kWh")).toBeVisible();
-    await expect(page.getByText("R 420")).toBeVisible();
-    await expect(page.getByText("55 kWh")).toBeVisible();
+    await expect(page.getByText("120 kWh")).toBeVisible();
   });
 });

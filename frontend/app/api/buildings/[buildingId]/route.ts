@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 
 const getCoreUrl = () => process.env.CORE_URL ?? "http://core:4000";
@@ -49,10 +50,7 @@ export type ForwardHeaderOptions = {
 }
 
 function createIdempotencyKey(prefix = "buildings"): string {
-	const randomId =
-		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-			? crypto.randomUUID()
-			: `${Date.now()}-${Math.random()}`;
+	const randomId = uuidv4();
 
 	return `${prefix}-${randomId}`;
 }

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-
+import DeleteModal from "@/components/DeleteModal";
 type SensorStatus = "Active" | "Offline" | "Maintenance";
 type BuildingRecord = {
     building_id: string;
@@ -62,6 +62,8 @@ export default function SensorsClient({
     const [error, setError] = useState("");
     const [viewingSensor, setViewingSensor] = useState<SensorRecord | null>(null);
     const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<SensorRecord | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [formError, setFormError] = useState("");
     const [form, setForm] = useState({
         mac_address: "",
@@ -184,13 +186,12 @@ export default function SensorsClient({
         }
     };
 
-    const handleDeleteSensor = async (sensorId: string) => {
-        if (!confirm("Delete this sensor permanently?")) { 
-            return 
-        };
+    const executeDeleteSensor = async () => {
+        if (!deleteTarget) return;
+        setIsDeleting(true);
 
         try {
-            const response = await fetch(`/api/sensors/${encodeURIComponent(sensorId)}`, {
+            const response = await fetch(`/api/sensors/${encodeURIComponent(deleteTarget.sensor_id)}`, {
                 method: "DELETE",
                 cache: "no-store"
             });
@@ -202,9 +203,12 @@ export default function SensorsClient({
             }
 
             setError("");
-            setSensors((prev) => prev.filter((sensor) => sensor.sensor_id !== sensorId));
+            setSensors((prev) => prev.filter((sensor) => sensor.sensor_id !== deleteTarget.sensor_id));
+            setDeleteTarget(null);
         } catch {
             setError("Unable to delete the sensor.");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -246,7 +250,7 @@ export default function SensorsClient({
                                 padding: "4px 12px"
                             }
                         }>View</button>
-                        {canManageSensors && (<button type="button" onClick={() => handleDeleteSensor(sensor.sensor_id)} className="btn btn-danger" style={
+                        {canManageSensors && (<button type="button" onClick={() => setDeleteTarget(sensor)} className="btn btn-danger" style={
                             {
                                 fontSize: "var(--fs-small)",
                                 padding: "4px 12px"
@@ -438,6 +442,16 @@ export default function SensorsClient({
                         </div>
                     </div>
                 </div>
+            )}
+
+            {deleteTarget && (
+                <DeleteModal
+                    title="Delete sensor"
+                    targetName={deleteTarget.mac_address}
+                    onConfirm={executeDeleteSensor}
+                    onCancel={() => setDeleteTarget(null)}
+                    deleting={isDeleting}
+                />
             )}
         </section>
     );

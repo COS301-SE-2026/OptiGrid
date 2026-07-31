@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 
 const CORE_URL = process.env.CORE_URL ?? "https://core:4000";
@@ -26,7 +27,7 @@ function readCookieValue(cookieHeader: string | null, cName: string): string | n
 }
 
 function createIdempotencyKey(prefix = "buildings"): string {
-    return `${prefix}-${crypto.randomUUID()}`;
+    return `${prefix}-${uuidv4()}`;
 }
 
  function getForwardHeaders(request: Request, options: ForwardHeaderOptions = {}): Headers | null {

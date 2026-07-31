@@ -2,7 +2,7 @@
 
 import { useState, useMemo,useEffect } from "react";
 import Link from "next/link";
-
+import DeleteModal from "@/components/DeleteModal";
 import { useRouter } from "next/navigation";
 import { getTabSessionPath } from "../../../lib/tab-session";
 
@@ -37,6 +37,8 @@ export default function AdminPage() {
   const [managers, setManagers] = useState<Manager[]>([]);
   const [lifecycleFilter, setLifecycleFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [deleteTarget, setDeleteTarget] = useState<Building | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   // const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   // const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
   // const [formError, setFormError] = useState<string>("");
@@ -81,22 +83,27 @@ export default function AdminPage() {
     router.push(getTabSessionPath(`/buildings/${building.building_id}/edit`))
   };
   //integration logic to delte building
-  const handledeletebuilding = async (id: string) => {
-    if (!confirm("Delete this building permanently?")) return;
+  const executeDeleteBuilding = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const resp = await fetch(`api/buildings/${id}`, {
+      const resp = await fetch(`api/buildings/${deleteTarget.building_id}`, {
         method: "DELETE",
       });
       const data = await resp.json();
-      if(data.status === "success") setBuildings((prev) => prev.filter((b) => b.building_id !== id));
+      if(data.status === "success") {
+        setBuildings((prev) => prev.filter((b) => b.building_id !== deleteTarget.building_id));
+        setDeleteTarget(null);
+      }
       else alert(data.message);
 
     }
     catch (error){
       console.error("Failed to delete building: ", error);
       alert("Servor error when deleting building");
+    } finally {
+      setIsDeleting(false);
     }
-    
   };
 
   const getusername = (user_id: string | null) => {
@@ -377,7 +384,7 @@ export default function AdminPage() {
                               Edit
                             </button>
                             <button
-                              onClick={() => handledeletebuilding(building.building_id)}
+                              onClick={() => setDeleteTarget(building)}
                               className="btn btn-danger"
                               style={{
                                 fontSize: "var(--fs-small)",
@@ -397,6 +404,15 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+      {deleteTarget && (
+        <DeleteModal
+          title="Delete building"
+          targetName={deleteTarget.building_name}
+          onConfirm={executeDeleteBuilding}
+          onCancel={() => setDeleteTarget(null)}
+          deleting={isDeleting}
+        />
+      )}
     </div>
   );
 }

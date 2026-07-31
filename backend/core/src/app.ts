@@ -22,7 +22,8 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	const app = express();
 
 	app.use(cors({
-		origin: ["https://optigrid.co.za", "http://localhost:3000"],
+		origin: ["https://optigrid.co.za", "http://localhost:3000", /\.vercel\.app$/],
+		methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
 		credentials: true,
 	}));
 	const swaggerSpec = swaggerJsdoc({
@@ -58,12 +59,6 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	const strictRate = rateLimiter(3, 1/60); //max 3, 1 refill every min
 	
 	app.use(express.json());
-
-	app.use(cors({
-		origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-		methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-		credentials: true
-	}));
 
 	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
 

@@ -235,13 +235,12 @@ describe("DashboardPage", () => {
       expect(await screen.findByRole("table")).toBeInTheDocument();
     });
 
-    it("renders table headers: Name, Type, Today, Status, Actions", async () => {
+    it("renders table headers: Name, Type, Today, Status", async () => {
       renderPage();
       await screen.findByRole("columnheader", { name: /name/i });
       expect(screen.getByRole("columnheader", { name: /type/i })).toBeInTheDocument();
       expect(screen.getByRole("columnheader", { name: /today/i })).toBeInTheDocument();
       expect(screen.getByRole("columnheader", { name: /status/i })).toBeInTheDocument();
-      expect(screen.getByRole("columnheader", { name: /actions/i })).toBeInTheDocument();
     });
 
     /*it("renders Tower A building row", async () => {
@@ -303,142 +302,11 @@ describe("DashboardPage", () => {
       await screen.findByText("Tower A");
       fireEvent.click(screen.getByText("Tower A").closest("tr")!);
       expect(mockPush).toHaveBeenCalledWith(
-        expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/buildings\/b1\/view$/),
+        expect.stringMatching(/^\/_sessions\/[0-9a-z-]+\/buildings\/b1\/view$/),
       );
     });
   });
 
-  describe("Edit link", () => {
-    it("renders Edit link for Tower A", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      expect(within(row).getByRole("link", { name: /edit/i })).toBeInTheDocument();
-    });
-
-    it("Edit link points to /buildings/:id/edit", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      expect(within(row).getByRole("link", { name: /edit/i })).toHaveAttribute("href", "/buildings/b1/edit");
-    });
-
-    it("clicking Edit link does not navigate the row", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      const editLink = within(row).getByRole("link", { name: /edit/i });
-      fireEvent.click(editLink);
-      expect(mockPush).not.toHaveBeenCalledWith("/buildings/b1/view");
-    });
-  });
-
-  describe("Delete button for admin", () => {
-    it("renders Delete button for admin user", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      expect(screen.getAllByRole("button", { name: /delete/i }).length).toBeGreaterThan(0);
-    });
-
-    it("does not render Delete button for non-admin", async () => {
-      setupFetch({
-        session: { user: { firstName: "Bob", lastName: "User", roleType: "user", email: "bob@example.com" } },
-      });
-      renderPage();
-      await screen.findByText("Tower A");
-      expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
-    });
-
-    it("opens delete modal when Delete is clicked", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
-      expect(screen.getByRole("heading", { name: /delete building/i })).toBeInTheDocument();
-    });
-
-    it("modal shows the building name", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
-      const modalContent = screen.getByText(/are you sure you want to delete/i);
-      expect(modalContent).toBeInTheDocument();
-      expect(modalContent).toHaveTextContent(/Tower A/);
-    });
-
-    it("modal has a Cancel button", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
-      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
-    });
-
-    it("modal has a Delete confirm button", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
-      const modal = screen.getByRole("heading", { name: /delete building/i }).closest(".modal")!;
-      expect(within(modal as HTMLElement).getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
-    });
-  });
-
-  describe("Cancel button", () => {
-    it("closes the delete modal when Cancel is clicked", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
-      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
-      expect(screen.queryByRole("heading", { name: /delete building/i })).not.toBeInTheDocument();
-    });
-
-    it("does not call the delete API when Cancel is clicked", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
-      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
-      const deleteCalls = (global.fetch as jest.Mock).mock.calls.filter(
-        ([url, opts]: [string, RequestInit]) => opts?.method === "DELETE"
-      );
-      expect(deleteCalls).toHaveLength(0);
-    });
-  });
-
-  describe("Delete confirm button", () => {
-    it("calls DELETE /api/buildings/:id when confirmed", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
-      const modal = screen.getByRole("heading", { name: /delete building/i }).closest(".modal")!;
-      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /^delete$/i }));
-
-      await waitFor(() => {
-        const deleteCalls = (global.fetch as jest.Mock).mock.calls.filter(
-          ([url, opts]: [string, RequestInit]) =>
-            url.includes("/api/buildings/b1") && opts?.method === "DELETE"
-        );
-        expect(deleteCalls).toHaveLength(1);
-      });
-    });
-
-    it("closes modal after successful delete", async () => {
-      renderPage();
-      await screen.findByText("Tower A");
-      const row = screen.getByText("Tower A").closest("tr")!;
-      fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
-      const modal = screen.getByRole("heading", { name: /delete building/i }).closest(".modal")!;
-      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /^delete$/i }));
-
-      await waitFor(() =>
-        expect(screen.queryByRole("heading", { name: /delete building/i })).not.toBeInTheDocument()
-      );
-    });
-  });
 
   describe("Empty buildings state", () => {
     it("shows No buildings when there are no buildings", async () => {

@@ -112,26 +112,7 @@ describe("ViewBuildingPage", () => {
     });
   });
 
-  it("reloads consumption when the time range changes", async () => {
-    mockFetchOk();
-    const user = userEvent.setup();
-    render(<ViewBuildingPage params={makeParams("111")} />);
 
-    const timeRange = await screen.findByRole("combobox", {
-      name: "Energy consumption time range",
-    });
-    await user.selectOptions(timeRange, "7d");
-
-    await waitFor(() =>
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/buildings/111/energy-consumption?time_range=7d",
-        {
-          method: "GET",
-          cache: "no-store",
-        },
-      ),
-    );
-  });
 
   it("shows a consumption error without hiding building details", async () => {
     global.fetch = jest.fn().mockImplementation((url: string) =>

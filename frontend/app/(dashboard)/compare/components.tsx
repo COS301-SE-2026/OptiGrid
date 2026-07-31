@@ -251,10 +251,10 @@ export function ComparisonChart({
                 <div>
                     <h2 className="dashboard-section-title">Comparison totals</h2>
                     <span className="dashboard-section-meta">
-                        {dateRange} days - {metric === "R" ? "cost" : "energy"}
+                        Last {dateRange} days - {metric === "R" ? "cost" : "energy"}
                     </span>
                 </div>
-                {hasComparison ? <span className="badge badge-success">Live telemetry</span> : null}
+                {/* {hasComparison ? <span className="badge badge-success">Live telemetry</span> : null} */}
             </div>
 
             {loading ? (
@@ -281,6 +281,7 @@ export function ComparisonChart({
                             tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
                             axisLine={false}
                             tickLine={false}
+                            tickFormatter={(value) => formatMetricValue(value, metric)}
                         />
                         <Tooltip
                             contentStyle={{
@@ -291,6 +292,7 @@ export function ComparisonChart({
                                 fontSize: "12px",
                             }}
                             cursor={{ stroke: "var(--brand-border)" }}
+                            formatter={(value: number) => formatMetricValue(value, metric)}
                         />
                         <Line
                             type="monotone"
@@ -298,8 +300,8 @@ export function ComparisonChart({
                             name={getBuildingName(buildingA)}
                             stroke="var(--brand-primary)"
                             strokeWidth={2}
-                            dot={{ fill: "var(--brand-primary)", r: 4 }}
-                            activeDot={{ r: 5 }}
+                            dot={{ fill: "var(--brand-primary)", r: 2 }}
+                            activeDot={{ r: 3 }}
                         />
                         <Line
                             type="monotone"
@@ -307,8 +309,8 @@ export function ComparisonChart({
                             name={getBuildingName(buildingB)}
                             stroke="var(--brand-secondary)"
                             strokeWidth={2}
-                            dot={{ fill: "var(--brand-secondary)", r: 4 }}
-                            activeDot={{ r: 5 }}
+                            dot={{ fill: "var(--brand-secondary)", r: 2 }}
+                            activeDot={{ r: 3 }}
                         />
                     </LineChart>
                 </ResponsiveContainer>

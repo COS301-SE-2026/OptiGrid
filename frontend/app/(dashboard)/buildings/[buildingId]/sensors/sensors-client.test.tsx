@@ -39,31 +39,31 @@ const jsonResponse = (data: unknown, ok = true) => ({
 const mockFetchImplementation = (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.startsWith("/api/buildings")) {
-        return Promise.resolve(jsonResponse({ 
+        return Promise.resolve(jsonResponse({
             status: "success",
-            data: mockBuildings 
+            data: mockBuildings
         }));
     }
 
     if (url.startsWith("/api/sensors?")) {
-        return Promise.resolve(jsonResponse({ 
+        return Promise.resolve(jsonResponse({
             status: "success",
-            data: mockSensors 
-            }));
+            data: mockSensors
+        }));
     }
 
     if (url === "/api/sensors" && init?.method === "POST") {
         const body = JSON.parse(String(init.body));
         return Promise.resolve(
-            jsonResponse({ 
+            jsonResponse({
                 status: "success",
-                data: { sensor_id: "s-new", ...body } 
+                data: { sensor_id: "s-new", ...body }
             }));
     }
     if (url.startsWith("/api/sensors/") && init?.method === "DELETE") {
-        return Promise.resolve(jsonResponse({ 
+        return Promise.resolve(jsonResponse({
             status: "success",
-            message: "Sensor successfully deleted" 
+            message: "Sensor successfully deleted"
         }));
     }
     return Promise.resolve(jsonResponse({ message: "Not found" }, false));
@@ -143,9 +143,9 @@ describe("SensorsClient", () => {
 
         // the registration must be for this building
         expect(global.fetch).toHaveBeenCalledWith("/api/sensors", expect.objectContaining({
-                method: "POST",
-                body: expect.stringContaining('"building_id":"b1"')
-            })
+            method: "POST",
+            body: expect.stringContaining('"building_id":"b1"')
+        })
         );
     });
 
@@ -153,9 +153,9 @@ describe("SensorsClient", () => {
         await renderPage();
         (global.fetch as jest.Mock).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
             if (String(input) === "/api/sensors" && init?.method === "POST") {
-                return Promise.resolve(jsonResponse({ 
-                    status: "error", 
-                    message: "A sensor with this MAC address is already registered" 
+                return Promise.resolve(jsonResponse({
+                    status: "error",
+                    message: "A sensor with this MAC address is already registered"
                 }, false));
             }
             return mockFetchImplementation(input, init);
@@ -195,10 +195,12 @@ describe("SensorsClient", () => {
         const row = screen.getByText("AA:BB:CC:00:00:02").closest("tr")!;
         fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
 
-        expect(window.confirm).toHaveBeenCalled();
+        const modal = await screen.findByText("Delete sensor");
+        const modalContainer = modal.closest('.modal-overlay');
+        fireEvent.click(within(modalContainer as HTMLElement).getByRole("button", { name: /^delete$/i }));
+
         await waitFor(() => expect(screen.queryByText("AA:BB:CC:00:00:02")).not.toBeInTheDocument());
-        expect(global.fetch).toHaveBeenCalledWith("/api/sensors/s2", expect.objectContaining({ method: "DELETE" }),
-        );
+        expect(global.fetch).toHaveBeenCalledWith("/api/sensors/s2", expect.objectContaining({ method: "DELETE" }));
     });
 
     it("shows an error when the building does not belong to the user", async () => {
