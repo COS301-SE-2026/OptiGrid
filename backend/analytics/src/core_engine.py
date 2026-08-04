@@ -645,4 +645,10 @@ class AnalyticsEngine:
         if not df_m_seeded.empty:
             df_monthly = df_m_seeded
 
+        # filter out any stale InfluxDB buildings that are no longer active in Supabase
+        if not df_weekly.empty and "building_id" in df_weekly.columns:
+            df_weekly = df_weekly[df_weekly['building_id'].isin(active_ids)]
+        if not df_monthly.empty and "building_id" in df_monthly.columns:
+            df_monthly = df_monthly[df_monthly['building_id'].isin(active_ids)]
+
         self._run_batch_analytics(df_weekly, df_monthly)
