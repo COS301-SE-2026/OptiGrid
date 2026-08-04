@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 :root {
     --brand-bg: #EEF7FF;
@@ -19,6 +19,7 @@
     --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
     --fs-hero: clamp(2rem, 5vw, 3.25rem);
+    --fs-h1: 2.25rem;
     --fs-h2: 1.75rem;
     --fs-h3: 1.125rem;
     --fs-body: 1rem;
@@ -43,8 +44,8 @@
     --space-4: 16px;
     --space-5: 24px;
     --space-6: 32px;
-    --space-8: 48px;
-    --space-10: 72px;
+    --space-7: 48px;
+    --space-8: 64px;
 
     --shadow-card: 0 1px 2px rgba(11, 17, 32, 0.06), 0 4px 12px rgba(11, 17, 32, 0.06);
     --focus-ring: 0 0 0 2px var(--brand-bg), 0 0 0 4px var(--brand-primary);
@@ -100,7 +101,7 @@ h6 {
 }
 
 h1 {
-    font-size: var(--fs-hero);
+    font-size: var(--fs-h1);
     font-weight: var(--fw-bold);
 }
 
@@ -234,6 +235,11 @@ h3 {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+}
+
+.badge-default {
+    background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+    color: var(--brand-primary);
 }
 
 .badge-success {
@@ -404,8 +410,8 @@ h3 {
 }
 
 .dashboard-title {
-    font-size: 1.5rem;
-    font-weight: var(--fw-semibold);
+    font-size: var(--fs-h1);
+    font-weight: var(--fw-bold);
 }
 
 .dashboard-subtitle {
@@ -616,13 +622,13 @@ h3 {
 }
 
 .landing-hero {
-    padding: var(--space-10) 0 var(--space-8);
+    padding: var(--space-8) 0 var(--space-7);
 }
 
 .landing-hero-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-8);
+    gap: var(--space-7);
     align-items: center;
 }
 
@@ -631,6 +637,10 @@ h3 {
     flex-direction: column;
     gap: var(--space-4);
     animation: fade-up 0.6s ease;
+}
+
+.landing-hero-content h1 {
+    font-size: var(--fs-hero);
 }
 
 .landing-kicker {
@@ -734,7 +744,7 @@ h3 {
 }
 
 .landing-section {
-    padding: var(--space-8) 0;
+    padding: var(--space-7) 0;
 }
 
 .landing-section-alt {
@@ -782,7 +792,7 @@ h3 {
 }
 
 .landing-cta {
-    padding: var(--space-8) 0 var(--space-10);
+    padding: var(--space-7) 0 var(--space-8);
 }
 
 .landing-cta-inner {
@@ -807,7 +817,7 @@ h3 {
 
 .faq-list {
     display: grid;
-    gap: var(--space-8);
+    gap: var(--space-7);
     max-width: 760px;
     margin: 0 auto;
 }
