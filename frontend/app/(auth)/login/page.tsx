@@ -75,8 +75,8 @@ export default function LoginPage() {
 
     return (
         <main
-            className="min-h-screen"
             style={{
+                minHeight: "100vh",
                 background: "var(--brand-bg)",
                 display: "flex",
                 alignItems: "center",
@@ -152,8 +152,8 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="btn btn-primary w-full"
-                        style={{ marginTop: "var(--space-5)" }}
+                        className="btn btn-primary"
+                        style={{ width: "100%", marginTop: "var(--space-5)" }}
                     >
                         {loading ? "Logging in..." : "Log in"}
                     </button>

@@ -36,7 +36,7 @@ const initial: FormData = {
     physical_address: "",
     square_footage: "",
     max_occupancy: "",
-    timezone: "Africa/Johannesburg",
+    timezone: "",
     geohash:"",
     latitude:"",
     longitude:"",
@@ -132,7 +132,11 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
     };
 
     return (
-        <div>
+        <div style={{ 
+                display: "flex", 
+                flexDirection: "column", 
+                height: "100%" 
+            }}>
             <div className="dashboard-header" style={{ marginBottom: "var(--space-5)" }}>
                 <div>
                     <h1 className="dashboard-title">Add building</h1>
@@ -147,42 +151,48 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                 onSubmit={handleSubmit}
                 noValidate
                 className="card"
-                style={{ maxWidth: "560px", display: "grid", gap: "var(--space-5)" }}
+                style={{ maxWidth: "720px", display: "flex", flexDirection: "column", gap: "var(--space-4)", flex: 1 }}
             >
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label" htmlFor="building_name">Building name *</label>
-                    <input
-                        id="building_name"
-                        name="building_name"
-                        type="text"
-                        className="input"
-                        value={form.building_name}
-                        onChange={handleChange}
-                        disabled={loading}
-                        placeholder="Sandton HQ"
-                        style={errors.building_name ? errorStyle : undefined}
-                    />
-                    {errors.building_name && (
-                        <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
-                            {errors.building_name}
-                        </p>
-                    )}
-                </div>
+                <div style={{ 
+                        display: "grid", 
+                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+                        gap: "var(--space-4)" 
+                    }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                        <label className="label" htmlFor="building_name">Building name *</label>
+                        <input
+                            id="building_name"
+                            name="building_name"
+                            type="text"
+                            className="input"
+                            value={form.building_name}
+                            onChange={handleChange}
+                            disabled={loading}
+                            placeholder="Sandton HQ"
+                            style={errors.building_name ? errorStyle : undefined}
+                        />
+                        {errors.building_name && (
+                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
+                                {errors.building_name}
+                            </p>
+                        )}
+                    </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label" htmlFor="building_type">Building type</label>
-                    <select
-                        id="building_type"
-                        name="building_type"
-                        className="select"
-                        value={form.building_type}
-                        onChange={handleChange}
-                        disabled={loading}
-                    >
-                        {BUILDING_TYPES.map((t) => (
-                            <option key={t} value={t}>{t.replace("_", " ")}</option>
-                        ))}
-                    </select>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                        <label className="label" htmlFor="building_type">Building type</label>
+                        <select
+                            id="building_type"
+                            name="building_type"
+                            className="select"
+                            value={form.building_type}
+                            onChange={handleChange}
+                            disabled={loading}
+                        >
+                            {BUILDING_TYPES.map((t) => (
+                                <option key={t} value={t}>{t.replace("_", " ")}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
@@ -205,7 +215,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                     )}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "var(--space-4)" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                         <label className="label" htmlFor="square_footage">Floor area (m²)</label>
                         <input
@@ -248,9 +258,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                             </p>
                         )}
                     </div>
-                </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                         <label className="label" htmlFor="nominal_voltage">Nominal voltage (V)</label>
                         <input
@@ -266,7 +274,6 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                             placeholder="230"
                             style={errors.nominal_voltage ? errorStyle : undefined}
                         />
-                        <p style={{ fontSize: "var(--fs-small)", color: "var(--brand-ink-muted)" }}>For ESP32 hardware (defaults to 230V)</p>
                         {errors.nominal_voltage && (
                             <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
                                 {errors.nominal_voltage}
@@ -275,7 +282,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                        <label className="label" htmlFor="max_current_threshold">Max current threshold (A)</label>
+                        <label className="label" htmlFor="max_current_threshold">Max current (A)</label>
                         <input
                             id="max_current_threshold"
                             name="max_current_threshold"
@@ -289,7 +296,6 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                             placeholder="60"
                             style={errors.max_current_threshold ? errorStyle : undefined}
                         />
-                        <p style={{ fontSize: "var(--fs-small)", color: "var(--brand-ink-muted)" }}>Amperes for alerting (defaults to 60A)</p>
                         {errors.max_current_threshold && (
                             <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
                                 {errors.max_current_threshold}
@@ -298,89 +304,75 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                     </div>
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label" htmlFor="timezone">Timezone</label>
-                    <input
-                        id="timezone"
-                        name="timezone"
-                        type="text"
-                        className="input"
-                        value={form.timezone}
-                        onChange={handleChange}
-                        disabled={loading}
-                        placeholder="Africa/Johannesburg"
-                    />
+                <div style={{ 
+                        display: "grid", 
+                        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", 
+                        gap: "var(--space-4)" 
+                    }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                        <label className="label" htmlFor="timezone">Timezone</label>
+                        <input
+                            id="timezone"
+                            name="timezone"
+                            type="text"
+                            className="input"
+                            value={form.timezone}
+                            onChange={handleChange}
+                            disabled={loading}
+                            placeholder="Africa/Johannesburg"
+                        />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                        <label className="label" htmlFor="geohash">
+                            Geohash
+                        </label>
+                        <input
+                            id="geohash"
+                            name="geohash"
+                            type="text"
+                            className="input"
+                            value={form.geohash}
+                            onChange={handleChange}
+                            disabled={loading}
+                            placeholder="kgesj5h"
+                        />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                        <label className="label" htmlFor="latitude">
+                            Latitude
+                        </label>
+                        <input
+                            id="latitude"
+                            name="latitude"
+                            type="number"
+                            className="input"
+                            value={form.latitude}
+                            onChange={handleChange}
+                            disabled={loading}
+                            placeholder="-26.111"
+                            step="any"
+                        />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                        <label className="label" htmlFor="longitude">
+                            Longitude
+                        </label>
+                        <input
+                            id="longitude"
+                            name="longitude"
+                            type="number"
+                            className="input"
+                            value={form.longitude}
+                            onChange={handleChange}
+                            disabled={loading}
+                            placeholder="44.66"
+                            step="any"
+                        />
+                    </div>
                 </div>
-
-                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label" htmlFor="geohash">
-                        Geohash
-                    </label>
-                    <input
-                        id="geohash"
-                        name="geohash"
-                        type="text"
-                        className="input"
-                        value={form.geohash}
-                        onChange={handleChange}
-                        disabled={loading}
-                        placeholder="kgesj5h"
-                        style={{
-                            outline: "none",
-                            fontFamily: "var(--font-body)",
-                            fontSize: "var(--fs-body)",
-                        }}
-                    />
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label" htmlFor="latitude">
-                        Latitude
-                    </label>
-                    <input
-                        id="latitude"
-                        name="latitude"
-                        type="number"
-                        className="input"
-                        value={form.latitude}
-                        onChange={handleChange}
-                        disabled={loading}
-                        placeholder="-26.111"
-                        step="any"
-                        style={{
-                            outline: "none",
-                            fontFamily: "var(--font-body)",
-                            fontSize: "var(--fs-body)",
-                        }}
-                    />
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                    <label className="label" htmlFor="longitude">
-                        Longitude
-                    </label>
-                    <input
-                        id="longitude"
-                        name="longitude"
-                        type="number"
-                        className="input"
-                        value={form.longitude}
-                        onChange={handleChange}
-                        disabled={loading}
-                        placeholder="44.66"
-                        step="any"
-                        style={{
-                            outline: "none",
-                            fontFamily: "var(--font-body)",
-                            fontSize: "var(--fs-body)",
-                        }}
-                    />
-                </div>
-
-                  
-                  
-
-
 
                 {apiError && (
                     <div
@@ -398,7 +390,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                     </div>
                 )}
 
-                <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "auto" }}>
                     <button type="submit" disabled={loading} className="btn btn-primary">
                         {loading ? "Saving..." : "Add building"}
                     </button>

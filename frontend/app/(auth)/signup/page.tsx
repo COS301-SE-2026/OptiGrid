@@ -89,40 +89,44 @@ export default function SignupPage() {
 
     return (
         <main
-            className="min-h-screen"
             style={{
+                minHeight: "100vh",
                 background: "var(--brand-bg)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "var(--space-7) var(--space-5)",
+                padding: "var(--space-5)",
             }}
         >
             <section
                 className="card"
-                style={{ width: "min(420px, 100%)", display: "grid", gap: "var(--space-5)" }}
+                style={{ width: "min(420px, 100%)", display: "grid", gap: "var(--space-4)" }}
             >
-                <header style={{ display: "grid", gap: "var(--space-2)" }}>
+                <header style={{ display: "grid", gap: "var(--space-1)" }}>
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
                     <p className="landing-kicker">OptiGrid Access</p>
                     <h1>Create your account</h1>
-                    <p className="text-muted" style={{ fontSize: "var(--fs-body)" }}>
-                        Start optimizing in minutes. Monitor energy usage, spot
-                        anomalies, and unlock optimization insights across your
-                        buildings.
+                    <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                        Monitor usage, catch anomalies, and start saving in minutes.
                     </p>
                 </header>
 
-                <form style={{ 
-                        display: "grid", 
-                        gap: "var(--space-5)" 
+                <form style={{
+                        display: "grid",
+                        gap: "var(--space-4)"
                     }} noValidate onSubmit={handleSubmit}>
-                    <div className="grid md:grid-cols-2" style={{ gap: "var(--space-5)" }}>
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: "var(--space-4)",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
+                        }}
+                    >
                         <div style={{ 
                                 display: "grid", 
-                                gap: "var(--space-2)" 
+                                gap: "var(--space-1)" 
                             }}>
                             <label className="label" htmlFor="firstName">
                                 First name
@@ -160,7 +164,7 @@ export default function SignupPage() {
 
                         <div style={{ 
                                 display: "grid", 
-                                gap: "var(--space-2)" 
+                                gap: "var(--space-1)" 
                             }}>
                             <label className="label" htmlFor="lastName">
                                 Last name
@@ -199,7 +203,7 @@ export default function SignupPage() {
 
                     <div style={{ 
                             display: "grid", 
-                            gap: "var(--space-2)" 
+                            gap: "var(--space-1)" 
                         }}>
                         <label className="label" htmlFor="email">
                             Work email
@@ -237,7 +241,7 @@ export default function SignupPage() {
 
                     <div style={{ 
                             display: "grid",
-                            gap: "var(--space-2)" 
+                            gap: "var(--space-1)" 
                         }}>
                         <label className="label" htmlFor="password">
                             Password
@@ -275,7 +279,7 @@ export default function SignupPage() {
 
                     <div style={{ 
                             display: "grid", 
-                            gap: "var(--space-2)" 
+                            gap: "var(--space-1)" 
                         }}>
                         <label className="label" htmlFor="confirmPassword">
                             Confirm password
@@ -316,7 +320,8 @@ export default function SignupPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="btn btn-primary w-full"
+                        className="btn btn-primary"
+                        style={{ width: "100%" }}
                     >
                         {loading ? "Creating account..." : "Create account"}
                     </button>
