@@ -1,20 +1,9 @@
 "use client";
 
-import {
-    useState,
-    type ChangeEvent,
-    type FocusEvent,
-    type SubmitEvent,
-} from "react";
+import {useState, type ChangeEvent, type FocusEvent, type SubmitEvent} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-    getSubmitResult,
-    hasErrors,
-    shouldShowError,
-    type SignupErrors,
-    type SignupTouched,
-} from "./logic";
+import {getSubmitResult, hasErrors, shouldShowError, type SignupErrors, type SignupTouched } from "./logic";
 import { initialSignupFormData, type SignupFormData } from "./validation";
 import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../../../lib/tab-session";
 
@@ -86,6 +75,8 @@ export default function SignupPage() {
         boxShadow:
             "0 0 0 2px var(--brand-bg), 0 0 0 4px var(--brand-danger)",
     };
+
+    
 
     return (
         <main
