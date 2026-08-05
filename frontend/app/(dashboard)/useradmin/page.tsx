@@ -248,7 +248,7 @@ export default function UserManagementPage() {
         const buidlingData = await buildingResp.json();
 
         const bdata = buidlingData.data || (Array.isArray(buidlingData) ? buidlingData : []);
-        const formatBuildings: Building[] = bdata.map((b: any) => ({
+        const formatBuildings: Building[] = bdata.map((b) => ({
           building_id:  b.building_id,
           building_name:  b.building_name
         }));
@@ -263,7 +263,7 @@ export default function UserManagementPage() {
           ...(viewersData.data || []),
           ...(managersData.data || [])
         ];
-        const formatUser: User[] = users.map((user: any) => ({
+        const formatUser: User[] = users.map((user) => ({
           user_id: user.userId,
           first_name: user.firstName,
           email: user.email,

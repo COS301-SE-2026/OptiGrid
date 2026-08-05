@@ -148,12 +148,12 @@ export default function AdminPage() {
         if(data.status === "success") {
           const viewers: User[] = [];
           const managers: Manager[] = [];
-          const buildings = data.data.map((building: any) => {
+          const buildings = data.data.map((building) => {
             let viewerId = null;
             let managerId = null;
 
             if(building.authorized_users && building.authorized_users.length > 0) {
-              building.authorized_users.forEach((link:any) => {
+              building.authorized_users.forEach((link) => {
                 const auth_user = link.user;
                 if(!auth_user) return;
 

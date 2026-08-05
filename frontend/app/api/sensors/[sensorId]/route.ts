@@ -39,7 +39,7 @@ function getForwardHeaders(request: Request): Headers | null {
 
 	if (cookie) {
 		headers.set("Cookie", cookie)
-	};
+	}
 
 	return headers;
 }

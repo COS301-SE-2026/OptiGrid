@@ -175,7 +175,7 @@ export default function RealtimePage() {
             const payload = await res.json();
             if (payload.status === "success" && Array.isArray(payload.data)) {
                 const initialMap: Record<string, { currentKw: number; timestamp: string }> = {};
-                payload.data.forEach((item: any) => {
+                payload.data.forEach((item) => {
                     const kw = toNumber(item.current_kw ?? item.currentKw ?? item.kw);
                     if (item.building_id && kw !== null) {
                         initialMap[item.building_id] = {
@@ -195,7 +195,8 @@ export default function RealtimePage() {
     // Listen for live SSE stream push updates
     useEffect(() => {
         if (liveData?.building_id) {
-            const kw = toNumber(liveData.power_kw ?? (liveData as any).current_kw ?? (liveData as any).kw);
+            const kwField = liveData as unknown as { current_kw?: unknown; kw?: unknown };
+            const kw = toNumber(liveData.power_kw ?? kwField.current_kw ?? kwField.kw);
             if (kw !== null) {
                 setLatestReadings((prev) => ({
                     ...prev,
