@@ -2,11 +2,13 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getLoginError, initialLoginFormData, type LoginFormData } from "./validation";
 import { navigateAfterLogin } from "../../../lib/auth-navigation";
 import { getTabSessionId, TAB_SESSION_HEADER } from "../../../lib/tab-session";
 
 export default function LoginPage() {
+    const router = useRouter();
     const [formData, setFormData] = useState<LoginFormData>(
         initialLoginFormData
     );
@@ -63,7 +65,7 @@ export default function LoginPage() {
             const firstName = payload?.user?.firstName as string | undefined;
             setNotice(`Login successful${firstName ? `, ${firstName}` : ""}.`);
             setFormData(initialLoginFormData);
-            navigateAfterLogin();
+            navigateAfterLogin((destination) => router.replace(destination));
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed. Please try again.");
         } finally {

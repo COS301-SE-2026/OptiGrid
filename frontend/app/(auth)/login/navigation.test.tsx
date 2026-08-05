@@ -3,6 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { navigateAfterLogin } from "../../../lib/auth-navigation";
 import LoginPage from "./page";
 
+const mockReplace = jest.fn();
+
+jest.mock("next/navigation", () => ({
+	useRouter: () => ({ replace: mockReplace }),
+}));
+
 jest.mock("../../../lib/auth-navigation", () => ({
 	navigateAfterLogin: jest.fn(),
 }));
@@ -21,7 +27,7 @@ describe("login navigation", () => {
 		} as Response);
 	});
 
-	it("starts a fresh dashboard navigation after authentication succeeds", async () => {
+	it("replaces the current route after authentication succeeds", async () => {
 		const user = userEvent.setup();
 		render(<LoginPage />);
 
@@ -30,5 +36,8 @@ describe("login navigation", () => {
 		await user.click(screen.getByRole("button", { name: "Log in" }));
 
 		await waitFor(() => expect(navigateAfterLogin).toHaveBeenCalledTimes(1));
+		const replaceRoute = jest.mocked(navigateAfterLogin).mock.calls[0][0];
+		replaceRoute("/_sessions/test-tab-id/dashboard");
+		expect(mockReplace).toHaveBeenCalledWith("/_sessions/test-tab-id/dashboard");
 	});
 });
