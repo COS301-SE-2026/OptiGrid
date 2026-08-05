@@ -81,14 +81,14 @@ export default function LoginPage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "48px 24px",
+                padding: "var(--space-7) var(--space-5)",
             }}
         >
             <section
                 className="card"
-                style={{ width: "min(420px, 100%)", display: "grid", gap: "24px" }}
+                style={{ width: "min(420px, 100%)", display: "grid", gap: "var(--space-5)" }}
             >
-                <header style={{ display: "grid", gap: "8px" }}>
+                <header style={{ display: "grid", gap: "var(--space-2)" }}>
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
@@ -102,17 +102,24 @@ export default function LoginPage() {
                             border: "1px solid var(--brand-secondary)",
                             background: "color-mix(in srgb, var(--brand-secondary) 12%, transparent)",
                             color: "var(--brand-ink)",
-                            padding: "12px 16px",
+                            padding: "var(--space-3) var(--space-4)",
                             borderRadius: "var(--radius-md)",
-                            fontSize: "0.875rem",
+                            fontSize: "var(--fs-small)",
                         }}
                     >
                         {notice}
                     </div>
                 )}
 
-                <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-                    <div className="space-y-2">
+                <form style={{ 
+                        display: "grid", 
+                        gap: "var(--space-5)" 
+                    }} 
+                    noValidate onSubmit={handleSubmit}>
+                    <div style={{ 
+                            display: "grid", 
+                            gap: "var(--space-2)" 
+                        }}>
                         <label className="label" htmlFor="email">Work email</label>
                         <input
                             id="email"
@@ -127,7 +134,7 @@ export default function LoginPage() {
                         />
                     </div>
 
-                    <div className="space-y-2">
+                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
                         <label className="label" htmlFor="password">Password</label>
                         <input
                             id="password"
@@ -146,7 +153,7 @@ export default function LoginPage() {
                         type="submit"
                         disabled={loading}
                         className="btn btn-primary w-full"
-                        style={{ marginTop: "24px" }}
+                        style={{ marginTop: "var(--space-5)" }}
                     >
                         {loading ? "Logging in..." : "Log in"}
                     </button>
@@ -158,9 +165,9 @@ export default function LoginPage() {
                                 border: "1px solid var(--brand-danger)",
                                 background: "color-mix(in srgb, var(--brand-danger) 12%, transparent)",
                                 color: "var(--brand-danger)",
-                                padding: "12px 16px",
+                                padding: "var(--space-3) var(--space-4)",
                                 borderRadius: "var(--radius-md)",
-                                fontSize: "0.875rem",
+                                fontSize: "var(--fs-small)",
                             }}
                         >
                             {error}
@@ -170,7 +177,7 @@ export default function LoginPage() {
 
                 <p
                     className="text-muted"
-                    style={{ textAlign: "center", fontSize: "0.875rem" }}
+                    style={{ textAlign: "center", fontSize: "var(--fs-small)" }}
                 >
                     No account?{" "}
                     <Link href="/signup" style={{ color: "var(--brand-primary)", fontWeight: 600 }}>
