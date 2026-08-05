@@ -20,16 +20,16 @@ export default function DeleteModal({
     return (
         <div className="modal-overlay" onClick={onCancel}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
-                <h2 style={{ marginBottom: "8px", fontSize: "1.1rem", fontWeight: 600 }}>{title}</h2>
-                <p style={{ color: "var(--brand-ink-muted)", fontSize: "0.9rem", marginBottom: "24px" }}>
+                <h2 style={{ marginBottom: "var(--space-2)", fontSize: "var(--fs-h3)", fontWeight: 600 }}>{title}</h2>
+                <p style={{ color: "var(--brand-ink-muted)", fontSize: "var(--fs-small)", marginBottom: "var(--space-5)" }}>
                     {message || (
                         <>
                             Are you sure you want to delete <strong>{targetName}</strong>? This cannot be undone.
                         </>
                     )}
                 </p>
-                <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-                    <button className="btn" onClick={onCancel} disabled={deleting}>Cancel</button>
+                <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "flex-end" }}>
+                    <button className="btn btn-secondary" onClick={onCancel} disabled={deleting}>Cancel</button>
                     <button
                         className="btn btn-danger"
                         onClick={onConfirm}

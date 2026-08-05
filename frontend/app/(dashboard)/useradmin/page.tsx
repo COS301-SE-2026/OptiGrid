@@ -428,11 +428,9 @@ export default function UserManagementPage() {
                                 buildingNames.map((name, idx) => (
                                   <span
                                     key={idx}
-                                    className="badge"
-                                    style={{
-                                      backgroundColor: "var(--brand-surface-alt)",
-                                      color: "var(--brand-ink)",
-                                      fontSize: "var(--fs-small)",
+                                    className="badge badge-default"
+                                    style={{ 
+                                      fontSize: "var(--fs-small)" 
                                     }}
                                   >
                                     {name}
@@ -455,7 +453,7 @@ export default function UserManagementPage() {
                                 className="btn btn-danger"
                                 style={{
                                   fontSize: "var(--fs-small)",
-                                  padding: "4px 12px",
+                                  padding: "var(--space-1) var(--space-3)",
                                 }}
                                 disabled={user.role_type === "ADMIN"}
                               >
@@ -510,11 +508,9 @@ export default function UserManagementPage() {
                                 buildingNames.map((name, idx) => (
                                   <span
                                     key={idx}
-                                    className="badge"
+                                    className="badge badge-default"
                                     style={{
-                                      backgroundColor: "var(--brand-surface-alt)",
-                                      color: "var(--brand-ink)",
-                                      fontSize: "var(--fs-small)",
+                                      fontSize: "var(--fs-small)"
                                     }}
                                   >
                                     {name}
@@ -537,19 +533,17 @@ export default function UserManagementPage() {
                                 className="btn btn-primary"
                                 style={{
                                   fontSize: "var(--fs-small)",
-                                  padding: "4px 12px",
+                                  padding: "var(--space-1) var(--space-3)",
                                 }}
                               >
                                 Assign
                               </button>
                               <button
                                 onClick={() => Remove(manager.user_id)}
-                                className="btn"
+                                className="btn btn-secondary"
                                 style={{
                                   fontSize: "var(--fs-small)",
-                                  padding: "4px 12px",
-                                  backgroundColor: buildingCount > 0 ? "var(--brand-warning)" : "var(--brand-ink-muted)",
-                                  color: "white",
+                                  padding: "var(--space-1) var(--space-3)"
                                 }}
                                 disabled={buildingCount === 0}
                                 title={
@@ -565,7 +559,7 @@ export default function UserManagementPage() {
                                 className="btn btn-danger"
                                 style={{
                                   fontSize: "var(--fs-small)",
-                                  padding: "4px 12px",
+                                  padding: "var(--space-1) var(--space-3)"
                                 }}
                               >
                                 Delete
@@ -674,11 +668,9 @@ export default function UserManagementPage() {
                   </button>
                   <button
                     onClick={confirmAction}
-                    className="btn"
-                    style={{
-                      flex: 1,
-                      backgroundColor: Action === "assign" ? "var(--brand-primary)" : "var(--brand-danger)",
-                      color: "white",
+                    className={`btn ${Action === "assign" ? "btn-primary" : "btn-danger"}`}
+                    style={{ 
+                      flex: 1 
                     }}
                   >
                     {Action === "assign" ? "Assign" : "Remove"}
