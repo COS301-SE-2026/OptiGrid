@@ -242,21 +242,21 @@ function BuildingStatusNotice({
 }>) {
     if (buildingsError) {
         return (
-            <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+            <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }}>
                 Unable to load your assigned buildings right now.
             </p>
         );
     }
     if (buildingsCount === 0 && !buildingsLoading) {
         return (
-            <p className="text-muted" style={{ marginTop: "12px" }}>
+            <p className="text-muted" style={{ marginTop: "var(--space-3)" }}>
                 No buildings are currently assigned to your account.
             </p>
         );
     }
     if (forecastError) {
         return (
-            <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+            <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }}>
                 {forecastError}
             </p>
         );
@@ -278,7 +278,7 @@ function KpiCard({
     return (
         <div className="card dashboard-card-tight">
             <p className="dashboard-kpi-label">{label}</p>
-            {isPending && <Skeleton style={{ height: 28, width: skeletonWidth, marginTop: 12 }} />}
+            {isPending && <Skeleton style={{ height: 28, width: skeletonWidth, marginTop: "var(--space-3)" }} />}
             {!isPending && value && <p className="dashboard-kpi-value metric">{value}</p>}
             {!isPending && !value && <p className="dashboard-kpi-value text-muted">--</p>}
         </div>
@@ -323,7 +323,7 @@ function ForecastChartContainer({
                     borderRadius: "var(--radius-md)",
                     border: "1px dashed var(--brand-border)",
                     color: "var(--brand-ink-muted)",
-                    fontSize: "0.9rem",
+                    fontSize: "var(--fs-small)",
                 }}
             >
                 Configure the controls above and run a forecast.
@@ -369,7 +369,7 @@ function ForecastChartContainer({
                             border: "1px solid var(--brand-border)",
                             borderRadius: "12px",
                             color: "var(--brand-ink)",
-                            fontSize: "12px",
+                            fontSize: "var(--fs-small)",
                         }}
                         cursor={{ stroke: "var(--brand-border)" }}
                         labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon)}
@@ -424,14 +424,14 @@ function ForecastChartContainer({
             <div
                 className="text-muted"
                 style={{
-                    marginTop: "12px",
+                    marginTop: "var(--space-3)",
                     display: "flex",
                     alignItems: "center",
-                    gap: "20px",
-                    fontSize: "0.75rem",
+                    gap: "var(--space-4)",
+                    fontSize: "var(--fs-small)"
                 }}
             >
-                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                     <span
                         style={{
                             width: 16,
@@ -445,48 +445,48 @@ function ForecastChartContainer({
 
             <div
                 style={{
-                    marginTop: "20px",
+                    marginTop: "var(--space-5)",
                     display: "grid",
-                    gap: "12px",
+                    gap: "var(--space-3)",
                     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                 }}
             >
                 <div
                     style={{
-                        padding: "14px 16px",
+                        padding: "var(--space-3) var(--space-4)",
                         border: "1px solid var(--brand-border)",
                         borderRadius: "var(--radius-md)",
-                        background: "var(--brand-bg-subtle)",
+                        background: "var(--brand-surface-alt)",
                     }}
                 >
                     <p className="dashboard-kpi-label">Building</p>
-                    <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                    <p className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)" }}>
                         {selectedBuildingName}
                     </p>
                 </div>
                 <div
                     style={{
-                        padding: "14px 16px",
+                        padding: "var(--space-3) var(--space-4)",
                         border: "1px solid var(--brand-border)",
                         borderRadius: "var(--radius-md)",
-                        background: "var(--brand-bg-subtle)",
+                        background: "var(--brand-surface-alt)",
                     }}
                 >
                     <p className="dashboard-kpi-label">Forecast points</p>
-                    <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                    <p className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)" }}>
                         {result.forecast.length}
                     </p>
                 </div>
                 <div
                     style={{
-                        padding: "14px 16px",
+                        padding: "var(--space-3) var(--space-4)",
                         border: "1px solid var(--brand-border)",
                         borderRadius: "var(--radius-md)",
-                        background: "var(--brand-bg-subtle)",
+                        background: "var(--brand-surface-alt)",
                     }}
                 >
                     <p className="dashboard-kpi-label">Peak timestamp</p>
-                    <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                    <p className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)" }}>
                         {formatPeakTimestamp(result.summary.peak_timestamp)}
                     </p>
                 </div>
@@ -564,7 +564,7 @@ export default function ForecastPage() {
         appearance: "none",
         WebkitAppearance: "none",
         MozAppearance: "none",
-        paddingRight: "32px",
+        paddingRight: "var(--space-6)",
     };
 
     return (
@@ -588,12 +588,12 @@ export default function ForecastPage() {
                 <div
                     style={{
                         display: "grid",
-                        gap: "16px",
+                        gap: "var(--space-4)",
                         gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                         alignItems: "end",
                     }}
                 >
-                    <div style={{ display: "grid", gap: "6px" }}>
+                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
                         <label
                             htmlFor="building-select"
                             className="label"
@@ -634,7 +634,7 @@ export default function ForecastPage() {
                         </div>
                     </div>
 
-                    <div style={{ display: "grid", gap: "6px" }}>
+                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
                         <label
                             htmlFor="horizon-select"
                             className="label"
@@ -668,7 +668,7 @@ export default function ForecastPage() {
                         </div>
                     </div>
 
-                    <div style={{ display: "grid", gap: "6px" }}>
+                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
                         <span className="label" style={{ opacity: 0 }}>
                             Run
                         </span>

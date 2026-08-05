@@ -441,7 +441,7 @@ export default function DashboardPage() {
                                     border: "1px solid var(--brand-border)",
                                     borderRadius: "12px",
                                     color: "var(--brand-ink)",
-                                    fontSize: "12px",
+                                    fontSize: "var(--fs-small)",
                                 }}
                                 cursor={{ stroke: "var(--brand-border)" }}
                             />
@@ -460,7 +460,7 @@ export default function DashboardPage() {
 
             <div className="dashboard-section">
                 {buildingsLoading ? (
-                    <div style={{ display: "grid", gap: "12px" }}>
+                    <div style={{ display: "grid", gap: "var(--space-3)" }}>
                         <Skeleton style={{ height: 56, width: "100%" }} />
                         <Skeleton style={{ height: 56, width: "100%" }} />
                         <Skeleton style={{ height: 56, width: "100%" }} />
@@ -476,7 +476,7 @@ export default function DashboardPage() {
                         <p className="text-muted">No buildings yet.</p>
                         <Link
                             href="/buildings/add"
-                            style={{ marginTop: "8px", display: "inline-block", color: "var(--brand-primary)", fontWeight: 600 }}
+                            style={{ marginTop: "var(--space-2)", display: "inline-block", color: "var(--brand-primary)", fontWeight: 600 }}
                         >
                             Add your first building
                         </Link>
@@ -501,7 +501,7 @@ export default function DashboardPage() {
                                     >
                                         <td>
                                             <p style={{ fontWeight: 600 }}>{building.name}</p>
-                                            <p className="text-muted" style={{ fontSize: "0.75rem" }}>
+                                            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
                                                 {building.location}
                                             </p>
                                         </td>

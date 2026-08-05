@@ -378,7 +378,7 @@ export default function AdminPage() {
                               className="btn btn-primary"
                               style={{
                                 fontSize: "var(--fs-small)",
-                                padding: "4px 12px",
+                                padding: "var(--space-1) var(--space-3)",
                               }}
                             >
                               Edit
@@ -388,7 +388,7 @@ export default function AdminPage() {
                               className="btn btn-danger"
                               style={{
                                 fontSize: "var(--fs-small)",
-                                padding: "4px 12px",
+                                padding: "var(--space-1) var(--space-3)",
                               }}
                             >
                               Delete

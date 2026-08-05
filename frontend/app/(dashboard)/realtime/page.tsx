@@ -84,7 +84,7 @@ function Skeleton({ height = 80 }: Readonly<{ height?: number }>) {
 
 const GRID_STYLE = {
     display: "grid",
-    gap: 16,
+    gap: "var(--space-4)",
     gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
 } as const;
 
@@ -99,8 +99,8 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
                 position: "relative",
                 display: "flex",
                 flexDirection: "column",
-                gap: 14,
-                paddingLeft: 20,
+                gap: "var(--space-3)",
+                paddingLeft: "var(--space-5)",
                 overflow: "hidden",
                 opacity: isOffline ? 0.78 : 1,
                 border: isOffline ? "1px solid var(--brand-border)" : `1px solid ${statusStyle.color}40`,
@@ -108,14 +108,14 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
         >
             <span
                 aria-hidden="true"
-                style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: statusStyle.color }}
+                style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "var(--space-1)", background: statusStyle.color }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-2)" }}>
                 <div style={{ minWidth: 0 }}>
-                    <p style={{ fontWeight: 600, fontSize: "0.95rem", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <p style={{ fontWeight: 600, fontSize: "var(--fs-body)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {building.name}
                     </p>
-                    <p className="text-muted" style={{ fontSize: "0.75rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <p className="text-muted" style={{ fontSize: "var(--fs-small)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {building.location}
                     </p>
                 </div>
@@ -125,25 +125,25 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
             </div>
 
             <div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)" }}>
                     <span className="dashboard-kpi-value" style={{ fontSize: "1.9rem", lineHeight: 1, color: isOffline ? "inherit" : "var(--brand-primary)" }}>
                         {building.currentKw !== null && building.currentKw !== undefined ? building.currentKw.toFixed(2) : "--"}
                     </span>
-                    <span className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>
+                    <span className="text-muted" style={{ fontSize: "var(--fs-small)", fontWeight: 500 }}>
                         kW (Live)
                     </span>
                 </div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
-                    <span className="dashboard-kpi-value" style={{ fontSize: "1.05rem", lineHeight: 1 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
+                    <span className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)", lineHeight: 1 }}>
                         {building.todayKwh !== null && building.todayKwh !== undefined ? building.todayKwh.toFixed(2) : "--"}
                     </span>
-                    <span className="text-muted" style={{ fontSize: "0.75rem", fontWeight: 500 }}>
+                    <span className="text-muted" style={{ fontSize: "var(--fs-small)", fontWeight: 500 }}>
                         kWh today
                     </span>
                 </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--brand-border)", paddingTop: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--brand-border)", paddingTop: "var(--space-3)" }}>
                 <span className="text-muted" style={{ fontSize: "0.72rem", textTransform: "capitalize" }}>
                     {building.type.replaceAll("_", " ")}
                 </span>
@@ -255,7 +255,7 @@ export default function RealtimePage() {
                     <p className="text-muted">
                         {error instanceof Error ? error.message : "Unable to load readings."}
                     </p>
-                    <button type="button" className="btn btn-secondary" onClick={() => refetch()} style={{ marginTop: 12 }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => refetch()} style={{ marginTop: "var(--space-3)" }}>
                         Try again
                     </button>
                 </div>
@@ -272,7 +272,7 @@ export default function RealtimePage() {
 
         return (
             <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
                     <span className="live-chip on">
                         All ({mergedBuildings.length})
                     </span>
@@ -293,7 +293,7 @@ export default function RealtimePage() {
     return (
         <>
             <div className="card" style={{ marginBottom: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4)", flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <span className={`live-dot ${isConnected ? "on" : "off"}`} />
                         <div>

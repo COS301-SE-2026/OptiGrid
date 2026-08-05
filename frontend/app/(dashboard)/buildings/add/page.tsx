@@ -133,7 +133,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
 
     return (
         <div>
-            <div className="dashboard-header" style={{ marginBottom: "24px" }}>
+            <div className="dashboard-header" style={{ marginBottom: "var(--space-5)" }}>
                 <div>
                     <h1 className="dashboard-title">Add building</h1>
                     <p className="dashboard-subtitle">Register a new building to your portfolio.</p>
@@ -147,7 +147,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                 onSubmit={handleSubmit}
                 noValidate
                 className="card"
-                style={{ maxWidth: "560px", display: "grid", gap: "20px" }}
+                style={{ maxWidth: "560px", display: "grid", gap: "var(--space-5)" }}
             >
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                     <label className="label" htmlFor="building_name">Building name *</label>
@@ -163,7 +163,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                         style={errors.building_name ? errorStyle : undefined}
                     />
                     {errors.building_name && (
-                        <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "0.75rem" }}>
+                        <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
                             {errors.building_name}
                         </p>
                     )}
@@ -199,7 +199,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                         style={errors.physical_address ? errorStyle : undefined}
                     />
                     {errors.physical_address && (
-                        <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "0.75rem" }}>
+                        <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
                             {errors.physical_address}
                         </p>
                     )}
@@ -221,7 +221,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                             style={errors.square_footage ? errorStyle : undefined}
                         />
                         {errors.square_footage && (
-                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "0.75rem" }}>
+                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
                                 {errors.square_footage}
                             </p>
                         )}
@@ -243,7 +243,7 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                             style={errors.max_occupancy ? errorStyle : undefined}
                         />
                         {errors.max_occupancy && (
-                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "0.75rem" }}>
+                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
                                 {errors.max_occupancy}
                             </p>
                         )}
@@ -266,9 +266,9 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                             placeholder="230"
                             style={errors.nominal_voltage ? errorStyle : undefined}
                         />
-                        <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>For ESP32 hardware (defaults to 230V)</p>
+                        <p style={{ fontSize: "var(--fs-small)", color: "var(--brand-ink-muted)" }}>For ESP32 hardware (defaults to 230V)</p>
                         {errors.nominal_voltage && (
-                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "0.75rem" }}>
+                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
                                 {errors.nominal_voltage}
                             </p>
                         )}
@@ -289,9 +289,9 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                             placeholder="60"
                             style={errors.max_current_threshold ? errorStyle : undefined}
                         />
-                        <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Amperes for alerting (defaults to 60A)</p>
+                        <p style={{ fontSize: "var(--fs-small)", color: "var(--brand-ink-muted)" }}>Amperes for alerting (defaults to 60A)</p>
                         {errors.max_current_threshold && (
-                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "0.75rem" }}>
+                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
                                 {errors.max_current_threshold}
                             </p>
                         )}
@@ -389,16 +389,16 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                             border: "1px solid var(--brand-danger)",
                             background: "color-mix(in srgb, var(--brand-danger) 12%, transparent)",
                             color: "var(--brand-danger)",
-                            padding: "12px 16px",
+                            padding: "var(--space-3) var(--space-4)",
                             borderRadius: "var(--radius-md)",
-                            fontSize: "0.875rem",
+                            fontSize: "var(--fs-small)",
                         }}
                     >
                         {apiError}
                     </div>
                 )}
 
-                <div style={{ display: "flex", gap: "12px" }}>
+                <div style={{ display: "flex", gap: "var(--space-3)" }}>
                     <button type="submit" disabled={loading} className="btn btn-primary">
                         {loading ? "Saving..." : "Add building"}
                     </button>
