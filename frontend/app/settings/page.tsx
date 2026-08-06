@@ -122,12 +122,26 @@ export default function SettingsPage() {
     showToastMessage("Profile reset");
   };
 
-  const handleLogout = () => {
-    if (confirm("Are you sure you want to logout?")) {
+  const handleLogout = async () => {
+    if (!confirm("Are you sure you want to logout?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) {
+        showToastMessage("Unable to log out");
+        return;
+      }
+
       showToastMessage("Logged out");
       setTimeout(() => {
-        router.push("/login");
+        router.push("/login?loggedOut=1");
+        router.refresh();
       }, 500);
+    } catch (error) {
+      console.error("Failed to log out", error);
+      showToastMessage("Unable to log out");
     }
   };
 

@@ -116,23 +116,41 @@ test.describe("Settings page", () => {
     await expect.poll(() => page.evaluate(() => localStorage.getItem("optigrid-theme"))).toBe(expectedTheme);
   });
 
-  test.skip("requires DELETE before showing the account-deletion confirmation", async ({ page, request }) => {
-    const user = buildUniqueUser();
-    await createUserInCore(request, user);
-    await loginAndOpenSettings(page, user);
+  test("opens help and contact resources from settings", async ({ page, request }) => {
+    await createUserAndOpenSettings(page, request);
 
-    const accountManagement = page.getByRole("heading", { name: "Account Management" }).locator("..");
-    await accountManagement.getByRole("button", { name: "Delete Account" }).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("link", { name: "View Help" }).click();
+    await expect(page).toHaveURL(/\/help$/);
+    await expect(page.getByText("Quick access", { exact: true })).toBeVisible();
 
-    await page.getByLabel(/Type DELETE to confirm/).fill("delete");
-    await page.getByRole("dialog").getByRole("button", { name: "Delete Account" }).click();
-    await expect(page.getByText('Please type "DELETE" to confirm', { exact: true })).toBeVisible();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/_sessions\/[0-9a-f-]+\/settings$/);
+    await page.getByRole("link", { name: "Contact", exact: true }).click();
+    await expect(page).toHaveURL(/\/contact$/);
+    await expect(page.getByRole("heading", { name: "Contact Us" })).toBeVisible();
+  });
 
-    await page.getByLabel(/Type DELETE to confirm/).fill("DELETE");
-    await page.getByRole("dialog").getByRole("button", { name: "Delete Account" }).click();
-    await expect(page.getByText("Account deleted", { exact: true })).toBeVisible();
-    await expect(page).toHaveURL(/\/login$/, { timeout: 5_000 });
+  test("logs out and prevents the tab session from being reused", async ({ page, request }) => {
+    await createUserAndOpenSettings(page, request);
+    const sessionPrefix = new URL(page.url()).pathname.match(/^\/_sessions\/[0-9a-f-]+/)?.[0];
+    expect(sessionPrefix).toBeTruthy();
+
+    page.once("dialog", async (dialog) => {
+      expect(dialog.type()).toBe("confirm");
+      await dialog.accept();
+    });
+    const logoutResponsePromise = page.waitForResponse((response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname.endsWith("/api/auth/logout")
+    );
+
+    await page.getByRole("button", { name: "Logout", exact: true }).click();
+    const logoutResponse = await logoutResponsePromise;
+    expect(logoutResponse.status()).toBeLessThan(400);
+    await expect(page.getByText("Logged out", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/login\?loggedOut=1$/, { timeout: 5_000 });
+
+    await page.goto(`${sessionPrefix}/dashboard`);
+    await expect(page).toHaveURL(/\/login$/);
   });
 });
