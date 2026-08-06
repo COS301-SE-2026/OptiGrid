@@ -13,7 +13,7 @@ export default function GoogleAuthButton({ onLoading,onError}: authButton) {
         const {error} = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `will_fix_when_path_created`,
+                redirectTo: `${window.location.origin}/api/auth/googleAuth`,
             },
         });
         if(error) {
