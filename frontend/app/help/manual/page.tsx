@@ -71,7 +71,7 @@ export default function UserManualPage() {
               </p>
               <div style={{ 
                 display: "grid", 
-                gridTemplateColumns: "1fr 1fr", 
+                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
                 gap: "var(--space-4)",
                 marginTop: "var(--space-3)",
               }}>
@@ -159,7 +159,7 @@ export default function UserManualPage() {
                 </p>
                 <div style={{ 
                   display: "grid", 
-                  gridTemplateColumns: "1fr 1fr", 
+                  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
                   gap: "var(--space-4)",
                 }}>
                   <div>
@@ -228,7 +228,7 @@ export default function UserManualPage() {
               </p>
               <div style={{ 
                 display: "grid", 
-                gridTemplateColumns: "1fr 1fr", 
+                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
                 gap: "var(--space-4)",
               }}>
                 <div>
@@ -280,7 +280,7 @@ export default function UserManualPage() {
               </ul>
               <div style={{ 
                 display: "grid", 
-                gridTemplateColumns: "1fr 1fr", 
+                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
                 gap: "var(--space-4)",
                 marginTop: "var(--space-3)",
               }}>
