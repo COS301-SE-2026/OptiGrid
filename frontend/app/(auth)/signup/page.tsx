@@ -89,35 +89,45 @@ export default function SignupPage() {
 
     return (
         <main
-            className="min-h-screen"
             style={{
+                minHeight: "100vh",
                 background: "var(--brand-bg)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "48px 24px",
+                padding: "var(--space-5)",
             }}
         >
             <section
                 className="card"
-                style={{ width: "min(420px, 100%)", display: "grid", gap: "24px" }}
+                style={{ width: "min(420px, 100%)", display: "grid", gap: "var(--space-4)" }}
             >
-                <header style={{ display: "grid", gap: "8px" }}>
+                <header style={{ display: "grid", gap: "var(--space-1)" }}>
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
                     <p className="landing-kicker">OptiGrid Access</p>
                     <h1>Create your account</h1>
-                    <p className="text-muted" style={{ fontSize: "0.95rem" }}>
-                        Start optimizing in minutes. Monitor energy usage, spot
-                        anomalies, and unlock optimization insights across your
-                        buildings.
+                    <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                        Monitor usage, catch anomalies, and start saving in minutes.
                     </p>
                 </header>
 
-                <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-                    <div className="grid gap-5 md:grid-cols-2">
-                        <div className="space-y-2">
+                <form style={{
+                        display: "grid",
+                        gap: "var(--space-4)"
+                    }} noValidate onSubmit={handleSubmit}>
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: "var(--space-4)",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
+                        }}
+                    >
+                        <div style={{ 
+                                display: "grid", 
+                                gap: "var(--space-1)" 
+                            }}>
                             <label className="label" htmlFor="firstName">
                                 First name
                             </label>
@@ -144,7 +154,7 @@ export default function SignupPage() {
                                     role="alert"
                                     style={{
                                         color: "var(--brand-danger)",
-                                        fontSize: "0.75rem",
+                                        fontSize: "var(--fs-small)",
                                     }}
                                 >
                                     {errors.firstName}
@@ -152,7 +162,10 @@ export default function SignupPage() {
                             )}
                         </div>
 
-                        <div className="space-y-2">
+                        <div style={{ 
+                                display: "grid", 
+                                gap: "var(--space-1)" 
+                            }}>
                             <label className="label" htmlFor="lastName">
                                 Last name
                             </label>
@@ -179,7 +192,7 @@ export default function SignupPage() {
                                     role="alert"
                                     style={{
                                         color: "var(--brand-danger)",
-                                        fontSize: "0.75rem",
+                                        fontSize: "var(--fs-small)",
                                     }}
                                 >
                                     {errors.lastName}
@@ -188,7 +201,10 @@ export default function SignupPage() {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div style={{ 
+                            display: "grid", 
+                            gap: "var(--space-1)" 
+                        }}>
                         <label className="label" htmlFor="email">
                             Work email
                         </label>
@@ -215,7 +231,7 @@ export default function SignupPage() {
                                 role="alert"
                                 style={{
                                     color: "var(--brand-danger)",
-                                    fontSize: "0.75rem",
+                                    fontSize: "var(--fs-small)",
                                 }}
                             >
                                 {errors.email}
@@ -223,7 +239,10 @@ export default function SignupPage() {
                         )}
                     </div>
 
-                    <div className="space-y-2">
+                    <div style={{ 
+                            display: "grid",
+                            gap: "var(--space-1)" 
+                        }}>
                         <label className="label" htmlFor="password">
                             Password
                         </label>
@@ -250,7 +269,7 @@ export default function SignupPage() {
                                 role="alert"
                                 style={{
                                     color: "var(--brand-danger)",
-                                    fontSize: "0.75rem",
+                                    fontSize: "var(--fs-small)",
                                 }}
                             >
                                 {errors.password}
@@ -258,7 +277,10 @@ export default function SignupPage() {
                         )}
                     </div>
 
-                    <div className="space-y-2">
+                    <div style={{ 
+                            display: "grid", 
+                            gap: "var(--space-1)" 
+                        }}>
                         <label className="label" htmlFor="confirmPassword">
                             Confirm password
                         </label>
@@ -287,7 +309,7 @@ export default function SignupPage() {
                                 role="alert"
                                 style={{
                                     color: "var(--brand-danger)",
-                                    fontSize: "0.75rem",
+                                    fontSize: "var(--fs-small)",
                                 }}
                             >
                                 {errors.confirmPassword}
@@ -298,7 +320,8 @@ export default function SignupPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="btn btn-primary w-full"
+                        className="btn btn-primary"
+                        style={{ width: "100%" }}
                     >
                         {loading ? "Creating account..." : "Create account"}
                     </button>
@@ -311,9 +334,9 @@ export default function SignupPage() {
                                 background:
                                     "color-mix(in srgb, var(--brand-danger) 12%, transparent)",
                                 color: "var(--brand-danger)",
-                                padding: "12px 16px",
+                                padding: "var(--space-3) var(--space-4)",
                                 borderRadius: "var(--radius-md)",
-                                fontSize: "0.875rem",
+                                fontSize: "var(--fs-small)",
                             }}
                         >
                             {apiError}
@@ -323,7 +346,7 @@ export default function SignupPage() {
 
                 <p
                     className="text-muted"
-                    style={{ textAlign: "center", fontSize: "0.875rem" }}
+                    style={{ textAlign: "center", fontSize: "var(--fs-small)" }}
                 >
                     Have an account?{" "}
                     <Link

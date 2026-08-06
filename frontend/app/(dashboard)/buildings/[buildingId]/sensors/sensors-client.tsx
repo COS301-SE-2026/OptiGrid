@@ -247,13 +247,13 @@ export default function SensorsClient({
                         <button type="button" onClick={() => setViewingSensor(sensor)} className="btn btn-secondary" style={
                             {
                                 fontSize: "var(--fs-small)",
-                                padding: "4px 12px"
+                                padding: "var(--space-1) var(--space-3)"
                             }
                         }>View</button>
                         {canManageSensors && (<button type="button" onClick={() => setDeleteTarget(sensor)} className="btn btn-danger" style={
                             {
                                 fontSize: "var(--fs-small)",
-                                padding: "4px 12px"
+                                padding: "var(--space-1) var(--space-3)"
                             }
                         }>Delete</button>
                         )}

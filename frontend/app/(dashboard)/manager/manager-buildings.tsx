@@ -266,7 +266,7 @@ export default function ManagerBuildings() {
                                                         href={`/buildings/${building.building_id}/edit`}
                                                         className="btn btn-primary"
                                                         style={{
-                                                            padding: "4px 12px",
+                                                            padding: "var(--space-1) var(--space-3)",
                                                             fontSize: "var(--fs-small)"
                                                         }}
                                                     >
@@ -276,7 +276,7 @@ export default function ManagerBuildings() {
                                                         href={`/buildings/${building.building_id}/sensors`}
                                                         className="btn btn-secondary"
                                                         style={{
-                                                            padding: "4px 12px",
+                                                            padding: "var(--space-1) var(--space-3)",
                                                             fontSize: "var(--fs-small)"
                                                         }}
                                                     >

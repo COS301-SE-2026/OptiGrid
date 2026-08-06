@@ -5,8 +5,7 @@ const getUrl = () => process.env.CORE_URL ?? "http://core:4000";
 
 //create the idempotency key for our controller to confirm
 function createKey() : string {
-    let key: string;
-    key = uuidv4();
+    const key: string = uuidv4();
     //works by returning ms from 1 Jan 1970  n a radom no, from math library
     return `contact-${key}`;
 }

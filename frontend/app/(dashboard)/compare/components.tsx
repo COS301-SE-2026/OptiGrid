@@ -147,21 +147,21 @@ export function CompareControls({
             </div>
 
             {buildingsError ? (
-                <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+                <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }}>
                     {buildingsErrorMessage || "Unable to load your assigned buildings."}
                 </p>
             ) : !buildingsLoading && buildings.length === 0 ? (
-                <p className="text-muted" style={{ marginTop: "12px" }}>
+                <p className="text-muted" style={{ marginTop: "var(--space-3)" }}>
                     No buildings are currently assigned to your account.
                 </p>
             ) : !buildingsLoading && buildings.length === 1 ? (
-                <p className="text-muted" style={{ marginTop: "12px" }}>
+                <p className="text-muted" style={{ marginTop: "var(--space-3)" }}>
                     Add another building before running a comparison.
                 </p>
             ) : null}
 
             {comparisonError ? (
-                <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+                <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }}>
                     {comparisonErrorMessage || "Unable to compare these buildings."}
                 </p>
             ) : null}
@@ -289,7 +289,7 @@ export function ComparisonChart({
                                 border: "1px solid var(--brand-border)",
                                 borderRadius: "12px",
                                 color: "var(--brand-ink)",
-                                fontSize: "12px",
+                                fontSize: "var(--fs-small)",
                             }}
                             cursor={{ stroke: "var(--brand-border)" }}
                             formatter={(value: number) => formatMetricValue(value, metric)}

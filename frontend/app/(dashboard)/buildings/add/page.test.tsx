@@ -11,7 +11,7 @@ jest.mock("next/navigation", () => ({
  
 jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href }: any) => <a href={href}>{children}</a>,
+  default: ({ children, href }) => <a href={href}>{children}</a>,
 }));
 
 
@@ -109,9 +109,12 @@ describe("AddBuildingPage", () => {
       expect((getField("building_type") as HTMLSelectElement).value).toBe("Commercial");
     });
 
-    it("defaults timezone to 'Africa/Johannesburg'", () => {
+    it("leaves the timezone field empty with 'Africa/Johannesburg' shown as a placeholder", () => {
       render(<AddBuildingPage />);
-      expect((getField("timezone") as HTMLInputElement).value).toBe("Africa/Johannesburg");
+      const timezoneField = getField("timezone") as HTMLInputElement;
+      
+      expect(timezoneField.value).toBe("");
+      expect(timezoneField.placeholder).toBe("Africa/Johannesburg");
     });
 
 
