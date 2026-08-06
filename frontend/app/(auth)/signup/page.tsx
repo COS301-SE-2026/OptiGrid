@@ -116,7 +116,7 @@ export default function SignupPage() {
                 <form style={{
                         display: "grid",
                         gap: "var(--space-4)"
-                    }} noValidate onSubmit={handleSubmit}>
+                    }} noValidate onSubmit={handleSubmit} suppressHydrationWarning>
                     <div
                         style={{
                             display: "grid",
@@ -147,6 +147,7 @@ export default function SignupPage() {
                                 className={inputClass}
                                 style={showError("firstName") ? errorStyle : undefined}
                                 placeholder="Abdelrahman"
+                                suppressHydrationWarning
                             />
                             {showError("firstName") && (
                                 <p
@@ -185,6 +186,7 @@ export default function SignupPage() {
                                 className={inputClass}
                                 style={showError("lastName") ? errorStyle : undefined}
                                 placeholder="Esam"
+                                suppressHydrationWarning
                             />
                             {showError("lastName") && (
                                 <p
@@ -224,6 +226,7 @@ export default function SignupPage() {
                             className={inputClass}
                             style={showError("email") ? errorStyle : undefined}
                             placeholder="abdelrahman.esam@company.io"
+                            suppressHydrationWarning
                         />
                         {showError("email") && (
                             <p
@@ -262,6 +265,7 @@ export default function SignupPage() {
                             className={inputClass}
                             style={showError("password") ? errorStyle : undefined}
                             placeholder="At least 8 characters"
+                            suppressHydrationWarning
                         />
                         {showError("password") && (
                             <p
@@ -302,6 +306,7 @@ export default function SignupPage() {
                             className={inputClass}
                             style={showError("confirmPassword") ? errorStyle : undefined}
                             placeholder="Re-enter password"
+                            suppressHydrationWarning
                         />
                         {showError("confirmPassword") && (
                             <p
