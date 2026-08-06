@@ -33,10 +33,23 @@ async function loginAndOpenSettings(page: Page, user: E2EUser): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Work email").fill(user.email);
   await page.getByLabel("Password").fill(user.password);
+
+  const loginResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "POST" &&
+    new URL(response.url()).pathname.endsWith("/api/auth/login")
+  );
   await page.getByRole("button", { name: "Log in" }).click();
+  const loginResponse = await loginResponsePromise;
+  expect(loginResponse.ok(), `Login failed with ${loginResponse.status()}`).toBeTruthy();
   await expect(page).toHaveURL(/\/_sessions\/[0-9a-f-]+\/dashboard$/, { timeout: 15_000 });
 
+  const profileResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "GET" &&
+    new URL(response.url()).pathname.endsWith("/api/auth/me")
+  );
   await page.getByRole("link", { name: "Settings" }).click();
+  const profileResponse = await profileResponsePromise;
+  expect(profileResponse.ok(), `Profile request failed with ${profileResponse.status()}`).toBeTruthy();
   await expect(page).toHaveURL(/\/_sessions\/[0-9a-f-]+\/settings$/);
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.getByLabel("Email Address")).toHaveValue(user.email);
