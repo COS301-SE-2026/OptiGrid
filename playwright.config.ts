@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const corePort = process.env.E2E_CORE_PORT ?? "4000";
+const frontendPort = process.env.E2E_FRONTEND_PORT ?? "3000";
+const coreBaseURL = process.env.E2E_CORE_URL ?? `http://localhost:${corePort}`;
+const frontendBaseURL = process.env.E2E_BASE_URL ?? `http://localhost:${frontendPort}`;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: ["**/*.e2e.spec.ts"],
@@ -10,16 +15,20 @@ export default defineConfig({
   webServer: [
     {
       command: "node scripts/e2e-core-server.mjs",
-      url: "http://localhost:4000/health",
+      url: `${coreBaseURL}/health`,
+      env: {
+        ...process.env,
+        PORT: corePort,
+      },
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
     },
     {
-      command: "corepack pnpm --dir frontend run dev -p 3000",
-      url: "http://localhost:3000/login",
+      command: `corepack pnpm --dir frontend run dev -p ${frontendPort}`,
+      url: `${frontendBaseURL}/login`,
       env: {
         ...process.env,
-        CORE_URL: "http://localhost:4000",
+        CORE_URL: coreBaseURL,
       },
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
@@ -28,7 +37,7 @@ export default defineConfig({
     },
   ],
   use: {
-    baseURL: process.env.E2E_BASE_URL || "http://localhost:3000",
+    baseURL: frontendBaseURL,
     trace: "on-first-retry",
   },
   projects: [

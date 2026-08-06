@@ -4,18 +4,19 @@ import "@testing-library/jest-dom";
 import SettingsPage from "./page";
 
 const mockPush = jest.fn();
+const mockRefresh = jest.fn();
 const mockToggle = jest.fn();
 
 
 let mockTheme = "light";
 
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
 }));
 
 jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href }: any) => <a href={href}>{children}</a>,
+  default: ({ children, href }) => <a href={href}>{children}</a>,
 }));
 
 jest.mock("../theme-provider", () => ({
@@ -455,28 +456,45 @@ it.each([
      
         fireEvent.click(screen.getByRole("button", { name: /logout/i }));
      
-      expect(screen.getByText(/logged out/i)).toBeInTheDocument();
+      expect(await screen.findByText(/logged out/i)).toBeInTheDocument();
+    });
+
+    it("clears the authenticated session when logout is confirmed", async () => {
+        render(<SettingsPage />);
+
+        fireEvent.click(screen.getByRole("button", { name: /logout/i }));
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          "/api/auth/logout",
+          expect.objectContaining({ method: "POST" })
+        );
+      });
     });
 
     it("redirects to /login after logout", async () => {
-      
-        render(<SettingsPage />);
-     
-        fireEvent.click(screen.getByRole("button", { name: /logout/i }));
-        jest.advanceTimersByTime(500);
-      
-      expect(mockPush).toHaveBeenCalledWith("/login");
+      render(<SettingsPage />);
+
+      fireEvent.click(screen.getByRole("button", { name: /logout/i }));
+      await screen.findByText(/logged out/i);
+      jest.advanceTimersByTime(500);
+
+      expect(mockPush).toHaveBeenCalledWith("/login?loggedOut=1");
+      expect(mockRefresh).toHaveBeenCalled();
     });
 
     it("does not redirect when logout is cancelled", async () => {
-     (window.confirm as jest.Mock).mockReturnValueOnce(false);
-        render(<SettingsPage />);
-    
-     
-        fireEvent.click(screen.getByRole("button", { name: /logout/i }));
-        jest.advanceTimersByTime(500);
-     
+      (window.confirm as jest.Mock).mockReturnValueOnce(false);
+      render(<SettingsPage />);
+
+      fireEvent.click(screen.getByRole("button", { name: /logout/i }));
+      jest.advanceTimersByTime(500);
+
       expect(mockPush).not.toHaveBeenCalled();
+      expect(global.fetch).not.toHaveBeenCalledWith(
+        "/api/auth/logout",
+        expect.objectContaining({ method: "POST" })
+      );
     });
  
  /* describe("Delete Account button", () => {

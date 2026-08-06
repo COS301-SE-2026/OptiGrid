@@ -96,8 +96,7 @@ async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: s
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => r["_measurement"] == "energy_consumption" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_telemetry")
         |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh" or r["_field"] == "cost_usd" or r["_field"] == "cost_zar")
-        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-        |> integral(unit: 1h)
+        |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
         |> group(columns: ["_field"])
         |> sum()
     `;
@@ -217,7 +216,7 @@ async function queryBucketUsageSeries(
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => r["_measurement"] == "energy_consumption" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_telemetry")
         |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh" or r["_field"] == "cost_usd" or r["_field"] == "cost_zar")
-        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+        |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
         |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: sum, createEmpty: false)
         |> keep(columns: ["_time", "_field", "_value"])
     `;

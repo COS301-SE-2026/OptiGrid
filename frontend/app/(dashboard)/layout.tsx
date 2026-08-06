@@ -34,7 +34,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <div className="dashboard-shell">
                 <aside className="card dashboard-sidebar">
                     <p className="dashboard-brand">OptiGrid</p>
-                    <div className="dashboard-user" style={{ marginTop: "12px" }}>
+                    <div className="dashboard-user" style={{ marginTop: "var(--space-3)" }}>
                         <div className="dashboard-avatar">{initials}</div>
                         <span>{displayName}</span>
                     </div>

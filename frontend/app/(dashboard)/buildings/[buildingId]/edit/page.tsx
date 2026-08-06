@@ -217,7 +217,7 @@ export default function EditBuildingPage({
         return (
             <div className="card">
                 <h1 className="dashboard-title">Edit Building</h1>
-                <p className="text-muted" style={{ marginTop: "8px" }}>{error}</p>
+                <p className="text-muted" style={{ marginTop: "var(--space-2)" }}>{error}</p>
             </div>
         );
     }
@@ -227,8 +227,8 @@ export default function EditBuildingPage({
             <h1 className="dashboard-title">Edit Building Details</h1>
             <p className="dashboard-subtitle">Update the building profile details.</p>
 
-            <form onSubmit={handleSubmit} style={{ marginTop: "16px", display: "grid", gap: "12px" }}>
-                <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+            <form onSubmit={handleSubmit} style={{ marginTop: "var(--space-4)", display: "grid", gap: "var(--space-3)" }}>
+                <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
                     <div>
                         <label className="label" htmlFor="building_name">Building name</label>
                         <input
@@ -278,7 +278,7 @@ export default function EditBuildingPage({
                     />
                 </div>
 
-            <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+            <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
                 <div>
                     <label className="label" htmlFor="square_footage">Square footage</label>
                     <input
@@ -307,7 +307,7 @@ export default function EditBuildingPage({
             </div>
 
             {/* add nominal voltage and max current threshold*/}
-            <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+            <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
                 <div>
                     <label className="label" htmlFor="nominal_voltage"> Nominal Voltage</label>
                     <input 
@@ -338,7 +338,7 @@ export default function EditBuildingPage({
                 </div>
             </div>
 
-            <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+            <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
                  <div>
                     <label className="label" htmlFor="timezone">Timezone</label>
                     <input
@@ -372,7 +372,7 @@ export default function EditBuildingPage({
                 <div style={
                     {
                      display: "grid",
-                     gap: "12px", 
+                     gap: "var(--space-3)", 
                      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" 
                     }}>
                     <div>
@@ -412,14 +412,14 @@ export default function EditBuildingPage({
                     />
                 </div>
                 {success ? (
-                    <p style={{ color: "var(--brand-success)", fontWeight: 500, fontSize: "0.9rem" }}>
+                    <p style={{ color: "var(--brand-success)", fontWeight: 500, fontSize: "var(--fs-small)" }}>
                         Building updated successfully. Redirecting...
                     </p>
                 ) : error ? (
-                    <p style={{ color: "var(--brand-danger)", fontSize: "0.9rem" }}>{error}</p>
+                    <p style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>{error}</p>
                 ) : null}
 
-                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "flex-end" }}>
                     <button
                         type="button"
                         className="btn btn-secondary"

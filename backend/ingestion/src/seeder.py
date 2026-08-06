@@ -185,6 +185,6 @@ def seed_calculated_buildings(building_ids: list, days_back: int = 14):
 if __name__ == "__main__":
     real_ids = get_real_building_ids()
     if real_ids:
-        seed_calculated_buildings(building_ids=real_ids, days_back=60)
+        seed_calculated_buildings(building_ids=real_ids, days_back=365)
     else:
         print("No active buildings found in Supabase database to seed.")

@@ -90,7 +90,7 @@ describe('Analytics Controller', () => {
 
 		expect(res.status).toHaveBeenCalledWith(200);
 		expect(res.json).toHaveBeenCalledWith({
-			historical: [{ timestamp: '2026-05-20T23:16:06.839Z', kwh: 150.5 }],
+			historical: [{ timestamp: '2026-05-20T23:16:06.839Z', kwh: 300 }],
 			forecast: [
 				{
 					timestamp: '2026-05-21T12:00:00Z',
@@ -100,8 +100,8 @@ describe('Analytics Controller', () => {
 				},
 			],
 			summary: {
-				peak_kwh: 350.5,
-				peak_timestamp: '2026-05-20T23:16:06.839Z',
+				peak_kwh: 300,
+				peak_timestamp: '2026-05-21T12:00:00Z',
 				avg_daily_kwh: 120.2,
 				mape: 2.1,
 			},

@@ -122,12 +122,26 @@ export default function SettingsPage() {
     showToastMessage("Profile reset");
   };
 
-  const handleLogout = () => {
-    if (confirm("Are you sure you want to logout?")) {
+  const handleLogout = async () => {
+    if (!confirm("Are you sure you want to logout?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) {
+        showToastMessage("Unable to log out");
+        return;
+      }
+
       showToastMessage("Logged out");
       setTimeout(() => {
-        router.push("/login");
+        router.push("/login?loggedOut=1");
+        router.refresh();
       }, 500);
+    } catch (error) {
+      console.error("Failed to log out", error);
+      showToastMessage("Unable to log out");
     }
   };
 
@@ -172,7 +186,7 @@ export default function SettingsPage() {
               <h1 className="dashboard-title" style={{ marginTop: "var(--space-3)" }}>Settings</h1>
               <div className="dashboard-subtitle">Manage your profile and account settings</div>
             </div>
-            <div className="badge badge-success" style={{ display: "inline-flex" }}>
+            <div className="badge badge-default" style={{ display: "inline-flex" }}>
               {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
             </div>
           </div>
@@ -284,7 +298,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleThemeToggle}
                 className="btn btn-primary"
-                style={{ padding: "6px 16px", fontSize: "var(--fs-small)" }}
+                style={{ padding: "var(--space-2) var(--space-4)", fontSize: "var(--fs-small)" }}
               >
                 Switch to {theme === "light" ? "Dark" : "Light"} Mode
               </button>
@@ -347,11 +361,9 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="btn"
+                className="btn btn-secondary"
                 style={{
-                  backgroundColor: "var(--brand-warning)",
-                  color: "white",
-                  padding: "6px 16px",
+                  padding: "var(--space-2) var(--space-4)",
                   fontSize: "var(--fs-small)",
                 }}
               >
@@ -363,7 +375,7 @@ export default function SettingsPage() {
                 onClick={() => setShowDeleteModal(true)}
                 className="btn btn-danger"
                 style={{
-                  padding: "6px 16px",
+                  padding: "var(--space-2) var(--space-4)",
                   fontSize: "var(--fs-small)",
                 }}
               >

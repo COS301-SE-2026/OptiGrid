@@ -128,8 +128,12 @@ export const getForecastController = async (req: Request, res: Response) => {
             };
         }).filter((point: NormalizedForecastPoint | null): point is NormalizedForecastPoint => point !== null);
 
-        const historicalKwh = horizon === 'weekly' && normalizedForecastSeries.length > 0 && analytics.todays_usage && analytics.todays_usage > normalizedForecastSeries[0].yhat * 10
-            ? normalizedForecastSeries[0].yhat
+        const nowMs = Date.now();
+        const futureForecasts = normalizedForecastSeries.filter(p => new Date(p.timestamp).getTime() >= nowMs);
+        const seriesToUse = futureForecasts.length > 0 ? futureForecasts : normalizedForecastSeries;
+
+        const historicalKwh = seriesToUse.length > 0
+            ? seriesToUse[0].yhat
             : Number(analytics.todays_usage) || 0;
 
         const synthesisedHistorical = [{
@@ -137,13 +141,24 @@ export const getForecastController = async (req: Request, res: Response) => {
             kwh: historicalKwh
         }];
 
+        let peak_kwh = Number(analytics.forecast_peak) || 0;
+        let peak_timestamp = analytics.updated_at || new Date().toISOString();
+
+        if (seriesToUse.length > 0) {
+            const peakPoint = seriesToUse.reduce((prev, current) => 
+                (prev.yhat > current.yhat) ? prev : current
+            );
+            peak_kwh = peakPoint.yhat;
+            peak_timestamp = peakPoint.timestamp;
+        }
+
         //building final response with historical data, forecast and summary metric
         const result = {
             historical: synthesisedHistorical, 
-            forecast: normalizedForecastSeries, 
+            forecast: seriesToUse, 
             summary: {
-                peak_kwh: Number(analytics.forecast_peak) || 0,
-                peak_timestamp: analytics.updated_at || new Date().toISOString(),
+                peak_kwh,
+                peak_timestamp,
                 avg_daily_kwh: Number(analytics.forecast_avg_day) || 0,
                 mape: Number(analytics.model_mape) || 0
             }

@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import DashboardPage from "./page";
 
@@ -11,14 +11,14 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href, onClick, ...rest }: any) => (
+  default: ({ children, href, onClick, ...rest }) => (
     <a href={href} onClick={onClick} {...rest}>{children}</a>
   ),
 }));
 
 jest.mock("recharts", () => ({
-  ResponsiveContainer: ({ children }: any) => <div data-testid="chart-container">{children}</div>,
-  LineChart: ({ children }: any) => <div data-testid="line-chart">{children}</div>,
+  ResponsiveContainer: ({ children }) => <div data-testid="chart-container">{children}</div>,
+  LineChart: ({ children }) => <div data-testid="line-chart">{children}</div>,
   Line: () => null,
   XAxis: () => null,
   YAxis: () => null,
@@ -27,7 +27,7 @@ jest.mock("recharts", () => ({
 }));
 
 jest.mock("../../../lib/session", () => ({
-  buildDisplayName: (user: any) =>
+  buildDisplayName: (user) =>
     [user.firstName, user.lastName].filter(Boolean).join(" "),
 }));
 
@@ -37,9 +37,10 @@ const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  }
+  return Wrapper;
 };
 
 const renderPage = () => render(<DashboardPage />, { wrapper: createWrapper() });
