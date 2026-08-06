@@ -55,29 +55,65 @@ async function loginAndOpenSettings(page: Page, user: E2EUser): Promise<void> {
   await expect(page.getByLabel("Email Address")).toHaveValue(user.email);
 }
 
+async function createUserAndOpenSettings(
+  page: Page,
+  request: APIRequestContext
+): Promise<E2EUser> {
+  const user = buildUniqueUser();
+  await createUserInCore(request, user);
+  await loginAndOpenSettings(page, user);
+  return user;
+}
+
 test.describe("Settings page", () => {
-  test("loads the signed-in profile, resets unsaved changes, and toggles the theme", async ({ page, request }) => {
-    const user = buildUniqueUser();
-    await createUserInCore(request, user);
-    await loginAndOpenSettings(page, user);
+  test("loads the signed-in profile and role", async ({ page, request }) => {
+    const user = await createUserAndOpenSettings(page, request);
 
     await expect(page.getByLabel("First Name")).toHaveValue(user.firstName);
     await expect(page.getByLabel("Last Name")).toHaveValue(user.lastName);
     await expect(page.getByLabel("Email Address")).toHaveValue(user.email);
     await expect(page.getByLabel("Role")).toBeDisabled();
+    await expect(page.getByLabel("Role")).toHaveValue("User");
+  });
+
+  test("resets unsaved profile edits and acknowledges save actions", async ({ page, request }) => {
+    const user = await createUserAndOpenSettings(page, request);
+
+    await page.getByLabel("First Name").fill("Changed");
+    await page.getByLabel("Last Name").fill("Profile");
+    await page.getByRole("button", { name: "Reset" }).click();
+
+    await expect(page.getByLabel("First Name")).toHaveValue(user.firstName);
+    await expect(page.getByLabel("Last Name")).toHaveValue(user.lastName);
+    await expect(page.getByText("Profile reset", { exact: true })).toBeVisible();
 
     await page.getByLabel("First Name").fill("Changed");
     await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(page.getByLabel("First Name")).toHaveValue("Changed");
     await expect(page.getByText("Profile changes saved", { exact: true })).toBeVisible();
+  });
 
-    await page.getByRole("button", { name: "Reset" }).click();
-    await expect(page.getByLabel("First Name")).toHaveValue(user.firstName);
-    await expect(page.getByText("Profile reset", { exact: true })).toBeVisible();
+  test("toggles the theme and persists the preference", async ({ page, request }) => {
+    await createUserAndOpenSettings(page, request);
 
     const themeButton = page.getByRole("button", { name: /Switch to Dark Mode|Switch to Light Mode/ });
-    const initialThemeButtonText = await themeButton.innerText();
+    const initialTheme = await page.locator("html").getAttribute("data-theme");
+    expect(["light", "dark"]).toContain(initialTheme);
+    const expectedTheme = initialTheme === "dark" ? "light" : "dark";
+
+    const preferenceResponsePromise = page.waitForResponse((response) =>
+      response.request().method() === "PUT" &&
+      new URL(response.url()).pathname.endsWith("/api/preferences/theme")
+    );
     await themeButton.click();
-    await expect(themeButton).not.toHaveText(initialThemeButtonText);
+    const preferenceResponse = await preferenceResponsePromise;
+
+    expect(
+      preferenceResponse.ok(),
+      `Theme preference request failed with ${preferenceResponse.status()}`
+    ).toBeTruthy();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", expectedTheme);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("optigrid-theme"))).toBe(expectedTheme);
   });
 
   test.skip("requires DELETE before showing the account-deletion confirmation", async ({ page, request }) => {
