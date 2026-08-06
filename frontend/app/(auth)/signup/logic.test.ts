@@ -8,7 +8,7 @@ describe("Signup Logic  file unit tests", () => {
             lastName: "Doe", 
             email: "john@example.com", 
             password: "Password@123", 
-            confirmPassword: "Password123!" 
+            confirmPassword: "Password@123" 
         };
         //act
         const out = getSubmitResult(data);    
