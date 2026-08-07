@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { getLoginError, initialLoginFormData, type LoginFormData } from "./validation";
 import { navigateAfterLogin } from "../../../lib/auth-navigation";
 import { getTabSessionId, TAB_SESSION_HEADER } from "../../../lib/tab-session";
+import GoogleAuthButton from "@/components/googleButton";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -34,6 +35,9 @@ export default function LoginPage() {
                 ...previous,
                 email: previous.email || emailFromQuery,
             }));
+        }
+        if(query.get("error") === "OAuthFailed") {
+            setError("Google sign-in failed. Please try again.");
         }
     }, []);
 
@@ -159,6 +163,11 @@ export default function LoginPage() {
                     >
                         {loading ? "Logging in..." : "Log in"}
                     </button>
+
+                    <GoogleAuthButton 
+                        onLoading={setLoading} 
+                        onError={setError}> 
+                    </GoogleAuthButton>
 
                     {error && (
                         <div
