@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { getTabSessionCookiePath, isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
+import {isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
 import { setSessionCookie, setAccessTokenCookie } from "../../../../lib/authCookies";
 
 type SessionUser = {

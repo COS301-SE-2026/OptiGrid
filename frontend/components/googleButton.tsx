@@ -1,12 +1,12 @@
 "use client"
 import { createClient } from "@/lib/supabaseClient"; 
 
-interface authButton {
-    onLoading?: (isLoading: boolean) => void;
-    onError?: (errorMessage:string) => void;
+interface AuthButton {
+    readonly onLoading?: (isLoading: boolean) => void;
+    readonly onError?: (errorMessage:string) => void;
 }
 
-export default function GoogleAuthButton({ onLoading,onError}: authButton) {
+export default function GoogleAuthButton({ onLoading,onError}: AuthButton) {
      const handleGoogleLogin = async() => {
         if(onLoading) onLoading(true);
         const supabase = createClient();
