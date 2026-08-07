@@ -346,22 +346,24 @@ export default function ViewBuildingPage({
                                 {consumption.peak_usage_times.length === 0 ? (
                                     <p className="text-muted">No peak usage data is available for this time range.</p>
                                 ) : (
-                                    <table style={{ width: "100%" }}>
-                                        <thead>
-                                            <tr>
-                                                <th align="left">Timestamp</th>
-                                                <th align="left">Usage</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {consumption.peak_usage_times.map((peak) => (
-                                                <tr key={`${peak.timestamp}-${peak.kwh}`}>
-                                                    <td>{peak.timestamp}</td>
-                                                    <td>{displayValueWithUnit(formatNumber(peak.kwh), "kWh")}</td>
+                                    <div style={{ overflow: "auto" }}>
+                                        <table style={{ width: "100%" }}>
+                                            <thead>
+                                                <tr>
+                                                    <th align="left">Timestamp</th>
+                                                    <th align="left">Usage</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody>
+                                                {consumption.peak_usage_times.map((peak) => (
+                                                    <tr key={`${peak.timestamp}-${peak.kwh}`}>
+                                                        <td>{peak.timestamp}</td>
+                                                        <td>{displayValueWithUnit(formatNumber(peak.kwh), "kWh")}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 )}
                             </div>
                         </>

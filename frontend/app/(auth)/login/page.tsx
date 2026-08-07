@@ -115,7 +115,7 @@ export default function LoginPage() {
                         display: "grid", 
                         gap: "var(--space-5)" 
                     }} 
-                    noValidate onSubmit={handleSubmit}>
+                    noValidate onSubmit={handleSubmit} suppressHydrationWarning>
                     <div style={{ 
                             display: "grid", 
                             gap: "var(--space-2)" 
@@ -131,6 +131,7 @@ export default function LoginPage() {
                             disabled={loading}
                             className="input"
                             placeholder="you@company.io"
+                            suppressHydrationWarning
                         />
                     </div>
 
@@ -146,6 +147,7 @@ export default function LoginPage() {
                             disabled={loading}
                             className="input"
                             placeholder="Your password"
+                            suppressHydrationWarning
                         />
                     </div>
 
