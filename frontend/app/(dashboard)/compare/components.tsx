@@ -18,7 +18,7 @@ type ChartPoint = {
 };
 
 function Skeleton({ style }: { style?: CSSProperties }) {
-    return <div className="skeleton" style={style} />;
+    return <div className="skeleton" style={style} aria-hidden="true" />;
 }
 
 type CompareControlsProps = {
@@ -57,7 +57,7 @@ export function CompareControls({
     onMetricChange,
 }: CompareControlsProps) {
     return (
-        <div className="card dashboard-section">
+        <div className="card dashboard-section" role="region" aria-label="Comparison controls">
             <div
                 style={{
                     display: "grid",
@@ -76,6 +76,7 @@ export function CompareControls({
                         onChange={(event) => onBuildingAChange(event.target.value)}
                         className="select"
                         disabled={disabled}
+                        aria-label="Select first building to compare"
                     >
                         <option value="">
                             {buildingsLoading ? "Loading buildings..." : "Select building"}
@@ -98,6 +99,7 @@ export function CompareControls({
                         onChange={(event) => onBuildingBChange(event.target.value)}
                         className="select"
                         disabled={disabled}
+                        aria-label="Select second building to compare"
                     >
                         <option value="">
                             {buildingsLoading ? "Loading buildings..." : "Select building"}
@@ -122,6 +124,7 @@ export function CompareControls({
                         onChange={(event) => onDateRangeChange(event.target.value as TimeRange)}
                         className="select"
                         disabled={disabled}
+                        aria-label="Select date range for comparison"
                     >
                         <option value="7">Last 7 days</option>
                         <option value="30">Last 30 days</option>
@@ -139,6 +142,7 @@ export function CompareControls({
                         onChange={(event) => onMetricChange(event.target.value as Metric)}
                         className="select"
                         disabled={disabled}
+                        aria-label="Select metric for comparison"
                     >
                         <option value="R">Cost</option>
                         <option value="kWh">Energy</option>
@@ -147,7 +151,7 @@ export function CompareControls({
             </div>
 
             {buildingsError ? (
-                <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }}>
+                <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }} role="alert">
                     {buildingsErrorMessage || "Unable to load your assigned buildings."}
                 </p>
             ) : !buildingsLoading && buildings.length === 0 ? (
@@ -161,7 +165,7 @@ export function CompareControls({
             ) : null}
 
             {comparisonError ? (
-                <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }}>
+                <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }} role="alert">
                     {comparisonErrorMessage || "Unable to compare these buildings."}
                 </p>
             ) : null}
@@ -191,12 +195,19 @@ export function ComparisonMetricCards({
     getValue,
 }: ComparisonMetricCardsProps) {
     return (
-        <div className="dashboard-kpi-grid" style={{ marginBottom: "var(--space-6)" }}>
+        <div 
+            className="dashboard-kpi-grid" 
+            style={{ marginBottom: "var(--space-6)" }}
+            role="group"
+            aria-label="Building comparison metrics"
+        >
             {[selectedComparisonA, selectedComparisonB].map((building, index) => {
                 const selectedId = index === 0 ? buildingA : buildingB;
                 return (
                     <div className="card" key={`${index}-${selectedId || "empty"}`}>
-                        <h3>{getBuildingName(selectedId)}</h3>
+                        <h2 style={{ fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
+                            {getBuildingName(selectedId)}
+                        </h2>
                         <div style={{ marginTop: "var(--space-3)" }}>
                             <div className="dashboard-kpi-label">Total {metric === "R" ? "cost" : "energy"}</div>
                             <div className="dashboard-kpi-value metric">
@@ -209,7 +220,7 @@ export function ComparisonMetricCards({
                                 {loading
                                     ? "--"
                                     : building?.square_footage
-                                      ? `${building.square_footage.toLocaleString()} m2`
+                                      ? `${building.square_footage.toLocaleString()} m²`
                                       : "--"}
                             </div>
                         </div>
@@ -246,7 +257,7 @@ export function ComparisonChart({
     getBuildingName,
 }: ComparisonChartProps) {
     return (
-        <div className="card dashboard-section">
+        <div className="card dashboard-section" role="region" aria-label="Comparison chart">
             <div className="dashboard-section-header">
                 <div>
                     <h2 className="dashboard-section-title">Comparison totals</h2>
@@ -254,66 +265,77 @@ export function ComparisonChart({
                         Last {dateRange} days - {metric === "R" ? "cost" : "energy"}
                     </span>
                 </div>
-                {/* {hasComparison ? <span className="badge badge-success">Live telemetry</span> : null} */}
             </div>
 
             {loading ? (
                 <Skeleton style={{ height: 260, width: "100%" }} />
             ) : !canCompare ? (
-                <div className="dashboard-empty">
+                <div className="dashboard-empty" role="status">
                     Select two different buildings to compare.
                 </div>
             ) : comparisonError ? (
-                <div className="dashboard-empty">
+                <div className="dashboard-empty" role="alert">
                     Unable to load comparison data.
                 </div>
             ) : (
-                <ResponsiveContainer width="100%" height={260}>
-                    <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--brand-border)" />
-                        <XAxis
-                            dataKey="period"
-                            tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
-                            axisLine={false}
-                            tickLine={false}
-                        />
-                        <YAxis
-                            tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
-                            axisLine={false}
-                            tickLine={false}
-                            tickFormatter={(value) => formatMetricValue(value, metric)}
-                        />
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: "var(--brand-surface)",
-                                border: "1px solid var(--brand-border)",
-                                borderRadius: "12px",
-                                color: "var(--brand-ink)",
-                                fontSize: "var(--fs-small)",
-                            }}
-                            cursor={{ stroke: "var(--brand-border)" }}
-                            formatter={(value: number) => formatMetricValue(value, metric)}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="A"
-                            name={getBuildingName(buildingA)}
-                            stroke="var(--brand-primary)"
-                            strokeWidth={2}
-                            dot={{ fill: "var(--brand-primary)", r: 2 }}
-                            activeDot={{ r: 3 }}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="B"
-                            name={getBuildingName(buildingB)}
-                            stroke="var(--brand-secondary)"
-                            strokeWidth={2}
-                            dot={{ fill: "var(--brand-secondary)", r: 2 }}
-                            activeDot={{ r: 3 }}
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
+                <>
+                    <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
+                        Daily {metric === "R" ? "cost" : "energy"} comparison between {getBuildingName(buildingA)} and {getBuildingName(buildingB)}
+                    </p>
+                    <ResponsiveContainer width="100%" height={260}>
+                        <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--brand-border)" />
+                            <XAxis
+                                dataKey="period"
+                                tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                                axisLine={false}
+                                tickLine={false}
+                            />
+                            <YAxis
+                                tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                                axisLine={false}
+                                tickLine={false}
+                                tickFormatter={(value) => formatMetricValue(value, metric)}
+                                label={{
+                                    value: metric === "R" ? "Cost (R)" : "Energy (kWh)",
+                                    angle: -90,
+                                    position: "insideLeft",
+                                    style: { fill: "var(--brand-ink-muted)", fontSize: 11 }
+                                }}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: "var(--brand-surface)",
+                                    border: "1px solid var(--brand-border)",
+                                    borderRadius: "12px",
+                                    color: "var(--brand-ink)",
+                                    fontSize: "var(--fs-small)",
+                                }}
+                                cursor={{ stroke: "var(--brand-border)" }}
+                                formatter={(value: number) => formatMetricValue(value, metric)}
+                                labelFormatter={(label) => `Period: ${label}`}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="A"
+                                name={getBuildingName(buildingA)}
+                                stroke="var(--brand-primary)"
+                                strokeWidth={2}
+                                dot={{ fill: "var(--brand-primary)", r: 2 }}
+                                activeDot={{ r: 3 }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="B"
+                                name={getBuildingName(buildingB)}
+                                stroke="var(--brand-secondary)"
+                                strokeWidth={2}
+                                dot={{ fill: "var(--brand-secondary)", r: 2 }}
+                                activeDot={{ r: 3 }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </>
             )}
         </div>
     );
@@ -339,7 +361,7 @@ export function ComparisonInsights({
     getBuildingName,
 }: ComparisonInsightsProps) {
     return (
-        <div className="dashboard-section">
+        <div className="dashboard-section" role="region" aria-label="Comparison insights">
             <div className="dashboard-section-header">
                 <h2 className="dashboard-section-title">Key insights</h2>
             </div>
