@@ -1,7 +1,7 @@
 "use client";
 import { v4 as uuidv4 } from "uuid";
 import { useRouter } from "next/navigation";
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import DeleteModal from "@/components/DeleteModal";
@@ -16,8 +16,6 @@ import {
 } from "recharts";
 import { buildDisplayName, type SessionUser } from "../../../lib/session";
 import { getTabSessionPath } from "../../../lib/tab-session";
-
-
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
 
@@ -209,12 +207,41 @@ const STATUS_CLASSES: Record<BuildingStatus, string> = {
     Offline: "badge-danger",
 };
 
+const STATUS_LABELS: Record<BuildingStatus, string> = {
+    Normal: "Normal - building is operating as expected",
+    "Peak alert": "Peak alert - energy usage is high",
+    Offline: "Offline - no energy data available",
+};
+
 function StatusBadge({ status }: { status: BuildingStatus }) {
-    return <span className={`badge ${STATUS_CLASSES[status]}`}>{status}</span>;
+    const statusColors: Record<BuildingStatus, React.CSSProperties> = {
+        Normal: {
+            backgroundColor: "#2F7D5D",
+            color: "#FFFFFF",
+        },
+        "Peak alert": {
+            backgroundColor: "#B26B00",
+            color: "#FFFFFF",
+        },
+        Offline: {
+            backgroundColor: "#8B1E3F",
+            color: "#FFFFFF",
+        },
+    };
+
+    return (
+        <span 
+            className={`badge ${STATUS_CLASSES[status]}`}
+            aria-label={STATUS_LABELS[status]}
+            style={statusColors[status]}
+        >
+            {status}
+        </span>
+    );
 }
 
 function Skeleton({ className = "", style }: { className?: string; style?: CSSProperties }) {
-    return <div className={`skeleton ${className}`} style={style} />;
+    return <div className={`skeleton ${className}`} style={style} aria-hidden="true" />;
 }
 
 function KpiCard({
@@ -222,27 +249,33 @@ function KpiCard({
     value,
     valueTone = "default",
     loading = false,
+    description,
 }: {
     label: string;
     value: string;
     valueTone?: "default" | "warning";
     loading?: boolean;
+    description?: string;
 }) {
     return (
-        <div className="card dashboard-card-tight">
+        <div className="card dashboard-card-tight" role="article" aria-label={`${label}: ${value}${description ? `. ${description}` : ""}`}>
             <div className="dashboard-kpi-label">{label}</div>
             <div className={`dashboard-kpi-value${valueTone === "warning" ? " dashboard-kpi-value-warning" : ""}`}>
                 {loading ? "--" : value}
             </div>
+            {description && (
+                <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
+                    {description}
+                </div>
+            )}
         </div>
     );
 }
 
-
-
 export default function DashboardPage() {
     const queryClient = useQueryClient();
     const [deleteTarget, setDeleteTarget] = useState<Building | null>(null);
+    const tableRef = useRef<HTMLTableElement>(null);
 
     const { data: user } = useQuery({
         queryKey: ["auth-session"],
@@ -327,12 +360,21 @@ export default function DashboardPage() {
     const lastUpdatedLabel =
         minutesAgo === 0 ? "just now" : `${minutesAgo} min ago`;
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>, buildingId: string) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            router.push(getTabSessionPath(`/buildings/${buildingId}/view`));
+        }
+    };
+
+    const buildingCount = buildingsWithTelemetry.length;
+    const hasBuildings = buildingCount > 0;
+
     return (
         <div>
             <div className="dashboard-topbar">
-                
                 <div className="dashboard-user">
-                    <div className="dashboard-avatar">{initials}</div>
+                    <div className="dashboard-avatar" aria-hidden="true">{initials}</div>
                     <span>{fullName}</span>
                 </div>
             </div>
@@ -344,16 +386,25 @@ export default function DashboardPage() {
                         Portfolio overview - last updated {lastUpdatedLabel}
                     </p>
                 </div>
-                <Link href="/buildings/add" className="btn btn-primary">
+                <Link 
+                    href="/buildings/add" 
+                    className="btn btn-primary"
+                    aria-label="Add a new building to your portfolio"
+                    style={{
+                        backgroundColor: "#3A6B7C",
+                        color: "#FFFFFF",
+                    }}
+                >
                     + Add building
                 </Link>
             </div>
 
-            <div className="dashboard-kpi-grid">
+            <div className="dashboard-kpi-grid" role="group" aria-label="Portfolio statistics">
                 <KpiCard
                     label="Buildings"
                     value={String(summary.buildings)}
                     loading={buildingsLoading}
+                    description={`${summary.buildings} building${summary.buildings !== 1 ? "s" : ""} in your portfolio`}
                 />
                 <KpiCard
                     label="Today's usage"
@@ -363,6 +414,7 @@ export default function DashboardPage() {
                             : `${formatNumberMetric(summary.todayUsageKwh)} kWh`
                     }
                     loading={buildingsLoading}
+                    description="Total energy consumed today across all buildings"
                 />
                 <KpiCard
                     label="Est. cost"
@@ -372,71 +424,100 @@ export default function DashboardPage() {
                             : `R ${formatNumberMetric(summary.estimatedCostRands)}`
                     }
                     loading={buildingsLoading}
+                    description="Estimated cost based on today's energy usage"
                 />
                 <KpiCard
                     label="Active alerts"
                     value={String(summary.activeAlerts)}
                     valueTone={summary.activeAlerts > 0 ? "warning" : "default"}
                     loading={buildingsLoading}
+                    description={summary.activeAlerts > 0 
+                        ? `${summary.activeAlerts} alert${summary.activeAlerts !== 1 ? "s" : ""} require attention` 
+                        : "No alerts require attention"}
                 />
             </div>
 
-            <div className="card dashboard-section">
+            <div className="card dashboard-section" role="region" aria-label="Portfolio consumption chart">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">
                         Portfolio consumption, last 7 days
                     </h2>
-                    <span className="dashboard-section-meta">kWh</span>
+                    <span className="dashboard-section-meta">Kilowatt-hours (kWh)</span>
                 </div>
                 {consumptionLoading ? (
                     <Skeleton style={{ height: 200, width: "100%" }} />
+                ) : consumption.length === 0 ? (
+                    <div className="dashboard-empty" style={{ padding: "var(--space-4)" }}>
+                        <p className="text-muted">No consumption data available for the last 7 days.</p>
+                    </div>
                 ) : (
-                    <ResponsiveContainer width="100%" height={200}>
-                        <LineChart
-                            data={consumption}
-                            margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
-                        >
-                            <CartesianGrid
-                                strokeDasharray="3 3"
-                                stroke="var(--brand-border)"
-                            />
-                            <XAxis
-                                dataKey="day"
-                                tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
-                                axisLine={false}
-                                tickLine={false}
-                            />
-                            <YAxis
-                                tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
-                                axisLine={false}
-                                tickLine={false}
-                            />
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: "var(--brand-surface)",
-                                    border: "1px solid var(--brand-border)",
-                                    borderRadius: "12px",
-                                    color: "var(--brand-ink)",
-                                    fontSize: "var(--fs-small)",
-                                }}
-                                cursor={{ stroke: "var(--brand-border)" }}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="kwh"
-                                stroke="var(--brand-primary)"
-                                strokeWidth={2}
-                                dot={{ fill: "var(--brand-primary)", r: 3 }}
-                                activeDot={{ r: 5 }}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
+                    <>
+                        <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
+                            Daily energy consumption trend for your entire portfolio
+                        </p>
+                        <ResponsiveContainer width="100%" height={200}>
+                            <LineChart
+                                data={consumption}
+                                margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                            >
+                                <CartesianGrid
+                                    strokeDasharray="3 3"
+                                    stroke="var(--brand-border)"
+                                />
+                                <XAxis
+                                    dataKey="day"
+                                    tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
+                                <YAxis
+                                    tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    label={{ 
+                                        value: "kWh", 
+                                        angle: -90, 
+                                        position: "insideLeft",
+                                        style: { fill: "var(--brand-ink-muted)", fontSize: 11 }
+                                    }}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: "var(--brand-surface)",
+                                        border: "1px solid var(--brand-border)",
+                                        borderRadius: "12px",
+                                        color: "var(--brand-ink)",
+                                        fontSize: "var(--fs-small)",
+                                    }}
+                                    cursor={{ stroke: "var(--brand-border)" }}
+                                    formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy usage"]}
+                                    labelFormatter={(label) => `Day: ${label}`}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="kwh"
+                                    stroke="var(--brand-primary)"
+                                    strokeWidth={2}
+                                    dot={{ fill: "var(--brand-primary)", r: 3 }}
+                                    activeDot={{ r: 5 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </>
                 )}
             </div>
 
-            <div className="dashboard-section">
+            <div className="dashboard-section" role="region" aria-label="Buildings list">
+                <div className="dashboard-section-header">
+                    <h2 className="dashboard-section-title">
+                        Your buildings
+                    </h2>
+                    <span className="dashboard-section-meta">
+                        {buildingCount} building{buildingCount !== 1 ? "s" : ""}
+                    </span>
+                </div>
                 {buildingsLoading ? (
-                    <div style={{ display: "grid", gap: "var(--space-3)" }}>
+                    <div style={{ display: "grid", gap: "var(--space-3)" }} aria-hidden="true">
                         <Skeleton style={{ height: 56, width: "100%" }} />
                         <Skeleton style={{ height: 56, width: "100%" }} />
                         <Skeleton style={{ height: 56, width: "100%" }} />
@@ -446,82 +527,119 @@ export default function DashboardPage() {
                         <p className="text-muted">
                             {buildingsErrorDetails?.message || "Unable to load buildings right now."}
                         </p>
+                        <p style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
+                            Please try refreshing the page or contact support.
+                        </p>
                     </div>
-                ) : buildingsWithTelemetry.length === 0 ? (
+                ) : !hasBuildings ? (
                     <div className="card dashboard-empty">
-                        <p className="text-muted">No buildings yet.</p>
+                        <p className="text-muted">You do not have any buildings in your portfolio yet.</p>
                         <Link
                             href="/buildings/add"
-                            style={{ marginTop: "var(--space-2)", display: "inline-block", color: "var(--brand-primary)", fontWeight: 600 }}
+                            style={{ 
+                                marginTop: "var(--space-2)", 
+                                display: "inline-block", 
+                                color: "var(--brand-primary)", 
+                                fontWeight: 600 
+                            }}
+                            aria-label="Add your first building to get started"
                         >
                             Add your first building
                         </Link>
                     </div>
                 ) : (
-                    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-                        <div style={{ overflow: "auto" }}>
-                        <table className="dashboard-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Today (kWh)</th>
-                                    <th>Status</th>
-                                    {/* <th style={{ textAlign: "right" }}>Actions</th> */}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {buildingsWithTelemetry.map((building) => (
-                                    <tr key={building.id}
-                                    onClick={() => router.push(getTabSessionPath(`/buildings/${building.id}/view`))}
-
-                                    >
-                                        <td>
-                                            <p style={{ fontWeight: 600 }}>{building.name}</p>
-                                            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                                                {building.location}
-                                            </p>
-                                        </td>
-                                        <td>{building.type}</td>
-                                        <td>
-                                            <span className="metric">
-                                                {formatNumberMetric(building.todayKwh)}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <StatusBadge status={building.status} />
-                                        </td>
-
-                                        {/* <td>
-                                            <Link
-                                                href={`/buildings/${building.id}/edit`}
-                                                className="icon-button"
-                                                aria-label={"Edit"}
-                                                onClick={(e) => e.stopPropagation()}
+                    <>
+                        <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
+                            Click on any building row to view detailed information
+                        </p>
+                        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                            <div style={{ overflow: "auto" }}>
+                                <table className="dashboard-table" ref={tableRef}>
+                                    <thead>
+                                        <tr>
+                                            <th 
+                                                scope="col"
+                                                style={{
+                                                    color: "#CDE8E5",
+                                                    fontSize: "var(--fs-small)",
+                                                    fontWeight: "var(--fw-semibold)",
+                                                    letterSpacing: "0.05em",
+                                                    textTransform: "uppercase",
+                                                }}
                                             >
-                                                <PencilIcon />
-                                            </Link>
-
-                                            {user?.roleType?.toUpperCase() === "ADMIN" && !deleteTarget && (
-                                                <button
-                                                    className="icon-button icon-danger"
-                                                    aria-label={"Delete"}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDelete(building); }}
-                                                    disabled={deleteBuildingMutation.isPending}
-                                                >
-                                                    <TrashIcon />
-                                                </button>
-                                            )}
-                                        </td> */}
-                                    
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                                Name
+                                            </th>
+                                            <th 
+                                                scope="col"
+                                                style={{
+                                                    color: "#CDE8E5",
+                                                    fontSize: "var(--fs-small)",
+                                                    fontWeight: "var(--fw-semibold)",
+                                                    letterSpacing: "0.05em",
+                                                    textTransform: "uppercase",
+                                                }}
+                                            >
+                                                Type
+                                            </th>
+                                            <th 
+                                                scope="col"
+                                                style={{
+                                                    color: "#CDE8E5",
+                                                    fontSize: "var(--fs-small)",
+                                                    fontWeight: "var(--fw-semibold)",
+                                                    letterSpacing: "0.05em",
+                                                    textTransform: "uppercase",
+                                                }}
+                                            >
+                                                Today (kWh)
+                                            </th>
+                                            <th 
+                                                scope="col"
+                                                style={{
+                                                    color: "#CDE8E5",
+                                                    fontSize: "var(--fs-small)",
+                                                    fontWeight: "var(--fw-semibold)",
+                                                    letterSpacing: "0.05em",
+                                                    textTransform: "uppercase",
+                                                }}
+                                            >
+                                                Status
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {buildingsWithTelemetry.map((building) => (
+                                            <tr
+                                                key={building.id}
+                                                onClick={() => router.push(getTabSessionPath(`/buildings/${building.id}/view`))}
+                                                onKeyDown={(e) => handleKeyDown(e, building.id)}
+                                                tabIndex={0}
+                                                role="button"
+                                                style={{ cursor: "pointer" }}
+                                                aria-label={`View details for ${building.name}`}
+                                            >
+                                                <td>
+                                                    <p style={{ fontWeight: 600 }}>{building.name}</p>
+                                                    <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                                                        {building.location}
+                                                    </p>
+                                                </td>
+                                                <td>{building.type}</td>
+                                                <td>
+                                                    <span className="metric">
+                                                        {formatNumberMetric(building.todayKwh)}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <StatusBadge status={building.status} />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    </>
                 )}
             </div>
 
