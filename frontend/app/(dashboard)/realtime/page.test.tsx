@@ -92,6 +92,21 @@ describe("Rendering readings", () => {
         expect(screen.getByText("100.00")).toBeInTheDocument();
         expect(screen.getByText("12 West St")).toBeInTheDocument();
     });
+
+    it("links each building card to its detail view", async () => {
+        mockBuildings([sandtonOffice]);
+        renderPage();
+
+        const cardLink = await screen.findByRole("link", {
+            name: /view live telemetry for sandton office/i,
+        });
+
+        expect(cardLink).toHaveAttribute(
+            "href",
+            "/buildings/11111111-0000-0000-0000-000000000001/view",
+        );
+    });
+
     it("marks a building offline when it reports zero usage and no status", async () => {
         mockBuildings([rosebankStore]);
         renderPage();
