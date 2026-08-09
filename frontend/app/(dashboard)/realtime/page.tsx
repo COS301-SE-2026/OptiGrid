@@ -15,7 +15,6 @@ type Building = {
     status: BuildingStatus;
 };
 
-//this is just the shape of a building as it arrives from the API, before we clean it up
 type RawBuilding = {
     building_id?: unknown;
     building_name?: unknown;
@@ -25,18 +24,15 @@ type RawBuilding = {
     status?: unknown;
 };
 
-// how often we poll the API for fresh readings. I have it currentlt at 10 seconds
 const REFETCH_METADATA_MS = 60_000;
 const SKELETON_KEYS = ["sk-1", "sk-2", "sk-3", "sk-4", "sk-5", "sk-6"];
 
-// this maps each status to its badge class and its accent colour
-const STATUS_STYLES: Record<BuildingStatus, { badge: string; color: string }> = {
-    Normal: { badge: "badge-success", color: "var(--brand-success)" },
-    "Peak alert": { badge: "badge-warning", color: "var(--brand-warning)" },
-    Offline: { badge: "badge-danger", color: "var(--brand-ink-muted)" },
+const STATUS_STYLES: Record<BuildingStatus, { badge: string; color: string; textColor: string }> = {
+    Normal: { badge: "badge-success", color: "#2F7D5D", textColor: "#FFFFFF" },
+    "Peak alert": { badge: "badge-warning", color: "#B26B00", textColor: "#FFFFFF" },
+    Offline: { badge: "badge-danger", color: "#8B1E3F", textColor: "#FFFFFF" },
 };
 
-//safely turn an unknown API value into a number, or null if it isn't one
 function toNumber(value: unknown): number | null {
     if (typeof value === "number" && Number.isFinite(value)) return value;
     if (typeof value === "string") {
@@ -52,7 +48,6 @@ function formatTime(date: Date): string {
 
 function mapBuilding(raw: RawBuilding): Building {
     const todayKwh = toNumber(raw.today_kwh);
-    // trust the server's status when it sends one, otherwise we treat a zero reading as a building that has gone offline
     let status: BuildingStatus = "Offline";
 
     if (typeof raw.status === "string" && (raw.status === "Normal" || raw.status === "Peak alert" || raw.status === "Offline")) {
@@ -73,13 +68,12 @@ async function fetchBuildings(): Promise<Building[]> {
     const response = await fetch("/api/buildings", { method: "GET", cache: "no-store" });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.message || "Unable to fetch buildings.");
-    // Drop anything without an id, we have nothing to link or key it by.
     const rows = Array.isArray(payload.data) ? payload.data : [];
     return rows.map(mapBuilding).filter((building) => building.id.length > 0);
 }
 
 function Skeleton({ height = 80 }: Readonly<{ height?: number }>) {
-    return <div className="skeleton" style={{ height, borderRadius: 14 }} />;
+    return <div className="skeleton" style={{ height, borderRadius: 14 }} aria-hidden="true" />;
 }
 
 const GRID_STYLE = {
@@ -105,6 +99,8 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
                 opacity: isOffline ? 0.78 : 1,
                 border: isOffline ? "1px solid var(--brand-border)" : `1px solid ${statusStyle.color}40`,
             }}
+            role="listitem"
+            aria-label={`${building.name} - ${building.status}`}
         >
             <span
                 aria-hidden="true"
@@ -119,7 +115,14 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
                         {building.location}
                     </p>
                 </div>
-                <span className={`badge ${statusStyle.badge}`} style={{ flexShrink: 0 }}>
+                <span 
+                    className={`badge ${statusStyle.badge}`} 
+                    style={{ 
+                        flexShrink: 0,
+                        backgroundColor: statusStyle.color,
+                        color: statusStyle.textColor,
+                    }}
+                >
                     {building.status}
                 </span>
             </div>
@@ -192,7 +195,6 @@ export default function RealtimePage() {
         refetchInterval: 5000,
     });
 
-    // Listen for live SSE stream push updates
     useEffect(() => {
         if (liveData?.building_id) {
             const kwField = liveData as unknown as { current_kw?: unknown; kw?: unknown };
@@ -242,7 +244,7 @@ export default function RealtimePage() {
     const renderMainContent = () => {
         if (isMetadataLoading) {
             return (
-                <div style={GRID_STYLE}>
+                <div style={GRID_STYLE} role="status" aria-label="Loading buildings">
                     {SKELETON_KEYS.map((key) => (
                         <Skeleton key={key} height={180} />
                     ))}
@@ -252,7 +254,7 @@ export default function RealtimePage() {
 
         if (isError) {
             return (
-                <div className="card dashboard-empty">
+                <div className="card dashboard-empty" role="alert">
                     <p className="text-muted">
                         {error instanceof Error ? error.message : "Unable to load readings."}
                     </p>
@@ -274,7 +276,17 @@ export default function RealtimePage() {
         return (
             <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
-                    <span className="live-chip on">
+                    <span 
+                        className="live-chip on"
+                        style={{
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
+                            padding: "var(--space-1) var(--space-3)",
+                            borderRadius: "var(--radius-pill)",
+                            fontSize: "var(--fs-small)",
+                            fontWeight: "var(--fw-medium)",
+                        }}
+                    >
                         All ({mergedBuildings.length})
                     </span>
                     <span className="text-muted" style={{ fontSize: "0.72rem" }}>
@@ -282,7 +294,7 @@ export default function RealtimePage() {
                     </span>
                 </div>
 
-                <div style={GRID_STYLE}>
+                <div style={GRID_STYLE} role="list" aria-label="Buildings list">
                     {visibleBuildings.map((building) => (
                         <BuildingCard key={building.id} building={building} />
                     ))}
@@ -293,10 +305,21 @@ export default function RealtimePage() {
 
     return (
         <>
-            <div className="card" style={{ marginBottom: 20 }}>
+            <div className="card" style={{ marginBottom: 20 }} role="region" aria-label="Live readings status">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4)", flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span className={`live-dot ${isConnected ? "on" : "off"}`} />
+                        <span 
+                            className={`live-dot ${isConnected ? "on" : "off"}`}
+                            role="img"
+                            aria-label={isConnected ? "Connected to live stream" : "Disconnected from live stream"}
+                            style={{
+                                display: "inline-block",
+                                width: "12px",
+                                height: "12px",
+                                borderRadius: "50%",
+                                backgroundColor: isConnected ? "#2F7D5D" : "#8B1E3F",
+                            }}
+                        />
                         <div>
                             <h1 className="dashboard-title">Live readings</h1>
                             <p className="dashboard-subtitle">
@@ -304,7 +327,6 @@ export default function RealtimePage() {
                             </p>
                         </div>
                     </div>
-
                 </div>
             </div>
 
