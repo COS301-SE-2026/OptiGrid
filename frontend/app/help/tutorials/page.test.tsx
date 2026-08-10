@@ -33,7 +33,7 @@ describe("TutorialsPage", () => {
         ];
 
         for (const [title, source] of expectedSources) {
-            const card = screen.getByRole("heading", { name: title }).closest("article");
+            const card = screen.getByRole("heading", { name: title }).closest('[role="listitem"]');
             
             expect(card).not.toBeNull();
             expect((card as HTMLElement).querySelector("source")).toHaveAttribute("src", source);

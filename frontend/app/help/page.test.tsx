@@ -29,22 +29,22 @@ describe("HelpPage", () => {
         expect(within(main).getByRole("heading", { name: "Tutorials" })).toBeInTheDocument();
         expect(within(main).getByRole("heading", { name: "FAQs" })).toBeInTheDocument();
         expect(within(main).getByRole("heading", { name: "Contact support" })).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Open manual" })).toHaveAttribute(
-            "href",
-            "/help/manual"
-        );
-        expect(screen.getByRole("link", { name: "View tutorials" })).toHaveAttribute(
-            "href",
-            "/help/tutorials"
-        );
-        expect(screen.getByRole("link", { name: "Read FAQs" })).toHaveAttribute(
-            "href",
-            "/faqs"
-        );
-        expect(screen.getByRole("link", { name: "Contact us" })).toHaveAttribute(
-            "href",
-            "/contact"
-        );
+  expect(screen.getByRole("link", { name: /Open manual/i })).toHaveAttribute(
+    "href",
+    "/help/manual"
+  );
+  expect(screen.getByRole("link", { name: /View tutorials/i })).toHaveAttribute(
+    "href",
+    "/help/tutorials"
+  );
+  expect(screen.getByRole("link", { name: /Read FAQs/i })).toHaveAttribute(
+    "href",
+    "/faqs"
+  );
+  expect(screen.getByRole("link", { name: /Contact us/i })).toHaveAttribute(
+    "href",
+    "/contact"
+  );
     });
 
     it("renders the help footer", () => {

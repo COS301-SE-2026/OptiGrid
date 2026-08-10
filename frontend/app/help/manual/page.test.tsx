@@ -77,7 +77,7 @@ describe("UserManualPage", () => {
 
     it("renders the Edit and Delete Building section", () => {
       render(<UserManualPage />);
-      expect(screen.getByRole("heading", { name: /edit and delete building/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Edit and Delete building/i })).toBeInTheDocument();
     });
   });
 
@@ -101,53 +101,50 @@ describe("UserManualPage", () => {
 
     it("renders the Landing Signup image with correct alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/landing signup/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/Sign up page showing the registration form/i)).toBeInTheDocument();
     });
 
     it("renders the Login Page image with correct alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/login page/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/Login page showing the login form/i)).toBeInTheDocument();
     });
 
     it("renders the Dashboard Screenshot image with correct alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/dashboard screenshot/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/Dashboard overview showing energy consumption metrics and charts/i)).toBeInTheDocument();
     });
 
     it("renders the Dashboard Add image with correct alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/dashboard add/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/Add building button on the dashboard/i)).toBeInTheDocument();
     });
 
     it("renders the Add Building image with correct alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/add building form/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/Building creation form with input fields/i)).toBeInTheDocument();
     });
 
     it("renders the Edit and Delete image with correct alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/^edit and delete$/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/Edit and delete building options/i)).toBeInTheDocument();
     });
 
     it("renders the Compare image with correct alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/compare dashboard/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/Compare buildings dashboard view/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/Building comparison chart showing energy usage/i)).toBeInTheDocument();
     });
 
-    it("renders the Compare image with correct alt", () => {
-      render(<UserManualPage />);
-      expect(screen.getByAltText(/compare view/i)).toBeInTheDocument();
-    });
+
 
     it("renders the Forecast image with correct alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/forecast dashboard/i)).toBeInTheDocument();
+       expect(screen.getByAltText(/Forecast dashboard showing demand predictions/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/Forecast chart showing predicted energy demand/i)).toBeInTheDocument();
+      
     });
 
-    it("renders the Forecast image with correct alt", () => {
-      render(<UserManualPage />);
-      expect(screen.getByAltText(/forecast view/i)).toBeInTheDocument();
-    });
+ 
 
     it("every image has a src", () => {
       render(<UserManualPage />);
