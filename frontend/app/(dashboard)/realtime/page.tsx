@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
 
@@ -87,7 +88,9 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
     const isOffline = building.status === "Offline";
 
     return (
-        <li
+        <Link
+            href={`/buildings/${encodeURIComponent(building.id)}/view`}
+            aria-label={`View live telemetry for ${building.name}`}
             className="card"
             style={{
                 position: "relative",
@@ -98,9 +101,11 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
                 overflow: "hidden",
                 opacity: isOffline ? 0.78 : 1,
                 border: isOffline ? "1px solid var(--brand-border)" : `1px solid ${statusStyle.color}40`,
-                listStyle: "none",
+                color: "inherit",
+                cursor: "pointer",
+                textDecoration: "none",
             }}
-            aria-label={`${building.name} - ${building.status}`}
+           
         >
             <span
                 aria-hidden="true"
@@ -151,7 +156,7 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
                     {building.type.replaceAll("_", " ")}
                 </span>
             </div>
-        </li>
+        </Link>
     );
 }
 
