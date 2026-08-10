@@ -632,7 +632,7 @@ export default function DashboardPage() {
                 <Link 
                     href="/buildings/add" 
                     className="btn btn-primary"
-                    aria-label="Add a new building to your portfolio"
+                 //   aria-label="Add a new building to your portfolio"
                     style={{
                         backgroundColor: "#3A6B7C",
                         color: "#FFFFFF",
