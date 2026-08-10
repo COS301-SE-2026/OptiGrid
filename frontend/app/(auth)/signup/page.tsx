@@ -352,7 +352,7 @@ export default function SignupPage() {
                     <Link
                         href="/login"
                         style={{
-                            color: "var(--brand-primary)",
+                            color: "var(--brand-primary-cta)",
                             fontWeight: 600,
                         }}
                     >

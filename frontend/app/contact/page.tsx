@@ -148,7 +148,7 @@ export default function ContactUs() {
               backgroundColor: "var(--brand-surface-alt)",
             }}
           >
-            <h3 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)" }}>
+            <h3 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary-cta)" }}>
               Operating Hours
             </h3>
             <p>Monday - Friday: 08:00 - 17:00</p>
