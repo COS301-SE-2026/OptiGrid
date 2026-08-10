@@ -71,6 +71,20 @@ function formatNumber(value: number | null | undefined, maximumFractionDigits = 
     return value.toLocaleString(undefined, { maximumFractionDigits });
 }
 
+function formatMeasurement(value: number | null | undefined, unit: string): string {
+    const formatted = formatNumber(value);
+    return formatted === "-" ? "-" : `${formatted} ${unit}`;
+}
+
+function formatTelemetryTimestamp(value: string | null | undefined): string {
+    if (!value) return "-";
+
+    const timestamp = new Date(value);
+    if (Number.isNaN(timestamp.getTime())) return "-";
+
+    return timestamp.toLocaleTimeString();
+}
+
 function formatZar(value: number | null | undefined): string {
     if (value === null || value === undefined || !Number.isFinite(value)) {
         return "-";
@@ -99,6 +113,8 @@ export default function ViewBuildingPage({
     }, [params]);
 
     const { liveData, error: sseError, isConnected } = useTelemetryStream(buildingId);
+    const currentLiveData = liveData?.building_id === buildingId ? liveData : null;
+    const isBuildingStreamConnected = Boolean(buildingId) && isConnected;
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -220,7 +236,7 @@ export default function ViewBuildingPage({
                 <div>
                     <h1 className="dashboard-title">Building Details</h1>
                     <p className="dashboard-subtitle">
-                        {/* {isConnected ? "🟢 Live telemetry stream connected" : "🔴 Reconnecting live stream..."} */}
+                        {isBuildingStreamConnected ? "Live telemetry stream connected" : "Connecting live telemetry stream..."}
                     </p>
                 </div>
 
@@ -254,37 +270,33 @@ export default function ViewBuildingPage({
                 className="card"
                 style={{ display: "grid", gap: "var(--space-6)", padding: "var(--space-6)" }}
             >
-                {/* <DetailsSection title="Real-Time Telemetry">
+                <DetailsSection title="Real-Time Telemetry">
                     <Detail
                         label="Stream Connection"
-                        value={isConnected ? "🟢 Online (Streaming)" : "🔴 Offline / Connecting"}
+                        value={isBuildingStreamConnected ? "Online (Streaming)" : "Offline / Connecting"}
                     />
                     <Detail
                         label="Live Power"
-                        value={displayValueWithUnit(formatNumber(liveData?.power_kw), "kW")}
+                        value={formatMeasurement(currentLiveData?.power_kw, "kW")}
                     />
                     <Detail
                         label="Live Voltage"
-                        value={displayValueWithUnit(formatNumber(liveData?.voltage_v), "V")}
+                        value={formatMeasurement(currentLiveData?.voltage_v, "V")}
                     />
                     <Detail
                         label="Live Current"
-                        value={displayValueWithUnit(formatNumber(liveData?.current_a), "A")}
+                        value={formatMeasurement(currentLiveData?.current_a, "A")}
                     />
                     <Detail
                         label="Last Broadcast"
-                        value={
-                            liveData?.timestamp
-                                ? new Date(liveData.timestamp).toLocaleTimeString()
-                                : "-"
-                        }
+                        value={formatTelemetryTimestamp(currentLiveData?.timestamp)}
                     />
                     {sseError && (
                         <div style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
                             {sseError.message}
                         </div>
                     )}
-                </DetailsSection> */}
+                </DetailsSection>
 
                 <DetailsSection title="General Information">
                     <Detail label="Building Name" value={building.building_name} />
