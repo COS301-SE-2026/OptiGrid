@@ -8,8 +8,8 @@ const nextConfig = {
 
         return [
             {
-                source: "/api/telemetry/:path*",
-                destination: `${coreApiUrl}/api/telemetry/:path*`,
+                source: "/api/telemetry/live",
+                destination: `${coreApiUrl}/api/telemetry/live`,
             },
         ];
     },
