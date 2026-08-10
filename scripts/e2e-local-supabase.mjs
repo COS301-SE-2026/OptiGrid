@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { dirname, join } from "node:path";
 
 const REQUIRED_E2E_ENV = [
   "DATABASE_URL",
@@ -7,10 +8,9 @@ const REQUIRED_E2E_ENV = [
   "SUPABASE_SERVICE_ROLE_KEY",
 ];
 
-const forwardedArgs = process.argv.slice(2);
-if (forwardedArgs[0] === "--") {
-  forwardedArgs.shift();
-}
+const forwardedArgs = process.argv.slice(2).filter((argument) => argument !== "--");
+const corePort = process.env.E2E_CORE_PORT ?? "4100";
+const frontendPort = process.env.E2E_FRONTEND_PORT ?? "3100";
 
 function parseEnvOutput(output) {
   const values = {};
@@ -103,12 +103,23 @@ const playwrightArgs = [
   ...forwardedArgs,
 ];
 
-const result = spawnSync("corepack", playwrightArgs, {
+const isWindows = process.platform === "win32";
+const corepackCommand = isWindows ? process.execPath : "corepack";
+const corepackArgs = isWindows
+  ? [
+      join(dirname(process.execPath), "node_modules", "corepack", "dist", "corepack.js"),
+      ...playwrightArgs,
+    ]
+  : playwrightArgs;
+const result = spawnSync(corepackCommand, corepackArgs, {
   stdio: "inherit",
-  shell: true,
   env: {
     ...process.env,
     ...localSupabaseEnv,
+    E2E_BASE_URL: process.env.E2E_BASE_URL ?? `http://localhost:${frontendPort}`,
+    E2E_CORE_PORT: corePort,
+    E2E_CORE_URL: process.env.E2E_CORE_URL ?? `http://localhost:${corePort}`,
+    E2E_FRONTEND_PORT: frontendPort,
     E2E_USE_LOCAL_SUPABASE: "1",
   },
 });
