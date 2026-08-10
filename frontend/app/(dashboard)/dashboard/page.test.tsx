@@ -159,12 +159,12 @@ describe("DashboardPage", () => {
   describe("Add building", () => {
     it("renders the Add building", async () => {
       renderPage();
-      expect(await screen.findByRole("link", { name: /add a new building/i })).toBeInTheDocument();
+      expect(await screen.findByRole("link", { name: /\+ add building/i })).toBeInTheDocument();
     });
 
     it("make sure add building link points to /buildings/add", async () => {
       renderPage();
-      const link = await screen.findByRole("link", { name: /add a new building/i });
+      const link = await screen.findByRole("link", { name: /\+ add building/i });
       expect(link).toHaveAttribute("href", "/buildings/add");
     });
   });
