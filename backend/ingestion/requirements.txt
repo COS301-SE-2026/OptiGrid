@@ -4,11 +4,11 @@ redis==8.1.0
 influxdb-client==1.50.0
 requests==2.34.2
 pandas==2.2.3
-numpy==2.4.6
+numpy==1.26.4
 python-dotenv==1.2.2
 pydantic==2.13.4
 pytest==9.1.1
 pytest-asyncio==1.4.0
-httpx==0.28.1
+httpx==0.27.2
 supabase==2.31.0
 aiohttp==3.14.3
