@@ -14,6 +14,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import { ChartTextAlternative } from "../../../components/ChartTextAlternative";
 import { buildDisplayName, type SessionUser } from "../../../lib/session";
 import { getTabSessionPath } from "../../../lib/tab-session";
 
@@ -391,6 +392,19 @@ export default function DashboardPage() {
                 {consumptionLoading ? (
                     <Skeleton style={{ height: 200, width: "100%" }} />
                 ) : (
+                    <>
+                    <ChartTextAlternative
+                        caption="Portfolio consumption over the last 7 days, in kWh"
+                        categoryLabel="Day"
+                        categories={consumption.map((point) => point.day)}
+                        series={[
+                            {
+                                name: "Consumption (kWh)",
+                                values: consumption.map((point) => point.kwh)
+                            }
+                        ]}
+                    />
+                    <div aria-hidden="true">
                     <ResponsiveContainer width="100%" height={200}>
                         <LineChart
                             data={consumption}
@@ -424,13 +438,15 @@ export default function DashboardPage() {
                             <Line
                                 type="monotone"
                                 dataKey="kwh"
-                                stroke="var(--brand-primary)"
+                                stroke="var(--brand-primary-cta)"
                                 strokeWidth={2}
-                                dot={{ fill: "var(--brand-primary)", r: 3 }}
+                                dot={{ fill: "var(--brand-primary-cta)", r: 3 }}
                                 activeDot={{ r: 5 }}
                             />
                         </LineChart>
                     </ResponsiveContainer>
+                    </div>
+                    </>
                 )}
             </div>
 
@@ -452,7 +468,7 @@ export default function DashboardPage() {
                         <p className="text-muted">No buildings yet.</p>
                         <Link
                             href="/buildings/add"
-                            style={{ marginTop: "var(--space-2)", display: "inline-block", color: "var(--brand-primary)", fontWeight: 600 }}
+                            style={{ marginTop: "var(--space-2)", display: "inline-block", color: "var(--brand-primary-cta)", fontWeight: 600 }}
                         >
                             Add your first building
                         </Link>
@@ -461,12 +477,13 @@ export default function DashboardPage() {
                     <div className="card" style={{ padding: 0, overflow: "hidden" }}>
                         <div style={{ overflow: "auto" }}>
                         <table className="dashboard-table">
+                            <caption className="sr-only">Your buildings</caption>
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Today (kWh)</th>
-                                    <th>Status</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col">Today (kWh)</th>
+                                    <th scope="col">Status</th>
                                     {/* <th style={{ textAlign: "right" }}>Actions</th> */}
                                 </tr>
                             </thead>

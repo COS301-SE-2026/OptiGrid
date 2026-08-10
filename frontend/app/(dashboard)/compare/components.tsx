@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { formatMetricValue } from "./format";
 import type { Building, ComparisonBuilding, Metric, TimeRange } from "./types";
+import { ChartTextAlternative } from "../../../components/ChartTextAlternative";
 
 type ChartPoint = {
     period: string;
@@ -268,6 +269,23 @@ export function ComparisonChart({
                     Unable to load comparison data.
                 </div>
             ) : (
+                <>
+                <ChartTextAlternative
+                    caption={`Comparison totals over the last ${dateRange} days, in ${metric === "R" ? "cost (rand)" : "energy (kWh)"}`}
+                    categoryLabel="Period"
+                    categories={chartData.map((point) => point.period)}
+                    series={[
+                        {
+                            name: getBuildingName(buildingA),
+                            values: chartData.map((point) => point.A)
+                        },
+                        {
+                            name: getBuildingName(buildingB),
+                            values: chartData.map((point) => point.B)
+                        }
+                    ]}
+                />
+                <div aria-hidden="true">
                 <ResponsiveContainer width="100%" height={260}>
                     <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--brand-border)" />
@@ -314,6 +332,8 @@ export function ComparisonChart({
                         />
                     </LineChart>
                 </ResponsiveContainer>
+                </div>
+                </>
             )}
         </div>
     );

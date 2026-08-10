@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartTextAlternative } from "../../../components/ChartTextAlternative";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import {
@@ -333,6 +334,26 @@ function ForecastChartContainer({
 
     return (
         <>
+            <ChartTextAlternative
+                caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in kWh`}
+                categoryLabel="Timestamp"
+                categories={chartData.map((point) => formatTooltipLabel(point.timestamp, horizon))}
+                series={[
+                    { name: "Recorded (kWh)", values: chartData.map((point) => point.kwh) },
+                    { name: "Predicted (kWh)", values: chartData.map((point) => point.yhat) },
+                    ...(hasConfidenceBand
+                        ? [{
+                            name: "95% confidence interval (kWh)",
+                            values: chartData.map((point) =>
+                                point.yhat_range
+                                    ? `${point.yhat_range[0].toLocaleString()} to ${point.yhat_range[1].toLocaleString()}`
+                                    : null,
+                            ),
+                        }]
+                        : []),
+                ]}
+            />
+            <div aria-hidden="true">
             <ResponsiveContainer width="100%" height={240}>
                 <ComposedChart
                     data={chartData}
@@ -419,6 +440,7 @@ function ForecastChartContainer({
                     />
                 </ComposedChart>
             </ResponsiveContainer>
+            </div>
 
             {/* Legend */}
             <div
