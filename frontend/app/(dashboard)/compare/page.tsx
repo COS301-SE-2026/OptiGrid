@@ -189,7 +189,7 @@ export default function CompareBuildingPage() {
                     chartData={chartData}
                     canCompare={canCompare}
                     comparisonError={comparisonError}
-                    hasComparison={Boolean(comparison)}
+                   
                     loading={loadingComparison}
                     dateRange={dateRange}
                     metric={metric}

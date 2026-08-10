@@ -16,6 +16,20 @@ interface Building {
   building_name: string;
 }
 
+interface RawBuilding {
+  building_id: string;
+  building_name: string;
+}
+
+interface RawUser {
+  userId: string;
+  firstName: string;
+  email: string;
+  roleType: string;
+  buildingIds?: string[];
+  createdAt?: string;
+}
+
 export default function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -239,7 +253,7 @@ export default function UserManagementPage() {
         const buidlingData = await buildingResp.json();
 
         const bdata = buidlingData.data || (Array.isArray(buidlingData) ? buidlingData : []);
-        const formatBuildings: Building[] = bdata.map((b: any) => ({
+        const formatBuildings: Building[] = bdata.map((b: RawBuilding) => ({
           building_id: b.building_id,
           building_name: b.building_name
         }));
@@ -254,7 +268,7 @@ export default function UserManagementPage() {
           ...(viewersData.data || []),
           ...(managersData.data || [])
         ];
-        const formatUser: User[] = users.map((user: any) => ({
+        const formatUser: User[] = users.map((user: RawUser) => ({
           user_id: user.userId,
           first_name: user.firstName,
           email: user.email,
