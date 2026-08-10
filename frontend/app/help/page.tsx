@@ -39,32 +39,38 @@ export const metadata = {
 export default function HelpPage() {
     return (
         <div className="landing-page">
-            <header className="navbar landing-nav">
+            <header className="navbar landing-nav" role="banner" aria-label="Site header">
                 <div className="landing-shell landing-nav-inner">
-                    <Link href="/" className="landing-wordmark">
+                    <Link href="/" className="landing-wordmark" aria-label="OptiGrid home">
                         OptiGrid
                     </Link>
                     <div className="landing-nav-actions">
-                        <Link href="/dashboard" className="btn btn-primary">
+                        <Link href="/dashboard" className="btn btn-primary" style={{
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
+                        }}>
                             Back to dashboard
                         </Link>
                     </div>
                 </div>
             </header>
-            <main>
-                <section id="resources" className="landing-section landing-section-alt help-anchor">
+            <main role="main" aria-label="Help centre main content">
+                <section id="resources" className="landing-section landing-section-alt help-anchor" aria-label="Help resources">
                     <div className="landing-shell">
                         <div className="landing-section-header">
                             <p className="landing-kicker">Quick access</p>
-                            <h2>Pick one of the resources available below to help with your problem</h2>
+                            <h1>Help Centre</h1>
+                            <h2 style={{ fontSize: "var(--fs-h2)", fontWeight: "var(--fw-bold)", fontFamily: "var(--font-heading)" }}>
+                                Pick one of the resources available below to help with your problem
+                            </h2>
                             <p className="text-muted">
                                 Our help centre groups the most useful resources so you can
-                                can find solutions and clarify confusions.
+                                find solutions and clarify confusions.
                             </p>
                         </div>
-                        <div className="help-resource-grid">
+                        <div className="help-resource-grid" role="list" aria-label="Help resources list">
                             {quickAccess.map((resource) => (
-                                <div key={resource.label} className="card help-resource-card">
+                                <div key={resource.label} className="card help-resource-card" role="listitem">
                                     <div className="help-resource-header">
                                         <div className="icon-chip" aria-hidden="true">
                                             {resource.label.slice(0, 1)}
@@ -76,7 +82,15 @@ export default function HelpPage() {
                                         </div>
                                     </div>
                                     <div className="help-resource-actions">
-                                        <Link href={resource.href} className="btn btn-primary">
+                                        <Link
+                                            href={resource.href}
+                                            className="btn btn-primary"
+                                            style={{
+                                                backgroundColor: "#3A6B7C",
+                                                color: "#FFFFFF",
+                                            }}
+                                            aria-label={`${resource.action} for ${resource.label}`}
+                                        >
                                             {resource.action}
                                         </Link>
                                     </div>
@@ -86,7 +100,7 @@ export default function HelpPage() {
                     </div>
                 </section>
             </main>
-            <footer className="landing-footer">
+            <footer className="landing-footer" role="contentinfo" aria-label="Site footer">
                 <div className="landing-shell">
                     <span>© 2026 OptiGrid. All rights reserved.</span>
                 </div>
