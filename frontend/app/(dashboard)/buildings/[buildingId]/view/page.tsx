@@ -360,10 +360,11 @@ export default function ViewBuildingPage({
                                 ) : (
                                     <div style={{ overflow: "auto" }}>
                                         <table style={{ width: "100%" }}>
+                                            <caption className="sr-only">Peak usage times</caption>
                                             <thead>
                                                 <tr>
-                                                    <th align="left">Timestamp</th>
-                                                    <th align="left">Usage</th>
+                                                    <th scope="col" align="left">Timestamp</th>
+                                                    <th scope="col" align="left">Usage</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -402,7 +403,7 @@ function DetailsSection({ title, children }: Readonly<{ title: string; children:
         <div>
             <h3
                 style={{
-                    color: "var(--brand-primary)",
+                    color: "var(--brand-primary-cta)",
                     marginBottom: "var(--space-4)",
                     fontSize: "var(--fs-h3)",
                     fontWeight: "var(--fw-semibold)",

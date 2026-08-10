@@ -221,14 +221,15 @@ export default function ManagerBuildings() {
             <div className="card" style={{ overflow: "hidden", padding: 0 }}>
                 <div style={{ overflow: "auto" }}>
                     <table className="dashboard-table">
+                        <caption className="sr-only">Buildings you manage</caption>
                         
                         <thead>
                             <tr>
-                                <th>Building</th>
-                                <th>Lifecycle</th>
-                                <th>Energy usage (kWh)</th>
-                                <th>Owner</th>
-                                <th>Actions</th>
+                                <th scope="col">Building</th>
+                                <th scope="col">Lifecycle</th>
+                                <th scope="col">Energy usage (kWh)</th>
+                                <th scope="col">Owner</th>
+                                <th scope="col">Actions</th>
                             </tr>
                         </thead>
                         <tbody>

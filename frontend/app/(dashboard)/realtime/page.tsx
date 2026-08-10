@@ -132,7 +132,7 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
 
             <div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)" }}>
-                    <span className="dashboard-kpi-value" style={{ fontSize: "1.9rem", lineHeight: 1, color: isOffline ? "inherit" : "var(--brand-primary)" }}>
+                    <span className="dashboard-kpi-value" style={{ fontSize: "1.9rem", lineHeight: 1, color: isOffline ? "inherit" : "var(--brand-primary-cta)" }}>
                         {building.currentKw !== null && building.currentKw !== undefined ? building.currentKw.toFixed(2) : "--"}
                     </span>
                     <span className="text-muted" style={{ fontSize: "var(--fs-small)", fontWeight: 500 }}>
@@ -301,12 +301,14 @@ export default function RealtimePage() {
         <>
             <div className="card" style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4)", flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span className={`live-dot ${isConnected ? "on" : "off"}`} />
+                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                        <span className={`live-dot ${isConnected ? "on" : "off"}`} aria-hidden="true" />
                         <div>
                             <h1 className="dashboard-title">Live readings</h1>
                             <p className="dashboard-subtitle">
-                                {lastRefreshedAt ? `Last updated ${formatTime(lastRefreshedAt)}` : "Connecting..."}
+                                <span className={`live-status-label ${isConnected ? "on" : "off"}`}>{isConnected ? "Connected" : "Disconnected"}</span>
+                                {" - "}
+                                {lastRefreshedAt ? `last updated ${formatTime(lastRefreshedAt)}` : "connecting..."}
                             </p>
                         </div>
                     </div>

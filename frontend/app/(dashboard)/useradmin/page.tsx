@@ -324,7 +324,7 @@ export default function UserManagementPage() {
             </div>
             <div className="card dashboard-card-tight">
               <div className="dashboard-kpi-label">Regular Users</div>
-              <div className="dashboard-kpi-value" style={{ color: "var(--brand-primary)" }}>
+              <div className="dashboard-kpi-value" style={{ color: "var(--brand-primary-cta)" }}>
                 {stats.regularUsers}
               </div>
             </div>
@@ -390,16 +390,17 @@ export default function UserManagementPage() {
             </div>
           </div>
 
-          <h3 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)" }}>Users</h3>
+          <h3 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary-cta)" }}>Users</h3>
           <div className="card" style={{ overflow: "hidden", padding: 0, marginBottom: "var(--space-5)" }}>
             <div style={{ overflow: "auto" }}>
               <table className="dashboard-table">
+                <caption className="sr-only">Viewers and their assigned buildings</caption>
                 <thead>
                   <tr>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Buildings</th>
-                    {/* <th>Actions</th> */}
+                    <th scope="col">User</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Buildings</th>
+                    {/* <th scope="col">Actions</th> */}
                   </tr>
                 </thead>
                 <tbody>
@@ -470,16 +471,17 @@ export default function UserManagementPage() {
             </div>
           </div>
 
-          <h3 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)" }}>Managers</h3>
+          <h3 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary-cta)" }}>Managers</h3>
           <div className="card" style={{ overflow: "hidden", padding: 0, marginBottom: "var(--space-5)" }}>
             <div style={{ overflow: "auto" }}>
               <table className="dashboard-table">
+                <caption className="sr-only">Managers and their assigned buildings</caption>
                 <thead>
                   <tr>
-                    <th>Manager</th>
-                    <th>Email</th>
-                    <th>Assigned Buildings</th>
-                    <th>Actions</th>
+                    <th scope="col">Manager</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Assigned Buildings</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>

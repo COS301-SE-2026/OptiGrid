@@ -326,7 +326,7 @@ export default function AdminPage() {
             </div>
             <div className="card dashboard-card-tight">
               <div className="dashboard-kpi-label">Assigned</div>
-              <div className="dashboard-kpi-value" style={{ color: "var(--brand-primary)" }}>
+              <div className="dashboard-kpi-value" style={{ color: "var(--brand-primary-cta)" }}>
                 {stats.assigned}
               </div>
             </div>
@@ -342,13 +342,14 @@ export default function AdminPage() {
           <div className="card" style={{ overflow: "hidden", padding: 0 }}>
             <div style={{ overflow:"auto" }}>
               <table className="dashboard-table">
+<caption className="sr-only">All buildings with assigned viewer and manager</caption>
                 <thead>
                   <tr>
-                    <th>Building</th>
-                    <th>Building State</th>
-                    <th>Viewer</th>
-                    <th>Manager</th>
-                    <th>Actions</th>
+                    <th scope="col">Building</th>
+                    <th scope="col">Building State</th>
+                    <th scope="col">Viewer</th>
+                    <th scope="col">Manager</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
