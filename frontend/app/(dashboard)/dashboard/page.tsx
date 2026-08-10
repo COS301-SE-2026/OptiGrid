@@ -375,6 +375,21 @@ export default function DashboardPage() {
     const buildingCount = buildingsWithTelemetry.length;
     const hasBuildings = buildingCount > 0;
 
+    const getAlertDescription = () => {
+        if (summary.activeAlerts > 0) {
+            const alertCount = summary.activeAlerts;
+            const plural = alertCount !== 1 ? "s" : "";
+            return `${alertCount} alert${plural} require attention`;
+        }
+        return "No alerts require attention";
+    };
+
+    const getBuildingCountDescription = () => {
+        const count = summary.buildings;
+        const plural = count !== 1 ? "s" : "";
+        return `${count} building${plural} in your portfolio`;
+    };
+
     const renderBuildingsList = () => {
         if (buildingsLoading) {
             return (
@@ -584,6 +599,20 @@ export default function DashboardPage() {
         );
     };
 
+    const formatUsage = () => {
+        if (summary.todayUsageKwh === null) {
+            return "--";
+        }
+        return `${formatNumberMetric(summary.todayUsageKwh)} kWh`;
+    };
+
+    const formatCost = () => {
+        if (summary.estimatedCostRands === null) {
+            return "--";
+        }
+        return `R ${formatNumberMetric(summary.estimatedCostRands)}`;
+    };
+
     return (
         <div>
             <div className="dashboard-topbar">
@@ -618,25 +647,17 @@ export default function DashboardPage() {
                     label="Buildings"
                     value={String(summary.buildings)}
                     loading={buildingsLoading}
-                    description={`${summary.buildings} building${summary.buildings !== 1 ? "s" : ""} in your portfolio`}
+                    description={getBuildingCountDescription()}
                 />
                 <KpiCard
                     label="Today's usage"
-                    value={
-                        summary.todayUsageKwh === null
-                            ? "--"
-                            : `${formatNumberMetric(summary.todayUsageKwh)} kWh`
-                    }
+                    value={formatUsage()}
                     loading={buildingsLoading}
                     description="Total energy consumed today across all buildings"
                 />
                 <KpiCard
                     label="Est. cost"
-                    value={
-                        summary.estimatedCostRands === null
-                            ? "--"
-                            : `R ${formatNumberMetric(summary.estimatedCostRands)}`
-                    }
+                    value={formatCost()}
                     loading={buildingsLoading}
                     description="Estimated cost based on today's energy usage"
                 />
@@ -645,9 +666,7 @@ export default function DashboardPage() {
                     value={String(summary.activeAlerts)}
                     valueTone={summary.activeAlerts > 0 ? "warning" : "default"}
                     loading={buildingsLoading}
-                    description={summary.activeAlerts > 0 
-                        ? `${summary.activeAlerts} alert${summary.activeAlerts !== 1 ? "s" : ""} require attention` 
-                        : "No alerts require attention"}
+                    description={getAlertDescription()}
                 />
             </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 
 interface User {
   user_id: string;
@@ -25,6 +25,7 @@ export default function UserManagementPage() {
   const [Action, setAction] = useState<"assign" | "remove" | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>("");
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   const getUserBuildingNames = (userId: string) => {
     const user = users.find((u) => u.user_id === userId);
@@ -134,12 +135,24 @@ export default function UserManagementPage() {
     setAction("assign");
     setSelectedUserId(userId);
     setIsActionOpen(true);
+    if (dialogRef.current) {
+      if (typeof dialogRef.current.showModal === 'function') {
+        dialogRef.current.showModal();
+      } else {
+        
+        dialogRef.current.setAttribute('open', '');
+      }
+    }
+    
   };
 
   const Remove = (userId: string) => {
     setAction("remove");
     setSelectedUserId(userId);
     setIsActionOpen(true);
+    if (dialogRef.current) {
+      dialogRef.current.showModal();
+    }
   };
 
   const close = () => {
@@ -147,6 +160,9 @@ export default function UserManagementPage() {
     setAction(null);
     setSelectedUserId("");
     setSelectedBuildingId("");
+    if (dialogRef.current) {
+      dialogRef.current.close();
+    }
   };
 
   const confirmAction = async () => {
@@ -555,119 +571,111 @@ export default function UserManagementPage() {
             </div>
           </section>
 
-          {isActionOpen && (
+          <dialog
+            ref={dialogRef}
+            className="modal"
+            style={{
+              maxWidth: "500px",
+              width: "100%",
+              padding: "var(--space-6)",
+              border: "none",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-card)",
+              backgroundColor: "var(--brand-surface)",
+              color: "var(--brand-ink)",
+            }}
+            onClose={close}
+          >
+            <h2 style={{ marginBottom: "var(--space-1)" }}>
+              {Action === "assign" ? "Assign Building" : "Remove Building"}
+            </h2>
+            <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>
+              {Action === "assign"
+                ? `Assign a building to ${users.find((u) => u.user_id === selectedUserId)?.first_name || "this user"}.`
+                : `Remove a building from ${users.find((u) => u.user_id === selectedUserId)?.first_name || "this user"}.`}
+            </p>
+
+            <div>
+              <label className="label" htmlFor="building-select-dialog">Building</label>
+              <select
+                id="building-select-dialog"
+                value={selectedBuildingId}
+                onChange={(e) => setSelectedBuildingId(e.target.value)}
+                className="select"
+                aria-label="Select a building to assign or remove"
+              >
+                <option value="">Select a building...</option>
+                {Action === "assign" ? (
+                  buildings
+                    .filter((b) => {
+                      const user = users.find((u) => u.user_id === selectedUserId);
+                      const isManager = user?.role_type === "BUILDING_MANAGER";
+                      const assigned = user?.building_ids.includes(b.building_id);
+                      const assignedToAnyManager = users.some((u) =>
+                        u.role_type === "BUILDING_MANAGER" && u.building_ids.includes(b.building_id)
+                      );
+                      if (assigned) return false;
+                      if (isManager && assignedToAnyManager) return false;
+                      return true;
+                    })
+                    .map((b) => (
+                      <option key={b.building_id} value={b.building_id}>
+                        {b.building_name}
+                      </option>
+                    ))
+                ) : (
+                  buildings
+                    .filter((b) =>
+                      users
+                        .find((u) => u.user_id === selectedUserId)?.building_ids.includes(b.building_id)
+                    )
+                    .map((b) => (
+                      <option key={b.building_id} value={b.building_id}>
+                        {b.building_name}
+                      </option>
+                    ))
+                )}
+              </select>
+              {Action === "assign" && selectedBuildingId && (
+                <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
+                  Building will be assigned to{" "}
+                  {users.find((u) => u.user_id === selectedUserId)?.first_name}
+                </div>
+              )}
+              {Action === "remove" && selectedBuildingId && (
+                <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
+                  Building will be removed from{" "}
+                  {users.find((u) => u.user_id === selectedUserId)?.first_name}
+                </div>
+              )}
+            </div>
+
             <div
-              className="modal-overlay"
               style={{
-                position: "fixed",
-                inset: 0,
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "var(--space-4)",
-              }}
-              onClick={(e) => {
-                if (e.target === e.currentTarget) close();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  close();
-                }
+                gap: "var(--space-3)",
+                marginTop: "var(--space-5)",
+                borderTop: "1px solid var(--brand-border)",
+                paddingTop: "var(--space-4)",
               }}
             >
-              <div className="modal" style={{ maxWidth: "500px", width: "100%" }} role="dialog" aria-modal="true">
-                <h2 style={{ marginBottom: "var(--space-1)" }}>
-                  {Action === "assign" ? "Assign Building" : "Remove Building"}
-                </h2>
-                <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>
-                  {Action === "assign"
-                    ? `Assign a building to ${users.find((u) => u.user_id === selectedUserId)?.first_name || "this user"}.`
-                    : `Remove a building from ${users.find((u) => u.user_id === selectedUserId)?.first_name || "this user"}.`}
-                </p>
-
-                <div>
-                  <label className="label" htmlFor="building-select">Building</label>
-                  <select
-                    id="building-select"
-                    value={selectedBuildingId}
-                    onChange={(e) => setSelectedBuildingId(e.target.value)}
-                    className="select"
-                    aria-label="Select a building to assign or remove"
-                  >
-                    <option value="">Select a building...</option>
-                    {Action === "assign" ? (
-                      buildings
-                        .filter((b) => {
-                          const user = users.find((u) => u.user_id === selectedUserId);
-                          const isManager = user?.role_type === "BUILDING_MANAGER";
-                          const assigned = user?.building_ids.includes(b.building_id);
-                          const assignedToAnyManager = users.some((u) =>
-                            u.role_type === "BUILDING_MANAGER" && u.building_ids.includes(b.building_id)
-                          );
-                          if (assigned) return false;
-                          if (isManager && assignedToAnyManager) return false;
-                          return true;
-                        })
-                        .map((b) => (
-                          <option key={b.building_id} value={b.building_id}>
-                            {b.building_name}
-                          </option>
-                        ))
-                    ) : (
-                      buildings
-                        .filter((b) =>
-                          users
-                            .find((u) => u.user_id === selectedUserId)?.building_ids.includes(b.building_id)
-                        )
-                        .map((b) => (
-                          <option key={b.building_id} value={b.building_id}>
-                            {b.building_name}
-                          </option>
-                        ))
-                    )}
-                  </select>
-                  {Action === "assign" && selectedBuildingId && (
-                    <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
-                      Building will be assigned to{" "}
-                      {users.find((u) => u.user_id === selectedUserId)?.first_name}
-                    </div>
-                  )}
-                  {Action === "remove" && selectedBuildingId && (
-                    <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
-                      Building will be removed from{" "}
-                      {users.find((u) => u.user_id === selectedUserId)?.first_name}
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "var(--space-3)",
-                    marginTop: "var(--space-5)",
-                    borderTop: "1px solid var(--brand-border)",
-                    paddingTop: "var(--space-4)",
-                  }}
-                >
-                  <button type="button" onClick={close} className="btn btn-secondary" style={{ flex: 1 }}>
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={confirmAction}
-                    className={`btn ${Action === "assign" ? "btn-primary" : "btn-danger"}`}
-                    style={{
-                      flex: 1,
-                      backgroundColor: Action === "assign" ? "#3A6B7C" : undefined,
-                      color: Action === "assign" ? "#FFFFFF" : undefined,
-                    }}
-                  >
-                    {Action === "assign" ? "Assign" : "Remove"}
-                  </button>
-                </div>
-              </div>
+              <button type="button" onClick={close} className="btn btn-secondary" style={{ flex: 1 }}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmAction}
+                className={`btn ${Action === "assign" ? "btn-primary" : "btn-danger"}`}
+                style={{
+                  flex: 1,
+                  backgroundColor: Action === "assign" ? "#3A6B7C" : undefined,
+                  color: Action === "assign" ? "#FFFFFF" : undefined,
+                }}
+              >
+                {Action === "assign" ? "Assign" : "Remove"}
+              </button>
             </div>
-          )}
+          </dialog>
         </div>
       </div>
     </div>
