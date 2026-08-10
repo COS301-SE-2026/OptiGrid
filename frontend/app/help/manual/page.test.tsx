@@ -99,54 +99,63 @@ describe("UserManualPage", () => {
       expect(screen.getAllByRole("img")).toHaveLength(10);
     });
 
-    it("renders the Landing Signup image with correct alt", () => {
+    it("renders the Landing Signup image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/landing signup/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/get started free.*circled in red/i)).toBeInTheDocument();
     });
 
-    it("renders the Login Page image with correct alt", () => {
+    it("renders the Login Page image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/login page/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/side-by-side sign-up and login forms/i)).toBeInTheDocument();
     });
 
-    it("renders the Dashboard Screenshot image with correct alt", () => {
+    it("renders the Dashboard Screenshot image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/dashboard screenshot/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/optigrid dashboard\. a left menu/i)).toBeInTheDocument();
     });
 
-    it("renders the Dashboard Add image with correct alt", () => {
+    it("renders the Dashboard Add image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/dashboard add/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/\+ add building.{0,3}button in the top right circled/i)).toBeInTheDocument();
     });
 
-    it("renders the Add Building image with correct alt", () => {
+    it("renders the Add Building image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/add building form/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/add a building.{0,3}form, with fields/i)).toBeInTheDocument();
     });
 
-    it("renders the Edit and Delete image with correct alt", () => {
+    it("renders the Edit and Delete image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/^edit and delete$/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/edit \(pencil\) and delete \(bin\) icons/i)).toBeInTheDocument();
     });
 
-    it("renders the Compare image with correct alt", () => {
+    it("renders the Compare Dashboard image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/compare dashboard/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/compare.{0,3}item in the left menu circled/i)).toBeInTheDocument();
     });
 
-    it("renders the Compare image with correct alt", () => {
+    it("renders the Compare View image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/compare view/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/building a set to sandton hq/i)).toBeInTheDocument();
     });
 
-    it("renders the Forecast image with correct alt", () => {
+    it("renders the Forecast Dashboard image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/forecast dashboard/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/forecast.{0,3}item in the left menu circled/i)).toBeInTheDocument();
     });
 
-    it("renders the Forecast image with correct alt", () => {
+    it("renders the Forecast View image with a descriptive alt", () => {
       render(<UserManualPage />);
-      expect(screen.getByAltText(/forecast view/i)).toBeInTheDocument();
+      expect(screen.getByAltText(/run forecast.{0,3}button circled/i)).toBeInTheDocument();
+    });
+
+    it("does not use generic placeholder alt text on any image", () => {
+      render(<UserManualPage />);
+      const images = screen.getAllByRole("img");
+      for (const img of images) {
+        const alt = img.getAttribute("alt") ?? "";
+        expect(alt.trim().length).toBeGreaterThan(15);
+      }
     });
 
     it("every image has a src", () => {

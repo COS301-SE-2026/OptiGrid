@@ -40,7 +40,7 @@ export default function UserManualPage() {
           <div style={{ display: "grid", gap: "var(--space-6)" }}>
             
             <div>
-              <h2 style={{ color: "var(--brand-primary)", marginBottom: "var(--space-3)" }}>
+              <h2 style={{ color: "var(--brand-primary-cta)", marginBottom: "var(--space-3)" }}>
                 1. Introduction
               </h2>
               <p className="text-muted" style={{ marginBottom: "var(--space-3)" }}>
@@ -63,7 +63,7 @@ export default function UserManualPage() {
 
             
             <div>
-              <h2 style={{ color: "var(--brand-primary)", marginBottom: "var(--space-3)" }}>
+              <h2 style={{ color: "var(--brand-primary-cta)", marginBottom: "var(--space-3)" }}>
                 2. Login and Signup
               </h2>
               <p className="text-muted" style={{ marginBottom: "var(--space-3)" }}>
@@ -78,7 +78,7 @@ export default function UserManualPage() {
                 <div>
                   <img
                     src={landingsignup.src}
-                    alt="Landing Signup"
+                    alt={"OptiGrid landing page. The “Get started free” button, circled in red, sits below the headline next to “Book a demo”."}
                     style={{
                       width: "100%",
                       height: "auto",
@@ -93,7 +93,7 @@ export default function UserManualPage() {
                 <div>
                   <img
                     src={signuplogin.src}
-                    alt="Login Page"
+                    alt={"Side-by-side sign-up and login forms. Sign up asks for first name, last name, work email, password, confirm password, and agreement to the terms. Login asks for email and password, with “Remember me”, “Forgot password?” and a “Continue with SSO” option."}
                     style={{
                       width: "100%",
                       height: "auto",
@@ -110,7 +110,7 @@ export default function UserManualPage() {
 
             
             <div>
-              <h2 style={{ color: "var(--brand-primary)", marginBottom: "var(--space-3)" }}>
+              <h2 style={{ color: "var(--brand-primary-cta)", marginBottom: "var(--space-3)" }}>
                 3. Dashboard Guide
               </h2>
               <ul style={{ 
@@ -127,7 +127,7 @@ export default function UserManualPage() {
               <div style={{ marginTop: "var(--space-3)" }}>
                 <img
                   src={dashboardScreenshot.src}
-                  alt="Dashboard Screenshot"
+                  alt={"OptiGrid dashboard. A left menu lists Dashboard, Compare and Forecast. Four summary cards show 3 buildings, today’s usage 4,182 kWh, estimated cost R 9,420, and 2 active alerts. Below is a seven-day portfolio consumption line chart, then a table of buildings with name, type, today’s kWh, status and edit and delete actions."}
                   style={{
                     width: "100%",
                     height: "auto",
@@ -143,7 +143,7 @@ export default function UserManualPage() {
 
  
             <div>
-              <h2 style={{ color: "var(--brand-primary)", marginBottom: "var(--space-3)" }}>
+              <h2 style={{ color: "var(--brand-primary-cta)", marginBottom: "var(--space-3)" }}>
                 4. Buildings
               </h2>
               <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>
@@ -151,7 +151,7 @@ export default function UserManualPage() {
               </p>
               
               <div style={{ marginBottom: "var(--space-5)" }}>
-                <h3 style={{ color: "var(--brand-secondary)", marginBottom: "var(--space-2)" }}>
+                <h3 style={{ color: "var(--brand-secondary-text)", marginBottom: "var(--space-2)" }}>
                   Create Building
                 </h3>
                 <p className="text-muted" style={{ marginBottom: "var(--space-3)" }}>
@@ -165,7 +165,7 @@ export default function UserManualPage() {
                   <div>
                     <img
                       src={dashboardadd.src}
-                      alt="Dashboard Add"
+                      alt={"Dashboard with the “+ Add building” button in the top right circled in red."}
                       style={{
                         width: "100%",
                         height: "auto",
@@ -180,7 +180,7 @@ export default function UserManualPage() {
                   <div>
                     <img
                       src={add.src}
-                      alt="Add Building Form"
+                      alt={"The “Add a building” form, with fields for building name, address, type, operating hours, floor area, utility tariff, number of occupants and optional IoT device IDs, plus Cancel and “Save building” buttons."}
                       style={{
                         width: "100%",
                         height: "auto",
@@ -196,7 +196,7 @@ export default function UserManualPage() {
               </div>
 
               <div>
-                <h3 style={{ color: "var(--brand-secondary)", marginBottom: "var(--space-2)" }}>
+                <h3 style={{ color: "var(--brand-secondary-text)", marginBottom: "var(--space-2)" }}>
                   Edit and Delete Building
                 </h3>
                 <p className="text-muted" style={{ marginBottom: "var(--space-3)" }}>
@@ -204,7 +204,7 @@ export default function UserManualPage() {
                 </p>
                 <img
                   src={editanddelete.src}
-                  alt="Edit and Delete"
+                  alt={"Dashboard buildings table with the edit (pencil) and delete (bin) icons on the Sandton HQ row circled in red."}
                   style={{
                     width: "100%",
                     height: "auto",
@@ -220,7 +220,7 @@ export default function UserManualPage() {
 
  
             <div>
-              <h2 style={{ color: "var(--brand-primary)", marginBottom: "var(--space-3)" }}>
+              <h2 style={{ color: "var(--brand-primary-cta)", marginBottom: "var(--space-3)" }}>
                 5. Compare Buildings
               </h2>
               <p className="text-muted" style={{ marginBottom: "var(--space-3)" }}>
@@ -234,7 +234,7 @@ export default function UserManualPage() {
                 <div>
                   <img
                     src={dashcompare.src}
-                    alt="Compare Dashboard"
+                    alt={"Dashboard with the “Compare” item in the left menu circled in red."}
                     style={{
                       width: "100%",
                       height: "auto",
@@ -249,7 +249,7 @@ export default function UserManualPage() {
                 <div>
                   <img
                     src={compare.src}
-                    alt="Compare View"
+                    alt={"Compare screen with Building A set to Sandton HQ and Building B to Rosebank Tower over the last 30 days by kWh total. A chart overlays both buildings’ consumption lines, and summary cards show 54,210 kWh, 47,830 kWh, a 13.3 percent difference, and 10.8 versus 9.2 per square metre."}
                     style={{
                       width: "100%",
                       height: "auto",
@@ -266,7 +266,7 @@ export default function UserManualPage() {
 
  
             <div>
-              <h2 style={{ color: "var(--brand-primary)", marginBottom: "var(--space-3)" }}>
+              <h2 style={{ color: "var(--brand-primary-cta)", marginBottom: "var(--space-3)" }}>
                 6. Energy Demand Forecasting
               </h2>
               <ul style={{ 
@@ -287,7 +287,7 @@ export default function UserManualPage() {
                 <div>
                   <img
                     src={dashforecast.src}
-                    alt="Forecast Dashboard"
+                    alt={"Dashboard with the “Forecast” item in the left menu circled in red."}
                     style={{
                       width: "100%",
                       height: "auto",
@@ -302,7 +302,7 @@ export default function UserManualPage() {
                 <div>
                   <img
                     src={forecast.src}
-                    alt="Forecast View"
+                    alt={"Forecast screen for Sandton HQ over a 7-day hourly horizon with the “Run forecast” button circled in red. The chart shows recorded history as a solid line continuing into a dashed prediction with a shaded 95 percent confidence interval. Summary cards report peak demand of 312 kWh on Wednesday at 14:00, an average of 1,920 kWh per day, and model accuracy of MAPE 4.8 percent."}
                     style={{
                       width: "100%",
                       height: "auto",
@@ -319,7 +319,7 @@ export default function UserManualPage() {
 
  
             <div>
-              <h2 style={{ color: "var(--brand-primary)", marginBottom: "var(--space-3)" }}>
+              <h2 style={{ color: "var(--brand-primary-cta)", marginBottom: "var(--space-3)" }}>
                 7. Support
               </h2>
               <ul style={{ 
