@@ -45,7 +45,7 @@ function PlayGlyph() {
 
 function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
     return (
-        <div className="card help-guide-card tutorial-card" role="listitem" aria-label={`Tutorial: ${tutorial.title}`}>
+        <li className="card help-guide-card tutorial-card" aria-label={`Tutorial: ${tutorial.title}`}>
             <div className="tutorial-card-frame">
                 {tutorial.sourceUrl ? (
                     <video className="tutorial-video" controls preload="none" poster="/help/tutorials/tutorial-poster.svg" aria-label={`Video tutorial: ${tutorial.title}`}>
@@ -72,7 +72,7 @@ function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
                 </h2>
                 <p className="text-muted">{tutorial.description}</p>
             </div>
-        </div>
+        </li>
     );
 }
 
@@ -117,11 +117,11 @@ export default function TutorialsPage() {
                                 managing your buildings, comparing performance, and checking forecasts.
                             </p>
                         </div>
-                        <div className="tutorial-grid" role="list" aria-label="List of available tutorials">
+                        <ul className="tutorial-grid" aria-label="List of available tutorials">
                             {tutorials.map((tutorial) => (
                                 <TutorialCard key={tutorial.title} tutorial={tutorial} />
                             ))}
-                        </div>
+                        </ul>
                     </div>
                 </section>
             </main>

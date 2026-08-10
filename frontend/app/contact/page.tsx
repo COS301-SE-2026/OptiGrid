@@ -126,7 +126,7 @@ export default function ContactUs() {
                 </div>
 
                 {submitted && (
-                  <div
+                  <output
                     className="badge badge-success"
                     style={{
                       display: "flex",
@@ -134,10 +134,9 @@ export default function ContactUs() {
                       padding: "var(--space-3)",
                       marginTop: "var(--space-2)",
                     }}
-                    role="status"
                   >
                     Your inquiry has been submitted successfully.
-                  </div>
+                  </output>
                 )}
               </div>
             </form>

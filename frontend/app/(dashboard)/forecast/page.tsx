@@ -274,13 +274,14 @@ function KpiCard({
     value: string | null;
     skeletonWidth?: number;
 }>) {
+    const ariaLabel = `${label}: ${value || "No data"}`;
     return (
-        <div className="card dashboard-card-tight" role="article" aria-label={`${label}: ${value || "No data"}`}>
+        <article className="card dashboard-card-tight" aria-label={ariaLabel}>
             <p className="dashboard-kpi-label">{label}</p>
             {isPending && <Skeleton style={{ height: 28, width: skeletonWidth, marginTop: "var(--space-3)" }} />}
             {!isPending && value && <p className="dashboard-kpi-value metric">{value}</p>}
             {!isPending && !value && <p className="dashboard-kpi-value text-muted">--</p>}
-        </div>
+        </article>
     );
 }
 
@@ -324,7 +325,6 @@ function ForecastChartContainer({
                     color: "var(--brand-ink-muted)",
                     fontSize: "var(--fs-small)",
                 }}
-                role="status"
             >
                 Configure the controls above and run a forecast.
             </div>
@@ -614,7 +614,7 @@ export default function ForecastPage() {
                 </p>
             </div>
 
-            <div className="card dashboard-section" role="region" aria-label="Forecast controls">
+            <section className="card dashboard-section" aria-label="Forecast controls">
                 <div
                     style={{
                         display: "grid",
@@ -734,9 +734,9 @@ export default function ForecastPage() {
                     buildingsLoading={buildingsLoading}
                     forecastError={forecastError}
                 />
-            </div>
+            </section>
 
-            <div className="card dashboard-section" role="region" aria-label="Demand forecast chart">
+            <section className="card dashboard-section" aria-label="Demand forecast chart">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Demand Trend</h2>
                     <span className="dashboard-section-meta">
@@ -756,9 +756,9 @@ export default function ForecastPage() {
                     showForecastDots={showForecastDots}
                     selectedBuildingName={selectedBuildingName}
                 />
-            </div>
+            </section>
 
-            <div className="dashboard-kpi-grid" role="group" aria-label="Forecast summary statistics">
+            <div className="dashboard-kpi-grid" aria-label="Forecast summary statistics">
                 <KpiCard
                     label="Peak demand"
                     isPending={isPending}

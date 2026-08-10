@@ -231,7 +231,7 @@ export default function UserManagementPage() {
 
         const viewersReps = await fetch("/api/usersAdmin?role=viewers");
         const viewersData = await viewersReps.json();
-        const managersResp = await fetch("api/usersAdmin?role=managers");
+        const managersResp = await fetch("/api/usersAdmin?role=managers");
         const managersData = await managersResp.json();
 
         const users = [
@@ -569,15 +569,13 @@ export default function UserManagementPage() {
               onClick={(e) => {
                 if (e.target === e.currentTarget) close();
               }}
-              role="dialog"
-              aria-modal="true"
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   close();
                 }
               }}
             >
-              <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
+              <div className="modal" style={{ maxWidth: "500px", width: "100%" }} role="dialog" aria-modal="true">
                 <h2 style={{ marginBottom: "var(--space-1)" }}>
                   {Action === "assign" ? "Assign Building" : "Remove Building"}
                 </h2>

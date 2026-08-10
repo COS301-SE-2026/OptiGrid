@@ -87,7 +87,7 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
     const isOffline = building.status === "Offline";
 
     return (
-        <div
+        <li
             className="card"
             style={{
                 position: "relative",
@@ -98,8 +98,8 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
                 overflow: "hidden",
                 opacity: isOffline ? 0.78 : 1,
                 border: isOffline ? "1px solid var(--brand-border)" : `1px solid ${statusStyle.color}40`,
+                listStyle: "none",
             }}
-            role="listitem"
             aria-label={`${building.name} - ${building.status}`}
         >
             <span
@@ -151,7 +151,7 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
                     {building.type.replaceAll("_", " ")}
                 </span>
             </div>
-        </div>
+        </li>
     );
 }
 
@@ -244,7 +244,7 @@ export default function RealtimePage() {
     const renderMainContent = () => {
         if (isMetadataLoading) {
             return (
-                <div style={GRID_STYLE} role="status" aria-label="Loading buildings">
+                <div style={GRID_STYLE} aria-label="Loading buildings">
                     {SKELETON_KEYS.map((key) => (
                         <Skeleton key={key} height={180} />
                     ))}
@@ -294,23 +294,22 @@ export default function RealtimePage() {
                     </span>
                 </div>
 
-                <div style={GRID_STYLE} role="list" aria-label="Buildings list">
+                <ul style={GRID_STYLE} aria-label="Buildings list">
                     {visibleBuildings.map((building) => (
                         <BuildingCard key={building.id} building={building} />
                     ))}
-                </div>
+                </ul>
             </>
         );
     };
 
     return (
         <>
-            <div className="card" style={{ marginBottom: 20 }} role="region" aria-label="Live readings status">
+            <section className="card" style={{ marginBottom: 20 }} aria-label="Live readings status">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4)", flexWrap: "wrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <span 
                             className={`live-dot ${isConnected ? "on" : "off"}`}
-                            role="img"
                             aria-label={isConnected ? "Connected to live stream" : "Disconnected from live stream"}
                             style={{
                                 display: "inline-block",
@@ -328,7 +327,7 @@ export default function RealtimePage() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
             {renderMainContent()}
         </>

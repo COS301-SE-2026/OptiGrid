@@ -68,9 +68,9 @@ export default function HelpPage() {
                                 find solutions and clarify confusions.
                             </p>
                         </div>
-                        <div className="help-resource-grid" role="list" aria-label="Help resources list">
+                        <ul className="help-resource-grid" aria-label="Help resources list">
                             {quickAccess.map((resource) => (
-                                <div key={resource.label} className="card help-resource-card" role="listitem">
+                                <li key={resource.label} className="card help-resource-card">
                                     <div className="help-resource-header">
                                         <div className="icon-chip" aria-hidden="true">
                                             {resource.label.slice(0, 1)}
@@ -94,9 +94,9 @@ export default function HelpPage() {
                                             {resource.action}
                                         </Link>
                                     </div>
-                                </div>
+                                </li>
                             ))}
-                        </div>
+                        </ul>
                     </div>
                 </section>
             </main>

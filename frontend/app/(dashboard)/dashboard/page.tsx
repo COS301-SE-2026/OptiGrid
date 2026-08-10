@@ -257,8 +257,9 @@ function KpiCard({
     loading?: boolean;
     description?: string;
 }) {
+    const ariaLabel = `${label}: ${value}${description ? `. ${description}` : ""}`;
     return (
-        <div className="card dashboard-card-tight" role="article" aria-label={`${label}: ${value}${description ? `. ${description}` : ""}`}>
+        <article className="card dashboard-card-tight" aria-label={ariaLabel}>
             <div className="dashboard-kpi-label">{label}</div>
             <div className={`dashboard-kpi-value${valueTone === "warning" ? " dashboard-kpi-value-warning" : ""}`}>
                 {loading ? "--" : value}
@@ -268,7 +269,7 @@ function KpiCard({
                     {description}
                 </div>
             )}
-        </div>
+        </article>
     );
 }
 
@@ -367,8 +368,221 @@ export default function DashboardPage() {
         }
     };
 
+    const handleRowClick = (buildingId: string) => {
+        router.push(getTabSessionPath(`/buildings/${buildingId}/view`));
+    };
+
     const buildingCount = buildingsWithTelemetry.length;
     const hasBuildings = buildingCount > 0;
+
+    const renderBuildingsList = () => {
+        if (buildingsLoading) {
+            return (
+                <div style={{ display: "grid", gap: "var(--space-3)" }} aria-hidden="true">
+                    <Skeleton style={{ height: 56, width: "100%" }} />
+                    <Skeleton style={{ height: 56, width: "100%" }} />
+                    <Skeleton style={{ height: 56, width: "100%" }} />
+                </div>
+            );
+        }
+
+        if (buildingsError) {
+            return (
+                <div className="card dashboard-empty">
+                    <p className="text-muted">
+                        {buildingsErrorDetails?.message || "Unable to load buildings right now."}
+                    </p>
+                    <p style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
+                        Please try refreshing the page or contact support.
+                    </p>
+                </div>
+            );
+        }
+
+        if (!hasBuildings) {
+            return (
+                <div className="card dashboard-empty">
+                    <p className="text-muted">You do not have any buildings in your portfolio yet.</p>
+                    <Link
+                        href="/buildings/add"
+                        style={{ 
+                            marginTop: "var(--space-2)", 
+                            display: "inline-block", 
+                            color: "var(--brand-primary)", 
+                            fontWeight: 600 
+                        }}
+                        aria-label="Add your first building to get started"
+                    >
+                        Add your first building
+                    </Link>
+                </div>
+            );
+        }
+
+        return (
+            <>
+                <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
+                    Click on any building row to view detailed information
+                </p>
+                <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                    <div style={{ overflow: "auto" }}>
+                        <table className="dashboard-table" ref={tableRef}>
+                            <thead>
+                                <tr>
+                                    <th 
+                                        scope="col"
+                                        style={{
+                                            color: "#CDE8E5",
+                                            fontSize: "var(--fs-small)",
+                                            fontWeight: "var(--fw-semibold)",
+                                            letterSpacing: "0.05em",
+                                            textTransform: "uppercase",
+                                        }}
+                                    >
+                                        Name
+                                    </th>
+                                    <th 
+                                        scope="col"
+                                        style={{
+                                            color: "#CDE8E5",
+                                            fontSize: "var(--fs-small)",
+                                            fontWeight: "var(--fw-semibold)",
+                                            letterSpacing: "0.05em",
+                                            textTransform: "uppercase",
+                                        }}
+                                    >
+                                        Type
+                                    </th>
+                                    <th 
+                                        scope="col"
+                                        style={{
+                                            color: "#CDE8E5",
+                                            fontSize: "var(--fs-small)",
+                                            fontWeight: "var(--fw-semibold)",
+                                            letterSpacing: "0.05em",
+                                            textTransform: "uppercase",
+                                        }}
+                                    >
+                                        Today (kWh)
+                                    </th>
+                                    <th 
+                                        scope="col"
+                                        style={{
+                                            color: "#CDE8E5",
+                                            fontSize: "var(--fs-small)",
+                                            fontWeight: "var(--fw-semibold)",
+                                            letterSpacing: "0.05em",
+                                            textTransform: "uppercase",
+                                        }}
+                                    >
+                                        Status
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {buildingsWithTelemetry.map((building) => (
+                                    <tr
+                                        key={building.id}
+                                        onClick={() => handleRowClick(building.id)}
+                                        onKeyDown={(e) => handleKeyDown(e, building.id)}
+                                        tabIndex={0}
+                                        style={{ cursor: "pointer" }}
+                                        aria-label={`View details for ${building.name}`}
+                                    >
+                                        <td>
+                                            <p style={{ fontWeight: 600 }}>{building.name}</p>
+                                            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                                                {building.location}
+                                            </p>
+                                        </td>
+                                        <td>{building.type}</td>
+                                        <td>
+                                            <span className="metric">
+                                                {formatNumberMetric(building.todayKwh)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <StatusBadge status={building.status} />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </>
+        );
+    };
+
+    const renderConsumptionChart = () => {
+        if (consumptionLoading) {
+            return <Skeleton style={{ height: 200, width: "100%" }} />;
+        }
+
+        if (consumption.length === 0) {
+            return (
+                <div className="dashboard-empty" style={{ padding: "var(--space-4)" }}>
+                    <p className="text-muted">No consumption data available for the last 7 days.</p>
+                </div>
+            );
+        }
+
+        return (
+            <>
+                <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
+                    Daily energy consumption trend for your entire portfolio
+                </p>
+                <ResponsiveContainer width="100%" height={200}>
+                    <LineChart
+                        data={consumption}
+                        margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                    >
+                        <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="var(--brand-border)"
+                        />
+                        <XAxis
+                            dataKey="day"
+                            tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                        />
+                        <YAxis
+                            tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            label={{ 
+                                value: "kWh", 
+                                angle: -90, 
+                                position: "insideLeft",
+                                style: { fill: "var(--brand-ink-muted)", fontSize: 11 }
+                            }}
+                        />
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: "var(--brand-surface)",
+                                border: "1px solid var(--brand-border)",
+                                borderRadius: "12px",
+                                color: "var(--brand-ink)",
+                                fontSize: "var(--fs-small)",
+                            }}
+                            cursor={{ stroke: "var(--brand-border)" }}
+                            formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy usage"]}
+                            labelFormatter={(label) => `Day: ${label}`}
+                        />
+                        <Line
+                            type="monotone"
+                            dataKey="kwh"
+                            stroke="var(--brand-primary)"
+                            strokeWidth={2}
+                            dot={{ fill: "var(--brand-primary)", r: 3 }}
+                            activeDot={{ r: 5 }}
+                        />
+                    </LineChart>
+                </ResponsiveContainer>
+            </>
+        );
+    };
 
     return (
         <div>
@@ -399,7 +613,7 @@ export default function DashboardPage() {
                 </Link>
             </div>
 
-            <div className="dashboard-kpi-grid" role="group" aria-label="Portfolio statistics">
+            <div className="dashboard-kpi-grid" aria-label="Portfolio statistics">
                 <KpiCard
                     label="Buildings"
                     value={String(summary.buildings)}
@@ -437,77 +651,17 @@ export default function DashboardPage() {
                 />
             </div>
 
-            <div className="card dashboard-section" role="region" aria-label="Portfolio consumption chart">
+            <section className="card dashboard-section" aria-label="Portfolio consumption chart">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">
                         Portfolio consumption, last 7 days
                     </h2>
                     <span className="dashboard-section-meta">Kilowatt-hours (kWh)</span>
                 </div>
-                {consumptionLoading ? (
-                    <Skeleton style={{ height: 200, width: "100%" }} />
-                ) : consumption.length === 0 ? (
-                    <div className="dashboard-empty" style={{ padding: "var(--space-4)" }}>
-                        <p className="text-muted">No consumption data available for the last 7 days.</p>
-                    </div>
-                ) : (
-                    <>
-                        <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
-                            Daily energy consumption trend for your entire portfolio
-                        </p>
-                        <ResponsiveContainer width="100%" height={200}>
-                            <LineChart
-                                data={consumption}
-                                margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
-                            >
-                                <CartesianGrid
-                                    strokeDasharray="3 3"
-                                    stroke="var(--brand-border)"
-                                />
-                                <XAxis
-                                    dataKey="day"
-                                    tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                />
-                                <YAxis
-                                    tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    label={{ 
-                                        value: "kWh", 
-                                        angle: -90, 
-                                        position: "insideLeft",
-                                        style: { fill: "var(--brand-ink-muted)", fontSize: 11 }
-                                    }}
-                                />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: "var(--brand-surface)",
-                                        border: "1px solid var(--brand-border)",
-                                        borderRadius: "12px",
-                                        color: "var(--brand-ink)",
-                                        fontSize: "var(--fs-small)",
-                                    }}
-                                    cursor={{ stroke: "var(--brand-border)" }}
-                                    formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy usage"]}
-                                    labelFormatter={(label) => `Day: ${label}`}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="kwh"
-                                    stroke="var(--brand-primary)"
-                                    strokeWidth={2}
-                                    dot={{ fill: "var(--brand-primary)", r: 3 }}
-                                    activeDot={{ r: 5 }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </>
-                )}
-            </div>
+                {renderConsumptionChart()}
+            </section>
 
-            <div className="dashboard-section" role="region" aria-label="Buildings list">
+            <section className="dashboard-section" aria-label="Buildings list">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">
                         Your buildings
@@ -516,132 +670,8 @@ export default function DashboardPage() {
                         {buildingCount} building{buildingCount !== 1 ? "s" : ""}
                     </span>
                 </div>
-                {buildingsLoading ? (
-                    <div style={{ display: "grid", gap: "var(--space-3)" }} aria-hidden="true">
-                        <Skeleton style={{ height: 56, width: "100%" }} />
-                        <Skeleton style={{ height: 56, width: "100%" }} />
-                        <Skeleton style={{ height: 56, width: "100%" }} />
-                    </div>
-                ) : buildingsError ? (
-                    <div className="card dashboard-empty">
-                        <p className="text-muted">
-                            {buildingsErrorDetails?.message || "Unable to load buildings right now."}
-                        </p>
-                        <p style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
-                            Please try refreshing the page or contact support.
-                        </p>
-                    </div>
-                ) : !hasBuildings ? (
-                    <div className="card dashboard-empty">
-                        <p className="text-muted">You do not have any buildings in your portfolio yet.</p>
-                        <Link
-                            href="/buildings/add"
-                            style={{ 
-                                marginTop: "var(--space-2)", 
-                                display: "inline-block", 
-                                color: "var(--brand-primary)", 
-                                fontWeight: 600 
-                            }}
-                            aria-label="Add your first building to get started"
-                        >
-                            Add your first building
-                        </Link>
-                    </div>
-                ) : (
-                    <>
-                        <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
-                            Click on any building row to view detailed information
-                        </p>
-                        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-                            <div style={{ overflow: "auto" }}>
-                                <table className="dashboard-table" ref={tableRef}>
-                                    <thead>
-                                        <tr>
-                                            <th 
-                                                scope="col"
-                                                style={{
-                                                    color: "#CDE8E5",
-                                                    fontSize: "var(--fs-small)",
-                                                    fontWeight: "var(--fw-semibold)",
-                                                    letterSpacing: "0.05em",
-                                                    textTransform: "uppercase",
-                                                }}
-                                            >
-                                                Name
-                                            </th>
-                                            <th 
-                                                scope="col"
-                                                style={{
-                                                    color: "#CDE8E5",
-                                                    fontSize: "var(--fs-small)",
-                                                    fontWeight: "var(--fw-semibold)",
-                                                    letterSpacing: "0.05em",
-                                                    textTransform: "uppercase",
-                                                }}
-                                            >
-                                                Type
-                                            </th>
-                                            <th 
-                                                scope="col"
-                                                style={{
-                                                    color: "#CDE8E5",
-                                                    fontSize: "var(--fs-small)",
-                                                    fontWeight: "var(--fw-semibold)",
-                                                    letterSpacing: "0.05em",
-                                                    textTransform: "uppercase",
-                                                }}
-                                            >
-                                                Today (kWh)
-                                            </th>
-                                            <th 
-                                                scope="col"
-                                                style={{
-                                                    color: "#CDE8E5",
-                                                    fontSize: "var(--fs-small)",
-                                                    fontWeight: "var(--fw-semibold)",
-                                                    letterSpacing: "0.05em",
-                                                    textTransform: "uppercase",
-                                                }}
-                                            >
-                                                Status
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {buildingsWithTelemetry.map((building) => (
-                                            <tr
-                                                key={building.id}
-                                                onClick={() => router.push(getTabSessionPath(`/buildings/${building.id}/view`))}
-                                                onKeyDown={(e) => handleKeyDown(e, building.id)}
-                                                tabIndex={0}
-                                                role="button"
-                                                style={{ cursor: "pointer" }}
-                                                aria-label={`View details for ${building.name}`}
-                                            >
-                                                <td>
-                                                    <p style={{ fontWeight: 600 }}>{building.name}</p>
-                                                    <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                                                        {building.location}
-                                                    </p>
-                                                </td>
-                                                <td>{building.type}</td>
-                                                <td>
-                                                    <span className="metric">
-                                                        {formatNumberMetric(building.todayKwh)}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <StatusBadge status={building.status} />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </>
-                )}
-            </div>
+                {renderBuildingsList()}
+            </section>
 
             {deleteTarget && (
                 <DeleteModal
