@@ -2,6 +2,7 @@ import os
 import asyncio
 import hashlib
 import random
+import secrets
 import aiohttp
 import numpy as np
 from datetime import datetime, timezone, timedelta
@@ -17,8 +18,11 @@ except ImportError:
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
+DOCKERENV = "/.dockerenv"
+secure_random = secrets.SystemRandom()
+
 raw_ingest_url = os.getenv("API_INGEST_URL", "http://localhost:8000/api/telemetry/ingest")
-if "ingestion-api" in raw_ingest_url and not os.path.exists("/.dockerenv"):
+if "ingestion-api" in raw_ingest_url and not os.path.exists(DOCKERENV):
     API_INGEST_URL = raw_ingest_url.replace("ingestion-api", "localhost")
 else:
     API_INGEST_URL = raw_ingest_url
@@ -83,9 +87,7 @@ def get_last_influx_time():
     INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "EnergyData")
     
     # Check localhost if running outside docker
-    if "localhost" in INFLUXDB_URL and not os.path.exists("/.dockerenv"):
-        pass
-    elif not os.path.exists("/.dockerenv"):
+    if not os.path.exists(DOCKERENV) and "localhost" not in INFLUXDB_URL:
         INFLUXDB_URL = INFLUXDB_URL.replace("influxdb", "localhost")
         
     try:
@@ -116,6 +118,102 @@ async def post_telemetry(session, payload):
     except Exception as e:
         print(f"Network error posting telemetry: {e}")
 
+def _generate_sensor_payload(s, b_id, b, num_sensors, sensor_profiles, now, hour_fraction, timestamp):
+    s_id = s["sensor_id"]
+    if s_id not in sensor_profiles:
+        sensor_profiles[s_id] = get_sensor_profile(s_id, b.get("square_footage"), b.get("building_type"), num_sensors)
+        sensor_profiles[s_id]["anomaly_active_until"] = 0
+        sensor_profiles[s_id]["anomaly_mult"] = 1.0
+    
+    prof = sensor_profiles[s_id]
+    current_unix = now.timestamp()
+    if current_unix > prof.get("anomaly_active_until", 0):
+        if secure_random.random() < (0.000001 * ANOMALY_FREQUENCY_MULTIPLIER):
+            prof["anomaly_active_until"] = current_unix + secure_random.randint(60, 300)
+            prof["anomaly_mult"] = secure_random.uniform(3.0, 5.0) if secure_random.random() > 0.5 else secure_random.uniform(0.1, 0.3)
+        else:
+            prof["anomaly_mult"] = 1.0
+    
+    anomaly_mult = prof.get("anomaly_mult", 1.0)
+    adjusted_hour = hour_fraction + prof["phase_shift_hrs"]
+    time_factor = np.sin((adjusted_hour - 6.0) * np.pi / 12.0)
+    evening_bump = np.exp(-0.5 * ((adjusted_hour - 18.0) / 2.0)**2) * 0.4
+    weekday = now.weekday()
+    weekend_factor = 0.6 if weekday >= 5 else 1.0
+    month_fraction = now.month + (now.day / 30.0)
+    seasonal_factor = 1.0 + 0.3 * np.cos(2.0 * np.pi * (month_fraction - 1.0) / 12.0)
+    
+    noise = secure_random.gauss(0.0, max(0.8, prof["amplitude_kw"] * 0.15))
+    power_kw = max(1.0, (prof["base_kw"] + (prof["amplitude_kw"] * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise) * anomaly_mult
+    voltage_v = round(prof["nominal_voltage"] + secure_random.gauss(0.0, 0.8), 2)
+    current_a = round((power_kw * 1000.0) / voltage_v, 2)
+
+    return {
+        "building_id": b_id,
+        "sensor_id": s_id,
+        "source_type": "EMULATOR",
+        "voltage_v": voltage_v,
+        "current_a": current_a,
+        "power_kw": round(power_kw, 3),
+        "timestamp": timestamp
+    }
+
+def _fetch_supabase_sensors():
+    res_b = supabase.table("buildings").select("building_id, telemetry_source, square_footage, building_type").eq("telemetry_source", "EMULATOR").execute()
+    active_emulator_buildings = {b["building_id"]: b for b in (res_b.data if res_b.data else [])}
+    
+    if active_emulator_buildings:
+        res_s = supabase.table("sensors").select("sensor_id, building_id").in_("building_id", list(active_emulator_buildings.keys())).execute()
+        active_sensors = res_s.data if res_s.data else []
+    else:
+        active_sensors = []
+        
+    sensors_per_building = {}
+    for s in active_sensors:
+        sensors_per_building[s["building_id"]] = sensors_per_building.get(s["building_id"], 0) + 1
+        
+    return active_emulator_buildings, active_sensors, sensors_per_building
+
+async def _run_single_iteration(
+    session, iteration_count, active_emulator_buildings, active_sensors,
+    sensors_per_building, sensor_profiles, current_time
+):
+    if iteration_count % 30 == 0:
+        try:
+            active_emulator_buildings, active_sensors, sensors_per_building = _fetch_supabase_sensors()
+        except Exception as e:
+            print(f"Supabase sync failed: {e}")
+            
+    now = datetime.now(timezone.utc)
+    if current_time < now - timedelta(seconds=4):
+        current_time += timedelta(seconds=2)
+        sleep_duration = 0.0
+    else:
+        current_time = now
+        sleep_duration = 2.0
+        
+    timestamp = current_time.isoformat()
+    hour_fraction = current_time.hour + (current_time.minute / 60.0) + (current_time.second / 3600.0)
+    tasks = []
+    
+    for s in active_sensors:
+        b_id = s["building_id"]
+        b = active_emulator_buildings.get(b_id, {})
+        num_sensors = sensors_per_building.get(b_id, 1)
+        
+        payload = _generate_sensor_payload(s, b_id, b, num_sensors, sensor_profiles, now, hour_fraction, timestamp)
+        tasks.append(post_telemetry(session, payload))
+
+    if tasks:
+        await asyncio.gather(*tasks)
+        if (iteration_count + 1) % 10 == 0:
+            print(f"[{now.strftime('%H:%M:%S')}] Successfully pushed telemetry for {len(tasks)} sensors.")
+    
+    if sleep_duration > 0:
+        await asyncio.sleep(sleep_duration)
+        
+    return active_emulator_buildings, active_sensors, sensors_per_building, current_time
+
 async def run_global_emulator():
     print(f"Starting OptiGrid Sensor Emulator (Target: {API_INGEST_URL})")
     sensor_profiles = {}
@@ -134,97 +232,12 @@ async def run_global_emulator():
             current_time = datetime.now(timezone.utc)
             
         while True:
-            # periodically sync active emulator buildings and their sensors from supabase
-            if iteration_count % 30 == 0:
-                try:
-                    res_b = supabase.table("buildings").select("building_id, telemetry_source, square_footage, building_type").eq("telemetry_source", "EMULATOR").execute()
-                    active_emulator_buildings = {b["building_id"]: b for b in (res_b.data if res_b.data else [])}
-                    
-                    if active_emulator_buildings:
-                        res_s = supabase.table("sensors").select("sensor_id, building_id").in_("building_id", list(active_emulator_buildings.keys())).execute()
-                        active_sensors = res_s.data if res_s.data else []
-                    else:
-                        active_sensors = []
-                        
-                    sensors_per_building = {}
-                    for s in active_sensors:
-                        sensors_per_building[s["building_id"]] = sensors_per_building.get(s["building_id"], 0) + 1
-                        
-                except Exception as e:
-                    print(f"Supabase sync failed: {e}")
-            
+            res = await _run_single_iteration(
+                session, iteration_count, active_emulator_buildings, active_sensors,
+                sensors_per_building, sensor_profiles, current_time
+            )
+            active_emulator_buildings, active_sensors, sensors_per_building, current_time = res
             iteration_count += 1
-
-            now = datetime.now(timezone.utc)
-            if current_time < now - timedelta(seconds=4):
-                current_time += timedelta(seconds=2)
-                sleep_duration = 0.0
-            else:
-                current_time = now
-                sleep_duration = 2.0
-                
-            timestamp = current_time.isoformat()
-            hour_fraction = current_time.hour + (current_time.minute / 60.0) + (current_time.second / 3600.0)
-            tasks = []
-            for s in active_sensors:
-                s_id = s["sensor_id"]
-                b_id = s["building_id"]
-                b = active_emulator_buildings.get(b_id, {})
-                num_sensors = sensors_per_building.get(b_id, 1)
-                
-                if s_id not in sensor_profiles:
-                    sensor_profiles[s_id] = get_sensor_profile(s_id, b.get("square_footage"), b.get("building_type"), num_sensors)
-                    sensor_profiles[s_id]["anomaly_active_until"] = 0
-                    sensor_profiles[s_id]["anomaly_mult"] = 1.0
-                
-                prof = sensor_profiles[s_id]
-                
-                
-                current_unix = now.timestamp()
-                if current_unix > prof.get("anomaly_active_until", 0):
-                    if random.random() < (0.000001 * ANOMALY_FREQUENCY_MULTIPLIER):
-                        prof["anomaly_active_until"] = current_unix + random.randint(60, 300)
-                        prof["anomaly_mult"] = random.uniform(3.0, 5.0) if random.random() > 0.5 else random.uniform(0.1, 0.3)
-                    else:
-                        prof["anomaly_mult"] = 1.0
-                
-                anomaly_mult = prof.get("anomaly_mult", 1.0)
-                
-                adjusted_hour = hour_fraction + prof["phase_shift_hrs"]
-                time_factor = np.sin((adjusted_hour - 6.0) * np.pi / 12.0)
-                
-                evening_bump = np.exp(-0.5 * ((adjusted_hour - 18.0) / 2.0)**2) * 0.4
-                weekday = now.weekday()
-                weekend_factor = 0.6 if weekday >= 5 else 1.0
-                
-                month_fraction = now.month + (now.day / 30.0)
-                seasonal_factor = 1.0 + 0.3 * np.cos(2.0 * np.pi * (month_fraction - 1.0) / 12.0)
-                
-                noise = random.gauss(0.0, max(0.8, prof["amplitude_kw"] * 0.15))
-                
-                power_kw = max(1.0, (prof["base_kw"] + (prof["amplitude_kw"] * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise) * anomaly_mult
-                
-                voltage_v = round(prof["nominal_voltage"] + random.gauss(0.0, 0.8), 2)
-                current_a = round((power_kw * 1000.0) / voltage_v, 2)
-
-                payload = {
-                    "building_id": b_id,
-                    "sensor_id": s_id,
-                    "source_type": "EMULATOR",
-                    "voltage_v": voltage_v,
-                    "current_a": current_a,
-                    "power_kw": round(power_kw, 3),
-                    "timestamp": timestamp
-                }
-                tasks.append(post_telemetry(session, payload))
-
-            if tasks:
-                await asyncio.gather(*tasks)
-                if iteration_count % 10 == 0:
-                    print(f"[{now.strftime('%H:%M:%S')}] Successfully pushed telemetry for {len(tasks)} sensors.")
-            
-            if sleep_duration > 0:
-                await asyncio.sleep(sleep_duration)
 
 if __name__ == "__main__":
     asyncio.run(run_global_emulator())

@@ -30,9 +30,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY
 SEEDER_COST_ZAR_PER_KWH = 2.50
 ANOMALY_FREQUENCY_MULTIPLIER = float(os.getenv("ANOMALY_FREQUENCY_MULTIPLIER", "1.0"))
 
-if "localhost" in INFLUXDB_URL and not os.path.exists("/.dockerenv"):
-    pass
-elif not os.path.exists("/.dockerenv"):
+if not os.path.exists("/.dockerenv") and "localhost" not in INFLUXDB_URL:
     INFLUXDB_URL = INFLUXDB_URL.replace("influxdb", "localhost")
 
 ACTIVE_SUPABASE_URL = SUPABASE_URL
@@ -137,7 +135,7 @@ def generate_sensor_data(s):
     seasonal_factor = 1.0 + 0.3 * np.cos(2.0 * np.pi * (month_fraction - 1.0) / 12.0)
     ts_ns_str = (ts_array * 1e9).astype(np.int64).astype(str)
 
-    seed_val = int(hashlib.md5(s_id.encode()).hexdigest(), 16) % (2**32)
+    seed_val = int(hashlib.sha256(s_id.encode()).hexdigest(), 16) % (2**32)
     rng = np.random.default_rng(seed=seed_val)
     
     adjusted_hour = hour_fraction + prof["phase_shift_hrs"]
@@ -194,6 +192,39 @@ def generate_sensor_data(s):
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Seeded {num_points} points for sensor {s_id}")
     return num_points
 
+def _check_sensor_gap(s, query_api, days_back, end_time):
+    end_ts = end_time.timestamp()
+    q = f'from(bucket: "{INFLUXDB_BUCKET}") |> range(start: -35d) |> filter(fn: (r) => r._measurement == "energy_telemetry" and r.sensor_id == "{s["sensor_id"]}") |> last() |> keep(columns: ["_time"])'
+    try:
+        res = query_api.query(q)
+        last_ts = None
+        for table in res:
+            for record in table.records:
+                ts = record.get_time()
+                if last_ts is None or ts > last_ts:
+                    last_ts = ts
+                    
+        if last_ts:
+            start_ts = last_ts.timestamp() + 2.0
+        else:
+            start_ts = (end_time - timedelta(days=days_back)).timestamp()
+            
+        if end_ts - start_ts > 10.0:
+            s["start_ts"] = start_ts
+            s["end_ts"] = end_ts
+            return s
+    except Exception as e:
+        print(f"Warning: Failed to check existing data for sensor {s['sensor_id']}: {e}")
+    return None
+
+def _get_sensors_to_seed(sensors_data, query_api, days_back, end_time):
+    sensors_to_seed = []
+    for s in sensors_data:
+        sensor = _check_sensor_gap(s, query_api, days_back, end_time)
+        if sensor:
+            sensors_to_seed.append(sensor)
+    return sensors_to_seed
+
 def seed_calculated_buildings(sensors_data: list, days_back: int = 7):
     if not sensors_data:
         print("No sensor data provided to seeder.")
@@ -201,43 +232,19 @@ def seed_calculated_buildings(sensors_data: list, days_back: int = 7):
 
     client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True)
     query_api = client.query_api()
-    sensors_to_seed = []
-    
     end_time = datetime.now(timezone.utc)
-    end_ts = end_time.timestamp()
     
     print("Checking which sensors need seeding and finding gaps...")
-    for s in sensors_data:
-        q = f'from(bucket: "{INFLUXDB_BUCKET}") |> range(start: -35d) |> filter(fn: (r) => r._measurement == "energy_telemetry" and r.sensor_id == "{s["sensor_id"]}") |> last() |> keep(columns: ["_time"])'
-        try:
-            res = query_api.query(q)
-            last_ts = None
-            for table in res:
-                for record in table.records:
-                    ts = record.get_time()
-                    if last_ts is None or ts > last_ts:
-                        last_ts = ts
-                        
-            if last_ts:
-                start_ts = last_ts.timestamp() + 2.0
-            else:
-                start_ts = (end_time - timedelta(days=days_back)).timestamp()
-                
-            if end_ts - start_ts > 10.0:
-                s["start_ts"] = start_ts
-                s["end_ts"] = end_ts
-                sensors_to_seed.append(s)
-        except Exception as e:
-            print(f"Warning: Failed to check existing data for sensor {s['sensor_id']}: {e}")
+    sensors_to_seed = _get_sensors_to_seed(sensors_data, query_api, days_back, end_time)
             
     if not sensors_to_seed:
         print("All sensors are fully seeded up to present. Skipping seeder.")
+        client.close()
         return
 
     print(f"Generating telemetry data for {len(sensors_to_seed)} sensors to catch up to present...")
 
     total_points = 0
-
     print("Spawning multiprocessing pool to generate maths and push to InfluxDB directly...")
     pool_size = min(len(sensors_to_seed), multiprocessing.cpu_count() or 1)
     with multiprocessing.Pool(processes=pool_size) as pool:
