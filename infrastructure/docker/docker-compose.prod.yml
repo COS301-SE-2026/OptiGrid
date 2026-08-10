@@ -181,6 +181,27 @@ services:
         condition: service_healthy
       influxdb:
         condition: service_healthy
+      seeder:
+        condition: service_completed_successfully
+
+  seeder:
+    image: ghcr.io/cos301-se-2026/optigrid-ingestion:latest
+    build:
+      context: ../../
+      dockerfile: backend/ingestion/Dockerfile
+    restart: "no"
+    command: ["python", "-m", "backend.ingestion.src.seeder"]
+    environment:
+      INFLUXDB_URL: ${INFLUXDB_URL:-http://influxdb:8086}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY:-${SUPABASE_SERVICE_ROLE_KEY}}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    depends_on:
+      influxdb:
+        condition: service_healthy
 
   analytics:
     image: ghcr.io/cos301-se-2026/optigrid-analytics:latest
