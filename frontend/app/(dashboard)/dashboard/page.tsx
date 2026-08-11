@@ -14,7 +14,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
-import { ChartTextAlternative } from "../../../components/ChartTextAlternative";
+import { AccessibleChart } from "../../../components/AccessibleChart";
 import { buildDisplayName, type SessionUser } from "../../../lib/session";
 import { getTabSessionPath } from "../../../lib/tab-session";
 
@@ -392,8 +392,7 @@ export default function DashboardPage() {
                 {consumptionLoading ? (
                     <Skeleton style={{ height: 200, width: "100%" }} />
                 ) : (
-                    <>
-                    <ChartTextAlternative
+                    <AccessibleChart
                         caption="Portfolio consumption over the last 7 days, in kWh"
                         categoryLabel="Day"
                         categories={consumption.map((point) => point.day)}
@@ -403,8 +402,7 @@ export default function DashboardPage() {
                                 values: consumption.map((point) => point.kwh)
                             }
                         ]}
-                    />
-                    <div aria-hidden="true">
+                    >
                     <ResponsiveContainer width="100%" height={200}>
                         <LineChart
                             data={consumption}
@@ -445,8 +443,7 @@ export default function DashboardPage() {
                             />
                         </LineChart>
                     </ResponsiveContainer>
-                    </div>
-                    </>
+                    </AccessibleChart>
                 )}
             </div>
 

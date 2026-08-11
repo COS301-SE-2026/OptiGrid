@@ -28,7 +28,7 @@ export function ChartTextAlternative({
 	categories,
 	series,
 	emptyMessage = "No data is available for this chart."
-}: ChartTextAlternativeProps): ReactNode {
+}: Readonly<ChartTextAlternativeProps>): ReactNode {
 	if (categories.length === 0) {
 		return <p className="sr-only">{`${caption}. ${emptyMessage}`}</p>;
 	}

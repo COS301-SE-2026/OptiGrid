@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartTextAlternative } from "../../../components/ChartTextAlternative";
+import { AccessibleChart } from "../../../components/AccessibleChart";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import {
@@ -334,7 +334,7 @@ function ForecastChartContainer({
 
     return (
         <>
-            <ChartTextAlternative
+            <AccessibleChart
                 caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in kWh`}
                 categoryLabel="Timestamp"
                 categories={chartData.map((point) => formatTooltipLabel(point.timestamp, horizon))}
@@ -352,8 +352,7 @@ function ForecastChartContainer({
                         }]
                         : []),
                 ]}
-            />
-            <div aria-hidden="true">
+            >
             <ResponsiveContainer width="100%" height={240}>
                 <ComposedChart
                     data={chartData}
@@ -440,7 +439,7 @@ function ForecastChartContainer({
                     />
                 </ComposedChart>
             </ResponsiveContainer>
-            </div>
+            </AccessibleChart>
 
             {/* Legend */}
             <div

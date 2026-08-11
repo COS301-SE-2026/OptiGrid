@@ -121,7 +121,8 @@ test.describe.skip("Delete building", () => {
     expect(loginResponse.ok()).toBeTruthy();
 
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
-    const buildingRow = page.locator("tbody tr").filter({
+    const buildingsTable = page.getByRole("table", { name: "Your buildings" });
+    const buildingRow = buildingsTable.locator("tbody tr").filter({
       hasText: building.name,
     });
     await expect(buildingRow).toBeVisible();
