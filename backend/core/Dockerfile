@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY backend/core ./backend/core
 
 RUN pnpm --filter @optigrid/core build
 
-FROM node:20-alpine AS runtime
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
@@ -24,5 +24,6 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/backend/core ./backend/core
 
 EXPOSE 4000
+USER node
 
 CMD ["node", "backend/core/dist/src/server.js"]

@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     container_name: optigrid_redis
     ports:
       - "6379:6379"
@@ -18,7 +18,7 @@ services:
       retries: 5
 
   influxdb:
-    image: influxdb:2.7-alpine
+    image: influxdb:2.7-alpine@sha256:991673dc2d237bd79b15d6627410d72de111387e7dac673dbb92cf3333ffcc8c
     container_name: optigrid_influxdb
     restart: unless-stopped
     ports:
@@ -30,10 +30,10 @@ services:
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_INIT_USERNAME:-admin}
-      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_INIT_PASSWORD:-pass1234}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_INIT_PASSWORD:?INFLUXDB_INIT_PASSWORD hasto be set}
       DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-OptiGrid}
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-EnergyData}
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-dummy}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:?INFLUXDB_TOKEN has to be set}
     volumes:
       - influxdb_data:/var/lib/influxdb2
       - influxdb_config:/etc/influxdb2
@@ -50,11 +50,16 @@ services:
     command: uvicorn backend.ingestion.src.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-dummy}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?INFLUXDB_TOKEN has to be set}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
     volumes:
@@ -64,17 +69,27 @@ services:
         condition: service_healthy
       influxdb:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ingestion-worker:
       build: 
         context: .
         dockerfile: ./backend/ingestion/Dockerfile
       command: python -m backend.ingestion.src.queue_worker
+      deploy:
+        resources:
+          limits:
+            memory: 256M
+            cpus: "0.5"
       environment:
         - REDIS_HOST=redis
         - REDIS_PORT=6379
         - INFLUXDB_URL=http://influxdb:8086
-        - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-dummy}
+        - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?INFLUXDB_TOKEN hasto be set}
         - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
         - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
       volumes:
@@ -90,9 +105,14 @@ services:
       context: .
       dockerfile: ./backend/ingestion/Dockerfile
     command: python -m backend.ingestion.src.seeder
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-dummy}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?INFLUXDB_TOKEN has to be set}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
       - SUPABASE_URL=${SUPABASE_URL}
@@ -108,12 +128,17 @@ services:
       context: .
       dockerfile: ./backend/ingestion/Dockerfile
     command: python -m backend.ingestion.src.sensor_emulator
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     environment:
       - API_INGEST_URL=http://ingestion-api:8000/api/telemetry/ingest
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-dummy}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?INFLUXDB_TOKEN hasto be set}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
     volumes:
@@ -124,7 +149,7 @@ services:
       seeder:
         condition: service_completed_successfully
       ingestion-api:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   influxdb_data:
