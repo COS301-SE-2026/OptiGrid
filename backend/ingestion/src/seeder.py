@@ -127,13 +127,13 @@ def generate_sensor_data(s):
     client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True, timeout=60000)
     write_api = client.write_api(write_options=SYNCHRONOUS)
     total_points = 0
-    curr_start = start_ts
+    current_start = start_ts
     try:
-        while curr_start < end_ts:
+        while current_start < end_ts:
             current_end = min(current_start + 86400.0, end_ts)
             ts_array = np.arange(current_start, current_end, 2.0)
             if len(ts_array) == 0:
-                curr_start = current_end
+                current_start = current_end
                 continue
             
             num_points = len(ts_array)
@@ -189,7 +189,7 @@ def generate_sensor_data(s):
                 chunk = "\n".join(lines[i:i + chunk_size])
                 write_api.write(bucket=INFLUXDB_BUCKET, record=chunk)
                 
-            curr_start = current_end
+            current_start = current_end
     finally:
         write_api.close()
         client.close()
