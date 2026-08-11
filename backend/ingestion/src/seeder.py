@@ -4,7 +4,6 @@ import json
 import random
 import zlib
 import functools
-import multiprocessing
 import asyncio
 import aiohttp
 import numpy as np
@@ -115,6 +114,10 @@ async def _send_chunks_concurrently(chunks, url, token, org, bucket):
         await asyncio.gather(*tasks)
 
 def generate_sensor_data(s):
+    """Generate and write telemetry data for a single sensor.
+    Processes in 4-hour chunks to keep memory usage under 20MB per sensor,
+    safe for AWS t3.small instances running alongside InfluxDB and Redis.
+    """
     s_id = s["sensor_id"]
     b_id = s["building_id"]
     start_ts = s["start_ts"]
@@ -123,19 +126,20 @@ def generate_sensor_data(s):
     prof = get_sensor_profile(s_id, s.get("square_footage"), s.get("building_type"), s.get("num_sensors"))
     seed_val = int(hashlib.sha256(s_id.encode()).hexdigest(), 16) % (2**32)
     rng = np.random.default_rng(seed=seed_val)
-
+    
     client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True, timeout=60000)
     write_api = client.write_api(write_options=SYNCHRONOUS)
     total_points = 0
     current_start = start_ts
+    CHUNK_SECONDS = 14400.0  # 4 hours to keep memory under 5MB per chunk
     try:
         while current_start < end_ts:
-            current_end = min(current_start + 86400.0, end_ts)
+            current_end = min(current_start + CHUNK_SECONDS, end_ts)
             ts_array = np.arange(current_start, current_end, 2.0)
             if len(ts_array) == 0:
                 current_start = current_end
                 continue
-            
+                
             num_points = len(ts_array)
             total_points += num_points
 
@@ -150,13 +154,14 @@ def generate_sensor_data(s):
             adjusted_hour = hour_fraction + prof["phase_shift_hrs"]
             time_factor = np.sin((adjusted_hour - 6.0) * np.pi / 12.0)
             evening_bump = np.exp(-0.5 * ((adjusted_hour - 18.0) / 2.0)**2) * 0.4
-
+            
             noise = rng.normal(loc=0.0, scale=max(0.8, prof["amplitude_kw"] * 0.15), size=num_points)
             anomaly_mult = np.ones(num_points)
+            
             base_anomalies_expected = (num_points * 2.0) / (30 * 24 * 3600)
             num_anomalies_expected = base_anomalies_expected * ANOMALY_FREQUENCY_MULTIPLIER
             num_anomalies = rng.poisson(num_anomalies_expected)
-
+            
             for _ in range(num_anomalies):
                 start_idx = rng.integers(0, num_points)
                 duration_pts = rng.integers(30, 150)
@@ -166,7 +171,7 @@ def generate_sensor_data(s):
                 else:
                     multiplier = rng.uniform(0.1, 0.3)
                 anomaly_mult[start_idx:end_idx] = multiplier
-
+            
             power_kw = np.maximum(1.0, (prof["base_kw"] + (prof["amplitude_kw"] * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise) * anomaly_mult
             voltage_v = np.round(prof["nominal_voltage"] + rng.normal(loc=0.0, scale=0.8, size=num_points), 2)
             current_a = np.round((power_kw * 1000.0) / voltage_v, 2)
@@ -184,7 +189,7 @@ def generate_sensor_data(s):
                 for u, c, v, a, t in zip(power_kw_lst, cost_zar_lst, voltage_v_lst, current_a_lst, ts_ns_lst)
             ]
             
-            chunk_size = 25000
+            chunk_size = 10000
             for i in range(0, len(lines), chunk_size):
                 chunk = "\n".join(lines[i:i + chunk_size])
                 write_api.write(bucket=INFLUXDB_BUCKET, record=chunk)
@@ -193,7 +198,7 @@ def generate_sensor_data(s):
     finally:
         write_api.close()
         client.close()
-
+    
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Seeded {total_points} points for sensor {s_id}")
     return total_points
 
@@ -235,7 +240,7 @@ def seed_calculated_buildings(sensors_data: list, days_back: int = 7):
         print("No sensor data provided to seeder.")
         return
 
-    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True)
+    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True, timeout=60000)
     query_api = client.query_api()
     end_time = datetime.now(timezone.utc)
     
@@ -250,11 +255,10 @@ def seed_calculated_buildings(sensors_data: list, days_back: int = 7):
     print(f"Generating telemetry data for {len(sensors_to_seed)} sensors to catch up to present...")
 
     total_points = 0
-    print("Spawning multiprocessing pool to generate maths and push to InfluxDB directly...")
-    pool_size = 1
-    with multiprocessing.Pool(processes=pool_size) as pool:
-        for pts in pool.map(generate_sensor_data, sensors_to_seed):
-            total_points += pts
+    for i, sensor in enumerate(sensors_to_seed):
+        print(f"Processing sensor {i+1}/{len(sensors_to_seed)}: {sensor['sensor_id'][:8]}...")
+        pts = generate_sensor_data(sensor)
+        total_points += pts
 
     client.close()
     print(f"Seeding finished. Pushed {total_points} total metrics to InfluxDB.")
@@ -265,3 +269,4 @@ if __name__ == "__main__":
         seed_calculated_buildings(sensors_data=real_sensors, days_back=30)
     else:
         print("No active sensors found in Supabase database to seed.")
+

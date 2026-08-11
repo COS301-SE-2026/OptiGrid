@@ -74,7 +74,7 @@ services:
         - REDIS_HOST=redis
         - REDIS_PORT=6379
         - INFLUXDB_URL=http://influxdb:8086
-        - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-token-1234}
+        - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-dummy}
         - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
         - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
       volumes:

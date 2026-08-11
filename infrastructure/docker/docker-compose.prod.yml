@@ -170,6 +170,10 @@ services:
       dockerfile: backend/ingestion/Dockerfile
     restart: "no"
     command: ["python", "-m", "backend.ingestion.src.seeder"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL:-http://influxdb:8086}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
