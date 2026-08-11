@@ -145,7 +145,7 @@ export default function CompareBuildingPage() {
     const loadingComparison = buildingsLoading || comparisonLoading || comparisonFetching;
 
     return (
-        <main className="dashboard-content">
+        <div className="dashboard-content">
             <header className="dashboard-header">
                 <div>
                     <h1 className="dashboard-title">Compare Buildings</h1>
@@ -171,39 +171,45 @@ export default function CompareBuildingPage() {
                 onMetricChange={setMetric}
             />
 
-            <ComparisonMetricCards
-                buildingA={buildingA}
-                buildingB={buildingB}
-                metric={metric}
-                loading={loadingComparison}
-                selectedComparisonA={selectedComparisonA}
-                selectedComparisonB={selectedComparisonB}
-                getBuildingName={getBuildingName}
-                getValue={getValue}
-            />
+            <div aria-label="Comparison metrics">
+                <ComparisonMetricCards
+                    buildingA={buildingA}
+                    buildingB={buildingB}
+                    metric={metric}
+                    loading={loadingComparison}
+                    selectedComparisonA={selectedComparisonA}
+                    selectedComparisonB={selectedComparisonB}
+                    getBuildingName={getBuildingName}
+                    getValue={getValue}
+                />
+            </div>
 
-            <ComparisonChart
-                chartData={chartData}
-                canCompare={canCompare}
-                comparisonError={comparisonError}
-                hasComparison={Boolean(comparison)}
-                loading={loadingComparison}
-                dateRange={dateRange}
-                metric={metric}
-                buildingA={buildingA}
-                buildingB={buildingB}
-                getBuildingName={getBuildingName}
-            />
+            <div aria-label="Comparison chart">
+                <ComparisonChart
+                    chartData={chartData}
+                    canCompare={canCompare}
+                    comparisonError={comparisonError}
+                   
+                    loading={loadingComparison}
+                    dateRange={dateRange}
+                    metric={metric}
+                    buildingA={buildingA}
+                    buildingB={buildingB}
+                    getBuildingName={getBuildingName}
+                />
+            </div>
 
-            <ComparisonInsights
-                buildingA={buildingA}
-                buildingB={buildingB}
-                metric={metric}
-                efficiencyRatio={efficiencyRatio}
-                higherUsageBuilding={higherUsageBuilding}
-                totalDifference={totalDifference}
-                getBuildingName={getBuildingName}
-            />
-        </main>
+            <div aria-label="Comparison insights">
+                <ComparisonInsights
+                    buildingA={buildingA}
+                    buildingB={buildingB}
+                    metric={metric}
+                    efficiencyRatio={efficiencyRatio}
+                    higherUsageBuilding={higherUsageBuilding}
+                    totalDifference={totalDifference}
+                    getBuildingName={getBuildingName}
+                />
+            </div>
+        </div>
     );
 }

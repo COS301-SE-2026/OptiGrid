@@ -10,10 +10,7 @@ import GoogleAuthButton from "@/components/googleButton";
 
 export default function LoginPage() {
     const router = useRouter();
-    const [formData, setFormData] = useState<LoginFormData>(
-        initialLoginFormData
-    );
-
+    const [formData, setFormData] = useState<LoginFormData>(initialLoginFormData);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [loading, setLoading] = useState(false);
@@ -36,7 +33,7 @@ export default function LoginPage() {
                 email: previous.email || emailFromQuery,
             }));
         }
-        if(query.get("error") === "OAuthFailed") {
+        if (query.get("error") === "OAuthFailed") {
             setError("Google sign-in failed. Please try again.");
         }
     }, []);
@@ -91,17 +88,20 @@ export default function LoginPage() {
             <section
                 className="card"
                 style={{ width: "min(420px, 100%)", display: "grid", gap: "var(--space-5)" }}
+                aria-labelledby="login-title"
             >
                 <header style={{ display: "grid", gap: "var(--space-2)" }}>
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
                     <p className="landing-kicker">OptiGrid Access</p>
-                    <h1>Log in to your account</h1>
+                    <h1 id="login-title">Log in to your account</h1>
                 </header>
 
                 {notice && (
                     <div
+                        role="status"
+                        aria-live="polite"
                         style={{
                             border: "1px solid var(--brand-secondary)",
                             background: "color-mix(in srgb, var(--brand-secondary) 12%, transparent)",
@@ -115,15 +115,13 @@ export default function LoginPage() {
                     </div>
                 )}
 
-                <form style={{ 
-                        display: "grid", 
-                        gap: "var(--space-5)" 
-                    }} 
-                    noValidate onSubmit={handleSubmit} suppressHydrationWarning>
-                    <div style={{ 
-                            display: "grid", 
-                            gap: "var(--space-2)" 
-                        }}>
+                <form
+                    style={{ display: "grid", gap: "var(--space-5)" }} 
+                    noValidate 
+                    onSubmit={handleSubmit} 
+                    suppressHydrationWarning
+                >
+                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
                         <label className="label" htmlFor="email">Work email</label>
                         <input
                             id="email"
@@ -135,6 +133,7 @@ export default function LoginPage() {
                             disabled={loading}
                             className="input"
                             placeholder="you@company.io"
+                            aria-invalid={Boolean(error)}
                             suppressHydrationWarning
                         />
                     </div>
@@ -151,6 +150,7 @@ export default function LoginPage() {
                             disabled={loading}
                             className="input"
                             placeholder="Your password"
+                            aria-invalid={Boolean(error)}
                             suppressHydrationWarning
                         />
                     </div>
@@ -158,20 +158,29 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
+                        aria-disabled={loading}
                         className="btn btn-primary"
-                        style={{ width: "100%", marginTop: "var(--space-5)" }}
+                        style={{ 
+                            width: "100%", 
+                            marginTop: "var(--space-5)",
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
+                            fontWeight: "var(--fw-semibold)",
+                            fontSize: "var(--fs-body)",
+                        }}
                     >
                         {loading ? "Logging in..." : "Log in"}
                     </button>
 
                     <GoogleAuthButton 
                         onLoading={setLoading} 
-                        onError={setError}> 
-                    </GoogleAuthButton>
+                        onError={setError}
+                    />
 
                     {error && (
                         <div
                             role="alert"
+                            aria-live="assertive"
                             style={{
                                 border: "1px solid var(--brand-danger)",
                                 background: "color-mix(in srgb, var(--brand-danger) 12%, transparent)",

@@ -316,7 +316,13 @@ export default function SignupPage() {
                         type="submit"
                         disabled={loading}
                         className="btn btn-primary"
-                        style={{ width: "100%" }}
+                        style={{ 
+                            width: "100%",
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
+                            fontWeight: "var(--fw-semibold)",
+                            fontSize: "var(--fs-body)",
+                        }}
                     >
                         {loading ? "Creating account..." : "Create account"}
                     </button>
