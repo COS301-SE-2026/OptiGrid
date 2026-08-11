@@ -36,6 +36,7 @@ services:
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-dummy}
     volumes:
       - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
     healthcheck:
       test: ["CMD-SHELL", "influx ping || exit 1"]
       interval: 10s
@@ -127,3 +128,4 @@ services:
 
 volumes:
   influxdb_data:
+  influxdb_config:

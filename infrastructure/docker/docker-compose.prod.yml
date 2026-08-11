@@ -29,6 +29,7 @@ services:
       retries: 5
     volumes:
       - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
 
   mlflow:
     image: ghcr.io/cos301-se-2026/optigrid-analytics:latest
@@ -208,3 +209,4 @@ services:
 volumes:
   mlflow_data:
   influxdb_data:
+  influxdb_config:
