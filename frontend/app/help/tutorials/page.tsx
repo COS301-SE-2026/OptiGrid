@@ -1,15 +1,17 @@
 import Link from "next/link";
 
+// ok so every rendered <video> must carry a <track>
+const SILENT_CAPTIONS_URL = "/help/tutorials/no-audio.vtt";
+
 type Tutorial = {
     title: string;
     description: string;
     sourceUrl?: string;
-    // this is true set when the video carries a spoken narration track  
-    hasAudio: boolean;
-    //whenever sourceUrl is set: every rendered <video> must carry a <track> basically
-    captionsUrl: string;
-    //this is alternative for the video which is required for WCAG 1.2.1 (video-onlu  content)
-    // this text serves as the media alternative for the narrated clips
+    // set only when a clip carries spoken narration and otherwise default to silent
+    hasAudio?: boolean;
+    // defaults to SILENT_CAPTIONS_URL
+    captionsUrl?: string;
+    // this is the text alternative required by WCAG 1.2.1 for video-only content
     steps: string[];
 };
 
@@ -18,8 +20,6 @@ const tutorials: Tutorial[] = [
         title: "Sign up for an OptiGrid account",
         description: "Walk through the first-time registration flow and learn what details are required before you can access the platform.",
         sourceUrl: "/help/tutorials/signup.mp4",
-        hasAudio: false,
-        captionsUrl: "/help/tutorials/no-audio.vtt",
         steps: [
             "Open the OptiGrid landing page and choose \"Get started free\".",
             "Enter your first name, last name and work email address.",
@@ -32,8 +32,6 @@ const tutorials: Tutorial[] = [
         title: "Log in",
         description: "See the standard login flow.",
         sourceUrl: "/help/tutorials/login.mp4",
-        hasAudio: false,
-        captionsUrl: "/help/tutorials/no-audio.vtt",
         steps: [
             "Open the login page from the landing page or the \"Log in\" link.",
             "Enter the work email and password used at registration.",
@@ -46,8 +44,6 @@ const tutorials: Tutorial[] = [
         title: "Add a building",
         description: "Create a new building record so it can be tracked, compared, and included in forecasts.",
         sourceUrl: "/help/tutorials/add_building.mp4",
-        hasAudio: false,
-        captionsUrl: "/help/tutorials/no-audio.vtt",
         steps: [
             "From the dashboard, select \"+ Add building\".",
             "Enter the building name (required) and pick a building type from the dropdown.",
@@ -61,8 +57,6 @@ const tutorials: Tutorial[] = [
         title: "Compare two buildings",
         description: "Compare building performance side by side to identify which sites are using more energy than expected.",
         sourceUrl: "/help/tutorials/compare_buildings.mp4",
-        hasAudio: false,
-        captionsUrl: "/help/tutorials/no-audio.vtt",
         steps: [
             "Open \"Compare\" from the main navigation.",
             "Choose the first building from the left dropdown and the second from the right dropdown.",
@@ -75,8 +69,6 @@ const tutorials: Tutorial[] = [
         title: "Review demand forecasts",
         description: "Check the forecast view to see how OptiGrid projects near-term demand for your selected building.",
         sourceUrl: "/help/tutorials/run_forecast.mp4",
-        hasAudio: false,
-        captionsUrl: "/help/tutorials/no-audio.vtt",
         steps: [
             "Open \"Forecast\" from the main navigation.",
             "Select a building and choose either the weekly or monthly horizon.",
@@ -118,7 +110,7 @@ function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
                         <source src={tutorial.sourceUrl} type="video/mp4" />
                         <track
                             kind="captions"
-                            src={tutorial.captionsUrl}
+                            src={tutorial.captionsUrl ?? SILENT_CAPTIONS_URL}
                             srcLang="en"
                             label="English"
                             default

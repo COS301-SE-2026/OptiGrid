@@ -13,6 +13,29 @@ import compare from "./compare.png";
 import dashforecast from "./dashforecast.png";
 import forecast from "./forecast.png";
 
+
+type ScreenshotProps = Readonly<{
+  src: string;
+  alt: string;
+  maxHeight?: string;
+}>;
+
+// the manual screenshotsshare the same framing
+function ManualScreenshot({ src, alt, maxHeight = "400px" }: ScreenshotProps) {
+  return (
+    <img src={src} alt={alt} style={{
+        width: "100%",
+        height: "auto",
+        borderRadius: "var(--radius-md)",
+        border: "1px solid var(--brand-border)",
+        maxHeight,
+        objectFit: "contain",
+        backgroundColor: "var(--brand-surface-alt)"
+      }}
+    />
+  );
+}
+
 export default function UserManualPage() {
 
 
@@ -76,34 +99,10 @@ export default function UserManualPage() {
                 marginTop: "var(--space-3)",
               }}>
                 <div>
-                  <img
-                    src={landingsignup.src}
-                    alt={"OptiGrid landing page. The “Get started free” button, circled in red, sits below the headline next to “Book a demo”."}
-                    style={{
-                      width: "100%",
-                      height: "auto",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--brand-border)",
-                      maxHeight: "400px",
-                      objectFit: "contain",
-                      backgroundColor: "var(--brand-surface-alt)",
-                    }}
-                  />
+                  <ManualScreenshot src={landingsignup.src} alt={"OptiGrid landing page. The “Get started free” button, circled in red, sits below the headline next to “Book a demo”."} />
                 </div>
                 <div>
-                  <img
-                    src={signuplogin.src}
-                    alt={"Side-by-side sign-up and login forms. Sign up asks for first name, last name, work email, password, confirm password, and agreement to the terms. Login asks for email and password, with “Remember me”, “Forgot password?” and a “Continue with SSO” option."}
-                    style={{
-                      width: "100%",
-                      height: "auto",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--brand-border)",
-                      maxHeight: "400px",
-                      objectFit: "contain",
-                      backgroundColor: "var(--brand-surface-alt)",
-                    }}
-                  />
+                  <ManualScreenshot src={signuplogin.src} alt={"Side-by-side sign-up and login forms. Sign up asks for first name, last name, work email, password, confirm password, and agreement to the terms. Login asks for email and password, with “Remember me”, “Forgot password?” and a “Continue with SSO” option."} />
                 </div>
               </div>
             </div>
@@ -125,19 +124,7 @@ export default function UserManualPage() {
                 <li>Live energy monitoring.</li>
               </ul>
               <div style={{ marginTop: "var(--space-3)" }}>
-                <img
-                  src={dashboardScreenshot.src}
-                  alt={"OptiGrid dashboard. A left menu lists Dashboard, Compare and Forecast. Four summary cards show 3 buildings, today’s usage 4,182 kWh, estimated cost R 9,420, and 2 active alerts. Below is a seven-day portfolio consumption line chart, then a table of buildings with name, type, today’s kWh, status and edit and delete actions."}
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--brand-border)",
-                    maxHeight: "400px",
-                    objectFit: "contain",
-                    backgroundColor: "var(--brand-surface-alt)",
-                  }}
-                />
+                <ManualScreenshot src={dashboardScreenshot.src} alt={"OptiGrid dashboard. A left menu lists Dashboard, Compare and Forecast. Four summary cards show 3 buildings, today’s usage 4,182 kWh, estimated cost R 9,420, and 2 active alerts. Below is a seven-day portfolio consumption line chart, then a table of buildings with name, type, today’s kWh, status and edit and delete actions."} />
               </div>
             </div>
 
@@ -163,34 +150,10 @@ export default function UserManualPage() {
                   gap: "var(--space-4)",
                 }}>
                   <div>
-                    <img
-                      src={dashboardadd.src}
-                      alt={"Dashboard with the “+ Add building” button in the top right circled in red."}
-                      style={{
-                        width: "100%",
-                        height: "auto",
-                        borderRadius: "var(--radius-md)",
-                        border: "1px solid var(--brand-border)",
-                        maxHeight: "250px",
-                        objectFit: "contain",
-                        backgroundColor: "var(--brand-surface-alt)",
-                      }}
-                    />
+                    <ManualScreenshot src={dashboardadd.src} alt={"Dashboard with the “+ Add building” button in the top right circled in red."} maxHeight="250px" />
                   </div>
                   <div>
-                    <img
-                      src={add.src}
-                      alt={"The “Add a building” form, with fields for building name, address, type, operating hours, floor area, utility tariff, number of occupants and optional IoT device IDs, plus Cancel and “Save building” buttons."}
-                      style={{
-                        width: "100%",
-                        height: "auto",
-                        borderRadius: "var(--radius-md)",
-                        border: "1px solid var(--brand-border)",
-                        maxHeight: "250px",
-                        objectFit: "contain",
-                        backgroundColor: "var(--brand-surface-alt)",
-                      }}
-                    />
+                    <ManualScreenshot src={add.src} alt={"The “Add a building” form, with fields for building name, address, type, operating hours, floor area, utility tariff, number of occupants and optional IoT device IDs, plus Cancel and “Save building” buttons."} maxHeight="250px" />
                   </div>
                 </div>
               </div>
@@ -202,19 +165,7 @@ export default function UserManualPage() {
                 <p className="text-muted" style={{ marginBottom: "var(--space-3)" }}>
                   Manage existing buildings by editing details or deleting.
                 </p>
-                <img
-                  src={editanddelete.src}
-                  alt={"Dashboard buildings table with the edit (pencil) and delete (bin) icons on the Sandton HQ row circled in red."}
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--brand-border)",
-                    maxHeight: "300px",
-                    objectFit: "contain",
-                    backgroundColor: "var(--brand-surface-alt)",
-                  }}
-                />
+                <ManualScreenshot src={editanddelete.src} alt={"Dashboard buildings table with the edit (pencil) and delete (bin) icons on the Sandton HQ row circled in red."} maxHeight="300px" />
               </div>
             </div>
 
@@ -232,34 +183,10 @@ export default function UserManualPage() {
                 gap: "var(--space-4)",
               }}>
                 <div>
-                  <img
-                    src={dashcompare.src}
-                    alt={"Dashboard with the “Compare” item in the left menu circled in red."}
-                    style={{
-                      width: "100%",
-                      height: "auto",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--brand-border)",
-                      maxHeight: "250px",
-                      objectFit: "contain",
-                      backgroundColor: "var(--brand-surface-alt)",
-                    }}
-                  />
+                  <ManualScreenshot src={dashcompare.src} alt={"Dashboard with the “Compare” item in the left menu circled in red."} maxHeight="250px" />
                 </div>
                 <div>
-                  <img
-                    src={compare.src}
-                    alt={"Compare screen with Building A set to Sandton HQ and Building B to Rosebank Tower over the last 30 days by kWh total. A chart overlays both buildings’ consumption lines, and summary cards show 54,210 kWh, 47,830 kWh, a 13.3 percent difference, and 10.8 versus 9.2 per square metre."}
-                    style={{
-                      width: "100%",
-                      height: "auto",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--brand-border)",
-                      maxHeight: "250px",
-                      objectFit: "contain",
-                      backgroundColor: "var(--brand-surface-alt)",
-                    }}
-                  />
+                  <ManualScreenshot src={compare.src} alt={"Compare screen with Building A set to Sandton HQ and Building B to Rosebank Tower over the last 30 days by kWh total. A chart overlays both buildings’ consumption lines, and summary cards show 54,210 kWh, 47,830 kWh, a 13.3 percent difference, and 10.8 versus 9.2 per square metre."} maxHeight="250px" />
                 </div>
               </div>
             </div>
@@ -285,34 +212,10 @@ export default function UserManualPage() {
                 marginTop: "var(--space-3)",
               }}>
                 <div>
-                  <img
-                    src={dashforecast.src}
-                    alt={"Dashboard with the “Forecast” item in the left menu circled in red."}
-                    style={{
-                      width: "100%",
-                      height: "auto",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--brand-border)",
-                      maxHeight: "250px",
-                      objectFit: "contain",
-                      backgroundColor: "var(--brand-surface-alt)",
-                    }}
-                  />
+                  <ManualScreenshot src={dashforecast.src} alt={"Dashboard with the “Forecast” item in the left menu circled in red."} maxHeight="250px" />
                 </div>
                 <div>
-                  <img
-                    src={forecast.src}
-                    alt={"Forecast screen for Sandton HQ over a 7-day hourly horizon with the “Run forecast” button circled in red. The chart shows recorded history as a solid line continuing into a dashed prediction with a shaded 95 percent confidence interval. Summary cards report peak demand of 312 kWh on Wednesday at 14:00, an average of 1,920 kWh per day, and model accuracy of MAPE 4.8 percent."}
-                    style={{
-                      width: "100%",
-                      height: "auto",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--brand-border)",
-                      maxHeight: "250px",
-                      objectFit: "contain",
-                      backgroundColor: "var(--brand-surface-alt)",
-                    }}
-                  />
+                  <ManualScreenshot src={forecast.src} alt={"Forecast screen for Sandton HQ over a 7-day hourly horizon with the “Run forecast” button circled in red. The chart shows recorded history as a solid line continuing into a dashed prediction with a shaded 95 percent confidence interval. Summary cards report peak demand of 312 kWh on Wednesday at 14:00, an average of 1,920 kWh per day, and model accuracy of MAPE 4.8 percent."} maxHeight="250px" />
                 </div>
               </div>
             </div>
