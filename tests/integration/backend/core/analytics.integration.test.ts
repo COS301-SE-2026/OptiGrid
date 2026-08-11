@@ -326,6 +326,9 @@ describe('Analytics API Integration', () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
 
+		const DAY_MS = 24 * 60 * 60 * 1000;
+		const isoOffsetDays = (days: number) => new Date(Date.now() + days * DAY_MS).toISOString();
+
 		try {
 			await seedAssignedBuildingAccess(client);
 			await client.query(
@@ -347,9 +350,9 @@ describe('Analytics API Integration', () => {
 					280.0,
 					3.8,
 					JSON.stringify([
-						{ timestamp: '2026-07-28T00:00:00Z', yhat: 700, yhat_lower: 650, yhat_upper: 750 },
-						{ timestamp: '2026-08-04T00:00:00Z', yhat: 720, yhat_lower: 670, yhat_upper: 770 },
-						{ timestamp: '2026-08-11T00:00:00Z', yhat: 690, yhat_lower: 640, yhat_upper: 740 },
+						{ timestamp: isoOffsetDays(-14), yhat: 700, yhat_lower: 650, yhat_upper: 750 },
+						{ timestamp: isoOffsetDays(-7), yhat: 720, yhat_lower: 670, yhat_upper: 770 },
+						{ timestamp: isoOffsetDays(7), yhat: 690, yhat_lower: 640, yhat_upper: 740 },
 					]),
 				],
 			);

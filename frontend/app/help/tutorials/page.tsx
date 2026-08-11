@@ -11,70 +11,74 @@ type Tutorial = {
     hasAudio?: boolean;
     // defaults to SILENT_CAPTIONS_URL
     captionsUrl?: string;
-    // this is the text alternative required by WCAG 1.2.1 for video-only content
-    steps: string[];
+    // Text alternative required by WCAG 1.2.1 for video-only content one step per line and blank lines are ignored
+    steps: string;
 };
+
+function toSteps(block: string): string[] {
+    return block.split("\n").map((step) => step.trim()).filter(Boolean);
+}
 
 const tutorials: Tutorial[] = [
     {
         title: "Sign up for an OptiGrid account",
         description: "Walk through the first-time registration flow and learn what details are required before you can access the platform.",
         sourceUrl: "/help/tutorials/signup.mp4",
-        steps: [
-            "Open the OptiGrid landing page and choose \"Get started free\".",
-            "Enter your first name, last name and work email address.",
-            "Choose a password of at least 8 characters, then re-enter it to confirm.",
-            "Select \"Create account\". OptiGrid validates each field and shows an inline message beneath any field that needs attention.",
-            "On success you are redirected to the login page with a confirmation message."
-        ],
+        steps: `
+            Open the OptiGrid landing page and choose "Get started free".
+            Enter your first name, last name and work email address.
+            Choose a password of at least 8 characters, then re-enter it to confirm.
+            Select "Create account". OptiGrid validates each field and shows an inline message beneath any field that needs attention.
+            On success you are redirected to the login page with a confirmation message.
+        `,
     },
     {
         title: "Log in",
         description: "See the standard login flow.",
         sourceUrl: "/help/tutorials/login.mp4",
-        steps: [
-            "Open the login page from the landing page or the \"Log in\" link.",
-            "Enter the work email and password used at registration.",
-            "Select \"Log in\".",
-            "If the credentials are not recognised, an error message appears above the form explaining what to correct.",
-            "On success you land on the dashboard, which shows your portfolio overview."
-        ],
+        steps: `
+            Open the login page from the landing page or the "Log in" link.
+            Enter the work email and password used at registration.
+            Select "Log in".
+            If the credentials are not recognised, an error message appears above the form explaining what to correct.
+            On success you land on the dashboard, which shows your portfolio overview.
+        `,
     },
     {
         title: "Add a building",
         description: "Create a new building record so it can be tracked, compared, and included in forecasts.",
         sourceUrl: "/help/tutorials/add_building.mp4",
-        steps: [
-            "From the dashboard, select \"+ Add building\".",
-            "Enter the building name (required) and pick a building type from the dropdown.",
-            "Optionally add the physical address, floor area, and maximum occupancy.",
-            "Optionally set the nominal voltage and maximum current threshold used for alerting.",
-            "Optionally add the timezone and location details (geohash, latitude, longitude).",
-            "Select \"Add building\". The new building appears in your dashboard table."
-        ],
+        steps: `
+            From the dashboard, select "+ Add building".
+            Enter the building name (required) and pick a building type from the dropdown.
+            Optionally add the physical address, floor area, and maximum occupancy.
+            Optionally set the nominal voltage and maximum current threshold used for alerting.
+            Optionally add the timezone and location details (geohash, latitude, longitude).
+            Select "Add building". The new building appears in your dashboard table.
+        `,
     },
     {
         title: "Compare two buildings",
         description: "Compare building performance side by side to identify which sites are using more energy than expected.",
         sourceUrl: "/help/tutorials/compare_buildings.mp4",
-        steps: [
-            "Open \"Compare\" from the main navigation.",
-            "Choose the first building from the left dropdown and the second from the right dropdown.",
-            "Pick the date range and choose whether to compare cost or energy.",
-            "The chart redraws to plot both buildings over the selected period.",
-            "Below the chart, the key insights panel reports the efficiency ratio per square metre and the total difference between the two buildings."
-        ],
+        steps: `
+            Open "Compare" from the main navigation.
+            Choose the first building from the left dropdown and the second from the right dropdown.
+            Pick the date range and choose whether to compare cost or energy.
+            The chart redraws to plot both buildings over the selected period.
+            Below the chart, the key insights panel reports the efficiency ratio per square metre and the total difference between the two buildings.
+        `,
     },
     {
         title: "Review demand forecasts",
         description: "Check the forecast view to see how OptiGrid projects near-term demand for your selected building.",
         sourceUrl: "/help/tutorials/run_forecast.mp4",
-        steps: [
-            "Open \"Forecast\" from the main navigation.",
-            "Select a building and choose either the weekly or monthly horizon.",
-            "Run the forecast. A chart plots predicted demand as a dashed line against recorded history.",
-            "The summary cards beneath the chart show the selected building, the number of forecast points, and the projected peak timestamp."
-        ],
+        steps: `
+            Open "Forecast" from the main navigation.
+            Select a building and choose either the weekly or monthly horizon.
+            Run the forecast. A chart plots predicted demand as a dashed line against recorded history.
+            The summary cards beneath the chart show the selected building, the number of forecast points, and the projected peak timestamp.
+        `,
     },
 ];
 
@@ -144,7 +148,7 @@ function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
                 <details className="tutorial-transcript" id={stepsId}>
                     <summary>Written steps</summary>
                     <ol className="tutorial-step-list">
-                        {tutorial.steps.map((step) => (
+                        {toSteps(tutorial.steps).map((step) => (
                             <li key={step}>{step}</li>
                         ))}
                     </ol>
