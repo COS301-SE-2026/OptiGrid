@@ -1,0 +1,168 @@
+import { Request, Response } from 'express';
+import prisma from '../lib/prisma';
+
+// create a new threshold
+export const createThreshold = async (req: Request, res: Response): Promise<void> => {
+	try {
+		const {
+			building_id,
+			metric_type,
+			unit,
+			upper_limit_kw,
+			lower_limit_kw,
+			allowed_spike_percentage,
+		} = req.body;
+
+		// Validate user has access to building
+		const access = await prisma.userBuildingAccess.findUnique({
+			where: {
+				user_id_building_id: {
+					user_id: req.user!.id,
+					building_id: building_id,
+				},
+			},
+		});
+
+		if (!access && req.user!.roleType !== 'ADMIN') {
+			res.status(403).json({ status: 'error', message: 'Forbidden' });
+			return;
+		}
+
+		const threshold = await prisma.alertThreshold.create({
+			data: {
+				building_id,
+				metric_type,
+				unit,
+				upper_limit_kw,
+				lower_limit_kw,
+				allowed_spike_percentage,
+			},
+		});
+
+		res.status(201).json({ status: 'success', data: threshold });
+	} catch (error: any) {
+		console.error('[ThresholdController] Error creating threshold:', error);
+		res.status(500).json({ status: 'error', message: 'Failed to create threshold' });
+	}
+};
+
+// get thresholds for a building
+export const getThresholds = async (req: Request, res: Response): Promise<void> => {
+	try {
+		const { buildingId } = req.params;
+
+		const access = await prisma.userBuildingAccess.findUnique({
+			where: {
+				user_id_building_id: {
+					user_id: req.user!.id,
+					building_id: buildingId,
+				},
+			},
+		});
+
+		if (!access && req.user!.roleType !== 'ADMIN') {
+			res.status(403).json({ status: 'error', message: 'Forbidden' });
+			return;
+		}
+
+		const thresholds = await prisma.alertThreshold.findMany({
+			where: { building_id: buildingId, is_active: true },
+		});
+
+		res.status(200).json({ status: 'success', data: thresholds });
+	} catch (error: any) {
+		console.error('[ThresholdController] Error fetching thresholds:', error);
+		res.status(500).json({ status: 'error', message: 'Failed to fetch thresholds' });
+	}
+};
+
+// update a threshold
+export const updateThreshold = async (req: Request, res: Response): Promise<void> => {
+	try {
+		const { id } = req.params;
+		const { upper_limit_kw, lower_limit_kw, allowed_spike_percentage, is_active } = req.body;
+
+		// Fetch threshold to check building
+		const existing = await prisma.alertThreshold.findUnique({
+			where: { threshold_id: id },
+		});
+
+		if (!existing) {
+			res.status(404).json({ status: 'error', message: 'Threshold not found' });
+			return;
+		}
+
+		if (existing.building_id) {
+			const access = await prisma.userBuildingAccess.findUnique({
+				where: {
+					user_id_building_id: {
+						user_id: req.user!.id,
+						building_id: existing.building_id,
+					},
+				},
+			});
+
+			if (!access && req.user!.roleType !== 'ADMIN') {
+				res.status(403).json({ status: 'error', message: 'Forbidden' });
+				return;
+			}
+		}
+
+		const threshold = await prisma.alertThreshold.update({
+			where: { threshold_id: id },
+			data: {
+				upper_limit_kw,
+				lower_limit_kw,
+				allowed_spike_percentage,
+				is_active,
+				updated_at: new Date(),
+			},
+		});
+
+		res.status(200).json({ status: 'success', data: threshold });
+	} catch (error: any) {
+		console.error('[ThresholdController] Error updating threshold:', error);
+		res.status(500).json({ status: 'error', message: 'Failed to update threshold' });
+	}
+};
+
+// delete a threshold
+export const deleteThreshold = async (req: Request, res: Response): Promise<void> => {
+	try {
+		const { id } = req.params;
+
+		const existing = await prisma.alertThreshold.findUnique({
+			where: { threshold_id: id },
+		});
+
+		if (!existing) {
+			res.status(404).json({ status: 'error', message: 'Threshold not found' });
+			return;
+		}
+
+		if (existing.building_id) {
+			const access = await prisma.userBuildingAccess.findUnique({
+				where: {
+					user_id_building_id: {
+						user_id: req.user!.id,
+						building_id: existing.building_id,
+					},
+				},
+			});
+
+			if (!access && req.user!.roleType !== 'ADMIN') {
+				res.status(403).json({ status: 'error', message: 'Forbidden' });
+				return;
+			}
+		}
+
+		await prisma.alertThreshold.delete({
+			where: { threshold_id: id },
+		});
+
+		res.status(200).json({ status: 'success', message: 'Threshold deleted' });
+	} catch (error: any) {
+		console.error('[ThresholdController] Error deleting threshold:', error);
+		res.status(500).json({ status: 'error', message: 'Failed to delete threshold' });
+	}
+};

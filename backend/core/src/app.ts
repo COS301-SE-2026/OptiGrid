@@ -12,6 +12,8 @@ import accountRoutes from "./routes/account.routes";
 import adminUserRoutes from "./routes/admin_user.routes";
 import { rateLimiter } from "./middleware/rateLimiter.middleware";
 import telemetryRoutes from './routes/telemetry.routes';
+import thresholdRoutes from './routes/threshold.routes';
+import anomalyRoutes from './routes/anomaly.routes';
 import cors from 'cors';
 
 export interface CreateAppOptions {
@@ -71,6 +73,8 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use("/api/contact", strictRate,contactRoutes);
 	app.use("/api/users",authRate, userAuthRoutes);
 	app.use('/api/telemetry', telemetryRoutes);
+	app.use('/api/thresholds', authenticateRequest, normalRate, thresholdRoutes);
+	app.use('/api/anomalies', authenticateRequest, normalRate, anomalyRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });

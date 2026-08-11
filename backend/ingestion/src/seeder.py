@@ -179,7 +179,7 @@ def generate_sensor_data(s):
     ]
     
     chunk_size = 25000
-    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True)
+    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True, timeout=60000)
     write_api = client.write_api(write_options=SYNCHRONOUS)
     try:
         for i in range(0, len(lines), chunk_size):
@@ -230,7 +230,7 @@ def seed_calculated_buildings(sensors_data: list, days_back: int = 7):
         print("No sensor data provided to seeder.")
         return
 
-    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True)
+    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True, timeout=60000)
     query_api = client.query_api()
     end_time = datetime.now(timezone.utc)
     

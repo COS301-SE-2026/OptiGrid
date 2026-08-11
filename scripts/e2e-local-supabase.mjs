@@ -110,6 +110,16 @@ const result = spawnSync("corepack", playwrightArgs, {
     ...process.env,
     ...localSupabaseEnv,
     E2E_USE_LOCAL_SUPABASE: "1",
+    NODE_ENV: "test",
+    DISABLE_RATE_LIMIT: "true",
+    E2E_CORE_PORT: "4005",
+    E2E_FRONTEND_PORT: "3005",
+    E2E_CORE_URL: "http://localhost:4005",
+    E2E_BASE_URL: "http://localhost:3005",
+    INFLUXDB_URL: "http://127.0.0.1:8086",
+    INFLUXDB_TOKEN: "token-1234",
+    INFLUXDB_ORG: "OptiGrid",
+    INFLUXDB_BUCKET: "EnergyData",
   },
 });
 

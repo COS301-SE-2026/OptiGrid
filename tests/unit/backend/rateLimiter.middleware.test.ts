@@ -24,6 +24,7 @@ describe("Token Bucket Rate Limit Tests", () => {
         jest.spyOn(console, "error").mockImplementation(() => {});
         json = jest.fn();
         statusMock = jest.fn().mockReturnValue({ json: json});
+        process.env.DISABLE_RATE_LIMIT = "false";
 
         req = {
             ip: "192.168.1.100",
