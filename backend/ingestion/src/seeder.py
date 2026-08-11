@@ -251,7 +251,7 @@ def seed_calculated_buildings(sensors_data: list, days_back: int = 7):
 
     total_points = 0
     print("Spawning multiprocessing pool to generate maths and push to InfluxDB directly...")
-    pool_size = min(len(sensors_to_seed), multiprocessing.cpu_count() or 1)
+    pool_size = 1
     with multiprocessing.Pool(processes=pool_size) as pool:
         for pts in pool.map(generate_sensor_data, sensors_to_seed):
             total_points += pts
