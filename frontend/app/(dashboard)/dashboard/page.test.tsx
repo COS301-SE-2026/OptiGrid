@@ -159,12 +159,12 @@ describe("DashboardPage", () => {
   describe("Add building", () => {
     it("renders the Add building", async () => {
       renderPage();
-      expect(await screen.findByRole("link", { name: /add building/i })).toBeInTheDocument();
+      expect(await screen.findByRole("link", { name: /\+ add building/i })).toBeInTheDocument();
     });
 
     it("make sure add building link points to /buildings/add", async () => {
       renderPage();
-      const link = await screen.findByRole("link", { name: /add building/i });
+      const link = await screen.findByRole("link", { name: /\+ add building/i });
       expect(link).toHaveAttribute("href", "/buildings/add");
     });
   });
@@ -221,7 +221,7 @@ describe("DashboardPage", () => {
 
     it("renders the kWh", async () => {
       renderPage();
-      expect(await screen.findByText("kWh")).toBeInTheDocument();
+      expect(await screen.findByText(/Kilowatt-hours \(kWh\)/i)).toBeInTheDocument();
     });
 
     it("renders the chart after loading", async () => {
@@ -318,7 +318,7 @@ describe("DashboardPage", () => {
     it("shows No buildings when there are no buildings", async () => {
       setupFetch({ buildings: { data: [] } });
       renderPage();
-      expect(await screen.findByText(/no buildings yet/i)).toBeInTheDocument();
+      expect(await screen.findByText(/You do not have any buildings in your portfolio yet/i)).toBeInTheDocument();
     });
 
     it("shows Add your first building link when empty", async () => {

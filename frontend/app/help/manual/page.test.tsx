@@ -77,7 +77,7 @@ describe("UserManualPage", () => {
 
     it("renders the Edit and Delete Building section", () => {
       render(<UserManualPage />);
-      expect(screen.getByRole("heading", { name: /edit and delete building/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Edit and Delete building/i })).toBeInTheDocument();
     });
   });
 

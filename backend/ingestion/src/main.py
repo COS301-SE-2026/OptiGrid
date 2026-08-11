@@ -78,8 +78,8 @@ def root():
     }
 
 # accept requests on both routes to eliminate 404 errors
-@app.post("/ingest", status_code=210)
-@app.post("/api/telemetry/ingest", status_code=210)
+@app.post("/ingest", status_code=201)
+@app.post("/api/telemetry/ingest", status_code=201)
 def ingest_entry(payload: TelemetryPoint):
     try:
         r.lpush("ingestion_queue", payload.model_dump_json())
