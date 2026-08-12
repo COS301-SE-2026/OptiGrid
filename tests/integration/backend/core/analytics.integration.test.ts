@@ -325,6 +325,9 @@ describe('Analytics API Integration', () => {
 	it('should return data from building_analytics_monthly when horizon=monthly', async () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
+		const pastMonthlyPoint = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+		const recentMonthlyPoint = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+		const futureMonthlyPoint = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
 		try {
 			await seedAssignedBuildingAccess(client);
@@ -347,9 +350,9 @@ describe('Analytics API Integration', () => {
 					280.0,
 					3.8,
 					JSON.stringify([
-						{ timestamp: '2026-07-28T00:00:00Z', yhat: 700, yhat_lower: 650, yhat_upper: 750 },
-						{ timestamp: '2026-08-04T00:00:00Z', yhat: 720, yhat_lower: 670, yhat_upper: 770 },
-						{ timestamp: '2026-08-11T00:00:00Z', yhat: 690, yhat_lower: 640, yhat_upper: 740 },
+						{ timestamp: pastMonthlyPoint, yhat: 700, yhat_lower: 650, yhat_upper: 750 },
+						{ timestamp: recentMonthlyPoint, yhat: 720, yhat_lower: 670, yhat_upper: 770 },
+						{ timestamp: futureMonthlyPoint, yhat: 690, yhat_lower: 640, yhat_upper: 740 },
 					]),
 				],
 			);
