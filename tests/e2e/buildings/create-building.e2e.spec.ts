@@ -73,7 +73,8 @@ test.describe("Create building", () => {
     await page.getByRole("button", { name: "Add building" }).click();
 
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.locator("tbody").getByText(buildingName)).toBeVisible();
-    await expect(page.locator("tbody").getByText(buildingAddress)).toBeVisible();
+    const buildingsTable = page.getByRole("table", { name: "Your buildings" });
+    await expect(buildingsTable.getByText(buildingName)).toBeVisible();
+    await expect(buildingsTable.getByText(buildingAddress)).toBeVisible();
   });
 });

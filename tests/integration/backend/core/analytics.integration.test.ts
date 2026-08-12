@@ -325,9 +325,9 @@ describe('Analytics API Integration', () => {
 	it('should return data from building_analytics_monthly when horizon=monthly', async () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
-		const pastMonthlyPoint = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-		const recentMonthlyPoint = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-		const futureMonthlyPoint = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+		const DAY_MS = 24 * 60 * 60 * 1000;
+		const isoOffsetDays = (days: number) => new Date(Date.now() + days * DAY_MS).toISOString();
 
 		try {
 			await seedAssignedBuildingAccess(client);
@@ -350,9 +350,9 @@ describe('Analytics API Integration', () => {
 					280.0,
 					3.8,
 					JSON.stringify([
-						{ timestamp: pastMonthlyPoint, yhat: 700, yhat_lower: 650, yhat_upper: 750 },
-						{ timestamp: recentMonthlyPoint, yhat: 720, yhat_lower: 670, yhat_upper: 770 },
-						{ timestamp: futureMonthlyPoint, yhat: 690, yhat_lower: 640, yhat_upper: 740 },
+						{ timestamp: isoOffsetDays(-14), yhat: 700, yhat_lower: 650, yhat_upper: 750 },
+						{ timestamp: isoOffsetDays(-7), yhat: 720, yhat_lower: 670, yhat_upper: 770 },
+						{ timestamp: isoOffsetDays(7), yhat: 690, yhat_lower: 640, yhat_upper: 740 },
 					]),
 				],
 			);

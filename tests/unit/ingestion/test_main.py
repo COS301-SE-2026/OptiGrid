@@ -22,7 +22,7 @@ def test_ingest_entry_success(mock_redis):
     
     response = client.post("/ingest", json=payload)
     
-    assert response.status_code == 210
+    assert response.status_code == 201
     assert response.json()["status"] == "success"
     assert response.json()["message"] == "Data buffered"
     assert response.json()["building_id"] == "building-001"
