@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { openDialog } from "@/lib/openDialog";
 import Link from "next/link";
 import DeleteModal from "@/components/DeleteModal";
 type SensorStatus = "Active" | "Offline" | "Maintenance";
@@ -72,6 +73,22 @@ export default function SensorsClient({
         location_zone: "",
         status: "Active" as SensorStatus,
     });
+    const viewDialogRef = useRef<HTMLDialogElement>(null);
+    const registerDialogRef = useRef<HTMLDialogElement>(null);
+    const viewDialogTitleId = useId();
+    const registerDialogTitleId = useId();
+
+    useEffect(() => {
+        if (viewingSensor) {
+            openDialog(viewDialogRef.current);
+        }
+    }, [viewingSensor]);
+
+    useEffect(() => {
+        if (isRegisterOpen) {
+            openDialog(registerDialogRef.current);
+        }
+    }, [isRegisterOpen]);
 
     useEffect(() => {
         let isMounted = true;
@@ -309,140 +326,140 @@ export default function SensorsClient({
                 </div>
             </div>
             {viewingSensor && (
-                <div
-                    className="modal-overlay"
-                    style={{
-                        position: "fixed",
-                        inset: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "var(--space-4)",
+                <dialog
+                    ref={viewDialogRef}
+                    className="modal"
+                    aria-labelledby={viewDialogTitleId}
+                    style={{ width: "100%", maxWidth: "500px" }}
+                    onClose={() => setViewingSensor(null)}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            viewDialogRef.current?.close();
+                        }
                     }}
                 >
-                    <div className="modal" aria-modal="true" aria-label="Sensor details" role="dialog" style={{ width: "100%", maxWidth: "500px" }}>
-                        <h2 style={{ marginBottom: "var(--space-4)" }}>Sensor details</h2>
-                        <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--space-2) var(--space-4)" }}>
-                            <dt className="label">Building</dt>
-                            <dd>{building?.building_name ?? "Unknown building"}</dd>
-                            <dt className="label">MAC address</dt>
-                            <dd>{viewingSensor.mac_address}</dd>
-                            <dt className="label">Type</dt>
-                            <dd>{viewingSensor.sensor_type || "N/A"}</dd>
-                            <dt className="label">Unit</dt>
-                            <dd>{viewingSensor.unit || "N/A"}</dd>
-                            <dt className="label">Zone</dt>
-                            <dd>{viewingSensor.location_zone || "N/A"}</dd>
-                            <dt className="label">Status</dt>
-                            <dd>
-                                <span className={`badge ${statusBadge[viewingSensor.status ?? "Active"]}`}>
-                                    {viewingSensor.status ?? "Active"}
-                                </span>
-                            </dd>
-                            <dt className="label">Installed</dt>
-                            <dd>{formatInstalledDate(viewingSensor.installed_date)}</dd>
-                        </dl>
-                        <div style={{ display: "flex", marginTop: "var(--space-5)" }}>
-                            <button type="button" onClick={() => setViewingSensor(null)} style={{ flex: 1 }} className="btn btn-secondary">Close</button>
-                        </div>
+                    <h2 id={viewDialogTitleId} style={{ marginBottom: "var(--space-4)" }}>Sensor details</h2>
+                    <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--space-2) var(--space-4)" }}>
+                        <dt className="label">Building</dt>
+                        <dd>{building?.building_name ?? "Unknown building"}</dd>
+                        <dt className="label">MAC address</dt>
+                        <dd>{viewingSensor.mac_address}</dd>
+                        <dt className="label">Type</dt>
+                        <dd>{viewingSensor.sensor_type || "N/A"}</dd>
+                        <dt className="label">Unit</dt>
+                        <dd>{viewingSensor.unit || "N/A"}</dd>
+                        <dt className="label">Zone</dt>
+                        <dd>{viewingSensor.location_zone || "N/A"}</dd>
+                        <dt className="label">Status</dt>
+                        <dd>
+                            <span className={`badge ${statusBadge[viewingSensor.status ?? "Active"]}`}>
+                                {viewingSensor.status ?? "Active"}
+                            </span>
+                        </dd>
+                        <dt className="label">Installed</dt>
+                        <dd>{formatInstalledDate(viewingSensor.installed_date)}</dd>
+                    </dl>
+                    <div style={{ display: "flex", marginTop: "var(--space-5)" }}>
+                        <button type="button" onClick={() => setViewingSensor(null)} style={{ flex: 1 }} className="btn btn-secondary">Close</button>
                     </div>
-                </div>
+                </dialog>
             )}
 
             {isRegisterOpen && (
-                <div
-                    className="modal-overlay"
-                    style={{
-                        position: "fixed",
-                        justifyContent: "center",
-                        inset: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "var(--space-4)",
+                <dialog
+                    ref={registerDialogRef}
+                    className="modal"
+                    aria-labelledby={registerDialogTitleId}
+                    style={{ maxWidth: "500px", width: "100%" }}
+                    onClose={() => setIsRegisterOpen(false)}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            registerDialogRef.current?.close();
+                        }
                     }}
                 >
-                    <div className="modal" aria-modal="true" aria-label="Register sensor" role="dialog" style={{ maxWidth: "500px", width: "100%" }}>
-                        <h2 style={{ marginBottom: "var(--space-4)" }}>Register sensor</h2>
-                        <p style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-4)" }}>
-                            The sensor will be registered to {building?.building_name ?? "this building"}.
-                        </p>
+                    <h2 id={registerDialogTitleId} style={{ marginBottom: "var(--space-4)" }}>Register sensor</h2>
+                    <p style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-4)" }}>
+                        The sensor will be registered to {building?.building_name ?? "this building"}.
+                    </p>
 
-                        <div style={{ gap: "var(--space-4)", display: "grid" }}>
-                            <div>
-                                <label className="label" htmlFor="sensor-mac">MAC address</label>
-                                <input
-                                    id="sensor-mac"
-                                    type="text"
-                                    value={form.mac_address}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, mac_address: e.target.value }))}
-                                    className="input"
-                                    style={formError ? { borderColor: "var(--brand-danger)" } : {}}
-                                    placeholder="AA:BB:CC:DD:EE:FF"
-                                />
-                                {formError && (
-                                    <p style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
-                                        {formError}
-                                    </p>
-                                )}
-                            </div>
-                            <div>
-                                <label className="label" htmlFor="sensor-type">Sensor type</label>
-                                <input
-                                    id="sensor-type"
-                                    type="text"
-                                    value={form.sensor_type}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, sensor_type: e.target.value }))}
-                                    className="input"
-                                    placeholder="Energy meter"
-                                />
-                            </div>
-                            <div>
-                                <label className="label" htmlFor="sensor-unit">Unit</label>
-                                <input
-                                    id="sensor-unit"
-                                    type="text"
-                                    value={form.unit}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
-                                    className="input"
-                                    placeholder="kWh"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="label" htmlFor="sensor-zone">Location zone</label>
-                                <input
-                                    id="sensor-zone"
-                                    type="text"
-                                    value={form.location_zone}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, location_zone: e.target.value }))}
-                                    className="input"
-                                    placeholder="Main incomer"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="label" htmlFor="sensor-status">Status</label>
-                                <select
-                                    id="sensor-status"
-                                    value={form.status}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as SensorStatus }))}
-                                    className="select"
-                                >
-                                    <option value="Active">Active</option>
-                                    <option value="Offline">Offline</option>
-                                    <option value="Maintenance">Maintenance</option>
-                                </select>
-                            </div>
+                    <div style={{ gap: "var(--space-4)", display: "grid" }}>
+                        <div>
+                            <label className="label" htmlFor="sensor-mac">MAC address</label>
+                            <input
+                                id="sensor-mac"
+                                type="text"
+                                value={form.mac_address}
+                                onChange={(e) => setForm((prev) => ({ ...prev, mac_address: e.target.value }))}
+                                className="input"
+                                style={formError ? { borderColor: "var(--brand-danger)" } : {}}
+                                placeholder="AA:BB:CC:DD:EE:FF"
+                                aria-invalid={formError ? true : undefined}
+                                aria-describedby={formError ? "sensor-mac-error" : undefined}
+                            />
+                            {formError && (
+                                <p id="sensor-mac-error" role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
+                                    {formError}
+                                </p>
+                            )}
+                        </div>
+                        <div>
+                            <label className="label" htmlFor="sensor-type">Sensor type</label>
+                            <input
+                                id="sensor-type"
+                                type="text"
+                                value={form.sensor_type}
+                                onChange={(e) => setForm((prev) => ({ ...prev, sensor_type: e.target.value }))}
+                                className="input"
+                                placeholder="Energy meter"
+                            />
+                        </div>
+                        <div>
+                            <label className="label" htmlFor="sensor-unit">Unit</label>
+                            <input
+                                id="sensor-unit"
+                                type="text"
+                                value={form.unit}
+                                onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
+                                className="input"
+                                placeholder="kWh"
+                            />
                         </div>
 
-                        <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-5)" }}>
-                            <button type="button" onClick={() => setIsRegisterOpen(false)} className="btn btn-secondary" style={{ flex: 1 }}>
-                                Cancel
-                            </button>
-                            <button type="button" onClick={handleRegisterSensor} className="btn btn-primary" style={{ flex: 1 }}>Register</button>
+                        <div>
+                            <label className="label" htmlFor="sensor-zone">Location zone</label>
+                            <input
+                                id="sensor-zone"
+                                type="text"
+                                value={form.location_zone}
+                                onChange={(e) => setForm((prev) => ({ ...prev, location_zone: e.target.value }))}
+                                className="input"
+                                placeholder="Main incomer"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="label" htmlFor="sensor-status">Status</label>
+                            <select
+                                id="sensor-status"
+                                value={form.status}
+                                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as SensorStatus }))}
+                                className="select"
+                            >
+                                <option value="Active">Active</option>
+                                <option value="Offline">Offline</option>
+                                <option value="Maintenance">Maintenance</option>
+                            </select>
                         </div>
                     </div>
-                </div>
+
+                    <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-5)" }}>
+                        <button type="button" onClick={() => setIsRegisterOpen(false)} className="btn btn-secondary" style={{ flex: 1 }}>
+                            Cancel
+                        </button>
+                        <button type="button" onClick={handleRegisterSensor} className="btn btn-primary" style={{ flex: 1 }}>Register</button>
+                    </div>
+                </dialog>
             )}
 
             {deleteTarget && (
