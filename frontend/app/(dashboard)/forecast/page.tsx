@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessibleChart } from "../../../components/AccessibleChart";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import {
@@ -336,6 +337,25 @@ function ForecastChartContainer({
             <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
                 Historical and predicted energy demand for {selectedBuildingName}
             </p>
+            <AccessibleChart
+                caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in kWh`}
+                categoryLabel="Timestamp"
+                categories={chartData.map((point) => formatTooltipLabel(point.timestamp, horizon))}
+                series={[
+                    { name: "Recorded (kWh)", values: chartData.map((point) => point.kwh) },
+                    { name: "Predicted (kWh)", values: chartData.map((point) => point.yhat) },
+                    ...(hasConfidenceBand
+                        ? [{
+                            name: "95% confidence interval (kWh)",
+                            values: chartData.map((point) =>
+                                point.yhat_range
+                                    ? `${point.yhat_range[0].toLocaleString()} to ${point.yhat_range[1].toLocaleString()}`
+                                    : null,
+                            ),
+                        }]
+                        : []),
+                ]}
+            >
             <ResponsiveContainer width="100%" height={240}>
                 <ComposedChart
                     data={chartData}
@@ -428,6 +448,7 @@ function ForecastChartContainer({
                     />
                 </ComposedChart>
             </ResponsiveContainer>
+            </AccessibleChart>
 
             <div
                 className="text-muted"

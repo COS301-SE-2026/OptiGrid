@@ -407,6 +407,7 @@ export default function UserManagementPage() {
             <div className="card" style={{ overflow: "hidden", padding: 0, marginBottom: "var(--space-5)" }}>
               <div style={{ overflow: "auto" }}>
                 <table className="dashboard-table">
+                  <caption className="sr-only">Viewers and their assigned buildings</caption>
                   <thead>
                     <tr>
                       <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
@@ -481,6 +482,7 @@ export default function UserManagementPage() {
             <div className="card" style={{ overflow: "hidden", padding: 0, marginBottom: "var(--space-5)" }}>
               <div style={{ overflow: "auto" }}>
                 <table className="dashboard-table">
+                  <caption className="sr-only">Managers and their assigned buildings</caption>
                   <thead>
                     <tr>
                       <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>

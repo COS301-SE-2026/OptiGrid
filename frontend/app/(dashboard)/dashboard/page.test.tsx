@@ -233,7 +233,12 @@ describe("DashboardPage", () => {
   describe("Buildings table", () => {
     it("renders the buildings table", async () => {
       renderPage();
-      expect(await screen.findByRole("table")).toBeInTheDocument();
+      expect(await screen.findByRole("table", { name: /your buildings/i })).toBeInTheDocument();
+    });
+
+    it("gives the portfolio chart a text alternative for screen readers", async () => {
+      renderPage();
+      expect(await screen.findByRole("table", { name: /portfolio consumption/i })).toBeInTheDocument();
     });
 
     it("renders table headers: Name, Type, Today, Status", async () => {

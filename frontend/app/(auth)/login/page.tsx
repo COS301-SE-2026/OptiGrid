@@ -200,7 +200,7 @@ export default function LoginPage() {
                     style={{ textAlign: "center", fontSize: "var(--fs-small)" }}
                 >
                     No account?{" "}
-                    <Link href="/signup" style={{ color: "var(--brand-primary)", fontWeight: 600 }}>
+                    <Link href="/signup" style={{ color: "var(--brand-primary-cta)", fontWeight: 600 }}>
                         Sign up free
                     </Link>
                 </p>

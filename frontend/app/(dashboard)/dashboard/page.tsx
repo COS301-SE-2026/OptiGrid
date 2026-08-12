@@ -14,6 +14,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import { AccessibleChart } from "../../../components/AccessibleChart";
 import { buildDisplayName, type SessionUser } from "../../../lib/session";
 import { getTabSessionPath } from "../../../lib/tab-session";
 
@@ -442,9 +443,10 @@ export default function DashboardPage() {
                 <div className="card" style={{ padding: 0, overflow: "hidden" }}>
                     <div style={{ overflow: "auto" }}>
                         <table className="dashboard-table" ref={tableRef}>
+                            <caption className="sr-only">Your buildings</caption>
                             <thead>
                                 <tr>
-                                    <th 
+                                    <th
                                         scope="col"
                                         style={{
                                             color: "#CDE8E5",
@@ -456,7 +458,7 @@ export default function DashboardPage() {
                                     >
                                         Name
                                     </th>
-                                    <th 
+                                    <th
                                         scope="col"
                                         style={{
                                             color: "#CDE8E5",
@@ -468,7 +470,7 @@ export default function DashboardPage() {
                                     >
                                         Type
                                     </th>
-                                    <th 
+                                    <th
                                         scope="col"
                                         style={{
                                             color: "#CDE8E5",
@@ -480,7 +482,7 @@ export default function DashboardPage() {
                                     >
                                         Today (kWh)
                                     </th>
-                                    <th 
+                                    <th
                                         scope="col"
                                         style={{
                                             color: "#CDE8E5",
@@ -547,6 +549,17 @@ export default function DashboardPage() {
                 <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
                     Daily energy consumption trend for your entire portfolio
                 </p>
+                <AccessibleChart
+                    caption="Portfolio consumption over the last 7 days, in kWh"
+                    categoryLabel="Day"
+                    categories={consumption.map((point) => point.day)}
+                    series={[
+                        {
+                            name: "Consumption (kWh)",
+                            values: consumption.map((point) => point.kwh)
+                        }
+                    ]}
+                >
                 <ResponsiveContainer width="100%" height={200}>
                     <LineChart
                         data={consumption}
@@ -566,9 +579,9 @@ export default function DashboardPage() {
                             tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
                             axisLine={false}
                             tickLine={false}
-                            label={{ 
-                                value: "kWh", 
-                                angle: -90, 
+                            label={{
+                                value: "kWh",
+                                angle: -90,
                                 position: "insideLeft",
                                 style: { fill: "var(--brand-ink-muted)", fontSize: 11 }
                             }}
@@ -595,6 +608,7 @@ export default function DashboardPage() {
                         />
                     </LineChart>
                 </ResponsiveContainer>
+                </AccessibleChart>
             </>
         );
     };
