@@ -225,7 +225,7 @@ export default function ViewBuildingPage({
     if (loading && !error) {
         return (
             <div className="card">
-                <p className="text-muted">Loading building details...</p>
+                <p role="status" aria-live="polite" className="text-muted">Loading building details...</p>
             </div>
         );
     }
@@ -255,6 +255,7 @@ export default function ViewBuildingPage({
             {error && (
                 <div
                     className="card"
+                    role="alert"
                     style={{
                         marginBottom: "var(--space-4)",
                         borderColor: "var(--brand-danger)",
@@ -292,7 +293,7 @@ export default function ViewBuildingPage({
                         value={formatTelemetryTimestamp(currentLiveData?.timestamp)}
                     />
                     {sseError && (
-                        <div style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
+                        <div role="alert" style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
                             {sseError.message}
                         </div>
                     )}
@@ -332,13 +333,13 @@ export default function ViewBuildingPage({
                     </div>
 
                     {consumptionLoading && (
-                        <div style={{ gridColumn: "1 / -1" }} className="text-muted">
+                        <div role="status" aria-live="polite" style={{ gridColumn: "1 / -1" }} className="text-muted">
                             Loading energy consumption...
                         </div>
                     )}
 
                     {consumptionError && !error && (
-                        <div style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
+                        <div role="alert" style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
                             {consumptionError}
                         </div>
                     )}
