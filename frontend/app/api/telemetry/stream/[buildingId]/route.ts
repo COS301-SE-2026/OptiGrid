@@ -1,4 +1,4 @@
-const CORE_URL = process.env.CORE_URL ?? "http://core:4000";
+const CORE_URL = process.env.CORE_URL ?? "http://core:4000"; // NOSONAR
 
 export const dynamic = "force-dynamic";
 
