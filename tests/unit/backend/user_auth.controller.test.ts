@@ -27,6 +27,10 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 import { login, recoverAccount } from '../../../backend/core/src/controllers/user_auth.controller';
 import * as authServices from '../../../backend/core/src/services/user_auth.services';
 import { Request, Response } from 'express';
+import {
+    AccountAlreadyActiveError,
+    AccountNotFoundError,
+} from '../../../backend/core/src/errors/account.errors';
 
 jest.mock("../../../backend/core/src/services/user_auth.services")
 
@@ -100,5 +104,51 @@ describe("User Authentication Controller - Login", () => {
             user: { userId: "1", email: "test@test.com" },
             accessToken: "recovered-token",
         });
+    });
+
+    it('returns 400 when recover account receives invalid credentials', async () => {
+        mockRequest = { body: { email: "test@test.com", password: "wrongpassword" } };
+        (authServices.recoverAccount as jest.Mock).mockRejectedValue(new Error("Invalid email or password"));
+
+        await recoverAccount(mockRequest as Request, mockResponse as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid email or password" });
+    });
+
+    it('returns 404 when recover account cannot find the app profile', async () => {
+        mockRequest = { body: { email: "test@test.com", password: "password123" } };
+        (authServices.recoverAccount as jest.Mock).mockRejectedValue(new AccountNotFoundError());
+
+        await recoverAccount(mockRequest as Request, mockResponse as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(404);
+        expect(jsonMock).toHaveBeenCalledWith({
+            code: "ACCOUNT_NOT_FOUND",
+            message: "Account profile was not found.",
+        });
+    });
+
+    it('returns 409 when recover account is already active', async () => {
+        mockRequest = { body: { email: "test@test.com", password: "password123" } };
+        (authServices.recoverAccount as jest.Mock).mockRejectedValue(new AccountAlreadyActiveError());
+
+        await recoverAccount(mockRequest as Request, mockResponse as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(409);
+        expect(jsonMock).toHaveBeenCalledWith({
+            code: "ACCOUNT_ALREADY_ACTIVE",
+            message: "This account is already active. Please log in normally.",
+        });
+    });
+
+    it('returns 500 when recover account fails unexpectedly', async () => {
+        mockRequest = { body: { email: "test@test.com", password: "password123" } };
+        (authServices.recoverAccount as jest.Mock).mockRejectedValue(new Error("Database connection failed"));
+
+        await recoverAccount(mockRequest as Request, mockResponse as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(500);
+        expect(jsonMock).toHaveBeenCalledWith({ message: "Internal server error" });
     });
 });
