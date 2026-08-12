@@ -23,7 +23,7 @@ export async function GET(
     if (!upstream.ok || !upstream.body) {
       return Response.json(
         { status: "error", message: "Unable to open telemetry stream." },
-        { status: upstream.status || 502 },
+        { status: upstream.ok ? 502 : upstream.status || 502 },
       );
     }
 
