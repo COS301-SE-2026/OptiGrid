@@ -33,11 +33,6 @@ export default function DeleteModal({
             ref={dialogRef}
             aria-labelledby={titleId}
             onClose={onCancel}
-            onClick={(e) => {
-                if (e.target === e.currentTarget) {
-                    dialogRef.current?.close();
-                }
-            }}
         >
             <h2 id={titleId} style={{ marginBottom: "var(--space-2)", fontSize: "var(--fs-h3)", fontWeight: 600 }}>{title}</h2>
             <p style={{ color: "var(--brand-ink-muted)", fontSize: "var(--fs-small)", marginBottom: "var(--space-5)" }}>

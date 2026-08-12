@@ -429,11 +429,6 @@ export default function SettingsPage() {
               style={{ maxWidth: "500px", width: "100%" }}
               aria-labelledby={deleteDialogTitleId}
               onClose={closeDeleteModal}
-              onClick={(e) => {
-                if (e.target === e.currentTarget) {
-                  deleteDialogRef.current?.close();
-                }
-              }}
             >
               <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
                 <h2 id={deleteDialogTitleId} style={{ color: "var(--brand-danger)", marginBottom: "var(--space-2)" }}>

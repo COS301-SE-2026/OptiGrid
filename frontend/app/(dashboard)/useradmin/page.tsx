@@ -602,11 +602,6 @@ export default function UserManagementPage() {
               backgroundColor: "var(--brand-surface)",
               color: "var(--brand-ink)",
             }}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                dialogRef.current?.close();
-              }
-            }}
             aria-labelledby={dialogTitleId}
             onClose={close}
           >

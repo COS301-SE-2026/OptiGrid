@@ -332,11 +332,6 @@ export default function SensorsClient({
                     aria-labelledby={viewDialogTitleId}
                     style={{ width: "100%", maxWidth: "500px" }}
                     onClose={() => setViewingSensor(null)}
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) {
-                            viewDialogRef.current?.close();
-                        }
-                    }}
                 >
                     <h2 id={viewDialogTitleId} style={{ marginBottom: "var(--space-4)" }}>Sensor details</h2>
                     <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--space-2) var(--space-4)" }}>
@@ -372,11 +367,6 @@ export default function SensorsClient({
                     aria-labelledby={registerDialogTitleId}
                     style={{ maxWidth: "500px", width: "100%" }}
                     onClose={() => setIsRegisterOpen(false)}
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) {
-                            registerDialogRef.current?.close();
-                        }
-                    }}
                 >
                     <h2 id={registerDialogTitleId} style={{ marginBottom: "var(--space-4)" }}>Register sensor</h2>
                     <p style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-4)" }}>
