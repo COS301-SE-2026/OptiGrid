@@ -37,6 +37,7 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [deleteTarget, setDeleteTarget] = useState<Building | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string>("");
 
   const filteredBuildings = useMemo(() => {
     return buildings.filter((building) => {
@@ -71,6 +72,7 @@ export default function AdminPage() {
   const executeDeleteBuilding = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
+    setDeleteError("");
     try {
       const resp = await fetch(`api/buildings/${deleteTarget.building_id}`, {
         method: "DELETE",
@@ -79,10 +81,13 @@ export default function AdminPage() {
       if (data.status === "success") {
         setBuildings((prev) => prev.filter((b) => b.building_id !== deleteTarget.building_id));
         setDeleteTarget(null);
-      } else alert(data.message);
+      } 
+      else {
+        setDeleteError(data.message || "Unable to delete building.");
+      }
     } catch (error) {
       console.error("Failed to delete building: ", error);
-      alert("Server error when deleting building");
+      setDeleteError("Server error when deleting building");
     } finally {
       setIsDeleting(false);
     }
@@ -417,8 +422,12 @@ export default function AdminPage() {
           title="Delete building"
           targetName={deleteTarget.building_name}
           onConfirm={executeDeleteBuilding}
-          onCancel={() => setDeleteTarget(null)}
+          onCancel={() => {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }}
           deleting={isDeleting}
+          error={deleteError}
         />
       )}
     </div>

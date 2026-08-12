@@ -362,13 +362,6 @@ export default function DashboardPage() {
     const lastUpdatedLabel =
         minutesAgo === 0 ? "just now" : `${minutesAgo} min ago`;
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>, buildingId: string) => {
-        if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            router.push(getTabSessionPath(`/buildings/${buildingId}/view`));
-        }
-    };
-
     const handleRowClick = (buildingId: string) => {
         router.push(getTabSessionPath(`/buildings/${buildingId}/view`));
     };
@@ -501,13 +494,19 @@ export default function DashboardPage() {
                                     <tr
                                         key={building.id}
                                         onClick={() => handleRowClick(building.id)}
-                                        onKeyDown={(e) => handleKeyDown(e, building.id)}
-                                        tabIndex={0}
                                         style={{ cursor: "pointer" }}
-                                        aria-label={`View details for ${building.name}`}
                                     >
                                         <td>
-                                            <p style={{ fontWeight: 600 }}>{building.name}</p>
+                                            <Link
+                                                href={getTabSessionPath(`/buildings/${building.id}/view`)}
+                                                style={{
+                                                    fontWeight: 600,
+                                                    color: "inherit",
+                                                    textDecoration: "none" 
+                                                }}
+                                            >
+                                                {building.name}
+                                            </Link>
                                             <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
                                                 {building.location}
                                             </p>
