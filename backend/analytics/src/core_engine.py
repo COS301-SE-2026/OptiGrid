@@ -160,8 +160,9 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -7d) 
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
-            |> aggregateWindow(every: 1d, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
         # get influx data
@@ -430,8 +431,9 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -30d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
-            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
         
@@ -440,8 +442,9 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -180d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
-            |> aggregateWindow(every: 1d, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
 
@@ -613,7 +616,8 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -30d) 
             |> filter(fn: (r) => r["_field"] == "usage")
-            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> group(columns: ["building_id"])
         '''
@@ -623,7 +627,8 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -180d) 
             |> filter(fn: (r) => r["_field"] == "usage")
-            |> aggregateWindow(every: 1d, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> group(columns: ["building_id"])
         '''
