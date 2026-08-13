@@ -109,7 +109,7 @@ export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
 
         const fluxQuery = `
             from(bucket: "${bucket}")
-                |> range(start: -24h)
+                |> range(start: -15m)
                 |> filter(fn: (r) => r["_measurement"] == "energy_telemetry" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_consumption")
                 |> filter(fn: (r) => r["_field"] == "power_kw" or r["_field"] == "usage" or r["_field"] == "usage_kwh")
                 |> group(columns: ["building_id"])

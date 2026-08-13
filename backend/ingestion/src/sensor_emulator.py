@@ -225,11 +225,16 @@ async def run_global_emulator():
         sensors_per_building = {}
         
         current_time = get_last_influx_time()
-        if current_time:
+        now_ts = datetime.now(timezone.utc)
+        if current_time and current_time > now_ts - timedelta(minutes=5):
             print(f"Found existing data up to {current_time}. Resuming exactly from this point...")
             current_time += timedelta(seconds=2)
         else:
-            current_time = datetime.now(timezone.utc)
+            if current_time:
+                print(f"Existing data is too old ({current_time}), Snapping to current time to avoid hitting api")
+            else:
+                print("No existing data found. Starting at current time.")
+            current_time = now_ts
             
         while True:
             res = await _run_single_iteration(
