@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { syncThresholdsToRedis } from '../services/threshold.services';
 
 // create a new threshold
 export const createThreshold = async (req: Request, res: Response): Promise<void> => {
@@ -11,6 +12,8 @@ export const createThreshold = async (req: Request, res: Response): Promise<void
 			upper_limit_kw,
 			lower_limit_kw,
 			allowed_spike_percentage,
+			use_z_score,
+			z_score_threshold
 		} = req.body;
 
 		// Validate user has access to building
@@ -36,8 +39,12 @@ export const createThreshold = async (req: Request, res: Response): Promise<void
 				upper_limit_kw,
 				lower_limit_kw,
 				allowed_spike_percentage,
+				use_z_score,
+				z_score_threshold
 			},
 		});
+
+		await syncThresholdsToRedis().catch(console.error);
 
 		res.status(201).json({ status: 'success', data: threshold });
 	} catch (error: any) {
@@ -80,7 +87,7 @@ export const getThresholds = async (req: Request, res: Response): Promise<void> 
 export const updateThreshold = async (req: Request, res: Response): Promise<void> => {
 	try {
 		const { id } = req.params;
-		const { upper_limit_kw, lower_limit_kw, allowed_spike_percentage, is_active } = req.body;
+		const { upper_limit_kw, lower_limit_kw, allowed_spike_percentage, is_active, use_z_score, z_score_threshold, muted_until } = req.body;
 
 		// Fetch threshold to check building
 		const existing = await prisma.alertThreshold.findUnique({
@@ -114,10 +121,15 @@ export const updateThreshold = async (req: Request, res: Response): Promise<void
 				upper_limit_kw,
 				lower_limit_kw,
 				allowed_spike_percentage,
+				use_z_score,
+				z_score_threshold,
+				muted_until,
 				is_active,
 				updated_at: new Date(),
 			},
 		});
+
+		await syncThresholdsToRedis().catch(console.error);
 
 		res.status(200).json({ status: 'success', data: threshold });
 	} catch (error: any) {
@@ -160,9 +172,59 @@ export const deleteThreshold = async (req: Request, res: Response): Promise<void
 			where: { threshold_id: id },
 		});
 
+		await syncThresholdsToRedis().catch(console.error);
+
 		res.status(200).json({ status: 'success', message: 'Threshold deleted' });
 	} catch (error: any) {
 		console.error('[ThresholdController] Error deleting threshold:', error);
 		res.status(500).json({ status: 'error', message: 'Failed to delete threshold' });
+	}
+};
+
+// mute a threshold
+export const muteThreshold = async (req: Request, res: Response): Promise<void> => {
+	try {
+		const { id } = req.params;
+		const { muted_until } = req.body;
+
+		const existing = await prisma.alertThreshold.findUnique({
+			where: { threshold_id: id },
+		});
+
+		if (!existing) {
+			res.status(404).json({ status: 'error', message: 'Threshold not found' });
+			return;
+		}
+
+		if (existing.building_id) {
+			const access = await prisma.userBuildingAccess.findUnique({
+				where: {
+					user_id_building_id: {
+						user_id: req.user!.id,
+						building_id: existing.building_id,
+					},
+				},
+			});
+
+			if (!access && req.user!.roleType !== 'ADMIN') {
+				res.status(403).json({ status: 'error', message: 'Forbidden' });
+				return;
+			}
+		}
+
+		const threshold = await prisma.alertThreshold.update({
+			where: { threshold_id: id },
+			data: {
+				muted_until: muted_until ? new Date(muted_until) : null,
+				updated_at: new Date(),
+			},
+		});
+
+		await syncThresholdsToRedis().catch(console.error);
+
+		res.status(200).json({ status: 'success', data: threshold });
+	} catch (error: any) {
+		console.error('[ThresholdController] Error muting threshold:', error);
+		res.status(500).json({ status: 'error', message: 'Failed to mute threshold' });
 	}
 };

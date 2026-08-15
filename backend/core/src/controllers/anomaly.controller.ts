@@ -107,3 +107,43 @@ export const updateAnomalyStatus = async (req: Request, res: Response): Promise<
 		res.status(500).json({ status: 'error', message: 'Failed to update anomaly status' });
 	}
 };
+// get anomaly context
+export const getAnomalyContext = async (req: Request, res: Response): Promise<void> => {
+	try {
+		const { id } = req.params;
+
+		const anomaly = await prisma.anomaly.findUnique({
+			where: { anomaly_id: id },
+			include: {
+				sensor: true,
+				threshold: true,
+			}
+		});
+
+		if (!anomaly) {
+			res.status(404).json({ status: 'error', message: 'Anomaly not found' });
+			return;
+		}
+
+		if (anomaly.building_id) {
+			const access = await prisma.userBuildingAccess.findUnique({
+				where: {
+					user_id_building_id: {
+						user_id: req.user!.id,
+						building_id: anomaly.building_id,
+					},
+				},
+			});
+
+			if (!access && req.user!.roleType !== 'ADMIN') {
+				res.status(403).json({ status: 'error', message: 'Forbidden' });
+				return;
+			}
+		}
+
+		res.status(200).json({ status: 'success', data: anomaly });
+	} catch (error: any) {
+		console.error('[AnomalyController] Error fetching anomaly context:', error);
+		res.status(500).json({ status: 'error', message: 'Failed to fetch anomaly context' });
+	}
+};

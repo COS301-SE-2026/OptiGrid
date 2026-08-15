@@ -69,3 +69,148 @@ class InfluxStorageObserver(Observer):
         # attempt to flush to influx
         self.write_api.write(bucket=self.bucket, record=point)
         print(f"[WORKER] Flushed telemetry to InfluxDB for building {str(building_id)[:8]} ({power_kw} kW)")
+
+# Concrete Observer
+class AnomalyDetectorObserver(Observer):
+    def __init__(self, redis_client):
+        self.redis = redis_client
+        self._last_alert_time = {} # (building_id, metric_type) -> timestamp
+        self._debounce_seconds = 900 # 15 minutes
+        import functools, time
+        self._get_thresholds = functools.lru_cache(maxsize=128)(self._fetch_thresholds_cached)
+        self._last_cache_clear = time.time()
+        
+    def _fetch_thresholds_cached(self, building_id: str):
+        import json, logging
+        try:
+            keys = self.redis.keys(f"threshold:{building_id}:*")
+            thresholds = []
+            for k in keys:
+                data = self.redis.get(k)
+                if data:
+                    thresholds.append(json.loads(data))
+            return thresholds
+        except Exception as e:
+            logging.error(f"Failed to fetch thresholds from Redis: {e}")
+            return []
+
+    def _update_ema_zscore(self, sensor_id: str, value: float):
+        import math
+        # alpha for roughly 60 samples window
+        alpha = 2.0 / (60.0 + 1.0)
+        
+        key = f"zscore:ema:{sensor_id}"
+        data = self.redis.hgetall(key)
+        
+        if not data:
+            # Initialize
+            self.redis.hset(key, mapping={"ema": value, "emavar": 0.0, "count": 1})
+            return 0.0
+            
+        ema = float(data.get(b"ema", data.get("ema", 0.0)))
+        emavar = float(data.get(b"emavar", data.get("emavar", 0.0)))
+        count = int(data.get(b"count", data.get("count", 0)))
+        
+        diff = value - ema
+        incr = alpha * diff
+        new_ema = ema + incr
+        new_emavar = (1.0 - alpha) * (emavar + diff * incr)
+        
+        self.redis.hset(key, mapping={"ema": new_ema, "emavar": new_emavar, "count": count + 1})
+        
+        stddev = math.sqrt(new_emavar)
+        if stddev < 1e-5:
+            return 0.0
+            
+        return (value - ema) / stddev
+
+    def update(self, payload: dict):
+        import time, json, logging
+        from datetime import datetime, timezone
+        # Clear cache every 30 seconds to get fresh thresholds
+        if time.time() - self._last_cache_clear > 30:
+            self._get_thresholds.cache_clear()
+            self._last_cache_clear = time.time()
+            
+        building_id = payload.get("building_id")
+        sensor_id = payload.get("sensor_id")
+        power_kw = payload.get("power_kw", 0.0)
+        
+        if not building_id or not sensor_id:
+            return
+            
+        thresholds = self._get_thresholds(building_id)
+        if not thresholds:
+            return
+            
+        now = time.time()
+        z_score = None
+            
+        for t in thresholds:
+            if t.get("metric_type") != "POWER_USAGE":
+                continue
+                
+            upper = t.get("upper_limit_kw")
+            lower = t.get("lower_limit_kw")
+            use_z_score = t.get("use_z_score", False)
+            z_thresh = t.get("z_score_threshold")
+            
+            is_anomaly = False
+            severity = "Warning"
+            expected = None
+            
+            if upper is not None and power_kw > float(upper):
+                is_anomaly = True
+                severity = "Critical" if abs(power_kw - float(upper)) / float(upper) > 0.5 else "Warning"
+                expected = float(upper)
+            elif lower is not None and power_kw < float(lower):
+                is_anomaly = True
+                severity = "Critical" if abs(power_kw - float(lower)) / float(lower) > 0.5 else "Warning"
+                expected = float(lower)
+            elif use_z_score and z_thresh is not None:
+                if z_score is None:
+                    z_score = self._update_ema_zscore(sensor_id, power_kw)
+                
+                if abs(z_score) > float(z_thresh):
+                    is_anomaly = True
+                    severity = "Warning"
+                    expected = float(z_thresh) # Store threshold as expected for context
+            
+            # If not anomaly, but we need to update Z-score anyway (to keep moving average accurate)
+            if not is_anomaly and use_z_score and z_score is None:
+                z_score = self._update_ema_zscore(sensor_id, power_kw)
+                
+            if is_anomaly:
+                self._trigger_anomaly(
+                    building_id, sensor_id, "POWER_USAGE", severity, power_kw, expected,
+                    z_score if use_z_score else None, now, payload.get("timestamp")
+                )
+                
+    def _trigger_anomaly(self, building_id, sensor_id, metric, severity, value, limit, z_score, now, timestamp_str):
+        import json, logging
+        from datetime import datetime, timezone
+        
+        # Debounce to avoid alert fatigue
+        alert_key = (building_id, metric)
+        if alert_key in self._last_alert_time:
+            if now - self._last_alert_time[alert_key] < self._debounce_seconds:
+                return
+                
+        self._last_alert_time[alert_key] = now
+        
+        anomaly_msg = {
+            "building_id": building_id,
+            "sensor_id": sensor_id,
+            "metric_type": metric,
+            "severity_level": severity,
+            "detected_value": float(value),
+            "expected_value": float(limit) if limit is not None else 0.0,
+            "z_score_value": float(z_score) if z_score is not None else None,
+            "detected_timestamp": timestamp_str or datetime.now(timezone.utc).isoformat()
+        }
+        
+        try:
+            self.redis.publish("anomalies_channel", json.dumps(anomaly_msg))
+            print(f"[ANOMALY DETECTOR] Published {metric} anomaly for {building_id[:8]} ({value})")
+        except Exception as e:
+            logging.error(f"Failed to publish anomaly: {e}")
