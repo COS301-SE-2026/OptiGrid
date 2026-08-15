@@ -657,3 +657,57 @@ class AnalyticsEngine:
             df_monthly = df_monthly[df_monthly['building_id'].isin(active_ids)]
 
         self._run_batch_analytics(df_weekly, df_monthly)
+
+    def process_building(self, building_id:str): 
+        self.register_new_building(building_id)
+        #fetches analytcis for last 30 days for weekly analysis(implemented optimisation for this query as well)
+        weekly = f'''
+        from(bucket: "{INFLUXDB_BUCKET}")
+            |> range(start: -30d)
+            |> filter(fn: (r) => r["_field"] == "usage")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["building_id"] == "{building_id}")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> group(columns: ["building_id"])
+        '''
+
+        #query for the montly analysis
+        monthly = f'''
+        from(bucket: "{INFLUXDB_BUCKET}")
+            |> range(start: -180d)
+            |> filter(fn: (r) => r["_field"] == "usage")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["building_id"] == "{building_id}")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> group(columns: ["building_id"])
+        '''
+
+        try:
+            #get data frama for weekly n monthly
+            res_weekly = self.influx.query_api().query_data_frame(weekly)
+            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
+            res_monthly = self.influx.query_api().query_data_frame(monthly)
+            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
+        except Exception as error:
+            logger.exception("InfluxDB building query failed")
+            df_weekly = pd.DataFrame()
+            df_monthly = pd.DataFrame()
+
+        df_weekly = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
+        monthly_seeded = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
+        if not monthly_seeded.empty: 
+            df_monthly = monthly_seeded
+        #process monthly and weekly data
+        if df_weekly is not None and not df_weekly.empty and "building_id" in df_weekly.columns:
+            df_weekly = df_weekly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+            df_weekly['timestamp'] = pd.to_datetime(df_weekly['timestamp'])
+            df_weekly['usage'] = pd.to_numeric(df_weekly['usage'], errors='coerce').fillna(0.0)
+            self._process_weekly_batch(df_weekly)
+
+        if df_monthly is not None and not df_monthly.empty and "building_id" in df_monthly.columns:
+                    df_monthly = df_monthly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+                    df_monthly['timestamp'] = pd.to_datetime(df_monthly['timestamp'])
+                    df_monthly['usage'] = pd.to_numeric(df_monthly['usage'], errors='coerce').fillna(0.0)
+                    self._process_monthly_batch(df_monthly)
