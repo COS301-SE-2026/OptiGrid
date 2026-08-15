@@ -33,8 +33,8 @@ export const getAnomalies = async (req: Request, res: Response): Promise<void> =
 
 		const anomalies = await prisma.anomaly.findMany({
 			where: where,
-			skip: parseInt(skip as string, 10),
-			take: parseInt(take as string, 10),
+			skip: Number.parseInt(skip as string, 10),
+			take: Number.parseInt(take as string, 10),
 			orderBy: { detected_timestamp: 'desc' },
 		});
 
@@ -47,8 +47,8 @@ export const getAnomalies = async (req: Request, res: Response): Promise<void> =
 			data: anomalies,
 			meta: {
 				total: totalCount,
-				skip: parseInt(skip as string, 10),
-				take: parseInt(take as string, 10),
+				skip: Number.parseInt(skip as string, 10),
+				take: Number.parseInt(take as string, 10),
 			},
 		});
 	} catch (error: any) {

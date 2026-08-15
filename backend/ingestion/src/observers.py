@@ -33,7 +33,7 @@ class TelemetrySubject:
             try:
                 observer.update(payload)
             except Exception as e:
-                logger.error(f"Observer {observer.__class__.__name__} failed: {e}")
+                logger.exception(f"Observer {observer.__class__.__name__} failed: {e}")
 
 # Concrete Observer
 class InfluxStorageObserver(Observer):
@@ -99,7 +99,7 @@ class AnomalyDetectorObserver(Observer):
                     thresholds.append(json.loads(data))
             return thresholds
         except Exception as e:
-            logging.error(f"Failed to fetch thresholds from Redis: {e}")
+            logging.exception(f"Failed to fetch thresholds from Redis: {e}")
             return []
 
     def _update_ema_zscore(self, sensor_id: str, value: float):
@@ -132,6 +132,31 @@ class AnomalyDetectorObserver(Observer):
             
         return (value - ema) / stddev
 
+    def _evaluate_threshold(self, t, sensor_id, power_kw, z_score):
+        if t.get("metric_type") != "POWER_USAGE":
+            return False, "Warning", None, z_score
+            
+        upper = t.get("upper_limit_kw")
+        lower = t.get("lower_limit_kw")
+        use_z_score = t.get("use_z_score", False)
+        z_thresh = t.get("z_score_threshold")
+        
+        if upper is not None and power_kw > float(upper):
+            sev = "Critical" if abs(power_kw - float(upper)) / float(upper) > 0.5 else "Warning"
+            return True, sev, float(upper), z_score
+            
+        if lower is not None and power_kw < float(lower):
+            sev = "Critical" if abs(power_kw - float(lower)) / float(lower) > 0.5 else "Warning"
+            return True, sev, float(lower), z_score
+            
+        if use_z_score:
+            if z_score is None:
+                z_score = self._update_ema_zscore(sensor_id, power_kw)
+            if z_thresh is not None and abs(z_score) > float(z_thresh):
+                return True, "Warning", float(z_thresh), z_score
+            
+        return False, "Warning", None, z_score
+
     def update(self, payload: dict):
         import time, json, logging
         from datetime import datetime, timezone
@@ -155,43 +180,11 @@ class AnomalyDetectorObserver(Observer):
         z_score = None
             
         for t in thresholds:
-            if t.get("metric_type") != "POWER_USAGE":
-                continue
-                
-            upper = t.get("upper_limit_kw")
-            lower = t.get("lower_limit_kw")
-            use_z_score = t.get("use_z_score", False)
-            z_thresh = t.get("z_score_threshold")
-            
-            is_anomaly = False
-            severity = "Warning"
-            expected = None
-            
-            if upper is not None and power_kw > float(upper):
-                is_anomaly = True
-                severity = "Critical" if abs(power_kw - float(upper)) / float(upper) > 0.5 else "Warning"
-                expected = float(upper)
-            elif lower is not None and power_kw < float(lower):
-                is_anomaly = True
-                severity = "Critical" if abs(power_kw - float(lower)) / float(lower) > 0.5 else "Warning"
-                expected = float(lower)
-            elif use_z_score and z_thresh is not None:
-                if z_score is None:
-                    z_score = self._update_ema_zscore(sensor_id, power_kw)
-                
-                if abs(z_score) > float(z_thresh):
-                    is_anomaly = True
-                    severity = "Warning"
-                    expected = float(z_thresh) # Store threshold as expected for context
-            
-            # If not anomaly, but we need to update Z-score anyway (to keep moving average accurate)
-            if not is_anomaly and use_z_score and z_score is None:
-                z_score = self._update_ema_zscore(sensor_id, power_kw)
-                
+            is_anomaly, severity, expected, z_score = self._evaluate_threshold(t, sensor_id, power_kw, z_score)
             if is_anomaly:
                 self._trigger_anomaly(
                     building_id, sensor_id, "POWER_USAGE", severity, power_kw, expected,
-                    z_score if use_z_score else None, now, payload.get("timestamp")
+                    z_score if t.get("use_z_score", False) else None, now, payload.get("timestamp")
                 )
                 
     def _trigger_anomaly(self, building_id, sensor_id, metric, severity, value, limit, z_score, now, timestamp_str):
@@ -221,4 +214,4 @@ class AnomalyDetectorObserver(Observer):
             self.redis.publish("anomalies_channel", json.dumps(anomaly_msg))
             print(f"[ANOMALY DETECTOR] Published {metric} anomaly for {building_id[:8]} ({value})")
         except Exception as e:
-            logging.error(f"Failed to publish anomaly: {e}")
+            logging.exception(f"Failed to publish anomaly: {e}")

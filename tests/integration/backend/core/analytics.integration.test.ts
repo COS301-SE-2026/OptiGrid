@@ -350,9 +350,9 @@ describe('Analytics API Integration', () => {
 					280.0,
 					3.8,
 					JSON.stringify([
-						{ timestamp: isoOffsetDays(-14), yhat: 700, yhat_lower: 650, yhat_upper: 750 },
-						{ timestamp: isoOffsetDays(-7), yhat: 720, yhat_lower: 670, yhat_upper: 770 },
-						{ timestamp: isoOffsetDays(7), yhat: 690, yhat_lower: 640, yhat_upper: 740 },
+						{ timestamp: isoOffsetDays(7), yhat: 700, yhat_lower: 650, yhat_upper: 750 },
+						{ timestamp: isoOffsetDays(14), yhat: 720, yhat_lower: 670, yhat_upper: 770 },
+						{ timestamp: isoOffsetDays(21), yhat: 690, yhat_lower: 640, yhat_upper: 740 },
 					]),
 				],
 			);

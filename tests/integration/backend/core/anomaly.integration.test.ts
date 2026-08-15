@@ -74,7 +74,7 @@ describe('Anomaly API Integration', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('success');
-		expect(response.body.data.length).toBe(2);
+		expect(response.body.data).toHaveLength(2);
 		expect(response.body.meta.total).toBe(2);
 	});
 

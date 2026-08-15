@@ -103,7 +103,7 @@ describe('Escalation Worker Integration', () => {
         expect(recentResult?.severity_level).toBe('HIGH');
 
         // assert a notification was created for the escalated anomaly
-        expect(notifications.length).toBe(1);
+        expect(notifications).toHaveLength(1);
         expect(notifications[0].user_id).toBe(userId);
         expect(notifications[0].channel).toBe('InApp');
         expect(notifications[0].content).toContain('[Critical] Anomaly detected');
