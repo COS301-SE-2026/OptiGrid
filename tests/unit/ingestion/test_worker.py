@@ -38,6 +38,15 @@ def test_worker_processes_standard_message_successfully(mock_redis_class, mock_i
         pass
 
     assert mock_write_api.write.called
+    
+    args, kwargs = mock_write_api.write.call_args
+    point = kwargs['record']
+    assert point._name == "energy_telemetry"
+    assert point._tags["building_id"] == "building-001"
+    assert point._tags["sensor_id"] == "sensor-100"
+    assert point._fields["usage"] == 250.75
+    assert point._fields["voltage_v"] == 230.0
+    assert point._fields["current_a"] == 1.09
 
 
 @patch('backend.ingestion.src.queue_worker.require_influx_config')
@@ -70,6 +79,15 @@ def test_worker_resolves_fallback_structural_keys(mock_redis_class, mock_influx_
         pass
 
     assert mock_write_api.write.called
+    
+    args, kwargs = mock_write_api.write.call_args
+    point = kwargs['record']
+    assert point._tags["building_id"] == "building-999"
+    assert point._tags["sensor_id"] == "sensor-999"
+    assert point._fields["usage"] == 150.5
+    # Default values assigned when missing
+    assert point._fields["voltage_v"] == 230.0
+    assert point._fields["current_a"] == 0.0
 
 
 @patch('backend.ingestion.src.queue_worker.require_influx_config')
