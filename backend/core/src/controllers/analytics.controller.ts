@@ -3,6 +3,7 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma';
+import { analyticsQueue } from '../services/bullmq';
 
 type NormalizedForecastPoint = {
     timestamp: string;
@@ -65,21 +66,15 @@ export const refreshAnalyticsController = async (req: Request, res: Response) =>
         const isAuth = await authorizeBuildingAccess(req.user?.id, building_id, res);
         if (!isAuth) return;
 
-        const pythonEngineUrl = process.env.ANALYTICS_URL || 'http://localhost:5001';
-        const refreshResponse = await fetch(`${pythonEngineUrl}/refresh-building/${building_id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+        //removed prev code, added enqueing to bullmq
+        await analyticsQueue.add("refresh_building", { building_id });
+        return res.status(202).json({ 
+            status: "accepted", 
+            message: "Analytics refresh task queued, a FORECAST_READY websocket event will be sent shortly" 
         });
-
-        if (!refreshResponse.ok) {
-            throw new Error(`Analytics engine returned status ${refreshResponse.status}`);
-        }
-
-        const refreshData = await refreshResponse.json();
-        return res.status(200).json(refreshData);
     } catch (error) {
         console.error("Analytics failed:", error);
-        return res.status(500).json({ status: 'error', message: 'Failed to refresh analytics' });
+        return res.status(500).json({ status: 'error', message: 'Failed to enqueue refresh' });
     }
 };
 
