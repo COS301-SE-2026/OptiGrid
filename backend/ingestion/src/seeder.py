@@ -179,18 +179,22 @@ def generate_sensor_data(s):
     ]
     
     chunk_size = 25000
-    client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True, timeout=60000)
-    write_api = client.write_api(write_options=SYNCHRONOUS)
     try:
-        for i in range(0, len(lines), chunk_size):
-            chunk = "\n".join(lines[i:i + chunk_size])
-            write_api.write(bucket=INFLUXDB_BUCKET, record=chunk)
-    finally:
-        write_api.close()
-        client.close()
-    
-    print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Seeded {num_points} points for sensor {s_id}")
-    return num_points
+        client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True, timeout=60000)
+        write_api = client.write_api(write_options=SYNCHRONOUS)
+        try:
+            for i in range(0, len(lines), chunk_size):
+                chunk = "\n".join(lines[i:i + chunk_size])
+                write_api.write(bucket=INFLUXDB_BUCKET, record=chunk)
+        finally:
+            write_api.close()
+            client.close()
+        
+        print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Seeded {num_points} points for sensor {s_id}")
+        return num_points
+    except Exception as e:
+        print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Error seeding sensor {s_id}: {str(e)}")
+        return 0
 
 def _check_sensor_gap(s, query_api, days_back, end_time):
     end_ts = end_time.timestamp()

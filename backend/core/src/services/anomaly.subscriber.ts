@@ -2,7 +2,6 @@ import Redis from 'ioredis';
 import prisma from '../lib/prisma';
 import { dispatchAnomalyNotification } from './notification.service';
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 let isSubscribed = false;
 
 export const startAnomalySubscriber = async () => {

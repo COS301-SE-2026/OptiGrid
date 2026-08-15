@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from influxdb_client import Point, WritePrecision
 import logging
+import os
+import redis
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +74,14 @@ class InfluxStorageObserver(Observer):
 
 # Concrete Observer
 class AnomalyDetectorObserver(Observer):
-    def __init__(self, redis_client):
-        self.redis = redis_client
+    def __init__(self, redis_url=None):
+        try:
+            from backend.ingestion.src.config import REDIS_HOST, REDIS_PORT, REDIS_DB
+        except ModuleNotFoundError:
+            from config import REDIS_HOST, REDIS_PORT, REDIS_DB
+            
+        redis_url = redis_url or os.getenv("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
+        self.redis = redis.Redis.from_url(redis_url, decode_responses=True)
         self._last_alert_time = {} # (building_id, metric_type) -> timestamp
         self._debounce_seconds = 900 # 15 minutes
         import functools, time

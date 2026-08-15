@@ -20,9 +20,9 @@ except ModuleNotFoundError:
     )
 
 try:
-    from backend.ingestion.src.observers import TelemetrySubject, InfluxStorageObserver
+    from backend.ingestion.src.observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver
 except ModuleNotFoundError:
-    from observers import TelemetrySubject, InfluxStorageObserver
+    from observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver
 
 def run_queue_worker():
     print("Starting OptiGrid Queue Worker.")
@@ -42,7 +42,9 @@ def run_queue_worker():
     # setup observers
     subject = TelemetrySubject()
     influx_observer = InfluxStorageObserver(write_api, INFLUXDB_BUCKET)
+    anomaly_observer = AnomalyDetectorObserver()
     subject.attach(influx_observer)
+    subject.attach(anomaly_observer)
 
     print("Queue Worker active. Listening on Redis.")
 

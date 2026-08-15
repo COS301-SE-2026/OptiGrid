@@ -141,8 +141,8 @@ importers:
         specifier: ^9.0.3
         version: 9.0.3
       node-cron:
-        specifier: ^4.6.0
-        version: 4.6.0
+        specifier: ^3.0.3
+        version: 3.0.3
       pg:
         specifier: ^8.16.0
         version: 8.21.0
@@ -186,6 +186,9 @@ importers:
       '@types/node':
         specifier: ^22.19.17
         version: 22.19.19
+      '@types/node-cron':
+        specifier: ^3.0.11
+        version: 3.0.11
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
@@ -2809,6 +2812,9 @@ packages:
 
   '@types/multer@2.1.0':
     resolution: {integrity: sha512-zYZb0+nJhOHtPpGDb3vqPjwpdeGlGC157VpkqNQL+UU2qwoacoQ7MpsAmUptI/0Oa127X32JzWDqQVEXp2RcIA==}
+
+  '@types/node-cron@3.0.11':
+    resolution: {integrity: sha512-0ikrnug3/IyneSHqCBeslAhlK2aBfYek1fGo4bP4QnZPmiqSGRK+Oy7ZMisLWkesffJvQ1cqAcBnJC+8+nxIAg==}
 
   '@types/node@18.19.130':
     resolution: {integrity: sha512-GRaXQx6jGfL8sKfaIDD6OupbIHBr9jv7Jnaml9tB7l4v068PAOXqfcujMMo5PhbIs6ggR1XODELqahT2R8v0fg==}
@@ -5906,9 +5912,9 @@ packages:
   node-addon-api@5.1.0:
     resolution: {integrity: sha512-eh0GgfEkpnoWDq+VY8OyvYhFEzBk6jIYbRKdIlyTiAXIVJ8PyBaKb0rp7oDtoddbdoHWhq8wwr+XZ81F1rpNdA==}
 
-  node-cron@4.6.0:
-    resolution: {integrity: sha512-Si/bzYiKRHOB8/a99T2+SDGN582ONDMSTlJr5oCkT6GtnqPjZ2s10eoQRYkW9ZHwjVxONL+W8Fb+qR0AHMQsdg==}
-    engines: {node: '>=20'}
+  node-cron@3.0.3:
+    resolution: {integrity: sha512-dOal67//nohNgYWb+nWmg5dkFdIwDm8EpeGYMekPMrngV3637lqnX0lbUcCtgibHTz6SEz7DAIjKvKDFYCnO1A==}
+    engines: {node: '>=6.0.0'}
 
   node-exports-info@1.6.0:
     resolution: {integrity: sha512-pyFS63ptit/P5WqUkt+UUfe+4oevH+bFeIiPPdfb0pFeYEu/1ELnJu5l+5EcTKYL5M7zaAa7S8ddywgXypqKCw==}
@@ -7475,6 +7481,11 @@ packages:
 
   uuid@14.0.1:
     resolution: {integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==}
+    hasBin: true
+
+  uuid@8.3.2:
+    resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@9.0.1:
@@ -10561,6 +10572,8 @@ snapshots:
   '@types/multer@2.1.0':
     dependencies:
       '@types/express': 4.17.21
+
+  '@types/node-cron@3.0.11': {}
 
   '@types/node@18.19.130':
     dependencies:
@@ -14485,7 +14498,9 @@ snapshots:
 
   node-addon-api@5.1.0: {}
 
-  node-cron@4.6.0: {}
+  node-cron@3.0.3:
+    dependencies:
+      uuid: 8.3.2
 
   node-exports-info@1.6.0:
     dependencies:
@@ -16330,6 +16345,8 @@ snapshots:
   uuid@10.0.0: {}
 
   uuid@14.0.1: {}
+
+  uuid@8.3.2: {}
 
   uuid@9.0.1: {}
 
