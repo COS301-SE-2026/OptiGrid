@@ -2,6 +2,19 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { syncThresholdsToRedis } from '../services/threshold.services';
 
+async function checkBuildingAccess(req: Request, buildingId: string): Promise<boolean> {
+	if (req.user!.roleType === 'ADMIN') return true;
+	const access = await prisma.userBuildingAccess.findUnique({
+		where: {
+			user_id_building_id: {
+				user_id: req.user!.id,
+				building_id: buildingId,
+			},
+		},
+	});
+	return !!access;
+}
+
 // create a new threshold
 export const createThreshold = async (req: Request, res: Response): Promise<void> => {
 	try {
@@ -16,17 +29,7 @@ export const createThreshold = async (req: Request, res: Response): Promise<void
 			z_score_threshold
 		} = req.body;
 
-		// Validate user has access to building
-		const access = await prisma.userBuildingAccess.findUnique({
-			where: {
-				user_id_building_id: {
-					user_id: req.user!.id,
-					building_id: building_id,
-				},
-			},
-		});
-
-		if (!access && req.user!.roleType !== 'ADMIN') {
+		if (!(await checkBuildingAccess(req, building_id))) {
 			res.status(403).json({ status: 'error', message: 'Forbidden' });
 			return;
 		}
@@ -58,16 +61,7 @@ export const getThresholds = async (req: Request, res: Response): Promise<void> 
 	try {
 		const { buildingId } = req.params;
 
-		const access = await prisma.userBuildingAccess.findUnique({
-			where: {
-				user_id_building_id: {
-					user_id: req.user!.id,
-					building_id: buildingId,
-				},
-			},
-		});
-
-		if (!access && req.user!.roleType !== 'ADMIN') {
+		if (!(await checkBuildingAccess(req, buildingId))) {
 			res.status(403).json({ status: 'error', message: 'Forbidden' });
 			return;
 		}
@@ -100,16 +94,7 @@ export const updateThreshold = async (req: Request, res: Response): Promise<void
 		}
 
 		if (existing.building_id) {
-			const access = await prisma.userBuildingAccess.findUnique({
-				where: {
-					user_id_building_id: {
-						user_id: req.user!.id,
-						building_id: existing.building_id,
-					},
-				},
-			});
-
-			if (!access && req.user!.roleType !== 'ADMIN') {
+			if (!(await checkBuildingAccess(req, existing.building_id))) {
 				res.status(403).json({ status: 'error', message: 'Forbidden' });
 				return;
 			}
@@ -153,16 +138,7 @@ export const deleteThreshold = async (req: Request, res: Response): Promise<void
 		}
 
 		if (existing.building_id) {
-			const access = await prisma.userBuildingAccess.findUnique({
-				where: {
-					user_id_building_id: {
-						user_id: req.user!.id,
-						building_id: existing.building_id,
-					},
-				},
-			});
-
-			if (!access && req.user!.roleType !== 'ADMIN') {
+			if (!(await checkBuildingAccess(req, existing.building_id))) {
 				res.status(403).json({ status: 'error', message: 'Forbidden' });
 				return;
 			}
@@ -197,16 +173,7 @@ export const muteThreshold = async (req: Request, res: Response): Promise<void> 
 		}
 
 		if (existing.building_id) {
-			const access = await prisma.userBuildingAccess.findUnique({
-				where: {
-					user_id_building_id: {
-						user_id: req.user!.id,
-						building_id: existing.building_id,
-					},
-				},
-			});
-
-			if (!access && req.user!.roleType !== 'ADMIN') {
+			if (!(await checkBuildingAccess(req, existing.building_id))) {
 				res.status(403).json({ status: 'error', message: 'Forbidden' });
 				return;
 			}

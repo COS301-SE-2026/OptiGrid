@@ -2,22 +2,26 @@ import { Request, Response } from 'express';
 import { AnomalyStatus } from '@prisma/client';
 import prisma from '../lib/prisma';
 
+async function checkBuildingAccess(req: Request, buildingId: string): Promise<boolean> {
+	if (req.user!.roleType === 'ADMIN') return true;
+	const access = await prisma.userBuildingAccess.findUnique({
+		where: {
+			user_id_building_id: {
+				user_id: req.user!.id,
+				building_id: buildingId,
+			},
+		},
+	});
+	return !!access;
+}
+
 // get all anomalies for a building
 export const getAnomalies = async (req: Request, res: Response): Promise<void> => {
 	try {
 		const { buildingId } = req.params;
 		const { skip = '0', take = '50', severity, status, startDate, endDate } = req.query;
 
-		const access = await prisma.userBuildingAccess.findUnique({
-			where: {
-				user_id_building_id: {
-					user_id: req.user!.id,
-					building_id: buildingId,
-				},
-			},
-		});
-
-		if (!access && req.user!.roleType !== 'ADMIN') {
+		if (!(await checkBuildingAccess(req, buildingId))) {
 			res.status(403).json({ status: 'error', message: 'Forbidden' });
 			return;
 		}
@@ -78,16 +82,7 @@ export const updateAnomalyStatus = async (req: Request, res: Response): Promise<
 		}
 
 		if (anomaly.building_id) {
-			const access = await prisma.userBuildingAccess.findUnique({
-				where: {
-					user_id_building_id: {
-						user_id: req.user!.id,
-						building_id: anomaly.building_id,
-					},
-				},
-			});
-
-			if (!access && req.user!.roleType !== 'ADMIN') {
+			if (!(await checkBuildingAccess(req, anomaly.building_id))) {
 				res.status(403).json({ status: 'error', message: 'Forbidden' });
 				return;
 			}
@@ -126,16 +121,7 @@ export const getAnomalyContext = async (req: Request, res: Response): Promise<vo
 		}
 
 		if (anomaly.building_id) {
-			const access = await prisma.userBuildingAccess.findUnique({
-				where: {
-					user_id_building_id: {
-						user_id: req.user!.id,
-						building_id: anomaly.building_id,
-					},
-				},
-			});
-
-			if (!access && req.user!.roleType !== 'ADMIN') {
+			if (!(await checkBuildingAccess(req, anomaly.building_id))) {
 				res.status(403).json({ status: 'error', message: 'Forbidden' });
 				return;
 			}
