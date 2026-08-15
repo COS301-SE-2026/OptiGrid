@@ -139,7 +139,8 @@ test.describe.skip("Edit building", () => {
     expect(loginResponse.ok()).toBeTruthy();
 
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
-    const originalRow = page.locator("tbody tr").filter({
+    const buildingsTable = page.getByRole("table", { name: "Your buildings" });
+    const originalRow = buildingsTable.locator("tbody tr").filter({
       hasText: originalBuilding.name,
     });
     await expect(originalRow).toBeVisible();
@@ -169,11 +170,11 @@ test.describe.skip("Edit building", () => {
     ).toBeVisible();
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
 
-    const updatedRow = page.locator("tbody tr").filter({
+    const updatedRow = buildingsTable.locator("tbody tr").filter({
       hasText: updatedBuilding.name,
     });
     await expect(updatedRow).toBeVisible();
     await expect(updatedRow).toContainText(updatedBuilding.address);
-    await expect(page.locator("tbody")).not.toContainText(originalBuilding.name);
+    await expect(buildingsTable.locator("tbody")).not.toContainText(originalBuilding.name);
   });
 });

@@ -23,9 +23,9 @@ type FormData = {
     square_footage: string;
     max_occupancy: string;
     timezone: string;
-    geohash:string;
-    latitude:string;
-    longitude:string;
+    geohash: string;
+    latitude: string;
+    longitude: string;
     nominal_voltage: string;
     max_current_threshold: string;
 };
@@ -37,10 +37,9 @@ const initial: FormData = {
     square_footage: "",
     max_occupancy: "",
     timezone: "",
-    geohash:"",
-    latitude:"",
-    longitude:"",
-
+    geohash: "",
+    latitude: "",
+    longitude: "",
     nominal_voltage: "230",
     max_current_threshold: "60",
 };
@@ -76,21 +75,21 @@ export default function AddBuildingPage() {
             next.max_occupancy = "Max occupancy must be a positive whole number.";
 
         if (form.latitude && (Number(form.latitude) < -90 || Number(form.latitude) > 90)) {
-    next.latitude = "Latitude must be between -90 and 90.";
-}
+            next.latitude = "Latitude must be between -90 and 90.";
+        }
 
-if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) > 180)) {
-    next.longitude = "Longitude must be between -180 and 180.";
-}
-        
+        if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) > 180)) {
+            next.longitude = "Longitude must be between -180 and 180.";
+        }
+
         const voltage = Number(form.nominal_voltage);
         if (form.nominal_voltage && (isNaN(voltage) || voltage <= 0))
             next.nominal_voltage = "Nominal voltage must be a positive number.";
-        
+
         const current = Number(form.max_current_threshold);
         if (form.max_current_threshold && (isNaN(current) || current <= 0))
             next.max_current_threshold = "Max current must be a positive number.";
-        
+
         setErrors(next);
         return Object.keys(next).length === 0;
     };
@@ -132,11 +131,11 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
     };
 
     return (
-        <div style={{ 
-                display: "flex", 
-                flexDirection: "column", 
-                height: "100%" 
-            }}>
+        <div style={{
+            display: "flex",
+            flexDirection: "column",
+            height: "100%"
+        }}>
             <div className="dashboard-header" style={{ marginBottom: "var(--space-5)" }}>
                 <div>
                     <h1 className="dashboard-title">Add building</h1>
@@ -153,11 +152,11 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                 className="card"
                 style={{ maxWidth: "720px", display: "flex", flexDirection: "column", gap: "var(--space-4)", flex: 1 }}
             >
-                <div style={{ 
-                        display: "grid", 
-                        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                        gap: "var(--space-4)" 
-                    }}>
+                <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                    gap: "var(--space-4)"
+                }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                         <label className="label" htmlFor="building_name">Building name *</label>
                         <input
@@ -304,11 +303,11 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                     </div>
                 </div>
 
-                <div style={{ 
-                        display: "grid", 
-                        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", 
-                        gap: "var(--space-4)" 
-                    }}>
+                <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                    gap: "var(--space-4)"
+                }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                         <label className="label" htmlFor="timezone">Timezone</label>
                         <input
@@ -391,7 +390,15 @@ if (form.longitude && (Number(form.longitude) < -180 || Number(form.longitude) >
                 )}
 
                 <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "auto" }}>
-                    <button type="submit" disabled={loading} className="btn btn-primary">
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="btn btn-primary"
+                        style={{
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
+                        }}
+                    >
                         {loading ? "Saving..." : "Add building"}
                     </button>
                     <Link href="/dashboard" className="btn btn-secondary">

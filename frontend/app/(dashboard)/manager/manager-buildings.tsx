@@ -11,7 +11,6 @@ type BuildingRecord = {
     building_type?: string | null;
     physical_address?: string | null;
     lifecycle_state: LifeCycleState;
-    // we will populate these when the API includes analytics for each building
     analytics?: { todays_usage?: number | null } | null;
     todays_usage?: number | null;
     authorized_users?: AuthorizedUser[] | null;
@@ -48,12 +47,13 @@ function getEnergyUsage(building: BuildingRecord): number | null {
     const usage = building.analytics?.todays_usage ?? building.todays_usage;
     return typeof usage === "number" && Number.isFinite(usage) ? usage : null;
 }
+
 function getOwnerName(building: BuildingRecord): string {
-    let viewer = building.authorized_users?.find((access) => 
+    let viewer = building.authorized_users?.find((access) =>
         (access?.user?.roleType?.toUpperCase() === "VIEWER"
-    ))?.user;
-    
-    if(!viewer) viewer = building.authorized_users?.[0]?.user;
+        ))?.user;
+
+    if (!viewer) viewer = building.authorized_users?.[0]?.user;
     if (!viewer) return "N/A";
 
     const fullName = [viewer.firstName, viewer.lastName].filter(Boolean).join(" ").trim();
@@ -93,9 +93,7 @@ export default function ManagerBuildings() {
                             : "Unable to load your buildings",
                     );
                 }
-            } 
-
-            finally {
+            } finally {
                 if (isMounted) {
                     setLoading(false);
                 }
@@ -118,17 +116,16 @@ export default function ManagerBuildings() {
         if (energySorting === "none") {
             return filtered;
         }
-        //the buildings without usage data always sort to bottom
         return [...filtered].sort((x, y) => {
             const xUsage = getEnergyUsage(x);
             const yUsage = getEnergyUsage(y);
-            if (xUsage === null && yUsage === null){ 
+            if (xUsage === null && yUsage === null) {
                 return 0;
             }
-            if (xUsage === null){
+            if (xUsage === null) {
                 return 1;
             }
-            if (yUsage === null){
+            if (yUsage === null) {
                 return -1;
             }
 
@@ -137,8 +134,7 @@ export default function ManagerBuildings() {
     }, [buildings, lifecycleFilter, energySorting]);
 
     return (
-        <section>
-            
+        <div className="dashboard-content">
             <div className="dashboard-header">
                 <div>
                     <h1 className="dashboard-title">My Buildings</h1>
@@ -147,151 +143,170 @@ export default function ManagerBuildings() {
                     </div>
                 </div>
             </div>
-            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-                <div
 
-                    style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        flexWrap: "wrap",
-                        gap: "var(--space-4)",
-                        alignItems: "center",
-                    }}
-                >
-                    <div
-                        style={{
-                            gap: "var(--space-2)",
-                            display: "flex",
-                            alignItems: "center",
-                            flex: 1,
-                        }}
-                    >
-                        <label className="label" htmlFor="lifecycle-filter" style={{ whiteSpace: "nowrap" }}>Lifecycle:</label>
-
-                        <select
-                            id="lifecycle-filter"
-                            value={lifecycleFilter}
-                            className="select"
-                            onChange={(e) => setLifecycleFilter(e.target.value)}
-                            style={{ flex: 1 }}
-                        >
-                            <option value="all">All states</option>
-                            <option value="ACTIVE">Active</option>
-                            <option value="PROVISIONING">Provisioning</option>
-                            <option value="PROVISIONING_FAILED">Provisioning failed</option>
-                        </select>
-                    </div>
+            <section aria-label="Filters and controls">
+                <div className="card" style={{ marginBottom: "var(--space-5)" }}>
                     <div
                         style={{
                             display: "flex",
-                            flex: 1,
+                            flexDirection: "row",
+                            flexWrap: "wrap",
+                            gap: "var(--space-4)",
                             alignItems: "center",
-                            gap: "var(--space-2)",
                         }}
                     >
-                        <label className="label" htmlFor="energy-sort" style={{ whiteSpace: "nowrap" }}>Energy usage:</label>
-                        <select
-                            id="energy-sort"
-                            className="select"
-                            value={energySorting}
-                            onChange={(e) => setEnergySorting(e.target.value as energySorting)}
-                            style={{ flex: 1 }}
+                        <div
+                            style={{
+                                gap: "var(--space-2)",
+                                display: "flex",
+                                alignItems: "center",
+                                flex: 1,
+                            }}
                         >
-                            <option value="none">No sorting</option>
-                            <option value="desc">Highest to lowest</option>
-                            <option value="asc">Lowest to highest</option>
-                        </select>
+                            <label className="label" htmlFor="lifecycle-filter" style={{ whiteSpace: "nowrap" }}>Lifecycle:</label>
+                            <select
+                                id="lifecycle-filter"
+                                value={lifecycleFilter}
+                                className="select"
+                                onChange={(e) => setLifecycleFilter(e.target.value)}
+                                style={{ flex: 1 }}
+                                aria-label="Filter buildings by lifecycle state"
+                            >
+                                <option value="all">All states</option>
+                                <option value="ACTIVE">Active</option>
+                                <option value="PROVISIONING">Provisioning</option>
+                                <option value="PROVISIONING_FAILED">Provisioning failed</option>
+                            </select>
+                        </div>
+                        <div
+                            style={{
+                                display: "flex",
+                                flex: 1,
+                                alignItems: "center",
+                                gap: "var(--space-2)",
+                            }}
+                        >
+                            <label className="label" htmlFor="energy-sort" style={{ whiteSpace: "nowrap" }}>Energy usage:</label>
+                            <select
+                                id="energy-sort"
+                                className="select"
+                                value={energySorting}
+                                onChange={(e) => setEnergySorting(e.target.value as energySorting)}
+                                style={{ flex: 1 }}
+                                aria-label="Sort buildings by energy usage"
+                            >
+                                <option value="none">No sorting</option>
+                                <option value="desc">Highest to lowest</option>
+                                <option value="asc">Lowest to highest</option>
+                            </select>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setLifecycleFilter("all");
+                                setEnergySorting("none");
+                            }}
+                            className="btn btn-secondary"
+                        >
+                            Reset filters
+                        </button>
                     </div>
-                    <button
-                        onClick={() => {
-                            setLifecycleFilter("all");
-                            setEnergySorting("none");
-                        }}
-                        className="btn btn-secondary"
-                    >
-                        Reset filters
-                    </button>
-
                 </div>
-            </div>
+            </section>
 
             {error && (
-                <div className="card" role="alert" style={{  color: "var(--brand-danger)", marginBottom: "var(--space-5)"}}>{error}</div>
-            )}
-            <div className="card" style={{ overflow: "hidden", padding: 0 }}>
-                <div style={{ overflow: "auto" }}>
-                    <table className="dashboard-table">
-                        
-                        <thead>
-                            <tr>
-                                <th>Building</th>
-                                <th>Lifecycle</th>
-                                <th>Energy usage (kWh)</th>
-                                <th>Owner</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="dashboard-empty">
-                                        Loading your buildings...
-                                    </td>
-                                </tr>
-                            ) : visibleBuildings.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="dashboard-empty">
-                                        No buildings found
-                                    </td>
-                                </tr>
-                            ) : (
-                                visibleBuildings.map((building) => {
-                                    const usage = getEnergyUsage(building);
-                                    return (
-                                        <tr key={building.building_id}>
-                                            <td style={{ fontWeight: "var(--fw-semibold)" }}>
-                                                {building.building_name}
-                                            </td>
-                                            <td>
-                                                <span className={`badge ${lifeCycleBadge[building.lifecycle_state] ?? "badge-warning"}`}>
-                                                    {lifeCycleLabel[building.lifecycle_state] ?? building.lifecycle_state}
-                                                </span>
-                                            </td>
-                                            <td>{usage === null ? "N/A" : usage.toFixed(2)}</td>
-                                            <td>{getOwnerName(building)}</td>
-
-                                            <td>
-                                                <div style={{ display: "flex", flexWrap: "wrap",  gap: "var(--space-2)" }}>
-                                                    <Link
-                                                        href={`/buildings/${building.building_id}/edit`}
-                                                        className="btn btn-primary"
-                                                        style={{
-                                                            padding: "var(--space-1) var(--space-3)",
-                                                            fontSize: "var(--fs-small)"
-                                                        }}
-                                                    >
-                                                        Edit
-                                                    </Link>
-                                                    <Link
-                                                        href={`/buildings/${building.building_id}/sensors`}
-                                                        className="btn btn-secondary"
-                                                        style={{
-                                                            padding: "var(--space-1) var(--space-3)",
-                                                            fontSize: "var(--fs-small)"
-                                                        }}
-                                                    >
-                                                        Sensors
-                                                    </Link>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
+                <div className="card" role="alert" style={{ color: "var(--brand-danger)", marginBottom: "var(--space-5)" }}>
+                    {error}
                 </div>
-            </div>
-        </section>
+            )}
+
+            <section aria-label="Buildings list">
+                <div className="card" style={{ overflow: "hidden", padding: 0 }}>
+                    <div style={{ overflow: "auto" }}>
+                        <table className="dashboard-table">
+                            <caption className="sr-only">Buildings you manage</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                        Building
+                                    </th>
+                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                        Lifecycle
+                                    </th>
+                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                        Energy usage (kWh)
+                                    </th>
+                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                        Owner
+                                    </th>
+                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={5} className="dashboard-empty">
+                                            Loading your buildings...
+                                        </td>
+                                    </tr>
+                                ) : visibleBuildings.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="dashboard-empty">
+                                            No buildings found
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    visibleBuildings.map((building) => {
+                                        const usage = getEnergyUsage(building);
+                                        return (
+                                            <tr key={building.building_id}>
+                                                <td style={{ fontWeight: "var(--fw-semibold)" }}>
+                                                    {building.building_name}
+                                                </td>
+                                                <td>
+                                                    <span className={`badge ${lifeCycleBadge[building.lifecycle_state] ?? "badge-warning"}`}>
+                                                        {lifeCycleLabel[building.lifecycle_state] ?? building.lifecycle_state}
+                                                    </span>
+                                                </td>
+                                                <td>{usage === null ? "N/A" : usage.toFixed(2)}</td>
+                                                <td>{getOwnerName(building)}</td>
+                                                <td>
+                                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+                                                        <Link
+                                                            href={`/buildings/${building.building_id}/edit`}
+                                                            className="btn btn-primary"
+                                                            style={{
+                                                                padding: "var(--space-1) var(--space-3)",
+                                                                fontSize: "var(--fs-small)",
+                                                                backgroundColor: "#3A6B7C",
+                                                                color: "#FFFFFF",
+                                                            }}
+                                                        >
+                                                            Edit
+                                                        </Link>
+                                                        <Link
+                                                            href={`/buildings/${building.building_id}/sensors`}
+                                                            className="btn btn-secondary"
+                                                            style={{
+                                                                padding: "var(--space-1) var(--space-3)",
+                                                                fontSize: "var(--fs-small)",
+                                                            }}
+                                                        >
+                                                            Sensors
+                                                        </Link>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
     );
 }

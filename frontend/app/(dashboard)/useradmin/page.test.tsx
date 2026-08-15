@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import UserManagementPage from "./page";
 
@@ -84,8 +84,7 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-const getSelects = () => screen.getAllByRole("combobox");
-const getSortSelect = () => screen.getByRole("combobox");
+const getSortSelect = () => screen.getByRole("combobox", { name: /sort users by/i });
 const getSearchInput = () =>
   screen.getByPlaceholderText(/name or email/i);
 
@@ -237,15 +236,17 @@ describe("UserManagementPage", () => {
   });
 
   describe("Reset button", () => {
-    it("resets sort filter to 'latest'", () => {
+    it("resets sort filter to 'latest'", async () => {
       render(<UserManagementPage />);
+      await screen.findByText("Alice");
       fireEvent.change(getSortSelect(), { target: { value: "oldest" } });
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
       expect((getSortSelect() as HTMLSelectElement).value).toBe("latest");
     });
 
-    it("clears search query", () => {
+    it("clears search query", async () => {
       render(<UserManagementPage />);
+      await screen.findByText("Alice");
       fireEvent.change(getSearchInput(), { target: { value: "Alice" } });
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
       expect((getSearchInput() as HTMLInputElement).value).toBe("");
@@ -300,11 +301,10 @@ describe("UserManagementPage", () => {
         })
       );
 
-      expect(
-        screen.getByRole("heading", {
-          name: /assign building/i,
-        })
-      ).toBeInTheDocument();
+     
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: /assign building/i })).toBeInTheDocument();
+      });
     });
   });
 

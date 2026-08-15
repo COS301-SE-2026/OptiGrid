@@ -291,14 +291,15 @@ export default function SensorsClient({
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
                 <div style={{ overflow: "auto" }}>
                     <table className="dashboard-table">
+                    <caption className="sr-only">Sensors for this building</caption>
 
                         <thead>
                             <tr>
-                                <th>MAC address</th>
-                                <th>Type</th>
-                                <th>Zone</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th scope="col">MAC address</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Zone</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Actions</th>
                             </tr>
                         </thead>
                         <tbody>

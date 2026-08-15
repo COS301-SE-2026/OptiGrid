@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessibleChart } from "../../../components/AccessibleChart";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import {
@@ -152,7 +153,6 @@ function buildChartData(result: ForecastResult | undefined) {
     const normalizedHistorical = processHistoricalData(result.historical ?? []);
     const normalizedForecast = processForecastData(result.forecast ?? []);
 
-    // Connect boundary timestamp for line continuity
     const connectedForecast = [...normalizedForecast];
     if (normalizedHistorical.length > 0 && connectedForecast.length > 0) {
         const lastHist = normalizedHistorical.at(-1);
@@ -226,7 +226,7 @@ function ChevronDown() {
 }
 
 function Skeleton({ style }: Readonly<{ style?: CSSProperties }>) {
-    return <div className="skeleton" style={style} />;
+    return <div className="skeleton" style={style} aria-hidden="true" />;
 }
 
 function BuildingStatusNotice({
@@ -242,7 +242,7 @@ function BuildingStatusNotice({
 }>) {
     if (buildingsError) {
         return (
-            <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }}>
+            <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }} role="alert">
                 Unable to load your assigned buildings right now.
             </p>
         );
@@ -256,7 +256,7 @@ function BuildingStatusNotice({
     }
     if (forecastError) {
         return (
-            <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }}>
+            <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }} role="alert">
                 {forecastError}
             </p>
         );
@@ -275,13 +275,14 @@ function KpiCard({
     value: string | null;
     skeletonWidth?: number;
 }>) {
+    const ariaLabel = `${label}: ${value || "No data"}`;
     return (
-        <div className="card dashboard-card-tight">
+        <article className="card dashboard-card-tight" aria-label={ariaLabel}>
             <p className="dashboard-kpi-label">{label}</p>
             {isPending && <Skeleton style={{ height: 28, width: skeletonWidth, marginTop: "var(--space-3)" }} />}
             {!isPending && value && <p className="dashboard-kpi-value metric">{value}</p>}
             {!isPending && !value && <p className="dashboard-kpi-value text-muted">--</p>}
-        </div>
+        </article>
     );
 }
 
@@ -333,6 +334,28 @@ function ForecastChartContainer({
 
     return (
         <>
+            <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
+                Historical and predicted energy demand for {selectedBuildingName}
+            </p>
+            <AccessibleChart
+                caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in kWh`}
+                categoryLabel="Timestamp"
+                categories={chartData.map((point) => formatTooltipLabel(point.timestamp, horizon))}
+                series={[
+                    { name: "Recorded (kWh)", values: chartData.map((point) => point.kwh) },
+                    { name: "Predicted (kWh)", values: chartData.map((point) => point.yhat) },
+                    ...(hasConfidenceBand
+                        ? [{
+                            name: "95% confidence interval (kWh)",
+                            values: chartData.map((point) =>
+                                point.yhat_range
+                                    ? `${point.yhat_range[0].toLocaleString()} to ${point.yhat_range[1].toLocaleString()}`
+                                    : null,
+                            ),
+                        }]
+                        : []),
+                ]}
+            >
             <ResponsiveContainer width="100%" height={240}>
                 <ComposedChart
                     data={chartData}
@@ -362,6 +385,12 @@ function ForecastChartContainer({
                         }}
                         axisLine={false}
                         tickLine={false}
+                        label={{
+                            value: "kWh",
+                            angle: -90,
+                            position: "insideLeft",
+                            style: { fill: "var(--brand-ink-muted)", fontSize: 10 }
+                        }}
                     />
                     <Tooltip
                         contentStyle={{
@@ -373,8 +402,8 @@ function ForecastChartContainer({
                         }}
                         cursor={{ stroke: "var(--brand-border)" }}
                         labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon)}
+                        formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy"]}
                     />
-                    {/* Native confidence range area band */}
                     {hasConfidenceBand ? (
                         <Area
                             type="monotone"
@@ -419,8 +448,8 @@ function ForecastChartContainer({
                     />
                 </ComposedChart>
             </ResponsiveContainer>
+            </AccessibleChart>
 
-            {/* Legend */}
             <div
                 className="text-muted"
                 style={{
@@ -435,12 +464,36 @@ function ForecastChartContainer({
                     <span
                         style={{
                             width: 16,
+                            borderTop: "2px solid var(--brand-primary)",
+                            display: "inline-block",
+                        }}
+                    />
+                    <span>Historical</span>
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                    <span
+                        style={{
+                            width: 16,
                             borderTop: "2px dashed var(--brand-primary)",
                             display: "inline-block",
                         }}
                     />
                     <span>Predicted</span>
                 </span>
+                {hasConfidenceBand && (
+                    <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                        <span
+                            style={{
+                                width: 16,
+                                height: 4,
+                                backgroundColor: "var(--brand-primary)",
+                                opacity: 0.15,
+                                display: "inline-block",
+                            }}
+                        />
+                        <span>Confidence range</span>
+                    </span>
+                )}
             </div>
 
             <div
@@ -569,7 +622,6 @@ export default function ForecastPage() {
 
     return (
         <div>
-            {/* Page header */}
             <div
                 className="dashboard-section"
                 style={{
@@ -583,8 +635,7 @@ export default function ForecastPage() {
                 </p>
             </div>
 
-            {/* Controls */}
-            <div className="card dashboard-section">
+            <section className="card dashboard-section" aria-label="Forecast controls">
                 <div
                     style={{
                         display: "grid",
@@ -609,6 +660,7 @@ export default function ForecastPage() {
                                 value={buildingId}
                                 disabled={buildingsLoading || buildings.length === 0}
                                 onChange={(e) => setBuildingId(e.target.value)}
+                                aria-label="Select a building for forecast"
                             >
                                 <option value="">
                                     {buildingsLoading ? "Loading buildings..." : "Select building"}
@@ -628,6 +680,7 @@ export default function ForecastPage() {
                                     color: "var(--brand-ink-muted)",
                                     pointerEvents: "none",
                                 }}
+                                aria-hidden="true"
                             >
                                 <ChevronDown />
                             </span>
@@ -649,6 +702,7 @@ export default function ForecastPage() {
                                 style={selectStyle}
                                 value={horizon}
                                 onChange={(e) => setHorizon(e.target.value as "weekly" | "monthly")}
+                                aria-label="Select forecast horizon"
                             >
                                 <option value="weekly">Weekly (Next 7 Days)</option>
                                 <option value="monthly">Monthly (Next 12 Weeks)</option>
@@ -662,6 +716,7 @@ export default function ForecastPage() {
                                     color: "var(--brand-ink-muted)",
                                     pointerEvents: "none",
                                 }}
+                                aria-hidden="true"
                             >
                                 <ChevronDown />
                             </span>
@@ -682,7 +737,11 @@ export default function ForecastPage() {
                                 })
                             }
                             className="btn btn-primary"
-                            style={{ width: "100%" }}
+                            style={{
+                                width: "100%",
+                                backgroundColor: "#3A6B7C",
+                                color: "#FFFFFF",
+                            }}
                         >
                             {isPending && <Spinner />}
                             Run forecast
@@ -696,10 +755,9 @@ export default function ForecastPage() {
                     buildingsLoading={buildingsLoading}
                     forecastError={forecastError}
                 />
-            </div>
+            </section>
 
-            {/* Chart */}
-            <div className="card dashboard-section">
+            <section className="card dashboard-section" aria-label="Demand forecast chart">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Demand Trend</h2>
                     <span className="dashboard-section-meta">
@@ -719,10 +777,9 @@ export default function ForecastPage() {
                     showForecastDots={showForecastDots}
                     selectedBuildingName={selectedBuildingName}
                 />
-            </div>
+            </section>
 
-            {/* KPI cards */}
-            <div className="dashboard-kpi-grid">
+            <div className="dashboard-kpi-grid" aria-label="Forecast summary statistics">
                 <KpiCard
                     label="Peak demand"
                     isPending={isPending}
