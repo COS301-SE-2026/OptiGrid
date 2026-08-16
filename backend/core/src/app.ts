@@ -8,10 +8,9 @@ import { authenticateRequest } from "./middleware/auth.middleware";
 import analyticsRoutes from "./routes/analytics.routes";
 import userPreferencesRoutes from "./routes/user_preferences.routes";
 import contactRoutes from "./routes/contact.routes";
-import accountRoutes from "./routes/account.routes";
-import adminUserRoutes from "./routes/admin_user.routes";
 import { rateLimiter } from "./middleware/rateLimiter.middleware";
 import telemetryRoutes from './routes/telemetry.routes';
+import recommendationRoutes from "./routes/recommendation.routes";
 import cors from 'cors';
 
 export interface CreateAppOptions {
@@ -71,6 +70,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use("/api/contact", strictRate,contactRoutes);
 	app.use("/api/users",authRate, userAuthRoutes);
 	app.use('/api/telemetry', telemetryRoutes);
+	app.use("/api/buildings/:building_id/recommendations", authenticateRequest, normalRate, recommendationRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });
