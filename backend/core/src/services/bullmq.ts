@@ -6,9 +6,13 @@ const connection = {
     port: parseInt(process.env.REDIS_PORT || '6379')
 };
 const QUEUE_NAME = 'analytics-refresh';
-export const analyticsQueue = new Queue(QUEUE_NAME, { connection });
+
+export const analyticsQueue = (process.env.NODE_ENV === "test" ? { add: async () => {}, getJob: async () => null }
+    : new Queue(QUEUE_NAME, { connection })) as unknown as Queue;
 
 export function bullMQsetUp() {
+    if (process.env.NODE_ENV === 'test') return;
+    
     const events = new QueueEvents(QUEUE_NAME, { connection });
     events.on('completed', ({ jobId, returnvalue }) => {
         analyticsQueue.getJob(jobId).then(job => {
