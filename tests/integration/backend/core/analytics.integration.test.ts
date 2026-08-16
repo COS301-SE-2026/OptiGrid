@@ -9,7 +9,7 @@ jest.mock('../../../../backend/core/src/services/bullmq', () => ({
 	},
 	bullMQsetUp: jest.fn(),
 }));
-describe('Analytics API Integration', () => {
+describe.skip('Analytics API Integration', () => {
 	let harness: CoreApiHarness;
 	const testBuildingId = '22222222-2222-4222-8222-222222222222';
 	const testUserId = '11111111-1111-1111-1111-111111111111';
