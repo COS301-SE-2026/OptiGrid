@@ -47,7 +47,9 @@ export function ThemeToggle() {
                     console.error("Failed to sync theme to backend", e);
                 }
             }}
+            type="button"
             aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+            aria-pressed={theme === "dark"}
             title={theme === "light" ? "Dark mode" : "Light mode"}
             >
             {theme === "light" ? <SunIcon /> : <MoonIcon />}

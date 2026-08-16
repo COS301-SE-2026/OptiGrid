@@ -225,7 +225,7 @@ export default function ViewBuildingPage({
     if (loading && !error) {
         return (
             <div className="card">
-                <p className="text-muted">Loading building details...</p>
+                <p role="status" aria-live="polite" className="text-muted">Loading building details...</p>
             </div>
         );
     }
@@ -255,6 +255,7 @@ export default function ViewBuildingPage({
             {error && (
                 <div
                     className="card"
+                    role="alert"
                     style={{
                         marginBottom: "var(--space-4)",
                         borderColor: "var(--brand-danger)",
@@ -292,7 +293,7 @@ export default function ViewBuildingPage({
                         value={formatTelemetryTimestamp(currentLiveData?.timestamp)}
                     />
                     {sseError && (
-                        <div style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
+                        <div role="alert" style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
                             {sseError.message}
                         </div>
                     )}
@@ -332,13 +333,13 @@ export default function ViewBuildingPage({
                     </div>
 
                     {consumptionLoading && (
-                        <div style={{ gridColumn: "1 / -1" }} className="text-muted">
+                        <div role="status" aria-live="polite" style={{ gridColumn: "1 / -1" }} className="text-muted">
                             Loading energy consumption...
                         </div>
                     )}
 
                     {consumptionError && !error && (
-                        <div style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
+                        <div role="alert" style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
                             {consumptionError}
                         </div>
                     )}
@@ -360,10 +361,11 @@ export default function ViewBuildingPage({
                                 ) : (
                                     <div style={{ overflow: "auto" }}>
                                         <table style={{ width: "100%" }}>
+                                            <caption className="sr-only">Peak usage times</caption>
                                             <thead>
                                                 <tr>
-                                                    <th align="left">Timestamp</th>
-                                                    <th align="left">Usage</th>
+                                                    <th scope="col" align="left">Timestamp</th>
+                                                    <th scope="col" align="left">Usage</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -402,7 +404,7 @@ function DetailsSection({ title, children }: Readonly<{ title: string; children:
         <div>
             <h3
                 style={{
-                    color: "var(--brand-primary)",
+                    color: "var(--brand-primary-cta)",
                     marginBottom: "var(--space-4)",
                     fontSize: "var(--fs-h3)",
                     fontWeight: "var(--fw-semibold)",

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "../theme-provider";
+
 
 interface UserProfile {
   first_name: string;
@@ -494,9 +495,10 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </div>
-            </div>
-          )}
+              </div>
+)}
 
+             
           
           {showRecoverModal && (
             <div
@@ -579,7 +581,10 @@ export default function SettingsPage() {
               {toastMessage}
             </div>
           )}
+        
+
         </main>
+      
       </div>
     </div>
   );

@@ -13,12 +13,15 @@ export function FAQAccordion({ category }: { category: FAQCategory[] }) {
                     {category.items.map((item, i) => {
                         const key = `${category.category}-${i}`;
                         const open = openKey === key;
+                        const answerId = `faq-answer-${key}`;
                         return (
                             <div key={key} className={`faq-item card ${open ? "faq-item-open" : ""}`}>
                                 <button
+                                    type="button"
                                     className="faq-question"
                                     onClick={() => setOpenKey(open ? null : key)}
                                     aria-expanded={open}
+                                    aria-controls={answerId}
                                 >
                                     <span>{item.question}</span>
                                     <span className="faq-chevron" aria-hidden="true">
@@ -26,7 +29,7 @@ export function FAQAccordion({ category }: { category: FAQCategory[] }) {
                                     </span>
                                 </button>
                                 {open && (
-                                    <p className="faq-answer">{item.answer}</p>
+                                    <p id={answerId} className="faq-answer">{item.answer}</p>
                                 )}
                             </div>
                         );

@@ -112,7 +112,7 @@ describe("SensorsClient", () => {
         await renderPage();
         const row = screen.getByText("AA:BB:CC:00:00:02").closest("tr")!;
         fireEvent.click(within(row).getByRole("button", { name: /view/i }));
-        const modal = screen.getByRole("heading", { name: /Sensor details/i }).closest("div")!;
+        const modal = screen.getByRole("dialog", { name: /sensor details/i });
 
         expect(within(modal).getByText("Sandton HQ")).toBeInTheDocument();
         expect(within(modal).getByText("Roof plant room")).toBeInTheDocument();
@@ -195,9 +195,9 @@ describe("SensorsClient", () => {
         const row = screen.getByText("AA:BB:CC:00:00:02").closest("tr")!;
         fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
 
-        const modal = await screen.findByText("Delete sensor");
-        const modalContainer = modal.closest('.modal-overlay');
-        fireEvent.click(within(modalContainer as HTMLElement).getByRole("button", { name: /^delete$/i }));
+        await screen.findByText("Delete sensor");
+        const modal = screen.getByRole("dialog", { name: /delete sensor/i });
+        fireEvent.click(within(modal).getByRole("button", { name: /^delete$/i }));
 
         await waitFor(() => expect(screen.queryByText("AA:BB:CC:00:00:02")).not.toBeInTheDocument());
         expect(global.fetch).toHaveBeenCalledWith("/api/sensors/s2", expect.objectContaining({ method: "DELETE" }));

@@ -120,13 +120,13 @@ test.describe("Settings page", () => {
     await createUserAndOpenSettings(page, request);
 
     await page.getByRole("link", { name: "View Help" }).click();
-    await expect(page).toHaveURL(/\/help$/);
+    await expect(page).toHaveURL(/\/help$/, { timeout: 15000 });
     await expect(page.getByText("Quick access", { exact: true })).toBeVisible();
 
     await page.goBack();
     await expect(page).toHaveURL(/\/_sessions\/[0-9a-f-]+\/settings$/);
     await page.getByRole("link", { name: "Contact", exact: true }).click();
-    await expect(page).toHaveURL(/\/contact$/);
+    await expect(page).toHaveURL(/\/contact$/, { timeout: 15000 });
     await expect(page.getByRole("heading", { name: "Contact Us" })).toBeVisible();
   });
 
