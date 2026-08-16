@@ -2,6 +2,13 @@ const { Client } = require('pg');
 import request from 'supertest';
 import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
 
+//will make a proper bullmq and not mock once the pr is in dev 
+jest.mock('../../../../backend/core/src/services/bullmq', () => ({
+	analyticsQueue: {
+		add: jest.fn(),
+	},
+	bullMQsetUp: jest.fn(),
+}));
 describe('Analytics API Integration', () => {
 	let harness: CoreApiHarness;
 	const testBuildingId = '22222222-2222-4222-8222-222222222222';
