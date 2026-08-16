@@ -208,7 +208,7 @@ export default function EditBuildingPage({
     if (loading) {
         return (
             <div className="card">
-                <p className="text-muted">Loading building details...</p>
+                <p role="status" aria-live="polite" className="text-muted">Loading building details...</p>
             </div>
         );
     }
@@ -217,7 +217,7 @@ export default function EditBuildingPage({
         return (
             <div className="card">
                 <h1 className="dashboard-title">Edit Building</h1>
-                <p className="text-muted" style={{ marginTop: "var(--space-2)" }}>{error}</p>
+                <p role="alert" className="text-muted" style={{ marginTop: "var(--space-2)" }}>{error}</p>
             </div>
         );
     }
@@ -353,7 +353,7 @@ export default function EditBuildingPage({
                 <div>
                     <label className="label" htmlFor="lifecycle_state">Building State</label>
                     <select 
-                        id="building_type"
+                        id="lifecycle_state"
                         className="input"
                         value={form.lifecycle_state}
                         onChange={(event) =>
@@ -412,11 +412,11 @@ export default function EditBuildingPage({
                     />
                 </div>
                 {success ? (
-                    <p style={{ color: "var(--brand-success)", fontWeight: 500, fontSize: "var(--fs-small)" }}>
+                    <p role="status" aria-live="polite" style={{ color: "var(--brand-success)", fontWeight: 500, fontSize: "var(--fs-small)" }}>
                         Building updated successfully. Redirecting...
                     </p>
                 ) : error ? (
-                    <p style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>{error}</p>
+                    <p role="alert" aria-live="assertive" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>{error}</p>
                 ) : null}
 
                 <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "flex-end" }}>

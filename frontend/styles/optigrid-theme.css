@@ -310,6 +310,11 @@ h3 {
     box-shadow: 0 12px 32px rgba(11, 17, 32, 0.18);
     padding: var(--space-5);
     width: min(480px, 90vw);
+    color: var(--brand-ink);
+}
+
+.modal::backdrop {
+    background: color-mix(in srgb, var(--brand-ink) 45%, transparent);
 }
 
 .skeleton {

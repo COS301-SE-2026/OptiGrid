@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useId } from "react";
+import { openDialog } from "@/lib/openDialog";
 
 interface User {
   user_id: string;
@@ -39,7 +40,9 @@ export default function UserManagementPage() {
   const [Action, setAction] = useState<"assign" | "remove" | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>("");
+  const [actionError, setActionError] = useState<string>("");
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const dialogTitleId = useId();
 
   const getUserBuildingNames = (userId: string) => {
     const user = users.find((u) => u.user_id === userId);
@@ -149,24 +152,14 @@ export default function UserManagementPage() {
     setAction("assign");
     setSelectedUserId(userId);
     setIsActionOpen(true);
-    if (dialogRef.current) {
-      if (typeof dialogRef.current.showModal === 'function') {
-        dialogRef.current.showModal();
-      } else {
-        
-        dialogRef.current.setAttribute('open', '');
-      }
-    }
-    
+    openDialog(dialogRef.current);
   };
 
   const Remove = (userId: string) => {
     setAction("remove");
     setSelectedUserId(userId);
     setIsActionOpen(true);
-    if (dialogRef.current) {
-      dialogRef.current.showModal();
-    }
+    openDialog(dialogRef.current);
   };
 
   const close = () => {
@@ -174,6 +167,7 @@ export default function UserManagementPage() {
     setAction(null);
     setSelectedUserId("");
     setSelectedBuildingId("");
+    setActionError("");
     if (dialogRef.current) {
       dialogRef.current.close();
     }
@@ -191,6 +185,7 @@ export default function UserManagementPage() {
       return;
     }
 
+    setActionError("");
     try {
       if (Action === "assign") {
         const resp = await fetch("/api/usersAdmin/operations", {
@@ -204,10 +199,13 @@ export default function UserManagementPage() {
           })
         });
         const data = await resp.json();
-        if (resp.ok) setUsers((prev) => prev.map((u) => u.user_id === selectedUserId ? { ...u, building_ids: [...u.building_ids, selectedBuildingId] } : u));
+        if (resp.ok) {
+          setUsers((prev) => prev.map((u) => u.user_id === selectedUserId ? { ...u, building_ids: [...u.building_ids, selectedBuildingId] } : u));
+          close();
+        } 
         else {
           console.error("Backend rejected assign payload:", data);
-          alert("Failed To Assign Building");
+          setActionError("Failed to assign building");
         }
       } else if (Action === "remove") {
         const resp = await fetch("/api/usersAdmin/operations", {
@@ -233,12 +231,16 @@ export default function UserManagementPage() {
             };
           };
           setUsers((prev) => prev.map(userBuildings));
-        } else alert("Failed To Remove Building");
+          close();
+        } 
+        else {
+          setActionError("Failed to remove building");
+        }
       }
     } catch (error) {
       console.error("Failed to apply any action: ", error);
+      setActionError("Something went wrong. Please try again.");
     }
-    close();
   };
 
   const resetFilters = () => {
@@ -600,9 +602,10 @@ export default function UserManagementPage() {
               backgroundColor: "var(--brand-surface)",
               color: "var(--brand-ink)",
             }}
+            aria-labelledby={dialogTitleId}
             onClose={close}
           >
-            <h2 style={{ marginBottom: "var(--space-1)" }}>
+            <h2 id={dialogTitleId} style={{ marginBottom: "var(--space-1)" }}>
               {Action === "assign" ? "Assign Building" : "Remove Building"}
             </h2>
             <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>
@@ -663,6 +666,9 @@ export default function UserManagementPage() {
                   Building will be removed from{" "}
                   {users.find((u) => u.user_id === selectedUserId)?.first_name}
                 </div>
+              )}
+              {actionError && (
+                <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>{actionError}</p>
               )}
             </div>
 
