@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "../theme-provider";
+import { openDialog } from "@/lib/openDialog";
 
 interface UserProfile {
   first_name: string;
@@ -77,6 +78,18 @@ export default function SettingsPage() {
   const [showToast, setShowToast] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const deleteDialogTitleId = useId();
+  useEffect(() => {
+    if (showDeleteModal) {
+      openDialog(deleteDialogRef.current);
+    }
+  }, [showDeleteModal]);
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteConfirmText("");
+  };
 
   const showToastMessage = (message: string) => {
     setToastMessage(message);
@@ -410,83 +423,60 @@ export default function SettingsPage() {
           </section>
 
           {showDeleteModal && (
-            <div
-              className="modal-overlay"
-              style={{
-                position: "fixed",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "var(--space-4)",
-              }}
-              onClick={(e) => {
-                if (e.target === e.currentTarget) {
-                  setShowDeleteModal(false);
-                  setDeleteConfirmText("");
-                }
-              }}
-              role="dialog"
-              aria-modal="true"
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setShowDeleteModal(false);
-                  setDeleteConfirmText("");
-                }
-              }}
+            <dialog
+              ref={deleteDialogRef}
+              className="modal"
+              style={{ maxWidth: "500px", width: "100%" }}
+              aria-labelledby={deleteDialogTitleId}
+              onClose={closeDeleteModal}
             >
-              <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
-                <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
-                  <h2 style={{ color: "var(--brand-danger)", marginBottom: "var(--space-2)" }}>
-                    Delete Account
-                  </h2>
-                  <p className="text-muted">
-                    All your data will be permanently deleted.
-                  </p>
-                </div>
-
-                <div style={{ marginBottom: "var(--space-4)" }}>
-                  <label className="label" htmlFor="deleteConfirm">
-                    Type <span style={{ color: "var(--brand-danger)", fontWeight: "bold" }}>DELETE</span> to confirm
-                  </label>
-                  <input
-                    id="deleteConfirm"
-                    type="text"
-                    value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    placeholder="Type DELETE here..."
-                    className="input"
-                    style={
-                      deleteConfirmText && deleteConfirmText !== "DELETE"
-                        ? { borderColor: "var(--brand-danger)" }
-                        : {}
-                    }
-                  />
-                </div>
-
-                <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowDeleteModal(false);
-                      setDeleteConfirmText("");
-                    }}
-                    className="btn btn-secondary"
-                    style={{ flex: 1 }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDeleteAccount}
-                    className="btn btn-danger"
-                    style={{ flex: 1 }}
-                  >
-                    Delete Account
-                  </button>
-                </div>
+              <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
+                <h2 id={deleteDialogTitleId} style={{ color: "var(--brand-danger)", marginBottom: "var(--space-2)" }}>
+                  Delete Account
+                </h2>
+                <p className="text-muted">
+                  All your data will be permanently deleted.
+                </p>
               </div>
-            </div>
+
+              <div style={{ marginBottom: "var(--space-4)" }}>
+                <label className="label" htmlFor="deleteConfirm">
+                  Type <span style={{ color: "var(--brand-danger)", fontWeight: "bold" }}>DELETE</span> to confirm
+                </label>
+                <input
+                  id="deleteConfirm"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type DELETE here..."
+                  className="input"
+                  style={
+                    deleteConfirmText && deleteConfirmText !== "DELETE"
+                      ? { borderColor: "var(--brand-danger)" }
+                      : {}
+                  }
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  className="btn btn-danger"
+                  style={{ flex: 1 }}
+                >
+                  Delete Account
+                </button>
+              </div>
+            </dialog>
           )}
 
           {showToast && (

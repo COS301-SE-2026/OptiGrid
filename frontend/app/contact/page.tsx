@@ -7,9 +7,11 @@ export default function ContactUs() {
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitError("");
 
     try {
       const resp = await fetch("/api/contact", {
@@ -31,10 +33,10 @@ export default function ContactUs() {
         setSubject("");
         setDescription("");
       } else {
-        alert(`Message not sent, FAILED: ${data.message || data.error}`);
+        setSubmitError(`Message not sent, FAILED: ${data.message || data.error}`);
       }
     } catch {
-      alert("Network Issue, please ensure you have a valid connection or try again later");
+      setSubmitError("Network Issue, please ensure you have a valid connection or try again later");
     }
   };
 
@@ -137,6 +139,17 @@ export default function ContactUs() {
                   >
                     Your inquiry has been submitted successfully.
                   </output>
+                )}
+
+                {submitError && (
+                  <p role="alert" style={{
+                      color: "var(--brand-danger)",
+                      fontSize: "var(--fs-small)",
+                      marginTop: "var(--space-2)"
+                    }}
+                  >
+                    {submitError}
+                  </p>
                 )}
               </div>
             </form>

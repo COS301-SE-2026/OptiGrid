@@ -350,9 +350,9 @@ describe('Analytics API Integration', () => {
 					280.0,
 					3.8,
 					JSON.stringify([
-						{ timestamp: isoOffsetDays(-14), yhat: 700, yhat_lower: 650, yhat_upper: 750 },
-						{ timestamp: isoOffsetDays(-7), yhat: 720, yhat_lower: 670, yhat_upper: 770 },
-						{ timestamp: isoOffsetDays(7), yhat: 690, yhat_lower: 640, yhat_upper: 740 },
+						{ timestamp: isoOffsetDays(7), yhat: 700, yhat_lower: 650, yhat_upper: 750 },
+						{ timestamp: isoOffsetDays(14), yhat: 720, yhat_lower: 670, yhat_upper: 770 },
+						{ timestamp: isoOffsetDays(21), yhat: 690, yhat_lower: 640, yhat_upper: 740 },
 					]),
 				],
 			);
@@ -365,12 +365,14 @@ describe('Analytics API Integration', () => {
 			.send({ horizon_days: 30, granularity: 'weekly' });
 
 		expect(response.status).toBe(200);
-		expect(response.body.summary.peak_kwh).toBe(690);
+		expect(response.body.summary.peak_kwh).toBe(720);
 		expect(response.body.summary.avg_daily_kwh).toBe(280.0);
 		expect(response.body.summary.mape).toBe(3.8);
-		expect(response.body.historical[0].kwh).toBe(690);
-		expect(response.body.forecast).toHaveLength(1);
-		expect(response.body.forecast[0].yhat).toBe(690);
+		expect(response.body.historical[0].kwh).toBe(700);
+		expect(response.body.forecast).toHaveLength(3);
+		expect(response.body.forecast[0].yhat).toBe(700);
+		expect(response.body.forecast[1].yhat).toBe(720);
+		expect(response.body.forecast[2].yhat).toBe(690);
 	});
 
 	it('should normalize confidence bands when yhat_lower > yhat_upper', async () => {

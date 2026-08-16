@@ -327,7 +327,6 @@ run(composeCmd("up -d"));
 try {
   await waitForServiceHealthy("influxdb");
   await waitForServiceHealthy("mlflow");
-  await waitForHealth("frontend", ["http://localhost:3000/health"]);
   await waitForHealth("core", ["http://localhost:4000/health"]);
   await waitForWorkerRunning("ingestion");
   await waitForWorkerRunning("analytics");

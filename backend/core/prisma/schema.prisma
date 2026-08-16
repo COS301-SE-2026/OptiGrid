@@ -233,6 +233,9 @@ model AlertThreshold {
   upper_limit_kw           Decimal?  @map("upper_limit_kw") @db.Decimal
   lower_limit_kw           Decimal?  @map("lower_limit_kw") @db.Decimal
   allowed_spike_percentage Decimal?  @map("allowed_spike_percentage") @db.Decimal
+  use_z_score              Boolean?  @default(false) @map("use_z_score")
+  z_score_threshold        Float?    @map("z_score_threshold")
+  muted_until              DateTime? @map("muted_until") @db.Timestamptz
   is_active                Boolean?  @default(true) @map("is_active")
   created_at               DateTime? @default(now()) @map("created_at") @db.Timestamptz
   updated_at               DateTime? @default(now()) @map("updated_at") @db.Timestamptz
@@ -254,6 +257,8 @@ model Anomaly {
   severity_level      String         @map("severity_level") @db.VarChar
   description         String?
   status              AnomalyStatus? @default(Open)
+  escalation_level    Int?           @default(0) @map("escalation_level")
+  z_score_value       Float?         @map("z_score_value")
   detected_timestamp  DateTime?      @default(now()) @map("detected_timestamp") @db.Timestamptz
   resolved_timestamp  DateTime?      @map("resolved_timestamp") @db.Timestamptz
   resolved_by_user_id String?        @map("resolved_by_user_id") @db.Uuid
@@ -306,6 +311,8 @@ model Notification {
   user_id         String?              @map("user_id") @db.Uuid
   channel         NotificationChannel?
   status          String?              @db.VarChar
+  content         String?
+  error_message   String?              @map("error_message")
   sent_at         DateTime?            @default(now()) @map("sent_at") @db.Timestamptz
 
   // Relations
