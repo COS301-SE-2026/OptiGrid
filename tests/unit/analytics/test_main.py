@@ -14,14 +14,14 @@ def test_run_override_positive(MockEngine):
     mock_instance = MockEngine.return_value
     run_analytics_batch()
     MockEngine.assert_called_once()
-    mock_instance.process_all_buildings.assert_called_once()
+    mock_instance.get_active_building_ids.assert_called_once()
 
 #negative test case, ensures errors caught during manuel execution
 @patch('backend.analytics.src.batch_worker.AnalyticsEngine')
 @patch('backend.analytics.src.batch_worker.logger')
 def test_run_override_negative_exception(mock_logger, MockEngine):
     mock_instance = MockEngine.return_value
-    mock_instance.process_all_buildings.side_effect = Exception("Simulated database timeout")
+    mock_instance.get_active_building_ids.side_effect = Exception("Simulated database timeout")
     # override should not crash the program, it should catch and log errors
     run_analytics_batch()
     mock_logger.error.assert_called()
