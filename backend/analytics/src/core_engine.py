@@ -10,6 +10,7 @@ from influxdb_client import InfluxDBClient, Point, WritePrecision
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.model_selection import cross_val_score
 from supabase import Client, create_client
+import uuid
 
 from backend.analytics.src.config import (
     INFLUXDB_BUCKET,
@@ -528,6 +529,12 @@ class AnalyticsEngine:
         # upload weekly analytics to supabase
         if weekly_payloads and self.supabase:
             self.supabase.table("building_analytics_weekly").upsert(weekly_payloads).execute()
+            
+            #send recommendations after processing
+            for payload in weekly_payloads:
+                b_id = payload["building_id"]
+                hourly_group = df_weekly[df_weekly['building_id'] == b_id].set_index('timestamp')[['usage']].resample('h').sum().fillna(0.0).reset_index()
+                self._generate_recommendations(b_id, hourly_group, payload, "weekly")
 
     def _process_monthly_batch(self, df_monthly: pd.DataFrame):
         monthly_payloads = []
@@ -558,6 +565,11 @@ class AnalyticsEngine:
         # upload monthly to supabase
         if monthly_payloads and self.supabase:
             self.supabase.table("building_analytics_monthly").upsert(monthly_payloads).execute()
+            #send reccomedations after processing
+            for payload in monthly_payloads:
+                b_id = payload["building_id"]
+                weekly_group = df_monthly[df_monthly['building_id'] == b_id].set_index('timestamp')[['usage']].resample('W').sum().ffill().fillna(0.0).reset_index()
+                self._generate_recommendations(b_id, weekly_group, payload, "monthly")
 
     def _ensure_telemetry_seeded(
         self,
@@ -711,3 +723,63 @@ class AnalyticsEngine:
                     df_monthly['timestamp'] = pd.to_datetime(df_monthly['timestamp'])
                     df_monthly['usage'] = pd.to_numeric(df_monthly['usage'], errors='coerce').fillna(0.0)
                     self._process_monthly_batch(df_monthly)
+
+    def _generate_recommendations(self, building_id: str, df: pd.DataFrame, ml_metrics: dict, time: str):
+        if not self.supabase or df.empty:
+            return
+    
+        mean_usage = df['usage'].mean()
+        std_usage = df['usage'].std()        
+        forecast_peak = ml_metrics.get("forecast_peak", 0.0) 
+        #estimated peak-to-base load and std base
+        min_historic = ml_metrics.get("min_historic", mean_usage * 0.5)
+        base_load = min_historic if min_historic > 0 else 1.0
+        peak_base_ratio = forecast_peak / base_load
+        threshold_kw = mean_usage + (1.5 * std_usage)
+    
+        #reccomendation sent if the staement passes
+        if forecast_peak > threshold_kw and peak_base_ratio > 1.3:
+            kw_reduced = forecast_peak - threshold_kw
+
+            #TOU rates, assuming no standard rate reductions atm(need to discuss), calculated saving with TOU strcut
+            peak_kWh_saved = kw_reduced * 2.0
+            standard_kWh_saved = 0.0
+            peak_rate = UTILITY_RATE_KWH * 1.5
+            stan_rate = UTILITY_RATE_KWH * 1.0
+
+            zar_savings = (peak_rate * peak_kWh_saved) + (stan_rate * standard_kWh_saved)
+            if zar_savings < 50.0:
+                return
+    
+            applicable_range = {
+                "time_window": {
+                    "start": "14:00",
+                    "end": "18:00",
+                    "timezone": "Africa/Johannesburg"
+                },
+                "load_bounds_kw": {
+                    "min_expected": round(threshold_kw, 2),
+                    "max_allowed": round(forecast_peak, 2)
+                },
+                "target_equipment": "AC_Zone_Primary",
+                "confidence_score": 0.85
+            }    
+            #expire 7 days for weekly and 30 days for monthly
+            expire_days = 7 if time == "weekly" else 30
+            expires_at = datetime.now(timezone.utc) + timedelta(days=expire_days)
+            monthly_savings_zar = zar_savings * (4 if time == "weekly" else 1)
+
+            rec_data = {
+                "recommendation_id": str(uuid.uuid4()),
+                "building_id": building_id,
+                "strategy_description": f"Reduce AC usage during peak hours to avoid {round(forecast_peak, 2)}kW peak. Peak-to-base ratio is {round(peak_base_ratio, 2)}.",
+                "estimated_monthly_savings": round(monthly_savings_zar, 2),
+                "status": "Generated",
+                "applicable_range": applicable_range,
+                "expires_at": expires_at.isoformat(),
+            }
+            try:
+                self.supabase.table("optimisation_recommendations").upsert(rec_data).execute()
+            except Exception as e:
+                logger.exception("Failed to insert recommendation for: ", building_id)
+    
