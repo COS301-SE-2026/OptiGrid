@@ -50,16 +50,20 @@ export function getForwardHeaders(request: Request): Headers | null {
 	return headers;
 }
 
-type ProxyGetOptions = {
-	path: string;
-	query?: URLSearchParams;
+type ProxyMessages = {
 	successMessage: string;
 	failureMessage: string;
 	unreachableMessage: string;
 };
 
-//forward an authenticated GET to core 
-export async function proxyCoreGet(request: Request, options: ProxyGetOptions) {
+type ProxyOptions = ProxyMessages & {
+	path: string;
+	method?: "GET" | "POST";
+	query?: URLSearchParams;
+};
+
+//forward an authenticated request to core and mirror its status and body back
+export async function proxyCore(request: Request, options: ProxyOptions) {
 	const headers = getForwardHeaders(request);
 	if (!headers) {
 		return NextResponse.json({ message: "Authentication required." }, { status: 401 });
@@ -70,7 +74,7 @@ export async function proxyCoreGet(request: Request, options: ProxyGetOptions) {
 
 	try {
 		const coreResponse = await fetch(`${getCoreUrl()}${options.path}${query}`, {
-			method: "GET",
+			method: options.method ?? "GET",
 			headers,
 			cache: "no-store"
 		});
@@ -85,7 +89,7 @@ export async function proxyCoreGet(request: Request, options: ProxyGetOptions) {
 	}
 }
 
-type BuildingRouteOptions = Omit<ProxyGetOptions, "path" | "query"> & {
+type BuildingRouteOptions = ProxyMessages & {
 	segment: string;
 	forwardParams?: string[];
 };
@@ -110,9 +114,40 @@ export function buildingProxyGet(options: BuildingRouteOptions) {
 			}
 		}
 
-		return proxyCoreGet(request, {
+		return proxyCore(request, {
 			path: `/api/buildings/${encodeURIComponent(buildingId)}/${options.segment}`,
 			query,
+			successMessage: options.successMessage,
+			failureMessage: options.failureMessage,
+			unreachableMessage: options.unreachableMessage,
+		});
+	};
+}
+
+type RecommendationRouteOptions = ProxyMessages & {
+	action: string;
+};
+
+// this functions builds a POST handler for the recommendation review actions
+export function recommendationProxyPost(options: RecommendationRouteOptions) {
+	return async function POST(
+		request: Request,
+		{ params }: { params: Promise<{ buildingId: string; recommendationId: string }> },
+	) {
+		const { buildingId, recommendationId } = await params;
+		if (!buildingId || !recommendationId) {
+			return NextResponse.json(
+				{ message: "Building id and recommendation id are required." },
+				{ status: 400 },
+			);
+		}
+
+		const building = encodeURIComponent(buildingId);
+		const recommendation = encodeURIComponent(recommendationId);
+
+		return proxyCore(request, {
+			path: `/api/buildings/${building}/recommendations/${recommendation}/${options.action}`,
+			method: "POST",
 			successMessage: options.successMessage,
 			failureMessage: options.failureMessage,
 			unreachableMessage: options.unreachableMessage,
