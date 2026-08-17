@@ -147,7 +147,7 @@ describe("Recommendation Controller Unit Tests", () => {
         it("should_return_200", async () => {
             req = {
                 user: {
-                    userId: "user123"
+                    id: "user123"
                 } as any,
                 params: {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
@@ -197,7 +197,7 @@ describe("Recommendation Controller Unit Tests", () => {
         it("should_return_400_ZOD_ERROR", async () => {
             req = {
                 user: {
-                    userId: "user123"
+                    id: "user123"
                 } as any,
                 params: {
                     building_id: "invalid"
@@ -220,7 +220,7 @@ describe("Recommendation Controller Unit Tests", () => {
         it("should_return_500", async () => {
             req = {
                 user: {
-                    userId: "user123"
+                    id: "user123"
                 } as any,
                 params: {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
@@ -234,7 +234,7 @@ describe("Recommendation Controller Unit Tests", () => {
             //act
             await viewRecommendationController(req as Request, resp as Response);
             //assert
-            expect(mockstatus).toHaveBeenCalledWith(400);
+            expect(mockstatus).toHaveBeenCalledWith(500);
             expect(json).toHaveBeenCalledWith({
                 status:"error",
                 message: "Internal Server Error"

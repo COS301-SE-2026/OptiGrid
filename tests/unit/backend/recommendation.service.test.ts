@@ -1,4 +1,4 @@
-import { applyRecommendation } from '../../../backend/core/src/services/recommendation.service';
+import { applyRecommendation, viewRecommendationService } from '../../../backend/core/src/services/recommendation.service';
 import prisma from '../../../backend/core/src/lib/prisma';
 import { analyticsQueue } from '../../../backend/core/src/services/bullmq';
 
@@ -11,6 +11,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
         optimisationRecommendation: {
             findUnique: jest.fn(),
             update: jest.fn(),
+            findMany: jest.fn(),
         },
     },
 }));
@@ -82,5 +83,48 @@ describe("Recommendation Services Unit Tests", () => {
             }
         });
         expect(analyticsQueue.add).not.toHaveBeenCalled();
+    });
+
+    describe("View Recommendation Unit Tests",  () => {
+        it("should_return_rec", async () => {
+            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue({ 
+                user_id: "user123", 
+                building_id: "building-123" 
+            });
+            (prisma.optimisationRecommendation.findMany as jest.Mock).mockResolvedValue([
+                {
+                    recommendation_id: "rec-123",
+                    status: "Pending"
+                }
+            ]);
+            //act
+            const out = await viewRecommendationService("user123", "building-123", "Pending", 10);
+            //assert
+            expect(prisma.userBuildingAccess.findFirst).toHaveBeenCalledWith({
+                where: {
+                    user_id: "user123",
+                    building_id: "building-123"
+                }
+            })
+            expect(prisma.optimisationRecommendation.findMany).toHaveBeenCalledWith({
+                where: {
+                    building_id: "building-123",
+                    status:"Pending"
+                },
+                take: 10,
+                orderBy: {
+                    expires_at: "desc"
+                },
+                select: expect.any(Object)
+            });
+            expect(out).toHaveLength(1);
+        });
+
+        it("should_throw_error_if_no_access", async () => {
+            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue(null);
+            await expect(viewRecommendationService("user-123", "building-123"))
+            .rejects.toThrow("Access Denied");
+            expect(prisma.optimisationRecommendation.findMany).not.toHaveBeenCalled();
+        })
     });
 });
