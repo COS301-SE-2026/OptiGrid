@@ -21,7 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -m appuser
+RUN useradd -m appuser \
+    && mkdir -p /mlflow/artifacts \
+    && chown -R appuser:appuser /mlflow
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONDONTWRITEBYTECODE=1
