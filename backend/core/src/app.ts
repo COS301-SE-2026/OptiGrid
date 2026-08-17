@@ -66,6 +66,8 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", authRate, userAuthRoutes);
+	app.use("/api/accounts", authenticateRequest, normalRate, accountRoutes);
+	app.use("/api/admin/users", authenticateRequest, strictRate, adminUserRoutes);
 	app.use("/api/sensors", sensorRoutes);
 	app.use("/api/analytics", authenticateRequest, homeRate,analyticsRoutes);
 	app.use("/api/buildings", authenticateRequest, normalRate, buildingRoutes);

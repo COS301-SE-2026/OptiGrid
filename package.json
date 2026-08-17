@@ -23,6 +23,7 @@
 		"test:all": "pnpm test:node && pnpm test:python",
 		"test:e2e": "playwright test --config playwright.config.ts",
 		"test:e2e:supabase": "node scripts/e2e-local-supabase.mjs",
+		"test:e2e:realtime": "node scripts/e2e-local-supabase.mjs tests/e2e/buildings/realtime.e2e.spec.ts --project=chromium",
 		"storybook": "corepack pnpm --filter ./frontend run storybook",
 		"storybook:build": "corepack pnpm --filter ./frontend run build-storybook",
 		"stack:up": "node scripts/docker-stack-up.mjs",
