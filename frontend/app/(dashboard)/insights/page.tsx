@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 
 type RecommendationStatus =
     | "Pending"
@@ -159,6 +159,72 @@ function ChevronDown() {
     );
 }
 
+const selectStyle: CSSProperties = {
+    appearance: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    paddingRight: "var(--space-6)"
+};
+
+function LabeledSelect({
+    id,
+    label,
+    value,
+    disabled,
+    onChange,
+    children,
+}: Readonly<{
+    id: string;
+    label: string;
+    value: string;
+    disabled?: boolean;
+    onChange: (value: string) => void;
+    children: ReactNode;
+}>) {
+    return (
+        <div style={{ 
+                display: "grid", 
+                gap: "var(--space-2)" 
+            }}>
+            <label
+                htmlFor={id}
+                className="label"
+                style={{ 
+                    textTransform: "uppercase", 
+                    letterSpacing: "0.2em" 
+                }}
+            >
+                {label}
+            </label>
+            <div style={{ position: "relative" }}>
+                <select
+                    id={id}
+                    className="select"
+                    style={selectStyle}
+                    value={value}
+                    disabled={disabled}
+                    onChange={(e) => onChange(e.target.value)}
+                >
+                    {children}
+                </select>
+                <span
+                    style={{
+                        position: "absolute",
+                        right: "12px",
+                        top: "50%",
+                        pointerEvents: "none",
+                        transform: "translateY(-50%)",
+                        color: "var(--brand-ink-muted)"
+                    }}
+                    aria-hidden="true"
+                >
+                    <ChevronDown />
+                </span>
+            </div>
+        </div>
+    );
+}
+
 function Skeleton({ style }: Readonly<{ style?: CSSProperties }>) {
     return <div className="skeleton" style={style} aria-hidden="true" />;
 }
@@ -298,13 +364,6 @@ export default function InsightsPage() {
     );
     const selectedBuildingName = buildings.find((building) => building.id === buildingId)?.name ?? "";
 
-    const selectStyle: CSSProperties = {
-        appearance: "none",
-        WebkitAppearance: "none",
-        MozAppearance: "none",
-        paddingRight: "var(--space-6)"
-    };
-
     const renderResults = () => {
         if (buildingId === "") {
             return (
@@ -385,89 +444,30 @@ export default function InsightsPage() {
                         alignItems: "end"
                     }}
                 >
-                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
-                        <label
-                            htmlFor="insights-building-select"
-                            className="label"
-                            style={{ 
-                                textTransform: "uppercase",
-                                letterSpacing: "0.2em" 
-                            }}
-                        >
-                            Building
-                        </label>
-                        <div style={{ position: "relative" }}>
-                            <select
-                                id="insights-building-select"
-                                className="select"
-                                style={selectStyle}
-                                value={buildingId}
-                                disabled={buildingsLoading || buildings.length === 0}
-                                onChange={(e) => setBuildingId(e.target.value)}
-                            >
-                                <option value="">{buildingsLoading ? "Loading buildings..." : "Select building"}</option>
-                                {buildings.map((building) => (
-                                    <option key={building.id} value={building.id}>{building.name}</option>
-                                ))}
-                            </select>
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    right: "12px",
-                                    top: "50%",
-                                    color: "var(--brand-ink-muted)",
-                                    transform: "translateY(-50%)",
-                                    pointerEvents: "none"
-                                }}
-                                aria-hidden="true"
-                            >
-                                <ChevronDown />
-                            </span>
-                        </div>
-                    </div>
+                    <LabeledSelect
+                        id="insights-building-select"
+                        label="Building"
+                        value={buildingId}
+                        disabled={buildingsLoading || buildings.length === 0}
+                        onChange={setBuildingId}
+                    >
+                        <option value="">{buildingsLoading ? "Loading buildings..." : "Select building"}</option>
+                        {buildings.map((building) => (
+                            <option key={building.id} value={building.id}>{building.name}</option>
+                        ))}
+                    </LabeledSelect>
 
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <label
-                            htmlFor="insights-status-select"
-                            className="label"
-                            style={{ 
-                                textTransform: "uppercase", 
-                                letterSpacing: "0.2em" 
-                            }}
-                        >
-                            Status
-                        </label>
-                        <div style={{ position: "relative" }}>
-                            <select
-                                id="insights-status-select"
-                                className="select"
-                                style={selectStyle}
-                                value={statusFilter}
-                                disabled={buildingId === ""}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                            >
-                                {STATUS_FILTERS.map((filter) => (
-                                    <option key={filter.value} value={filter.value}>{filter.label}</option>
-                                ))}
-                            </select>
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    right: "12px",
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--brand-ink-muted)",
-                                    pointerEvents: "none"
-                                }}
-                                aria-hidden="true"
-                            >
-                                <ChevronDown />
-                            </span>
-                        </div>
-                    </div>
+                    <LabeledSelect
+                        id="insights-status-select"
+                        label="Status"
+                        value={statusFilter}
+                        disabled={buildingId === ""}
+                        onChange={setStatusFilter}
+                    >
+                        {STATUS_FILTERS.map((filter) => (
+                            <option key={filter.value} value={filter.value}>{filter.label}</option>
+                        ))}
+                    </LabeledSelect>
                 </div>
 
                 {buildingsError && (
