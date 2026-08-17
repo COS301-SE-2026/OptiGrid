@@ -102,11 +102,13 @@ const dockerRetryMs = Number(process.env.DOCKER_RETRY_MS || 5000);
 
 // Docker image coordinates used for local build/save and remote load.
 const imageNamespace = process.env.IMAGE_NAMESPACE || "local";
+const coreImageTag = `ghcr.io/${imageNamespace}/optigrid-core:latest`;
+const ingestionImageTag = `ghcr.io/${imageNamespace}/optigrid-ingestion:latest`;
+const analyticsImageTag = `ghcr.io/${imageNamespace}/optigrid-analytics:latest`;
 const imageTags = [
-  `ghcr.io/${imageNamespace}/optigrid-frontend:latest`,
-  `ghcr.io/${imageNamespace}/optigrid-core:latest`,
-  `ghcr.io/${imageNamespace}/optigrid-ingestion:latest`,
-  `ghcr.io/${imageNamespace}/optigrid-analytics:latest`,
+  coreImageTag,
+  ingestionImageTag,
+  analyticsImageTag,
 ];
 const supportImageTags = [
   "redis:7-alpine",
@@ -420,10 +422,9 @@ function generateComposeAndEnv() {
 function buildImages() {
   phase("Building Docker images locally");
   // Build each service image explicitly so we can transfer immutable artifacts to EC2.
-  run("docker", ["build", "-f", "frontend/Dockerfile", "-t", imageTags[0], "."]);
-  run("docker", ["build", "-f", "backend/core/Dockerfile", "-t", imageTags[1], "."]);
-  run("docker", ["build", "-f", "backend/ingestion/Dockerfile", "-t", imageTags[2], "."]);
-  run("docker", ["build", "-f", "backend/analytics/Dockerfile", "-t", imageTags[3], "."]);
+  run("docker", ["build", "-f", "backend/core/Dockerfile", "-t", coreImageTag, "."]);
+  run("docker", ["build", "-f", "backend/ingestion/Dockerfile", "-t", ingestionImageTag, "."]);
+  run("docker", ["build", "-f", "backend/analytics/Dockerfile", "-t", analyticsImageTag, "."]);
 }
 
 function pullSupportImages() {
@@ -651,4 +652,4 @@ remoteComposeDeploy(host);
 
 console.log("EC2 container deployment complete.");
 console.log(`Host: ${host}`);
-console.log(`Frontend: http://${host}:${runtimeEnv.frontendPort}`);
+console.log("Frontend: disabled for EC2 deploy. Use stack:up:frontend for local frontend.");
