@@ -136,6 +136,7 @@ const resolvedSupabaseServiceRoleKey = providedSupabaseServiceRoleKey || provide
 const resolvedSupabaseKey = providedSupabaseKey || resolvedSupabaseServiceRoleKey;
 
 const env = {
+  frontendPort: process.env.FRONTEND_PORT ?? "3000",
   databaseUrl: process.env.DATABASE_URL,
   supabaseUrl: process.env.SUPABASE_URL ?? "https://example.supabase.co",
   supabaseKey: resolvedSupabaseKey,
@@ -290,7 +291,7 @@ writeFileSync(
   envLocal,
   [
     "NODE_ENV=production",
-    "FRONTEND_PORT=3000",
+    `FRONTEND_PORT=${env.frontendPort}`,
     "CORE_PORT=4000",
     "INGESTION_PORT=8000",
     "ANALYTICS_PORT=8001",
@@ -328,9 +329,11 @@ try {
   await waitForServiceHealthy("influxdb");
   await waitForServiceHealthy("mlflow");
   await waitForHealth("core", ["http://localhost:4000/health"]);
+  await waitForHealth("frontend", [`http://localhost:${env.frontendPort}`]);
   await waitForWorkerRunning("ingestion");
   await waitForWorkerRunning("analytics");
   run(composeCmd("ps"));
+  console.log(`Frontend: http://localhost:${env.frontendPort}`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Health check failed.");
   run(composeCmd("ps"));
