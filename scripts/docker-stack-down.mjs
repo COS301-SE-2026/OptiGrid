@@ -5,11 +5,16 @@ import { resolve } from "node:path";
 
 const root = resolve(process.cwd());
 const composeLocal = resolve(root, "infrastructure/docker/.generated/docker-compose.local.yml");
+const composeFrontend = resolve(root, "infrastructure/docker-compose.local.frontend.yml");
 const envLocal = resolve(root, "infrastructure/docker/.generated/.env.local");
 const downTimeoutSeconds = 30;
 
 function composeCmd(args) {
-  return `docker compose -f "${composeLocal}" --env-file "${envLocal}" ${args}`;
+  const composeFiles = [`-f "${composeLocal}"`];
+  if (existsSync(composeFrontend)) {
+    composeFiles.push(`-f "${composeFrontend}"`);
+  }
+  return `docker compose ${composeFiles.join(" ")} --env-file "${envLocal}" ${args}`;
 }
 
 function run(cmd) {
