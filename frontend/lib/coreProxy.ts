@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+
 const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 const SESSION_COOKIE_NAME = "optigrid_session";
 
@@ -46,4 +48,74 @@ export function getForwardHeaders(request: Request): Headers | null {
 	}
 
 	return headers;
+}
+
+type ProxyGetOptions = {
+	path: string;
+	query?: URLSearchParams;
+	successMessage: string;
+	failureMessage: string;
+	unreachableMessage: string;
+};
+
+//forward an authenticated GET to core 
+export async function proxyCoreGet(request: Request, options: ProxyGetOptions) {
+	const headers = getForwardHeaders(request);
+	if (!headers) {
+		return NextResponse.json({ message: "Authentication required." }, { status: 401 });
+	}
+
+	const queryString = options.query?.toString() ?? "";
+	const query = queryString ? `?${queryString}` : "";
+
+	try {
+		const coreResponse = await fetch(`${getCoreUrl()}${options.path}${query}`, {
+			method: "GET",
+			headers,
+			cache: "no-store"
+		});
+
+		const payload = await coreResponse.json().catch(() => ({
+			message: coreResponse.ok ? options.successMessage : options.failureMessage,
+		}));
+		return NextResponse.json(payload, { status: coreResponse.status });
+	}
+	catch {
+		return NextResponse.json({ message: options.unreachableMessage }, { status: 502 });
+	}
+}
+
+type BuildingRouteOptions = Omit<ProxyGetOptions, "path" | "query"> & {
+	segment: string;
+	forwardParams?: string[];
+};
+
+// builds a GET handler for the /api/buildings/{id}/{segment} proxy routes
+export function buildingProxyGet(options: BuildingRouteOptions) {
+	return async function GET(
+		request: Request,
+		{ params }: { params: Promise<{ buildingId: string }> },
+	) {
+		const { buildingId } = await params;
+		if (!buildingId) {
+			return NextResponse.json({ message: "Building id is required." }, { status: 400 });
+		}
+
+		const requestUrl = new URL(request.url);
+		const query = new URLSearchParams();
+		for (const name of options.forwardParams ?? []) {
+			const value = requestUrl.searchParams.get(name);
+			if (value) {
+				query.set(name, value);
+			}
+		}
+
+		return proxyCoreGet(request, {
+			path: `/api/buildings/${encodeURIComponent(buildingId)}/${options.segment}`,
+			query,
+			successMessage: options.successMessage,
+			failureMessage: options.failureMessage,
+			unreachableMessage: options.unreachableMessage,
+		});
+	};
 }
