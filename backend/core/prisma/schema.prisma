@@ -92,6 +92,8 @@ enum RecommendationStatus {
   Pending
   Implemented
   Dismissed
+  Pending_Execution
+  Expired
 
   @@map("recommendation_status")
   @@schema("public")
@@ -327,6 +329,8 @@ model OptimisationRecommendation {
   strategy_description      String                @map("strategy_description")
   estimated_monthly_savings Decimal?              @map("estimated_monthly_savings") @db.Decimal
   status                    RecommendationStatus? @default(Pending)
+  applicable_range          Json?                 @map("applicable_range")
+  expires_at                DateTime?             @map("expires_at") @db.Timestamptz
   generated_date            DateTime?             @default(now()) @map("generated_date") @db.Timestamptz
   implemented_date          DateTime?             @map("implemented_date") @db.Timestamptz
 

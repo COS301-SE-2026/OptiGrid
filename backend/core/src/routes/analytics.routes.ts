@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { getForecastController } from '../controllers/analytics.controller';
+import { getForecastController, refreshAnalyticsController } from '../controllers/analytics.controller';
+import { rateLimiter } from '../middleware/rateLimiter.middleware';
 
 const router = Router();
 
@@ -54,5 +55,7 @@ const router = Router();
  *         description: Internal server error
  */
 router.post("/forecast/:building_id", getForecastController);
+const refreshRateLimit = rateLimiter(1, 1/300);//rate limit of 1 req per 5 mins
+router.post("/refresh/:building_id", refreshRateLimit, refreshAnalyticsController);
 
 export default router;

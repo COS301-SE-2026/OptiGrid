@@ -103,6 +103,7 @@
 	"dependencies": {
 		"cors": "^2.8.6",
 		"multer": "^2.2.0",
+		"requirements.txt": "link:backend/analytics/src/requirements.txt",
 		"resend": "^6.12.4",
 		"zod": "^4.3.6"
 	}
