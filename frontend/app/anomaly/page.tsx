@@ -125,7 +125,7 @@ const mockHistoricAnomalies: Anomaly[] = [
     z_score_value: 3.5,
     detected_timestamp: "2026-08-11T15:30:00Z",
     resolved_timestamp: "2026-08-12T09:00:00Z",
-    resolved_by: "Tali Seaba",
+    resolved_by: "Talifhani Seaba",
   },
 ];
 
