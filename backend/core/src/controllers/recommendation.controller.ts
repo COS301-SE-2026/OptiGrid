@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { applyRecommendation } from '../services/recommendation.service';
+import { applyRecommendation, viewRecommendationService } from '../services/recommendation.service';
+import { viewParameterSchema, viewQuerySchema } from '../validation/recommendation.validation';
 
 export const applyRecommendationController = async (req: Request, resp: Response) => {
   try {
@@ -53,3 +54,45 @@ export const applyRecommendationController = async (req: Request, resp: Response
     });
   }
 };
+
+export const viewRecommendationController = async(req: Request, resp:Response) => {
+  try {
+    const user = req.user?.id;
+    if(!user) {
+      return resp.status(401).json({
+        status:"error",
+        message: "Unauthorized"
+      });
+    }
+
+    const {building_id} = viewParameterSchema.parse(req.params);
+    const {status, limit} = viewQuerySchema.parse(req.query);
+
+    const rec = await viewRecommendationService(user, building_id, status, limit);
+
+    return resp.status(200).json({
+      status: "success",
+      data: rec
+    });
+  }
+  catch(error: any) {
+    console.error("Error fetchig recommendations: ", error);
+    if(error.name == "ZodError") {
+      return resp.status(400).json({
+        status: "error",
+        message: error.errors
+      });
+    }
+    if(error.message.includes("Access Denied")) {
+      return resp.status(403).json({
+        status: "error",
+        message: "Access Denied"
+      });
+    }
+
+    return resp.status(500).json({
+        status: "error",
+        message: "Internal Server Error"
+      });
+  }
+}
