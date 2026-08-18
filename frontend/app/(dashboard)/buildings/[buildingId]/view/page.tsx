@@ -277,6 +277,14 @@ export default function ViewBuildingPage({
                         value={isBuildingStreamConnected ? "Online (Streaming)" : "Offline / Connecting"}
                     />
                     <Detail
+                        label="Telemetry Source"
+                        value={currentLiveData?.source_type}
+                    />
+                    <Detail
+                        label="Sensor ID"
+                        value={currentLiveData?.sensor_id}
+                    />
+                    <Detail
                         label="Live Power"
                         value={formatMeasurement(currentLiveData?.power_kw, "kW")}
                     />
