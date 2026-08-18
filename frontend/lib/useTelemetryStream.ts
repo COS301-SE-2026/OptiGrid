@@ -16,8 +16,15 @@ export function useTelemetryStream(buildingId?: string) {
     const [isConnected, setIsConnected] = useState<boolean>(false);
 
     useEffect(() => {
+        setLiveData(null);
+        setError(null);
+        setIsConnected(false);
+
+        if (buildingId === "") {
+            return;
+        }
+
         const targetId = buildingId ? encodeURIComponent(buildingId) : "portfolio";
-        
         const url = `/api/telemetry/stream/${targetId}`;
 
         const eventSource = new EventSource(url);
