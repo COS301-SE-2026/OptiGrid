@@ -1,5 +1,7 @@
 import os
 import json
+import signal
+import threading
 import time
 from datetime import datetime, timezone
 import redis
@@ -24,9 +26,22 @@ try:
 except ModuleNotFoundError:
     from observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver
 
+shutdown_requested = threading.Event()
+
+def request_shutdown(signum, _frame):
+    try:
+        signal_name = signal.Signals(signum).name
+    except ValueError:
+        signal_name = str(signum)
+    print(f"Queue Worker received {signal_name}. Shutting down.")
+    shutdown_requested.set()
+
 def run_queue_worker():
     print("Starting OptiGrid Queue Worker.")
     require_influx_config()
+
+    signal.signal(signal.SIGTERM, request_shutdown)
+    signal.signal(signal.SIGINT, request_shutdown)
 
     r = redis.Redis(
         host=REDIS_HOST,
@@ -48,21 +63,28 @@ def run_queue_worker():
 
     print("Queue Worker active. Listening on Redis.")
 
-    while True:
-        try:
-            # pop from redis queue
-            item = r.brpop("ingestion_queue", timeout=5)
-            if not item:
-                continue
+    try:
+        while not shutdown_requested.is_set():
+            try:
+                # pop from redis queue
+                item = r.brpop("ingestion_queue", timeout=5)
+                if not item:
+                    continue
 
-            _, data_str = item 
-            subject.notify(json.loads(data_str))
+                _, data_str = item
+                subject.notify(json.loads(data_str))
 
-        except redis.exceptions.ConnectionError as e:
-            print(f"[WORKER ERROR] Redis connection error: {e}. Retrying in 5s...")
-            time.sleep(5)
-        except Exception as e:
-            print(f"[WORKER ERROR] Failed to process payload: {e}")
+            except redis.exceptions.ConnectionError as e:
+                print(f"[WORKER ERROR] Redis connection error: {e}. Retrying in 5s...")
+                shutdown_requested.wait(5)
+            except Exception as e:
+                print(f"[WORKER ERROR] Failed to process payload: {e}")
+    finally:
+        print("Queue Worker closing connections.")
+        write_api.close()
+        client.close()
+        r.close()
+        print("Queue Worker stopped.")
 
 if __name__ == "__main__":
     run_queue_worker()

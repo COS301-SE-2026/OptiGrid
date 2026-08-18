@@ -134,6 +134,7 @@ describe('Influx usage queries', () => {
         ]);
 
         expect(iterateRows.mock.calls[0][0]).toContain('"energy_telemetry_downsampled"');
+        expect(iterateRows.mock.calls[0][0]).toContain('"energy_telemetry"');
         expect(iterateRows.mock.calls[0][0]).toContain('aggregateWindow(every: 1d');
     });
 });
