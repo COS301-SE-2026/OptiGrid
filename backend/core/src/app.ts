@@ -45,6 +45,107 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 						bearerFormat: "JWT",
 					},
 				},
+				schemas: {
+					AccountLifecycleUser: {
+						type: "object",
+						properties: {
+							userId: {
+								type: "string",
+								format: "uuid",
+								example: "8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2",
+							},
+							email: {
+								type: "string",
+								format: "email",
+								example: "viewer@optigrid.test",
+							},
+							firstName: {
+								type: "string",
+								nullable: true,
+								example: "Amina",
+							},
+							lastName: {
+								type: "string",
+								nullable: true,
+								example: "Mokoena",
+							},
+							roleType: {
+								type: "string",
+								enum: ["ADMIN", "BUILDING_MANAGER", "VIEWER"],
+								example: "VIEWER",
+							},
+							accountStatus: {
+								type: "string",
+								enum: ["ACTIVE", "DEACTIVATED"],
+								example: "ACTIVE",
+							},
+							deactivatedAt: {
+								type: "string",
+								format: "date-time",
+								nullable: true,
+								example: null,
+							},
+						},
+					},
+					AccountCredentials: {
+						type: "object",
+						required: ["email", "password"],
+						properties: {
+							email: {
+								type: "string",
+								format: "email",
+								example: "viewer@optigrid.test",
+							},
+							password: {
+								type: "string",
+								format: "password",
+								example: "SecurePass123!",
+							},
+						},
+					},
+					AccountRecoveryResponse: {
+						type: "object",
+						properties: {
+							message: {
+								type: "string",
+								example: "Account recovered successfully",
+							},
+							user: {
+								$ref: "#/components/schemas/AccountLifecycleUser",
+							},
+							accessToken: {
+								type: "string",
+								description: "JWT authentication token issued after account recovery.",
+								example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+							},
+						},
+					},
+					AccountDeletionResponse: {
+						type: "object",
+						properties: {
+							message: {
+								type: "string",
+								example: "Account permanently deleted",
+							},
+							user: {
+								$ref: "#/components/schemas/AccountLifecycleUser",
+							},
+						},
+					},
+					ApiError: {
+						type: "object",
+						properties: {
+							code: {
+								type: "string",
+								example: "ACCOUNT_NOT_FOUND",
+							},
+							message: {
+								type: "string",
+								example: "Account profile was not found.",
+							},
+						},
+					},
+				},
 			},
 			servers: [
 				{
