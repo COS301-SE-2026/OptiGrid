@@ -16,6 +16,14 @@ interface Anomaly {
   detected_timestamp: string;
   resolved_timestamp: string | null;
   resolved_by: string | null;
+  threshold_details?: {
+    upper_limit: number | null;
+    lower_limit: number | null;
+    allowed_spike_percentage: number | null;
+    metric_type: string;
+    unit: string;
+    is_active: boolean;
+  };
 }
 
 const mockViewerAnomalies: Anomaly[] = [
@@ -30,6 +38,14 @@ const mockViewerAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-16T14:30:00Z",
     resolved_timestamp: null,
     resolved_by: null,
+    threshold_details: {
+      upper_limit: 150,
+      lower_limit: 20,
+      allowed_spike_percentage: 25,
+      metric_type: "power",
+      unit: "kW",
+      is_active: true,
+    },
   },
   {
     anomaly_id: "anm-2",
@@ -42,6 +58,14 @@ const mockViewerAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-16T09:45:00Z",
     resolved_timestamp: null,
     resolved_by: null,
+    threshold_details: {
+      upper_limit: 500,
+      lower_limit: 50,
+      allowed_spike_percentage: 30,
+      metric_type: "energy",
+      unit: "kWh",
+      is_active: true,
+    },
   },
 ];
 
@@ -57,6 +81,14 @@ const mockViewerHistoricAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-14T16:20:00Z",
     resolved_timestamp: "2026-08-15T08:00:00Z",
     resolved_by: "Talifhani Seaba",
+    threshold_details: {
+      upper_limit: null,
+      lower_limit: null,
+      allowed_spike_percentage: null,
+      metric_type: "voltage",
+      unit: "V",
+      is_active: true,
+    },
   },
   {
     anomaly_id: "anm-4",
@@ -69,6 +101,14 @@ const mockViewerHistoricAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-13T10:00:00Z",
     resolved_timestamp: "2026-08-13T14:30:00Z",
     resolved_by: "jane meyer",
+    threshold_details: {
+      upper_limit: 300,
+      lower_limit: 40,
+      allowed_spike_percentage: 25,
+      metric_type: "energy",
+      unit: "kWh",
+      is_active: true,
+    },
   },
   {
     anomaly_id: "anm-5",
@@ -81,6 +121,14 @@ const mockViewerHistoricAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-12T09:00:00Z",
     resolved_timestamp: "2026-08-12T11:45:00Z",
     resolved_by: "bathusi",
+    threshold_details: {
+      upper_limit: 100,
+      lower_limit: 10,
+      allowed_spike_percentage: 15,
+      metric_type: "current",
+      unit: "A",
+      is_active: true,
+    },
   },
   {
     anomaly_id: "anm-6",
@@ -93,6 +141,14 @@ const mockViewerHistoricAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-11T15:30:00Z",
     resolved_timestamp: "2026-08-12T09:00:00Z",
     resolved_by: "Talifhani Seaba",
+    threshold_details: {
+      upper_limit: 200,
+      lower_limit: 30,
+      allowed_spike_percentage: 20,
+      metric_type: "power",
+      unit: "kW",
+      is_active: true,
+    },
   },
   {
     anomaly_id: "anm-7",
@@ -104,7 +160,15 @@ const mockViewerHistoricAnomalies: Anomaly[] = [
     status: "Resolved",
     detected_timestamp: "2026-08-10T08:00:00Z",
     resolved_timestamp: "2026-08-10T12:00:00Z",
-    resolved_by: "Jane meyer",
+    resolved_by: "jane meyer",
+    threshold_details: {
+      upper_limit: 400,
+      lower_limit: 60,
+      allowed_spike_percentage: 25,
+      metric_type: "energy",
+      unit: "kWh",
+      is_active: true,
+    },
   },
 ];
 
@@ -416,6 +480,7 @@ export default function ViewerAnomalyPage() {
                       <th scope="col">Type</th>
                       <th scope="col">Severity</th>
                       <th scope="col">Status</th>
+                      <th scope="col">Threshold</th>
                       <th scope="col">Description</th>
                       <th scope="col">Detected</th>
                     </tr>
@@ -423,7 +488,7 @@ export default function ViewerAnomalyPage() {
                   <tbody>
                     {filteredAnomalies.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="dashboard-empty">
+                        <td colSpan={7} className="dashboard-empty">
                           No anomalies found
                         </td>
                       </tr>
@@ -452,6 +517,35 @@ export default function ViewerAnomalyPage() {
                           <td>
                             <StatusBadge status={anomaly.status} />
                           </td>
+                          <td>
+                            {anomaly.threshold_details ? (
+                              <div style={{ fontSize: "var(--fs-small)" }}>
+                                <span className="text-muted">
+                                  {anomaly.threshold_details.metric_type}: 
+                                  {anomaly.threshold_details.upper_limit && ` ${anomaly.threshold_details.upper_limit}`}
+                                  {anomaly.threshold_details.lower_limit && ` - ${anomaly.threshold_details.lower_limit}`}
+                                  {anomaly.threshold_details.unit && ` ${anomaly.threshold_details.unit}`}
+                                  {anomaly.threshold_details.allowed_spike_percentage && ` (${anomaly.threshold_details.allowed_spike_percentage}%)`}
+                                </span>
+                                <span
+                                  className="badge"
+                                  style={{
+                                    backgroundColor: anomaly.threshold_details.is_active ? "#2F7D5D" : "#7A7A7A",
+                                    color: "#FFFFFF",
+                                    padding: "var(--space-1) var(--space-2)",
+                                    borderRadius: "var(--radius-pill)",
+                                    fontSize: "var(--fs-small)",
+                                    fontWeight: "var(--fw-medium)",
+                                    marginLeft: "var(--space-2)",
+                                  }}
+                                >
+                                  {anomaly.threshold_details.is_active ? "Active" : "Inactive"}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>—</span>
+                            )}
+                          </td>
                           <td>{anomaly.description}</td>
                           <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
                             {formatDate(anomaly.detected_timestamp)}
@@ -477,7 +571,7 @@ export default function ViewerAnomalyPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: "var(--space-4)",
-            zIndex: 50,
+            
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -525,6 +619,41 @@ export default function ViewerAnomalyPage() {
                 <p>{selectedAnomaly.description}</p>
               </div>
 
+              {selectedAnomaly.threshold_details && (
+                <div>
+                  <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Threshold Details</p>
+                  <div style={{ fontSize: "var(--fs-small)" }}>
+                    <p><strong>Metric:</strong> {selectedAnomaly.threshold_details.metric_type}</p>
+                    <p><strong>Unit:</strong> {selectedAnomaly.threshold_details.unit}</p>
+                    {selectedAnomaly.threshold_details.upper_limit !== null && (
+                      <p><strong>Upper Limit:</strong> {selectedAnomaly.threshold_details.upper_limit} {selectedAnomaly.threshold_details.unit}</p>
+                    )}
+                    {selectedAnomaly.threshold_details.lower_limit !== null && (
+                      <p><strong>Lower Limit:</strong> {selectedAnomaly.threshold_details.lower_limit} {selectedAnomaly.threshold_details.unit}</p>
+                    )}
+                    {selectedAnomaly.threshold_details.allowed_spike_percentage !== null && (
+                      <p><strong>Allowed Spike:</strong> {selectedAnomaly.threshold_details.allowed_spike_percentage}%</p>
+                    )}
+                    <p>
+                      <strong>Status:</strong>{' '}
+                      <span
+                        className="badge"
+                        style={{
+                          backgroundColor: selectedAnomaly.threshold_details.is_active ? "#2F7D5D" : "#7A7A7A",
+                          color: "#FFFFFF",
+                          padding: "var(--space-1) var(--space-2)",
+                          borderRadius: "var(--radius-pill)",
+                          fontSize: "var(--fs-small)",
+                          fontWeight: "var(--fw-medium)",
+                        }}
+                      >
+                        {selectedAnomaly.threshold_details.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
                 <div>
                   <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Detected</p>
@@ -571,7 +700,7 @@ export default function ViewerAnomalyPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: "var(--space-4)",
-            zIndex: 50,
+            
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
