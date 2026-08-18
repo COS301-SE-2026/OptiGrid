@@ -18,6 +18,15 @@ interface Anomaly {
   detected_timestamp: string;
   resolved_timestamp: string | null;
   resolved_by: string | null;
+  threshold_details?: {
+    threshold_id?: string;
+    upper_limit: number | null;
+    lower_limit: number | null;
+    allowed_spike_percentage: number | null;
+    metric_type: string;
+    unit: string;
+    is_active: boolean;
+  };
 }
 
 interface AlertThreshold {
@@ -53,6 +62,15 @@ const mockManagerAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-16T14:30:00Z",
     resolved_timestamp: null,
     resolved_by: null,
+    threshold_details: {
+      threshold_id: "th-1",
+      upper_limit: 150,
+      lower_limit: 20,
+      allowed_spike_percentage: 25,
+      metric_type: "power",
+      unit: "kW",
+      is_active: true,
+    },
   },
   {
     anomaly_id: "anm-2",
@@ -67,6 +85,15 @@ const mockManagerAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-16T12:15:00Z",
     resolved_timestamp: null,
     resolved_by: null,
+    threshold_details: {
+      threshold_id: "th-2",
+      upper_limit: 500,
+      lower_limit: 50,
+      allowed_spike_percentage: 30,
+      metric_type: "energy",
+      unit: "kWh",
+      is_active: true,
+    },
   },
 ];
 
@@ -84,6 +111,15 @@ const mockHistoricAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-14T16:20:00Z",
     resolved_timestamp: "2026-08-15T08:00:00Z",
     resolved_by: "Talifhani Seaba",
+    threshold_details: {
+      threshold_id: "th-3",
+      upper_limit: null,
+      lower_limit: null,
+      allowed_spike_percentage: null,
+      metric_type: "voltage",
+      unit: "V",
+      is_active: true,
+    },
   },
   {
     anomaly_id: "anm-4",
@@ -98,6 +134,15 @@ const mockHistoricAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-13T10:00:00Z",
     resolved_timestamp: "2026-08-13T14:30:00Z",
     resolved_by: "John doe",
+    threshold_details: {
+      threshold_id: "th-4",
+      upper_limit: 200,
+      lower_limit: 30,
+      allowed_spike_percentage: 20,
+      metric_type: "power",
+      unit: "kW",
+      is_active: true,
+    },
   },
   {
     anomaly_id: "anm-5",
@@ -105,13 +150,22 @@ const mockHistoricAnomalies: Anomaly[] = [
     building_name: "Centurion",
     anomaly_type: "Energy_Anomaly",
     severity_level: "medium",
-    description: "Unusual consumption pattern ",
+    description: "Unusual consumption pattern",
     status: "Resolved",
     escalation_level: 1,
     z_score_value: 2.1,
     detected_timestamp: "2026-08-12T09:00:00Z",
     resolved_timestamp: "2026-08-12T11:45:00Z",
     resolved_by: "vasco da gama",
+    threshold_details: {
+      threshold_id: "th-5",
+      upper_limit: 300,
+      lower_limit: 40,
+      allowed_spike_percentage: 25,
+      metric_type: "energy",
+      unit: "kWh",
+      is_active: true,
+    },
   },
   {
     anomaly_id: "anm-6",
@@ -126,7 +180,21 @@ const mockHistoricAnomalies: Anomaly[] = [
     detected_timestamp: "2026-08-11T15:30:00Z",
     resolved_timestamp: "2026-08-12T09:00:00Z",
     resolved_by: "Talifhani Seaba",
+    threshold_details: {
+      threshold_id: "th-6",
+      upper_limit: 100,
+      lower_limit: 10,
+      allowed_spike_percentage: 15,
+      metric_type: "current",
+      unit: "A",
+      is_active: true,
+    },
   },
+];
+
+const mockManagerBuildings = [
+  { id: "b1", name: "Sandton HQ" },
+  { id: "b2", name: "Hillcrest" },
 ];
 
 const mockInitialThresholds: AlertThreshold[] = [
@@ -152,11 +220,6 @@ const mockInitialThresholds: AlertThreshold[] = [
     allowed_spike_percentage: 30,
     is_active: true,
   },
-];
-
-const mockManagerBuildings = [
-  { id: "b1", name: "Sandton HQ" },
-  { id: "b2", name: "Hillcrest" },
 ];
 
 const STATUS_LABELS: Record<AnomalyStatus, string> = {
@@ -219,60 +282,6 @@ function SeverityBadge({ severity }: { severity: SeverityLevel }) {
   );
 }
 
-function ThresholdCard({ threshold, onEdit }: { threshold: AlertThreshold; onEdit: () => void }) {
-  return (
-    <div
-      className="card"
-      style={{
-        padding: "var(--space-3)",
-        backgroundColor: "var(--brand-surface-alt)",
-        borderLeft: threshold.is_active ? "4px solid #2F7D5D" : "4px solid #7A7A7A",
-        cursor: "pointer",
-      }}
-      onClick={onEdit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") onEdit();
-      }}
-      tabIndex={0}
-      role="button"
-      aria-label={`Edit threshold for ${threshold.building_name}`}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <p style={{ fontWeight: "var(--fw-semibold)" }}>{threshold.building_name}</p>
-          <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-            {threshold.metric_type.charAt(0).toUpperCase() + threshold.metric_type.slice(1)} ({threshold.unit})
-          </p>
-        </div>
-        <span
-          className="badge"
-          style={{
-            backgroundColor: threshold.is_active ? "#2F7D5D" : "#7A7A7A",
-            color: "#FFFFFF",
-            padding: "var(--space-1) var(--space-3)",
-            borderRadius: "var(--radius-pill)",
-            fontSize: "var(--fs-small)",
-            fontWeight: "var(--fw-medium)",
-          }}
-        >
-          {threshold.is_active ? "Active" : "Inactive"}
-        </span>
-      </div>
-      <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-2)", fontSize: "var(--fs-small)" }}>
-        {threshold.upper_limit !== null && (
-          <span className="text-muted">Upper: {threshold.upper_limit} {threshold.unit}</span>
-        )}
-        {threshold.lower_limit !== null && (
-          <span className="text-muted">Lower: {threshold.lower_limit} {threshold.unit}</span>
-        )}
-        {threshold.allowed_spike_percentage !== null && (
-          <span className="text-muted">Spike: {threshold.allowed_spike_percentage}%</span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function ManagerAnomalyPage() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>(mockManagerAnomalies);
   const [thresholds, setThresholds] = useState<AlertThreshold[]>(mockInitialThresholds);
@@ -293,6 +302,7 @@ export default function ManagerAnomalyPage() {
   const [historicSearch, setHistoricSearch] = useState<string>("");
 
   const [thresholdForm, setThresholdForm] = useState({
+    threshold_id: "",
     building_id: "",
     metric_type: "power",
     unit: "kW",
@@ -420,18 +430,31 @@ export default function ManagerAnomalyPage() {
   const openAnomalies = anomalies.filter((a) => a.status === "Open" || a.status === "In_Progress");
   const criticalAnomalies = anomalies.filter((a) => a.severity_level === "critical" && a.status !== "Resolved");
 
-  const handleEditThreshold = (threshold: AlertThreshold) => {
-    setEditingThreshold(threshold);
-    setThresholdForm({
-      building_id: threshold.building_id,
-      metric_type: threshold.metric_type,
-      unit: threshold.unit,
-      upper_limit: threshold.upper_limit?.toString() || "",
-      lower_limit: threshold.lower_limit?.toString() || "",
-      allowed_spike_percentage: threshold.allowed_spike_percentage?.toString() || "",
-      is_active: threshold.is_active,
-    });
-    setShowThresholdModal(true);
+  const handleEditThresholdInDetails = (anomaly: Anomaly) => {
+    if (anomaly.threshold_details) {
+      setEditingThreshold({
+        threshold_id: anomaly.threshold_details.threshold_id || "",
+        building_id: anomaly.building_id,
+        building_name: anomaly.building_name,
+        metric_type: anomaly.threshold_details.metric_type,
+        unit: anomaly.threshold_details.unit,
+        upper_limit: anomaly.threshold_details.upper_limit,
+        lower_limit: anomaly.threshold_details.lower_limit,
+        allowed_spike_percentage: anomaly.threshold_details.allowed_spike_percentage,
+        is_active: anomaly.threshold_details.is_active,
+      });
+      setThresholdForm({
+        threshold_id: anomaly.threshold_details.threshold_id || "",
+        building_id: anomaly.building_id,
+        metric_type: anomaly.threshold_details.metric_type,
+        unit: anomaly.threshold_details.unit,
+        upper_limit: anomaly.threshold_details.upper_limit?.toString() || "",
+        lower_limit: anomaly.threshold_details.lower_limit?.toString() || "",
+        allowed_spike_percentage: anomaly.threshold_details.allowed_spike_percentage?.toString() || "",
+        is_active: anomaly.threshold_details.is_active,
+      });
+      setShowThresholdModal(true);
+    }
   };
 
   const handleSaveThreshold = () => {
@@ -447,10 +470,26 @@ export default function ManagerAnomalyPage() {
             }
           : t
       ));
+      
+      setAnomalies(prev => prev.map(a =>
+        a.building_id === editingThreshold.building_id
+          ? {
+              ...a,
+              threshold_details: {
+                ...a.threshold_details,
+                upper_limit: parseFloat(thresholdForm.upper_limit) || null,
+                lower_limit: parseFloat(thresholdForm.lower_limit) || null,
+                allowed_spike_percentage: parseFloat(thresholdForm.allowed_spike_percentage) || null,
+                is_active: thresholdForm.is_active,
+              },
+            }
+          : a
+      ));
     }
     setShowThresholdModal(false);
     setEditingThreshold(null);
     setThresholdForm({
+      threshold_id: "",
       building_id: "",
       metric_type: "power",
       unit: "kW",
@@ -476,6 +515,7 @@ export default function ManagerAnomalyPage() {
                 onClick={() => {
                   setEditingThreshold(null);
                   setThresholdForm({
+                    threshold_id: "",
                     building_id: "",
                     metric_type: "power",
                     unit: "kW",
@@ -492,7 +532,7 @@ export default function ManagerAnomalyPage() {
                   color: "#FFFFFF",
                 }}
               >
-                Add Threshold
+                Configure Threshold
               </button>
               <button
                 type="button"
@@ -620,25 +660,6 @@ export default function ManagerAnomalyPage() {
             </div>
           </section>
 
-          <section aria-label="Alert Thresholds">
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-                gap: "var(--space-3)",
-                marginBottom: "var(--space-5)",
-              }}
-            >
-              {thresholds.map((threshold) => (
-                <ThresholdCard
-                  key={threshold.threshold_id}
-                  threshold={threshold}
-                  onEdit={() => handleEditThreshold(threshold)}
-                />
-              ))}
-            </div>
-          </section>
-
           <section aria-label="Anomalies list">
             <div className="card" style={{ overflow: "hidden", padding: 0 }}>
               <div style={{ overflow: "auto" }}>
@@ -649,6 +670,7 @@ export default function ManagerAnomalyPage() {
                       <th scope="col">Type</th>
                       <th scope="col">Severity</th>
                       <th scope="col">Status</th>
+                      <th scope="col">Threshold</th>
                       <th scope="col">Description</th>
                       <th scope="col">Detected</th>
                       <th scope="col">Actions</th>
@@ -657,7 +679,7 @@ export default function ManagerAnomalyPage() {
                   <tbody>
                     {filteredAnomalies.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="dashboard-empty">
+                        <td colSpan={8} className="dashboard-empty">
                           No anomalies found
                         </td>
                       </tr>
@@ -685,6 +707,35 @@ export default function ManagerAnomalyPage() {
                           </td>
                           <td>
                             <StatusBadge status={anomaly.status} />
+                          </td>
+                          <td>
+                            {anomaly.threshold_details ? (
+                              <div style={{ fontSize: "var(--fs-small)" }}>
+                                <span className="text-muted">
+                                  {anomaly.threshold_details.metric_type}: 
+                                  {anomaly.threshold_details.upper_limit && ` ${anomaly.threshold_details.upper_limit}`}
+                                  {anomaly.threshold_details.lower_limit && ` - ${anomaly.threshold_details.lower_limit}`}
+                                  {anomaly.threshold_details.unit && ` ${anomaly.threshold_details.unit}`}
+                                  {anomaly.threshold_details.allowed_spike_percentage && ` (${anomaly.threshold_details.allowed_spike_percentage}%)`}
+                                </span>
+                                <span
+                                  className="badge"
+                                  style={{
+                                    backgroundColor: anomaly.threshold_details.is_active ? "#2F7D5D" : "#7A7A7A",
+                                    color: "#FFFFFF",
+                                    padding: "var(--space-1) var(--space-2)",
+                                    borderRadius: "var(--radius-pill)",
+                                    fontSize: "var(--fs-small)",
+                                    fontWeight: "var(--fw-medium)",
+                                    marginLeft: "var(--space-2)",
+                                  }}
+                                >
+                                  {anomaly.threshold_details.is_active ? "Active" : "Inactive"}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>—</span>
+                            )}
                           </td>
                           <td>{anomaly.description}</td>
                           <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
@@ -754,7 +805,6 @@ export default function ManagerAnomalyPage() {
             position: "fixed",
             top: "var(--space-5)",
             right: "var(--space-5)",
-            zIndex: 100,
             display: "flex",
             flexDirection: "column",
             gap: "var(--space-3)",
@@ -806,7 +856,6 @@ export default function ManagerAnomalyPage() {
                     background: "none",
                     border: "none",
                     color: "var(--brand-ink-muted)",
-                    cursor: "pointer",
                     fontSize: "1.2rem",
                   }}
                   aria-label="Dismiss notification"
@@ -845,7 +894,6 @@ export default function ManagerAnomalyPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: "var(--space-4)",
-            zIndex: 50,
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -893,16 +941,58 @@ export default function ManagerAnomalyPage() {
                 <p>{selectedAnomaly.description}</p>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+              {selectedAnomaly.threshold_details && (
                 <div>
-                  <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Detected</p>
-                  <p>{formatDate(selectedAnomaly.detected_timestamp)}</p>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Threshold Details</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDetailsModal(false);
+                        handleEditThresholdInDetails(selectedAnomaly);
+                      }}
+                      className="btn"
+                      style={{
+                        fontSize: "var(--fs-small)",
+                        padding: "var(--space-1) var(--space-3)",
+                        backgroundColor: "#3A6B7C",
+                        color: "#FFFFFF",
+                      }}
+                    >
+                      Edit Threshold
+                    </button>
+                  </div>
+                  <div style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
+                    <p><strong>Metric:</strong> {selectedAnomaly.threshold_details.metric_type}</p>
+                    <p><strong>Unit:</strong> {selectedAnomaly.threshold_details.unit}</p>
+                    {selectedAnomaly.threshold_details.upper_limit !== null && (
+                      <p><strong>Upper Limit:</strong> {selectedAnomaly.threshold_details.upper_limit} {selectedAnomaly.threshold_details.unit}</p>
+                    )}
+                    {selectedAnomaly.threshold_details.lower_limit !== null && (
+                      <p><strong>Lower Limit:</strong> {selectedAnomaly.threshold_details.lower_limit} {selectedAnomaly.threshold_details.unit}</p>
+                    )}
+                    {selectedAnomaly.threshold_details.allowed_spike_percentage !== null && (
+                      <p><strong>Allowed Spike:</strong> {selectedAnomaly.threshold_details.allowed_spike_percentage}%</p>
+                    )}
+                    <p>
+                      <strong>Status:</strong>{' '}
+                      <span
+                        className="badge"
+                        style={{
+                          backgroundColor: selectedAnomaly.threshold_details.is_active ? "#2F7D5D" : "#7A7A7A",
+                          color: "#FFFFFF",
+                          padding: "var(--space-1) var(--space-2)",
+                          borderRadius: "var(--radius-pill)",
+                          fontSize: "var(--fs-small)",
+                          fontWeight: "var(--fw-medium)",
+                        }}
+                      >
+                        {selectedAnomaly.threshold_details.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Escalation Level</p>
-                  <p>{selectedAnomaly.escalation_level}</p>
-                </div>
-              </div>
+              )}
 
               {selectedAnomaly.z_score_value !== null && (
                 <div>
@@ -951,7 +1041,7 @@ export default function ManagerAnomalyPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: "var(--space-4)",
-            zIndex: 50,
+            
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -1076,7 +1166,7 @@ export default function ManagerAnomalyPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: "var(--space-4)",
-            zIndex: 50,
+            
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -1144,7 +1234,7 @@ export default function ManagerAnomalyPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: "var(--space-4)",
-            zIndex: 50,
+            
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -1212,7 +1302,7 @@ export default function ManagerAnomalyPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: "var(--space-4)",
-            zIndex: 50,
+          
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
