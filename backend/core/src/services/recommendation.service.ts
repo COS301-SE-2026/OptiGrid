@@ -2,6 +2,12 @@ import prisma from '../lib/prisma';
 import { analyticsQueue } from './bullmq';
 import { RecommendationStatus } from '@prisma/client';
 
+export interface UpdateTariffPayload {
+  peak_rate_zar: number;
+  off_peak_rate_zar: number;
+  season_name:string;
+}
+
 export const applyRecommendation = async (userId: string, buildingId: string, recommendationId: string) => {
   const access = await prisma.userBuildingAccess.findFirst({
     where: { 
@@ -75,4 +81,32 @@ export const viewRecommendationService = async (userId:string, buildingId: strin
     }
   });
   return rec;
+}
+
+export const updateTariffService = async(userId:string, buildingId: string, payload: UpdateTariffPayload) => {
+  const building = await prisma.building.findUnique({
+    where: {
+      building_id: buildingId
+    }
+  });
+  if(!building) throw new Error("Building not found");
+
+  const user = await prisma.userBuildingAccess.findFirst({
+    where: {
+      user_id: userId,
+      building_id: buildingId
+    }
+  });
+  if(!user) throw new Error("Access Denied");
+
+  await prisma.building.update({
+    where: {
+      building_id: buildingId
+    },
+    data: {
+      peak_rate_zar: payload.peak_rate_zar,
+      off_peak_rate_zar: payload.off_peak_rate_zar,
+      season_name: payload.season_name,
+    }
+  });
 }

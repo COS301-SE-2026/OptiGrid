@@ -346,8 +346,8 @@ model UtilityTariff {
   building_id       String?   @map("building_id") @db.Uuid
   season_name       String?   @map("season_name") @db.VarChar
   day_type          String?   @map("day_type") @db.VarChar
-  peak_rate_usd     Decimal   @map("peak_rate_usd") @db.Decimal
-  off_peak_rate_usd Decimal   @map("off_peak_rate_usd") @db.Decimal
+  peak_rate_zar     Decimal   @map("peak_rate_zar") @db.Decimal
+  off_peak_rate_zar Decimal   @map("off_peak_rate_zar") @db.Decimal
   peak_start_time   DateTime? @map("peak_start_time") @db.Time
   peak_end_time     DateTime? @map("peak_end_time") @db.Time
   created_at        DateTime? @default(now()) @map("created_at") @db.Timestamptz
