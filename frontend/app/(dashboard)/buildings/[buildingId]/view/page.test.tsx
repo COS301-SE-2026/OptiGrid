@@ -102,6 +102,7 @@ describe("ViewBuildingPage", () => {
       expect(screen.getByText("tenant-111")).toBeInTheDocument();
       expect(screen.getByText("OFFICE")).toBeInTheDocument();
       expect(screen.getByText("ACTIVE")).toBeInTheDocument();
+      expect(screen.getByText("Online (Waiting for reading)")).toBeInTheDocument();
       expect(screen.getByText(/5000 m²/)).toBeInTheDocument();
       expect(screen.getByText("200")).toBeInTheDocument();
       expect(screen.getByText("230 V")).toBeInTheDocument();

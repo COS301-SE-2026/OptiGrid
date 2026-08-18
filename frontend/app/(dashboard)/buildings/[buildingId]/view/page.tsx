@@ -115,6 +115,11 @@ export default function ViewBuildingPage({
     const { liveData, error: sseError, isConnected } = useTelemetryStream(buildingId);
     const currentLiveData = liveData?.building_id === buildingId ? liveData : null;
     const isBuildingStreamConnected = Boolean(buildingId) && isConnected;
+    const streamConnectionStatus = isBuildingStreamConnected
+        ? currentLiveData
+            ? "Online (Streaming)"
+            : "Online (Waiting for reading)"
+        : "Offline / Connecting";
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -274,7 +279,7 @@ export default function ViewBuildingPage({
                 <DetailsSection title="Real-Time Telemetry">
                     <Detail
                         label="Stream Connection"
-                        value={isBuildingStreamConnected ? "Online (Streaming)" : "Offline / Connecting"}
+                        value={streamConnectionStatus}
                     />
                     <Detail
                         label="Telemetry Source"
