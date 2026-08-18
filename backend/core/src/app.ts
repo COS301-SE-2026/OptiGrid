@@ -4,6 +4,8 @@ import swaggerUi from "swagger-ui-express";
 import userAuthRoutes from "./routes/user_auth.routes";
 import sensorRoutes from "./routes/sensor.routes"
 import buildingRoutes from "./routes/building.routes"
+import accountRoutes from "./routes/account.routes";
+import adminUserRoutes from "./routes/admin_user.routes";
 import { authenticateRequest } from "./middleware/auth.middleware";
 import analyticsRoutes from "./routes/analytics.routes";
 import userPreferencesRoutes from "./routes/user_preferences.routes";

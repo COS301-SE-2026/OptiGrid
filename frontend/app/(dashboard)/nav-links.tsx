@@ -8,6 +8,7 @@ const navigation = [
     { label: "Compare", href: "/compare" },
     { label: "Live", href: "/realtime" },
     { label: "Forecast", href: "/forecast" },
+    { label: "Insights", href: "/insights" },
     { label: "Admin", href: "/admin", roles: ["ADMIN"] },
     { label: "Manage", href: "/manager", roles: ["BUILDING_MANAGER"] },
     { label: "Settings", href:"/settings"},
