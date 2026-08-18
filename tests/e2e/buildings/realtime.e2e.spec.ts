@@ -202,7 +202,7 @@ test.describe("Real-time dashboard integration", () => {
     await expect(
       page.getByRole("heading", { name: "Real-Time Telemetry" }),
     ).toBeVisible();
-    await expect(page.getByText("Online (Streaming)")).toBeVisible();
+    await expect(page.getByText("Online (Waiting for reading)")).toBeVisible();
     await expect(
       page.getByText("Live telemetry stream connected"),
     ).toBeVisible();
@@ -212,6 +212,13 @@ test.describe("Real-time dashboard integration", () => {
       voltageV: 231.5,
       currentA: 81.2,
     });
+    await expect(page.getByText("Online (Streaming)")).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByText("EMULATOR")).toBeVisible();
+    await expect(
+      page.getByText(`realtime-e2e-sensor-${buildingId}`),
+    ).toBeVisible();
     await expect(page.getByText("18.75 kW")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("231.5 V")).toBeVisible();
     await expect(page.getByText("81.2 A")).toBeVisible();
