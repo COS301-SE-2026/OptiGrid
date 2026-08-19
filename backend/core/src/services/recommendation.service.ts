@@ -99,14 +99,22 @@ export const updateTariffService = async(userId:string, buildingId: string, payl
   });
   if(!user) throw new Error("Access Denied");
 
-  await prisma.building.update({
+  const tariff = await prisma.utilityTariff.findFirst({
     where: {
       building_id: buildingId
-    },
-    data: {
-      peak_rate_zar: payload.peak_rate_zar,
-      off_peak_rate_zar: payload.off_peak_rate_zar,
-      season_name: payload.season_name,
     }
   });
+  if(tariff) {
+    await prisma.utilityTariff.update({
+      where: {
+        tariff_id: tariff.tariff_id
+      },
+      data: {
+        peak_rate_zar: payload.peak_rate_zar,
+        off_peak_rate_zar: payload.off_peak_rate_zar,
+        season_name: payload.season_name,
+      }
+    });
+  }
+ 
 }

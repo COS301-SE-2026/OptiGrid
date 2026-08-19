@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { applyRecommendation, viewRecommendationService } from '../services/recommendation.service';
-import { viewParameterSchema, viewQuerySchema } from '../validation/recommendation.validation';
+import { applyRecommendation, viewRecommendationService, updateTariffService } from '../services/recommendation.service';
+import { viewParameterSchema, viewQuerySchema, tariffParameterSchema, tariffQuerySchema } from '../validation/recommendation.validation';
 
 export const applyRecommendationController = async (req: Request, resp: Response) => {
   try {
@@ -84,6 +84,61 @@ export const viewRecommendationController = async(req: Request, resp:Response) =
       });
     }
     if(error.message.includes("Access Denied")) {
+      return resp.status(403).json({
+        status: "error",
+        message: "Access Denied"
+      });
+    }
+
+    return resp.status(500).json({
+        status: "error",
+        message: "Internal Server Error"
+      });
+  }
+}
+
+export const updateTariffController = async(req:Request, resp:Response) => {
+  try{
+    const user = (req as any).user;
+    if(!user || !user.id) {
+      return resp.status(401).json({
+        status:"error",
+        message: "Unauthorized"
+      });
+    }
+
+    if(user.roleType == "VIEWER") {
+      return resp.status(403).json({
+        status:"error",
+        message:"No access to this"
+      });
+    }
+
+    const { building_id } = tariffParameterSchema.parse(req.params);
+    const payload = tariffQuerySchema.parse(req.body);
+
+    await updateTariffService(user.id, building_id, payload);
+
+    return resp.status(200).json({
+      status: "success",
+      message: "Tariff rates updated successfully"
+    })
+  }
+  catch(err: any) {
+    console.error("Error updating tariffs: ", err);
+    if(err.name == "ZodError") {
+      return resp.status(400).json({
+        status: "error",
+        message: err.errors
+      });
+    }
+    if(err.message.includes("Building not found")) {
+      return resp.status(404).json({
+        status: "error",
+        message: "Building not found"
+      });
+    }
+    if(err.message.includes("Access Denied")) {
       return resp.status(403).json({
         status: "error",
         message: "Access Denied"
