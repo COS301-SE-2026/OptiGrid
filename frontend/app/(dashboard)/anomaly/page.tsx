@@ -1,9 +1,22 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  Scatter,
+  ComposedChart,
+} from "recharts";
 
 type AnomalyStatus = "Open" | "Resolved" | "In_Progress" | "Ignored";
 type SeverityLevel = "low" | "medium" | "high" | "critical";
+type MetricType = "power" | "cost";
 
 interface Anomaly {
   anomaly_id: string;
@@ -41,6 +54,15 @@ interface AlertThreshold {
   is_active: boolean;
 }
 
+interface ConsumptionDataPoint {
+  timestamp: string;
+  actual: number;
+  expected: number;
+  cost: number;
+  isAnomaly: boolean;
+  anomaly_id?: string;
+}
+
 interface NotificationPopup {
   id: string;
   message: string;
@@ -48,7 +70,33 @@ interface NotificationPopup {
   timestamp: string;
 }
 
-const mockManagerAnomalies: Anomaly[] = [
+const mockConsumptionData: ConsumptionDataPoint[] = [
+  { timestamp: "2026-08-16T00:00:00Z", actual: 45, expected: 48, cost: 67.50, isAnomaly: false },
+  { timestamp: "2026-08-16T01:00:00Z", actual: 42, expected: 44, cost: 63.00, isAnomaly: false },
+  { timestamp: "2026-08-16T02:00:00Z", actual: 38, expected: 40, cost: 57.00, isAnomaly: false },
+  { timestamp: "2026-08-16T03:00:00Z", actual: 35, expected: 37, cost: 52.50, isAnomaly: false },
+  { timestamp: "2026-08-16T04:00:00Z", actual: 33, expected: 35, cost: 49.50, isAnomaly: false },
+  { timestamp: "2026-08-16T05:00:00Z", actual: 40, expected: 42, cost: 60.00, isAnomaly: false },
+  { timestamp: "2026-08-16T06:00:00Z", actual: 55, expected: 52, cost: 82.50, isAnomaly: false },
+  { timestamp: "2026-08-16T07:00:00Z", actual: 78, expected: 75, cost: 117.00, isAnomaly: false },
+  { timestamp: "2026-08-16T08:00:00Z", actual: 95, expected: 90, cost: 142.50, isAnomaly: false },
+  { timestamp: "2026-08-16T09:00:00Z", actual: 110, expected: 105, cost: 165.00, isAnomaly: false },
+  { timestamp: "2026-08-16T10:00:00Z", actual: 125, expected: 120, cost: 187.50, isAnomaly: false },
+  { timestamp: "2026-08-16T11:00:00Z", actual: 130, expected: 128, cost: 195.00, isAnomaly: false },
+  { timestamp: "2026-08-16T12:00:00Z", actual: 145, expected: 140, cost: 217.50, isAnomaly: false },
+  { timestamp: "2026-08-16T13:00:00Z", actual: 150, expected: 145, cost: 225.00, isAnomaly: false },
+  { timestamp: "2026-08-16T14:00:00Z", actual: 220, expected: 148, cost: 330.00, isAnomaly: true, anomaly_id: "anm-001" },
+  { timestamp: "2026-08-16T15:00:00Z", actual: 190, expected: 150, cost: 285.00, isAnomaly: false },
+  { timestamp: "2026-08-16T16:00:00Z", actual: 160, expected: 155, cost: 240.00, isAnomaly: false },
+  { timestamp: "2026-08-16T17:00:00Z", actual: 130, expected: 135, cost: 195.00, isAnomaly: false },
+  { timestamp: "2026-08-16T18:00:00Z", actual: 100, expected: 105, cost: 150.00, isAnomaly: false },
+  { timestamp: "2026-08-16T19:00:00Z", actual: 80, expected: 85, cost: 120.00, isAnomaly: false },
+  { timestamp: "2026-08-16T20:00:00Z", actual: 65, expected: 70, cost: 97.50, isAnomaly: false },
+  { timestamp: "2026-08-16T21:00:00Z", actual: 55, expected: 60, cost: 82.50, isAnomaly: false },
+  { timestamp: "2026-08-16T22:00:00Z", actual: 48, expected: 52, cost: 72.00, isAnomaly: false },
+  { timestamp: "2026-08-16T23:00:00Z", actual: 42, expected: 45, cost: 63.00, isAnomaly: false },
+]
+  const mockManagerAnomalies: Anomaly[] = [
   {
     anomaly_id: "anm-1",
     building_id: "b1",
@@ -222,6 +270,9 @@ const mockInitialThresholds: AlertThreshold[] = [
   },
 ];
 
+
+
+
 const STATUS_LABELS: Record<AnomalyStatus, string> = {
   Open: "Open",
   Resolved: "Resolved",
@@ -300,6 +351,8 @@ export default function ManagerAnomalyPage() {
   const [notifications, setNotifications] = useState<NotificationPopup[]>([]);
   const [historicFilter, setHistoricFilter] = useState<string>("all");
   const [historicSearch, setHistoricSearch] = useState<string>("");
+  const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("b1");
+  const [chartMetric, setChartMetric] = useState<MetricType>("power");
 
   const [thresholdForm, setThresholdForm] = useState({
     threshold_id: "",
@@ -361,6 +414,13 @@ export default function ManagerAnomalyPage() {
       month: "short",
       day: "numeric",
       year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatChartTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString(undefined, {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -500,6 +560,40 @@ export default function ManagerAnomalyPage() {
     });
   };
 
+  const chartData = useMemo(() => {
+    const buildingId = selectedBuildingForChart !== "all" ? selectedBuildingForChart : "b1";
+    const buildingAnomalies = anomalies.filter(a => a.building_id === buildingId);
+    const anomalyTimestamps = new Set(buildingAnomalies.map(a => a.detected_timestamp.split("T")[0] + "T" + a.detected_timestamp.split("T")[1].slice(0, 8)));
+
+    return mockConsumptionData.map(point => {
+      const timeKey = point.timestamp.slice(0, 16);
+      const isAnomaly = anomalyTimestamps.has(point.timestamp.slice(0, 16) + "Z");
+      return {
+        ...point,
+        isAnomaly: isAnomaly || point.isAnomaly,
+      };
+    });
+  }, [selectedBuildingForChart, anomalies]);
+
+  const anomalyPoints = useMemo(() => {
+    return chartData.filter(point => point.isAnomaly).map(point => ({
+      x: point.timestamp,
+      y: chartMetric === "power" ? point.actual : point.cost,
+    }));
+  }, [chartData, chartMetric]);
+
+  const getChartLabel = () => {
+    return chartMetric === "power" ? "Power (kWh)" : "Cost (R)";
+  };
+
+  const getDataKey = () => {
+    return chartMetric === "power" ? "actual" : "cost";
+  };
+
+  const getExpectedKey = () => {
+    return chartMetric === "power" ? "expected" : "cost";
+  };
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-shell">
@@ -572,6 +666,162 @@ export default function ManagerAnomalyPage() {
               <div className="card dashboard-card-tight">
                 <div className="dashboard-kpi-label">Buildings</div>
                 <div className="dashboard-kpi-value">{buildings.length}</div>
+              </div>
+            </div>
+          </section>
+
+          <section aria-label="Energy Consumption Chart">
+            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
+                <div>
+                  <h2 style={{ fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
+                    Energy Consumption
+                  </h2>
+                  <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                    Actual vs Expected consumption with detected anomalies
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                  <select
+                    value={chartMetric}
+                    onChange={(e) => setChartMetric(e.target.value as MetricType)}
+                    className="select"
+                    style={{ minWidth: "120px" }}
+                    aria-label="Select metric for chart"
+                  >
+                    <option value="power">Power (kWh)</option>
+                    <option value="cost">Cost (R)</option>
+                  </select>
+                  <select
+                    value={selectedBuildingForChart}
+                    onChange={(e) => setSelectedBuildingForChart(e.target.value)}
+                    className="select"
+                    style={{ minWidth: "150px" }}
+                    aria-label="Select building for chart"
+                  >
+                    {buildings.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ height: "300px", width: "100%" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart
+                    data={chartData}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--brand-border)" />
+                    <XAxis
+                      dataKey="timestamp"
+                      tickFormatter={formatChartTime}
+                      tick={{ fill: "var(--brand-ink-muted)", fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={2}
+                    />
+                    <YAxis
+                      tick={{ fill: "var(--brand-ink-muted)", fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      label={{
+                        value: chartMetric === "power" ? "kWh" : "R",
+                        angle: -90,
+                        position: "insideLeft",
+                        style: { fill: "var(--brand-ink-muted)", fontSize: 10 }
+                      }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--brand-surface)",
+                        border: "1px solid var(--brand-border)",
+                        borderRadius: "var(--radius-md)",
+                        color: "var(--brand-ink)",
+                        fontSize: "var(--fs-small)",
+                      }}
+                      labelFormatter={(label) => new Date(label).toLocaleString()}
+                      formatter={(value: number, name: string) => {
+                        if (name === "Anomaly") return [`${value} ${chartMetric === "power" ? "kWh" : "R"}`, "Anomaly Detected"];
+                        if (name === "actual") return [`${value} ${chartMetric === "power" ? "kWh" : "R"}`, "Actual"];
+                        if (name === "expected") return [`${value} ${chartMetric === "power" ? "kWh" : "R"}`, "Expected"];
+                        return [value, name];
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey={getDataKey()}
+                      stroke="#4D869C"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 5 }}
+                      name="actual"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey={getExpectedKey()}
+                      stroke="#7AB2B2"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                      name="expected"
+                    />
+                    <Scatter
+                      data={anomalyPoints}
+                      dataKey="y"
+                      fill="#8B1E3F"
+                      shape="circle"
+                      r={8}
+                      name="Anomaly"
+                    />
+                    {anomalyPoints.map((point, index) => (
+                      <ReferenceLine
+                        key={index}
+                        x={point.x}
+                        stroke="#8B1E3F"
+                        strokeDasharray="3 3"
+                        strokeWidth={1}
+                        label={{
+                          value: "⚠",
+                          position: "top",
+                          fill: "#8B1E3F",
+                          fontSize: 14,
+                        }}
+                      />
+                    ))}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "var(--space-4)",
+                  marginTop: "var(--space-3)",
+                  fontSize: "var(--fs-small)",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <span style={{ width: "20px", height: "2px", backgroundColor: "#4D869C", display: "inline-block" }} />
+                  <span className="text-muted">Actual</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <span style={{ width: "20px", height: "2px", backgroundColor: "#7AB2B2", borderTop: "2px dashed #7AB2B2", display: "inline-block" }} />
+                  <span className="text-muted">Expected</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <span style={{ width: "12px", height: "12px", backgroundColor: "#8B1E3F", borderRadius: "50%", display: "inline-block" }} />
+                  <span className="text-muted">Anomaly Detected</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <span style={{ width: "20px", height: "2px", backgroundColor: "#8B1E3F", borderTop: "2px dashed #8B1E3F", display: "inline-block" }} />
+                  <span className="text-muted">Anomaly Reference</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <span style={{ width: "20px", height: "2px", backgroundColor: "#B26B00", display: "inline-block" }} />
+                  <span className="text-muted">Metric: {chartMetric === "power" ? "Power" : "Cost"}</span>
+                </div>
               </div>
             </div>
           </section>
@@ -805,6 +1055,7 @@ export default function ManagerAnomalyPage() {
             position: "fixed",
             top: "var(--space-5)",
             right: "var(--space-5)",
+            
             display: "flex",
             flexDirection: "column",
             gap: "var(--space-3)",
@@ -856,6 +1107,7 @@ export default function ManagerAnomalyPage() {
                     background: "none",
                     border: "none",
                     color: "var(--brand-ink-muted)",
+                
                     fontSize: "1.2rem",
                   }}
                   aria-label="Dismiss notification"
@@ -894,7 +1146,7 @@ export default function ManagerAnomalyPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: "var(--space-4)",
-          }}
+                      }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowDetailsModal(false);
@@ -1302,7 +1554,7 @@ export default function ManagerAnomalyPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: "var(--space-4)",
-          
+            
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
