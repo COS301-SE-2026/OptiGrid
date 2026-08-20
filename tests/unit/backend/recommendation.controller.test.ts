@@ -1,5 +1,5 @@
-import { applyRecommendationController } from "../../../backend/core/src/controllers/recommendation.controller";
-import { applyRecommendation } from "../../../backend/core/src/services/recommendation.service";
+import { applyRecommendationController, viewRecommendationController, updateTariffController } from "../../../backend/core/src/controllers/recommendation.controller";
+import { applyRecommendation, viewRecommendationService, updateTariffService } from "../../../backend/core/src/services/recommendation.service";
 import { Request, Response } from "express";
 
 jest.mock("../../../backend/core/src/services/recommendation.service");
@@ -141,5 +141,234 @@ describe("Recommendation Controller Unit Tests", () => {
             status: "error", 
             message: "Internal server error" 
         }));
+    });
+
+    describe("View Recommendation Controller Unit Tests", () => {
+        it("should_return_200", async () => {
+            req = {
+                user: {
+                    id: "user123"
+                } as any,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
+                query: {
+                    status: "Pending",
+                    limit: "10"
+                }
+            };
+            const data = [{
+                recommendation_id: "rec-123"
+            }];
+            (viewRecommendationService as jest.Mock).mockResolvedValue(data);
+            //act
+            await viewRecommendationController(req as Request, resp as Response);
+            //assert
+            expect(viewRecommendationService).toHaveBeenCalledWith("user123", "550e8400-e29b-41d4-a716-446655440000", "Pending", 10);
+            expect(mockstatus).toHaveBeenCalledWith(200);
+            expect(json).toHaveBeenCalledWith({
+                status:"success",
+                data: data
+            });
+        });
+
+        it("should_return_401", async () => {
+            req = {
+                user: undefined,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
+                query: {
+                    status: "Pending",
+                    limit: "10"
+                }
+            };
+            //act
+            await viewRecommendationController(req as Request, resp as Response);
+            //assert
+            expect(mockstatus).toHaveBeenCalledWith(401);
+            expect(json).toHaveBeenCalledWith({
+                status:"error",
+                message: "Unauthorized"
+            });
+            expect(viewRecommendationService).not.toHaveBeenCalled();
+        });
+
+        it("should_return_400_ZOD_ERROR", async () => {
+            req = {
+                user: {
+                    id: "user123"
+                } as any,
+                params: {
+                    building_id: "invalid"
+                },
+                query: {
+                    status: "Pending",
+                    limit: "10"
+                }
+            };
+            //act
+            await viewRecommendationController(req as Request, resp as Response);
+            //assert
+            expect(mockstatus).toHaveBeenCalledWith(400);
+            expect(json).toHaveBeenCalledWith({
+                status:"error",
+            });
+            expect(viewRecommendationService).not.toHaveBeenCalled();
+        });
+
+        it("should_return_500", async () => {
+            req = {
+                user: {
+                    id: "user123"
+                } as any,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
+                query: {
+                    status: "Pending",
+                    limit: "10"
+                }
+            };
+            (viewRecommendationService as jest.Mock).mockRejectedValue(new Error("Internal"));
+            //act
+            await viewRecommendationController(req as Request, resp as Response);
+            //assert
+            expect(mockstatus).toHaveBeenCalledWith(500);
+            expect(json).toHaveBeenCalledWith({
+                status:"error",
+                message: "Internal Server Error"
+            });
+        });
+    });
+
+    describe("Update Tariff Controller  Unit Tests",  () => {
+        it("should_return_200", async () => {
+            req = {
+                user: {
+                    id:"user123",
+                    roleType: "ADMIN"
+                }as any,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
+                body: {
+                    peak_rate_zar: 0.15, 
+                    off_peak_rate_zar: 0.08, 
+                    season_name: "Summer"
+                }
+            };
+            (updateTariffService as jest.Mock).mockResolvedValue(true);
+            //act
+            await updateTariffController(req as Request, resp as Response);
+            //assert
+            expect(updateTariffService).toHaveBeenCalledWith(
+                "user123",
+                "550e8400-e29b-41d4-a716-446655440000",
+                {
+                    peak_rate_zar: 0.15, 
+                    off_peak_rate_zar: 0.08, 
+                    season_name: "Summer"
+                }
+            );
+            expect(mockstatus).toHaveBeenCalledWith(200);
+            expect(json).toHaveBeenCalledWith({
+                status: "success",
+                message: "Tariff rates updated successfully"
+            });
+        });
+
+        it("should_return_401", async () => {
+            req = {
+                user: undefined,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
+                body: {}
+            };
+            //act
+            await updateTariffController(req as Request, resp as Response);
+            //assert
+            expect(updateTariffService).not.toHaveBeenCalled();
+            expect(mockstatus).toHaveBeenCalledWith(401);
+            expect(json).toHaveBeenCalledWith(expect.objectContaining({
+                status:"error",
+                message:"Unauthorized"
+            }));
+        });
+
+        it("should_return_400", async () => {
+            req = {
+                user: {
+                    id:"user123",
+                    roleType: "ADMIN"
+                }as any,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
+                body: {}
+            };
+            //act
+            await updateTariffController(req as Request, resp as Response);
+            //assert
+            expect(updateTariffService).not.toHaveBeenCalled();
+            expect(mockstatus).toHaveBeenCalledWith(400);
+            expect(json).toHaveBeenCalledWith(expect.objectContaining({
+                status:"error",
+            }));
+        });
+
+        it("should_return_404", async() => {
+            req = {
+                user: {
+                    id:"user123",
+                    roleType: "ADMIN"
+                }as any,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
+                body: {
+                    peak_rate_zar: 0.15, 
+                    off_peak_rate_zar: 0.08, 
+                    season_name: "Summer"
+                }
+            };
+            (updateTariffService as jest.Mock).mockRejectedValue(new Error("Building not found"));
+            //act
+            await updateTariffController(req as Request, resp as Response);
+            //assert
+            expect(mockstatus).toHaveBeenCalledWith(404);
+            expect(json).toHaveBeenCalledWith(expect.objectContaining({
+                status:"error",
+                message:"Building not found"
+            }));
+        });
+
+        it("should_return_500", async () => {
+             req = {
+                user: {
+                    id:"user123",
+                    roleType: "ADMIN"
+                }as any,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
+                body: {
+                    peak_rate_zar: 0.15, 
+                    off_peak_rate_zar: 0.08, 
+                    season_name: "Summer"
+                }
+            };
+            (updateTariffService as jest.Mock).mockRejectedValue(new Error("Error"));
+            //act
+            await updateTariffController(req as Request, resp as Response);
+            //assert
+            expect(updateTariffService).toHaveBeenCalled();
+            expect(mockstatus).toHaveBeenCalledWith(500);
+            expect(json).toHaveBeenCalledWith(expect.objectContaining({
+                status:"error",
+                message:"Internal Server Error"
+            }));
+        });
     });
 });
