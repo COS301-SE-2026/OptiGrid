@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "../theme-provider";
-import { openDialog } from "@/lib/openDialog";
+
 
 interface UserProfile {
   first_name: string;
@@ -77,19 +77,7 @@ export default function SettingsPage() {
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
-  const deleteDialogRef = useRef<HTMLDialogElement>(null);
-  const deleteDialogTitleId = useId();
-  useEffect(() => {
-    if (showDeleteModal) {
-      openDialog(deleteDialogRef.current);
-    }
-  }, [showDeleteModal]);
-
-  const closeDeleteModal = () => {
-    setShowDeleteModal(false);
-    setDeleteConfirmText("");
-  };
+  const [showRecoverModal, setShowRecoverModal] = useState<boolean>(false);
 
   const showToastMessage = (message: string) => {
     setToastMessage(message);
@@ -159,16 +147,16 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = () => {
-    if (deleteConfirmText !== "DELETE") {
-      showToastMessage('Please type "DELETE" to confirm');
-      return;
-    }
     setShowDeleteModal(false);
-    setDeleteConfirmText("");
     showToastMessage("Account deleted");
     setTimeout(() => {
       router.push("/login");
     }, 500);
+  };
+
+  const handleRecoverAccount = () => {
+    setShowRecoverModal(false);
+    showToastMessage("Account recovery initiated");
   };
 
   const handleThemeToggle = async () => {
@@ -405,6 +393,7 @@ export default function SettingsPage() {
                 style={{
                   display: "flex",
                   gap: "var(--space-3)",
+                  flexWrap: "wrap",
                 }}
               >
                 <button
@@ -418,65 +407,159 @@ export default function SettingsPage() {
                 >
                   Logout
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowRecoverModal(true)}
+                  className="btn"
+                  style={{
+                    padding: "var(--space-2) var(--space-4)",
+                    fontSize: "var(--fs-small)",
+                    backgroundColor: "#8B6914",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Recover Account
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="btn btn-danger"
+                  style={{
+                    padding: "var(--space-2) var(--space-4)",
+                    fontSize: "var(--fs-small)",
+                    backgroundColor: "#8B1E3F",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Delete Account
+                </button>
               </div>
             </div>
           </section>
 
+          
           {showDeleteModal && (
-            <dialog
-              ref={deleteDialogRef}
-              className="modal"
-              style={{ maxWidth: "500px", width: "100%" }}
-              aria-labelledby={deleteDialogTitleId}
-              onClose={closeDeleteModal}
+            <div
+              className="modal-overlay"
+              style={{
+                position: "fixed",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "var(--space-4)",
+              }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setShowDeleteModal(false);
+                }
+              }}
+              role="dialog"
+              aria-modal="true"
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setShowDeleteModal(false);
+                }
+              }}
             >
-              <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
-                <h2 id={deleteDialogTitleId} style={{ color: "var(--brand-danger)", marginBottom: "var(--space-2)" }}>
-                  Delete Account
-                </h2>
-                <p className="text-muted">
-                  All your data will be permanently deleted.
-                </p>
-              </div>
+              <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
+                <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
+                  <h2 style={{ color: "var(--brand-danger)", marginBottom: "var(--space-2)" }}>
+                    Delete Account
+                  </h2>
+                  <p className="text-muted">
+                    All your data will be permanently deleted. This action cannot be undone.
+                  </p>
+                </div>
 
-              <div style={{ marginBottom: "var(--space-4)" }}>
-                <label className="label" htmlFor="deleteConfirm">
-                  Type <span style={{ color: "var(--brand-danger)", fontWeight: "bold" }}>DELETE</span> to confirm
-                </label>
-                <input
-                  id="deleteConfirm"
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder="Type DELETE here..."
-                  className="input"
-                  style={
-                    deleteConfirmText && deleteConfirmText !== "DELETE"
-                      ? { borderColor: "var(--brand-danger)" }
-                      : {}
-                  }
-                />
+                <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                    }}
+                    className="btn btn-secondary"
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    className="btn btn-danger"
+                    style={{ flex: 1 }}
+                  >
+                    Delete Account
+                  </button>
+                </div>
               </div>
+              </div>
+)}
 
-              <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                <button
-                  type="button"
-                  onClick={closeDeleteModal}
-                  className="btn btn-secondary"
-                  style={{ flex: 1 }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteAccount}
-                  className="btn btn-danger"
-                  style={{ flex: 1 }}
-                >
-                  Delete Account
-                </button>
+             
+          
+          {showRecoverModal && (
+            <div
+              className="modal-overlay"
+              style={{
+                position: "fixed",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "var(--space-4)",
+              }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setShowRecoverModal(false);
+                }
+              }}
+              role="dialog"
+              aria-modal="true"
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setShowRecoverModal(false);
+                }
+              }}
+            >
+              <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
+                <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
+                  <h2 style={{ color: "#B26B00", marginBottom: "var(--space-2)" }}>
+                    Recover Account
+                  </h2>
+                  <p className="text-muted">
+                    Are you sure you want to recover your account?
+                  </p>
+                </div>
+
+                <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRecoverModal(false);
+                    }}
+                    className="btn btn-secondary"
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRecoverAccount}
+                    className="btn"
+                    style={{
+                      flex: 1,
+                      backgroundColor: "#B26B00",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    Recover Account
+                  </button>
+                </div>
               </div>
-            </dialog>
+            </div>
           )}
 
           {showToast && (
@@ -484,7 +567,6 @@ export default function SettingsPage() {
               style={{
                 position: "fixed",
                 bottom: "var(--space-4)",
-                
                 backgroundColor: "var(--brand-ink)",
                 color: "var(--brand-bg)",
                 padding: "var(--space-3) var(--space-5)",
@@ -499,7 +581,10 @@ export default function SettingsPage() {
               {toastMessage}
             </div>
           )}
+        
+
         </main>
+      
       </div>
     </div>
   );

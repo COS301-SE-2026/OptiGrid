@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SettingsPage from "./page";
 
@@ -496,199 +496,124 @@ it.each([
         expect.objectContaining({ method: "POST" })
       );
     });
+
+    describe("Delete Account", () => {
+  it("opens the Delete Account modal when clicked", () => {
+    render(<SettingsPage />);
+
+    const deleteButton = screen.getByRole("button", {
+      name: /^Delete Account$/i,
+    });
+
+    fireEvent.click(deleteButton);
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Delete Account/i,
+      })
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        /All your data will be permanently deleted. This action cannot be undone/i
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("closes the Delete Account modal when Cancel is clicked", () => {
+    render(<SettingsPage />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /^Delete Account$/i,
+      })
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Delete Account/i,
+      })
+    ).toBeInTheDocument();
+
+    const modal = screen.getByRole("dialog");
+
+    fireEvent.click(
+      within(modal).getByRole("button", {
+        name: /^Cancel$/i,
+      })
+    );
+
+    expect(
+      screen.queryByRole("heading", {
+        name: /Delete Account/i,
+      })
+    ).not.toBeInTheDocument();
+  });
+    });
+
+
+    describe("Recover Account", () => {
+  it("opens the Recover Account modal when clicked", () => {
+    render(<SettingsPage />);
+
+    const recoverButton = screen.getByRole("button", {
+      name: /^Recover Account$/i,
+    });
+
+    fireEvent.click(recoverButton);
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Recover Account/i,
+      })
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByText(
+        /Are you sure you want to recover your account/i
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("closes the Recover Account modal when Cancel is clicked", () => {
+    render(<SettingsPage />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /^Recover Account$/i,
+      })
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Recover Account/i,
+      })
+    ).toBeInTheDocument();
+
+    const modal = screen.getByRole("dialog");
+
+    fireEvent.click(
+      within(modal).getByRole("button", {
+        name: /^Cancel$/i,
+      })
+    );
+
+    expect(
+      screen.queryByRole("heading", {
+        name: /Recover Account/i,
+      })
+    ).not.toBeInTheDocument();
+  });
+});
+
+
+
+
+
+
+
  
- /* describe("Delete Account button", () => {
-    it("renders the Delete Account button", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      expect(screen.getByRole("button", { name: /delete account/i })).toBeInTheDocument();
-    });
-
-    it("opens the delete modal when Delete Account is clicked", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-      });
-      expect(screen.getByPlaceholderText(/type delete here/i)).toBeInTheDocument();
-    });
-
-    it("modal shows 'Delete Account' heading", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-      });
-      expect(screen.getByRole("heading", { name: /delete account/i })).toBeInTheDocument();
-    });
-
-    it("modal shows warning text about permanent deletion", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-      });
-      expect(screen.getByText(/permanently deleted/i)).toBeInTheDocument();
-    });
-
-    it("modal has a Cancel button", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-      });
-      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
-    });
-
-    it("modal has a Delete Account confirm button", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-      });
-      expect(screen.getAllByRole("button", { name: /delete account/i }).length).toBeGreaterThanOrEqual(2);
-    });
-  });*/
-
-  /*describe("Cancel button (delete modal)", () => {
-    it("closes the delete modal when Cancel is clicked", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-        fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
-      });
-      expect(screen.queryByPlaceholderText(/type delete here/i)).not.toBeInTheDocument();
-    });
-
-    it("clears the delete confirm text when Cancel is clicked", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      let input: HTMLInputElement;
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-        input = screen.getByPlaceholderText(/type delete here/i) as HTMLInputElement;
-        fireEvent.change(input, { target: { value: "DELETE" } });
-        fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-      });
-      const newInput = screen.getByPlaceholderText(/type delete here/i) as HTMLInputElement;
-      expect(newInput.value).toBe("");
-    });
-  });*/
-
-  /*describe("Delete Account confirm button (modal)", () => {
-    it("shows error toast if 'DELETE' is not typed", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-        fireEvent.change(getDeleteConfirmInput(), { target: { value: "delete" } });
-        const btns = screen.getAllByRole("button", { name: /delete account/i });
-        fireEvent.click(btns[btns.length - 1]);
-      });
-      expect(screen.getByText(/please type "DELETE" to confirm/i)).toBeInTheDocument();
-    });
-
-    it("keeps modal open if wrong text entered", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-        fireEvent.change(getDeleteConfirmInput(), { target: { value: "wrong" } });
-        const btns = screen.getAllByRole("button", { name: /delete account/i });
-        fireEvent.click(btns[btns.length - 1]);
-      });
-      expect(screen.getByPlaceholderText(/type delete here/i)).toBeInTheDocument();
-    });
-
-    it("shows 'Account deleted' toast when DELETE is typed correctly", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-        fireEvent.change(getDeleteConfirmInput(), { target: { value: "DELETE" } });
-        const btns = screen.getAllByRole("button", { name: /delete account/i });
-        fireEvent.click(btns[btns.length - 1]);
-      });
-      expect(screen.getByText(/account deleted/i)).toBeInTheDocument();
-    });
-
-    it("closes modal after successful DELETE confirmation", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-        fireEvent.change(getDeleteConfirmInput(), { target: { value: "DELETE" } });
-        const btns = screen.getAllByRole("button", { name: /delete account/i });
-        fireEvent.click(btns[btns.length - 1]);
-      });
-      expect(screen.queryByPlaceholderText(/type delete here/i)).not.toBeInTheDocument();
-    });
-
-    it("redirects to /login after account deletion", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      let input: HTMLInputElement;
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-        input = screen.getByPlaceholderText(/type delete here/i) as HTMLInputElement;
-        fireEvent.change(input, { target: { value: "DELETE" } });
-        const btns = screen.getAllByRole("button", { name: /delete account/i });
-        fireEvent.click(btns[btns.length - 1]);
-        jest.advanceTimersByTime(500);
-      });
-      expect(mockPush).toHaveBeenCalledWith("/login");
-      expect(screen.queryByPlaceholderText(/type delete here/i)).not.toBeInTheDocument();
-    });
-
-    it("clears the confirm input after successful deletion", async () => {
-      await act(async () => {
-        render(<SettingsPage />);
-      });
-      await screen.findByDisplayValue("Tali");
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-        const input = screen.getByPlaceholderText(/type delete here/i) as HTMLInputElement;
-        fireEvent.change(input, { target: { value: "DELETE" } });
-        const btns = screen.getAllByRole("button", { name: /delete account/i });
-        fireEvent.click(btns[btns.length - 1]);
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-      });
-      const newInput = screen.getByPlaceholderText(/type delete here/i) as HTMLInputElement;
-      expect(newInput.value).toBe("");
-    });
-  });*/
-
+ 
   describe("Profile loading", () => {
     const sessionProfile = {
       userId: "user-123",
