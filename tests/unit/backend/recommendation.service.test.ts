@@ -157,10 +157,12 @@ describe("Recommendation Services Unit Tests", () => {
             //asset
             expect(out).toBe(true);
             expect(prisma.utilityTariff.create).toHaveBeenCalledWith({
-                building_id: "building123",
-                peak_rate_zae: 0.15, 
-                off_peak_rate_zar: 0.08, 
-                season_name: "Summer"
+                data: {
+                    building_id: "building123",
+                    peak_rate_zar: 0.15, 
+                    off_peak_rate_zar: 0.08, 
+                    season_name: "Summer"
+                }
             });
             expect(prisma.utilityTariff.update).not.toHaveBeenCalled();
         });

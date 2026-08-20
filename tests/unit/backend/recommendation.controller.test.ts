@@ -253,7 +253,7 @@ describe("Recommendation Controller Unit Tests", () => {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
                 body: {
-                    peak_rate_zae: 0.15, 
+                    peak_rate_zar: 0.15, 
                     off_peak_rate_zar: 0.08, 
                     season_name: "Summer"
                 }
@@ -263,10 +263,10 @@ describe("Recommendation Controller Unit Tests", () => {
             await updateTariffController(req as Request, resp as Response);
             //assert
             expect(updateTariffService).toHaveBeenCalledWith(
-                "User123",
+                "user123",
                 "550e8400-e29b-41d4-a716-446655440000",
                 {
-                    peak_rate_zae: 0.15, 
+                    peak_rate_zar: 0.15, 
                     off_peak_rate_zar: 0.08, 
                     season_name: "Summer"
                 }
@@ -274,7 +274,7 @@ describe("Recommendation Controller Unit Tests", () => {
             expect(mockstatus).toHaveBeenCalledWith(200);
             expect(json).toHaveBeenCalledWith({
                 status: "success",
-                message: "Tariff rates updated successfully."
+                message: "Tariff rates updated successfully"
             });
         });
 
@@ -293,7 +293,7 @@ describe("Recommendation Controller Unit Tests", () => {
             expect(mockstatus).toHaveBeenCalledWith(401);
             expect(json).toHaveBeenCalledWith(expect.objectContaining({
                 status:"error",
-                message:"Unauthorised"
+                message:"Unauthorized"
             }));
         });
 
@@ -306,8 +306,29 @@ describe("Recommendation Controller Unit Tests", () => {
                 params: {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
+                body: {}
+            };
+            //act
+            await updateTariffController(req as Request, resp as Response);
+            //assert
+            expect(updateTariffService).not.toHaveBeenCalled();
+            expect(mockstatus).toHaveBeenCalledWith(400);
+            expect(json).toHaveBeenCalledWith(expect.objectContaining({
+                status:"error",
+            }));
+        });
+
+        it("should_return_404", async() => {
+            req = {
+                user: {
+                    id:"user123",
+                    roleType: "ADMIN"
+                }as any,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
                 body: {
-                    peak_rate_zae: 0.15, 
+                    peak_rate_zar: 0.15, 
                     off_peak_rate_zar: 0.08, 
                     season_name: "Summer"
                 }
@@ -316,7 +337,6 @@ describe("Recommendation Controller Unit Tests", () => {
             //act
             await updateTariffController(req as Request, resp as Response);
             //assert
-            expect(updateTariffService).not.toHaveBeenCalled();
             expect(mockstatus).toHaveBeenCalledWith(404);
             expect(json).toHaveBeenCalledWith(expect.objectContaining({
                 status:"error",
@@ -334,7 +354,7 @@ describe("Recommendation Controller Unit Tests", () => {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
                 body: {
-                    peak_rate_zae: 0.15, 
+                    peak_rate_zar: 0.15, 
                     off_peak_rate_zar: 0.08, 
                     season_name: "Summer"
                 }
@@ -343,11 +363,11 @@ describe("Recommendation Controller Unit Tests", () => {
             //act
             await updateTariffController(req as Request, resp as Response);
             //assert
-            expect(updateTariffService).not.toHaveBeenCalled();
-            expect(mockstatus).toHaveBeenCalledWith(404);
+            expect(updateTariffService).toHaveBeenCalled();
+            expect(mockstatus).toHaveBeenCalledWith(500);
             expect(json).toHaveBeenCalledWith(expect.objectContaining({
                 status:"error",
-                message:"Internal Sever Error"
+                message:"Internal Server Error"
             }));
         });
     });

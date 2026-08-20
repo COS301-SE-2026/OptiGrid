@@ -115,6 +115,15 @@ export const updateTariffService = async(userId:string, buildingId: string, payl
         season_name: payload.season_name,
       }
     });
+  } else {
+    await prisma.utilityTariff.create({
+      data: {
+        building_id: buildingId,
+        peak_rate_zar: payload.peak_rate_zar,
+        off_peak_rate_zar: payload.off_peak_rate_zar,
+        season_name: payload.season_name,
+      }
+    });
   }
- 
+  return true;
 }
