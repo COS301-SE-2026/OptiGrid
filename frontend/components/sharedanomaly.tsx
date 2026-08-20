@@ -968,3 +968,56 @@ export const mockInitialThresholds: AlertThreshold[] = [
     is_active: true,
   },
 ];
+
+type ModalProps = {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  maxWidth?: string;
+};
+
+export function Modal({
+  open,
+  onClose,
+  children,
+  maxWidth = "600px",
+}: ModalProps) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <dialog
+      className="modal-overlay"
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "var(--space-4)",
+        zIndex: 50,
+        border: "none",
+        backgroundColor: "transparent",
+        width: "100%",
+        height: "100%",
+      }}
+      open
+      onClose={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          onClose();
+        }
+      }}
+    >
+      <div className="modal" style={{ maxWidth, width: "100%" }}>
+        {children}
+      </div>
+    </dialog>
+  );
+}

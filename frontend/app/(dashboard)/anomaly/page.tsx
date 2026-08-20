@@ -8,7 +8,8 @@ import {
   AnalyticsSummary,
   EnergyChart,
   FilterBar,
-  NotificationBadge,
+  Modal,
+  
   StatusBadge,
   SeverityBadge,
   mockConsumptionData,
@@ -493,151 +494,223 @@ export default function ManagerAnomalyPage() {
       `}</style>
 
       {showDetailsModal && selectedAnomaly && (
-        <dialog
-          className="modal-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "var(--space-4)",
-            zIndex: 50,
-            border: "none",
-            backgroundColor: "transparent",
-            width: "100%",
-            height: "100%",
-          }}
+       <Modal
           open={showDetailsModal}
           onClose={() => {
             setShowDetailsModal(false);
             setSelectedAnomaly(null);
           }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowDetailsModal(false);
-              setSelectedAnomaly(null);
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setShowDetailsModal(false);
-              setSelectedAnomaly(null);
-            }
-          }}
+          maxWidth="600px"
         >
-          <div className="modal" style={{ maxWidth: "600px", width: "100%" }}>
-            <h2 style={{ marginBottom: "var(--space-3)" }}>Anomaly Details</h2>
-            <div style={{ display: "grid", gap: "var(--space-3)" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                <div>
-                  <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Building</p>
-                  <p style={{ fontWeight: "var(--fw-semibold)" }}>{selectedAnomaly.building_name}</p>
-                </div>
-                <div>
-                  <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Type</p>
-                  <p style={{ fontWeight: "var(--fw-semibold)" }}>{selectedAnomaly.anomaly_type.replace(/_/g, " ")}</p>
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                <div>
-                  <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Severity</p>
-                  <SeverityBadge severity={selectedAnomaly.severity_level} />
-                </div>
-                <div>
-                  <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Status</p>
-                  <StatusBadge status={selectedAnomaly.status} />
-                </div>
-              </div>
+          <h2 style={{ marginBottom: "var(--space-3)" }}>
+            Anomaly Details
+          </h2>
+
+          <div style={{ display: "grid", gap: "var(--space-3)" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "var(--space-3)",
+              }}
+            >
               <div>
-                <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Description</p>
-                <p>{selectedAnomaly.description}</p>
+                <p
+                  className="text-muted"
+                  style={{ fontSize: "var(--fs-small)" }}
+                >
+                  Building
+                </p>
+                <p style={{ fontWeight: "var(--fw-semibold)" }}>
+                  {selectedAnomaly.building_name}
+                </p>
               </div>
-              {selectedAnomaly.threshold_details && (
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Threshold Details</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowDetailsModal(false);
-                        handleEditThresholdInDetails(selectedAnomaly);
-                      }}
-                      className="btn"
+
+              <div>
+                <p
+                  className="text-muted"
+                  style={{ fontSize: "var(--fs-small)" }}
+                >
+                  Type
+                </p>
+                <p style={{ fontWeight: "var(--fw-semibold)" }}>
+                  {selectedAnomaly.anomaly_type.replace(/_/g, " ")}
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "var(--space-3)",
+              }}
+            >
+              <div>
+                <p
+                  className="text-muted"
+                  style={{ fontSize: "var(--fs-small)" }}
+                >
+                  Severity
+                </p>
+                <SeverityBadge
+                  severity={selectedAnomaly.severity_level}
+                />
+              </div>
+
+              <div>
+                <p
+                  className="text-muted"
+                  style={{ fontSize: "var(--fs-small)" }}
+                >
+                  Status
+                </p>
+                <StatusBadge status={selectedAnomaly.status} />
+              </div>
+            </div>
+
+            <div>
+              <p
+                className="text-muted"
+                style={{ fontSize: "var(--fs-small)" }}
+              >
+                Description
+              </p>
+              <p>{selectedAnomaly.description}</p>
+            </div>
+
+            {selectedAnomaly.threshold_details && (
+              <div>
+                <p
+                  className="text-muted"
+                  style={{ fontSize: "var(--fs-small)" }}
+                >
+                  Threshold Details
+                </p>
+
+                <div style={{ fontSize: "var(--fs-small)" }}>
+                  <p>
+                    <strong>Metric:</strong>{" "}
+                    {selectedAnomaly.threshold_details.metric_type}
+                  </p>
+
+                  <p>
+                    <strong>Unit:</strong>{" "}
+                    {selectedAnomaly.threshold_details.unit}
+                  </p>
+
+                  {selectedAnomaly.threshold_details.upper_limit !== null && (
+                    <p>
+                      <strong>Upper Limit:</strong>{" "}
+                      {selectedAnomaly.threshold_details.upper_limit}{" "}
+                      {selectedAnomaly.threshold_details.unit}
+                    </p>
+                  )}
+
+                  {selectedAnomaly.threshold_details.lower_limit !== null && (
+                    <p>
+                      <strong>Lower Limit:</strong>{" "}
+                      {selectedAnomaly.threshold_details.lower_limit}{" "}
+                      {selectedAnomaly.threshold_details.unit}
+                    </p>
+                  )}
+
+                  {selectedAnomaly.threshold_details.allowed_spike_percentage !== null && (
+                    <p>
+                      <strong>Allowed Spike:</strong>{" "}
+                      {selectedAnomaly.threshold_details.allowed_spike_percentage}%
+                    </p>
+                  )}
+
+                  <p>
+                    <strong>Status:</strong>{" "}
+                    <span
+                      className="badge"
                       style={{
-                        fontSize: "var(--fs-small)",
-                        padding: "var(--space-1) var(--space-3)",
-                        backgroundColor: "#3A6B7C",
+                        backgroundColor: selectedAnomaly.threshold_details.is_active
+                          ? "#2F7D5D"
+                          : "#7A7A7A",
                         color: "#FFFFFF",
+                        padding: "var(--space-1) var(--space-2)",
+                        borderRadius: "var(--radius-pill)",
+                        fontSize: "var(--fs-small)",
+                        fontWeight: "var(--fw-medium)",
                       }}
                     >
-                      Edit Threshold
-                    </button>
-                  </div>
-                  <div style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
-                    <p><strong>Metric:</strong> {selectedAnomaly.threshold_details.metric_type}</p>
-                    <p><strong>Unit:</strong> {selectedAnomaly.threshold_details.unit}</p>
-                    {selectedAnomaly.threshold_details.upper_limit !== null && (
-                      <p><strong>Upper Limit:</strong> {selectedAnomaly.threshold_details.upper_limit} {selectedAnomaly.threshold_details.unit}</p>
-                    )}
-                    {selectedAnomaly.threshold_details.lower_limit !== null && (
-                      <p><strong>Lower Limit:</strong> {selectedAnomaly.threshold_details.lower_limit} {selectedAnomaly.threshold_details.unit}</p>
-                    )}
-                    {selectedAnomaly.threshold_details.allowed_spike_percentage !== null && (
-                      <p><strong>Allowed Spike:</strong> {selectedAnomaly.threshold_details.allowed_spike_percentage}%</p>
-                    )}
-                    <p>
-                      <strong>Status:</strong>{' '}
-                      <span
-                        className="badge"
-                        style={{
-                          backgroundColor: selectedAnomaly.threshold_details.is_active ? "#2F7D5D" : "#7A7A7A",
-                          color: "#FFFFFF",
-                          padding: "var(--space-1) var(--space-2)",
-                          borderRadius: "var(--radius-pill)",
-                          fontSize: "var(--fs-small)",
-                          fontWeight: "var(--fw-medium)",
-                        }}
-                      >
-                        {selectedAnomaly.threshold_details.is_active ? "Active" : "Inactive"}
-                      </span>
+                      {selectedAnomaly.threshold_details.is_active
+                        ? "Active"
+                        : "Inactive"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "var(--space-3)",
+              }}
+            >
+              <div>
+                <p
+                  className="text-muted"
+                  style={{ fontSize: "var(--fs-small)" }}
+                >
+                  Detected
+                </p>
+                <p>
+                  {formatDate(selectedAnomaly.detected_timestamp)}
+                </p>
+              </div>
+
+              {selectedAnomaly.resolved_timestamp && (
+                <div>
+                  <p
+                    className="text-muted"
+                    style={{ fontSize: "var(--fs-small)" }}
+                  >
+                    Resolved
+                  </p>
+
+                  <p>
+                    {formatDate(selectedAnomaly.resolved_timestamp)}
+                  </p>
+
+                  {selectedAnomaly.resolved_by && (
+                    <p
+                      className="text-muted"
+                      style={{ fontSize: "var(--fs-small)" }}
+                    >
+                      By: {selectedAnomaly.resolved_by}
                     </p>
-                  </div>
+                  )}
                 </div>
               )}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                <div>
-                  <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Detected</p>
-                  <p>{formatDate(selectedAnomaly.detected_timestamp)}</p>
-                </div>
-                {selectedAnomaly.resolved_timestamp && (
-                  <div>
-                    <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Resolved</p>
-                    <p>{formatDate(selectedAnomaly.resolved_timestamp)}</p>
-                    {selectedAnomaly.resolved_by && (
-                      <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                        By: {selectedAnomaly.resolved_by}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  setSelectedAnomaly(null);
-                }}
-                className="btn btn-secondary"
-                style={{ flex: 1 }}
-              >
-                Close
-              </button>
             </div>
           </div>
-        </dialog>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "var(--space-3)",
+              marginTop: "var(--space-4)",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setShowDetailsModal(false);
+                setSelectedAnomaly(null);
+              }}
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
       )}
 
       {showHistoricModal && (
