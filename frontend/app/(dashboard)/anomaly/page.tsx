@@ -1073,7 +1073,7 @@ export default function ManagerAnomalyPage() {
                 borderLeft: "4px solid #8B1E3F",
                 backgroundColor: "var(--brand-surface)",
                 boxShadow: "var(--shadow-card)",
-                animation: "slideIn 0.3s ease-out",
+                
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -1123,18 +1123,7 @@ export default function ManagerAnomalyPage() {
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
+
 
       {showDetailsModal && selectedAnomaly && (
         <div

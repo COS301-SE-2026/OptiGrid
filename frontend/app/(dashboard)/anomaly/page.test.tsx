@@ -1,0 +1,552 @@
+import React from "react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import ManagerAnomalyPage from "./page";
+
+
+
+jest.mock("recharts", () => ({
+  ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
+  ComposedChart: ({ children }: any) => <div>{children}</div>,
+  LineChart: ({ children }: any) => <div>{children}</div>,
+  Line: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  CartesianGrid: () => null,
+  Tooltip: () => null,
+  ReferenceLine: () => null,
+  Scatter: () => null,
+}));
+
+beforeAll(() => jest.useFakeTimers());
+afterAll(() => jest.useRealTimers());
+beforeEach(() => jest.clearAllMocks());
+
+const getKpiSection = () =>
+  screen.getByRole("region", { name: /analytics summary/i });
+
+const getAnomaliesSection = () =>
+  screen.getByRole("region", { name: /anomalies list/i });
+
+
+const getTableCell = (text: string) => {
+  const section = getAnomaliesSection();
+  return within(section)
+    .getAllByRole("cell")
+    .find((cell) => cell.textContent?.trim() === text);
+};
+
+
+const getTableRow = (buildingName: string) => {
+  const section = getAnomaliesSection();
+  const cells = within(section).getAllByRole("cell");
+  const cell = cells.find((c) => c.textContent?.trim() === buildingName);
+  return cell?.closest("tr")!;
+};
+
+const getBuildingFilter = () =>
+  document.getElementById("manager-building-filter") as HTMLSelectElement;
+const getStatusFilter = () =>
+  document.getElementById("manager-status-filter") as HTMLSelectElement;
+const getSeverityFilter = () =>
+  document.getElementById("manager-severity-filter") as HTMLSelectElement;
+const getSearchInput = () =>
+  document.getElementById("manager-search") as HTMLInputElement;
+
+
+describe("ManagerAnomalyPage", () => {
+
+  describe("Initial render", () => {
+    it("renders the Anomaly Alerts heading", () => {
+      render(<ManagerAnomalyPage />);
+      expect(screen.getByRole("heading", { name: /anomaly alerts/i })).toBeInTheDocument();
+    });
+
+    it("renders the subtitle", () => {
+      render(<ManagerAnomalyPage />);
+      expect(screen.getByText(/manage anomalies across your assigned buildings/i)).toBeInTheDocument();
+    });
+
+    it("renders the Configure Threshold button", () => {
+      render(<ManagerAnomalyPage />);
+      expect(screen.getByRole("button", { name: /configure threshold/i })).toBeInTheDocument();
+    });
+
+    it("renders the View Historic Alerts button", () => {
+      render(<ManagerAnomalyPage />);
+      expect(screen.getByRole("button", { name: /view historic alerts/i })).toBeInTheDocument();
+    });
+
+    it("renders Sandton HQ in the anomalies table", () => {
+      render(<ManagerAnomalyPage />);
+      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
+    });
+
+    it("renders Hillcrest in the anomalies table", () => {
+      render(<ManagerAnomalyPage />);
+      expect(getTableCell("Hillcrest")).toBeInTheDocument();
+    });
+
+    it("does not show any modal", () => {
+      render(<ManagerAnomalyPage />);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("stats", () => {
+    it("renders Total Alerts label", () => {
+      render(<ManagerAnomalyPage />);
+      expect(within(getKpiSection()).getByText("Total Alerts")).toBeInTheDocument();
+    });
+
+    it("renders Total Alerts count", () => {
+      render(<ManagerAnomalyPage />);
+      
+      const totalCard = within(getKpiSection())
+        .getAllByText("2")
+        .find((el) => el.closest(".dashboard-card-tight")?.querySelector(".dashboard-kpi-label")?.textContent === "Total Alerts");
+      expect(totalCard).toBeInTheDocument();
+    });
+
+    it("renders Open label", () => {
+      render(<ManagerAnomalyPage />);
+      expect(within(getKpiSection()).getByText("Open")).toBeInTheDocument();
+    });
+
+    it("renders Critical label", () => {
+      render(<ManagerAnomalyPage />);
+      expect(within(getKpiSection()).getByText("Critical")).toBeInTheDocument();
+    });
+
+    it("renders Critical count", () => {
+      render(<ManagerAnomalyPage />);
+      expect(within(getKpiSection()).getByText("1")).toBeInTheDocument();
+    });
+
+    it("renders Buildings label", () => {
+      render(<ManagerAnomalyPage />);
+      expect(within(getKpiSection()).getByText("Buildings")).toBeInTheDocument();
+    });
+  });
+
+  describe("Critical notifications", () => {
+    it("renders notification alert for critical open anomaly", () => {
+      render(<ManagerAnomalyPage />);
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    it("notification shows the building name", () => {
+      render(<ManagerAnomalyPage />);
+      const alert = screen.getByRole("alert");
+      expect(within(alert).getByText("Sandton HQ")).toBeInTheDocument();
+    });
+
+    it("dismiss button closes the notification", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /dismiss notification/i }));
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Reset button", () => {
+    it("resets building filter to all", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getBuildingFilter(), { target: { value: "b1" } });
+      fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
+      expect(getBuildingFilter().value).toBe("all");
+    });
+
+    it("resets status filter to all", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getStatusFilter(), { target: { value: "Open" } });
+      fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
+      expect(getStatusFilter().value).toBe("all");
+    });
+
+    it("resets severity filter to all", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getSeverityFilter(), { target: { value: "critical" } });
+      fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
+      expect(getSeverityFilter().value).toBe("all");
+    });
+
+    it("clears search query", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getSearchInput(), { target: { value: "spike" } });
+      fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
+      expect(getSearchInput().value).toBe("");
+    });
+
+    it("restores all anomalies after reset", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getBuildingFilter(), { target: { value: "b1" } });
+      expect(getTableCell("Hillcrest")).toBeUndefined();
+      fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
+      expect(getTableCell("Hillcrest")).toBeInTheDocument();
+    });
+  });
+
+  describe("Building filter", () => {
+    it("filters to show only Sandton HQ in the table", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getBuildingFilter(), { target: { value: "b1" } });
+      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
+      expect(getTableCell("Hillcrest")).toBeUndefined();
+    });
+
+    it("shows No anomalies found when filter matches nothing", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getBuildingFilter(), { target: { value: "b999" } });
+      expect(within(getAnomaliesSection()).getByText(/no anomalies found/i)).toBeInTheDocument();
+    });
+  });
+
+  describe("Status filter", () => {
+    it("filters to show only Open anomalies", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getStatusFilter(), { target: { value: "Open" } });
+      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
+      expect(getTableCell("Hillcrest")).toBeUndefined();
+    });
+
+    it("filters to show only In Progress anomalies", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getStatusFilter(), { target: { value: "In_Progress" } });
+      expect(getTableCell("Hillcrest")).toBeInTheDocument();
+      expect(getTableCell("Sandton HQ")).toBeUndefined();
+    });
+  });
+
+  describe("Severity filter", () => {
+    it("filters to show only critical anomalies", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getSeverityFilter(), { target: { value: "critical" } });
+      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
+      expect(getTableCell("Hillcrest")).toBeUndefined();
+    });
+
+    it("filters to show only high severity anomalies", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getSeverityFilter(), { target: { value: "high" } });
+      expect(getTableCell("Hillcrest")).toBeInTheDocument();
+      expect(getTableCell("Sandton HQ")).toBeUndefined();
+    });
+  });
+
+  describe("Search input", () => {
+    it("filters by anomaly type", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getSearchInput(), { target: { value: "Energy" } });
+      expect(getTableCell("Hillcrest")).toBeInTheDocument();
+      expect(getTableCell("Sandton HQ")).toBeUndefined();
+    });
+
+    it("filters by building name", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getSearchInput(), { target: { value: "Sandton" } });
+      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
+      expect(getTableCell("Hillcrest")).toBeUndefined();
+    });
+
+    it("shows No anomalies found when search matches nothing", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.change(getSearchInput(), { target: { value: "zzznomatch" } });
+      expect(within(getAnomaliesSection()).getByText(/no anomalies found/i)).toBeInTheDocument();
+    });
+  });
+
+  describe("Row click", () => {
+    it("opens details modal when row is clicked", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(getTableRow("Sandton HQ"));
+      expect(screen.getByRole("heading", { name: /anomaly details/i })).toBeInTheDocument();
+    });
+
+    it("modal shows building name", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(getTableRow("Sandton HQ"));
+      const modal = screen.getByRole("heading", { name: /anomaly details/i }).closest(".modal")!;
+      expect(within(modal as HTMLElement).getByText("Sandton HQ")).toBeInTheDocument();
+    });
+
+    it("modal shows anomaly description", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(getTableRow("Sandton HQ"));
+      const modal = screen.getByRole("heading", { name: /anomaly details/i }).closest(".modal")!;
+      expect(within(modal as HTMLElement).getByText(/sudden power spike detected/i)).toBeInTheDocument();
+    });
+
+    it("modal has a Close button", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(getTableRow("Sandton HQ"));
+      const modal = screen.getByRole("heading", { name: /anomaly details/i }).closest(".modal")!;
+      expect(within(modal as HTMLElement).getByRole("button", { name: /close/i })).toBeInTheDocument();
+    });
+
+    it("modal has an Edit Threshold button", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(getTableRow("Sandton HQ"));
+      expect(screen.getByRole("button", { name: /edit threshold/i })).toBeInTheDocument();
+    });
+  });
+
+  describe("Close button", () => {
+    it("closes the details modal", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(getTableRow("Sandton HQ"));
+      const modal = screen.getByRole("heading", { name: /anomaly details/i }).closest(".modal")!;
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /close/i }));
+      expect(screen.queryByRole("heading", { name: /anomaly details/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Resolve button", () => {
+    it("renders Resolve button", () => {
+      render(<ManagerAnomalyPage />);
+      expect(within(getTableRow("Sandton HQ")).getByRole("button", { name: /resolve/i })).toBeInTheDocument();
+    });
+
+    it("opens the resolve confirmation modal", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(within(getTableRow("Sandton HQ")).getByRole("button", { name: /resolve/i }));
+      expect(screen.getByRole("heading", { name: /resolve anomaly/i })).toBeInTheDocument();
+    });
+
+    it("resolve modal has Cancel button", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(within(getTableRow("Sandton HQ")).getByRole("button", { name: /resolve/i }));
+      const modal = screen.getByRole("heading", { name: /resolve anomaly/i }).closest(".modal")!;
+      expect(within(modal as HTMLElement).getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    });
+
+    it("resolve modal has Resolve confirm button", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(within(getTableRow("Sandton HQ")).getByRole("button", { name: /resolve/i }));
+      const modal = screen.getByRole("heading", { name: /resolve anomaly/i }).closest(".modal")!;
+      expect(within(modal as HTMLElement).getByRole("button", { name: /^resolve$/i })).toBeInTheDocument();
+    });
+  });
+
+  describe("Resolve confirm button", () => {
+    const resolveAnomaly = () => {
+      fireEvent.click(within(getTableRow("Sandton HQ")).getByRole("button", { name: /resolve/i }));
+      const modal = screen.getByRole("heading", { name: /resolve anomaly/i }).closest(".modal")!;
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /^resolve$/i }));
+    };
+
+    it("changes anomaly status to Resolved", () => {
+      render(<ManagerAnomalyPage />);
+      resolveAnomaly();
+      expect(within(getTableRow("Sandton HQ")).getByText("Resolved")).toBeInTheDocument();
+    });
+
+    it("closes the resolve modal after confirming", () => {
+      render(<ManagerAnomalyPage />);
+      resolveAnomaly();
+      expect(screen.queryByRole("heading", { name: /resolve anomaly/i })).not.toBeInTheDocument();
+    });
+
+    it("hides Resolve and Ignore buttons after resolving", () => {
+      render(<ManagerAnomalyPage />);
+      resolveAnomaly();
+      expect(within(getTableRow("Sandton HQ")).queryByRole("button", { name: /^resolve$/i })).not.toBeInTheDocument();
+      expect(within(getTableRow("Sandton HQ")).queryByRole("button", { name: /ignore/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Cancel button", () => {
+    it("closes resolve modal without changing status", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(within(getTableRow("Sandton HQ")).getByRole("button", { name: /resolve/i }));
+      const modal = screen.getByRole("heading", { name: /resolve anomaly/i }).closest(".modal")!;
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /cancel/i }));
+      expect(screen.queryByRole("heading", { name: /resolve anomaly/i })).not.toBeInTheDocument();
+      expect(within(getTableRow("Sandton HQ")).getByText("Open")).toBeInTheDocument();
+    });
+  });
+
+  describe("Ignore button", () => {
+    it("renders Ignore button", () => {
+      render(<ManagerAnomalyPage />);
+      expect(within(getTableRow("Sandton HQ")).getByRole("button", { name: /ignore/i })).toBeInTheDocument();
+    });
+
+    it("opens the ignore confirmation modal", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(within(getTableRow("Sandton HQ")).getByRole("button", { name: /ignore/i }));
+      expect(screen.getByRole("heading", { name: /ignore anomaly/i })).toBeInTheDocument();
+    });
+
+    it("ignore modal has Ignore confirm button", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(within(getTableRow("Sandton HQ")).getByRole("button", { name: /ignore/i }));
+      const modal = screen.getByRole("heading", { name: /ignore anomaly/i }).closest(".modal")!;
+      expect(within(modal as HTMLElement).getByRole("button", { name: /^ignore$/i })).toBeInTheDocument();
+    });
+  });
+
+  describe("Ignore confirm button", () => {
+    const ignoreAnomaly = () => {
+      fireEvent.click(within(getTableRow("Sandton HQ")).getByRole("button", { name: /ignore/i }));
+      const modal = screen.getByRole("heading", { name: /ignore anomaly/i }).closest(".modal")!;
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /^ignore$/i }));
+    };
+
+    it("changes anomaly status to Ignored", () => {
+      render(<ManagerAnomalyPage />);
+      ignoreAnomaly();
+      expect(within(getTableRow("Sandton HQ")).getByText("Ignored")).toBeInTheDocument();
+    });
+
+    it("closes the ignore modal after confirming", () => {
+      render(<ManagerAnomalyPage />);
+      ignoreAnomaly();
+      expect(screen.queryByRole("heading", { name: /ignore anomaly/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Cancel button", () => {
+    it("closes ignore modal without changing status", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(within(getTableRow("Sandton HQ")).getByRole("button", { name: /ignore/i }));
+      const modal = screen.getByRole("heading", { name: /ignore anomaly/i }).closest(".modal")!;
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /cancel/i }));
+      expect(screen.queryByRole("heading", { name: /ignore anomaly/i })).not.toBeInTheDocument();
+      expect(within(getTableRow("Sandton HQ")).getByText("Open")).toBeInTheDocument();
+    });
+  });
+
+  describe("Configure Threshold button", () => {
+    it("opens the threshold modal", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
+      expect(screen.getByRole("heading", { name: /configure alert threshold/i })).toBeInTheDocument();
+    });
+
+    it("threshold modal has building select", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
+      expect(document.getElementById("threshold-building")).toBeInTheDocument();
+    });
+
+    it("threshold modal has upper limit input", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
+      expect(document.getElementById("upper-limit")).toBeInTheDocument();
+    });
+
+    it("threshold modal has lower limit input", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
+      expect(document.getElementById("lower-limit")).toBeInTheDocument();
+    });
+
+    it("threshold modal has spike percentage input", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
+      expect(document.getElementById("spike-percentage")).toBeInTheDocument();
+    });
+
+    it("threshold modal has Save Threshold button", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
+      expect(screen.getByRole("button", { name: /save threshold/i })).toBeInTheDocument();
+    });
+
+    it("threshold modal has Cancel button", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
+      const modal = screen.getByRole("heading", { name: /configure alert threshold/i }).closest(".modal")!;
+      expect(within(modal as HTMLElement).getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    });
+  });
+
+  describe("Save Threshold button", () => {
+    it("closes the threshold modal after saving", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
+      fireEvent.click(screen.getByRole("button", { name: /save threshold/i }));
+      expect(screen.queryByRole("heading", { name: /configure alert threshold/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Cancel button", () => {
+    it("closes the threshold modal without saving", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
+      const modal = screen.getByRole("heading", { name: /configure alert threshold/i }).closest(".modal")!;
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /cancel/i }));
+      expect(screen.queryByRole("heading", { name: /configure alert threshold/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Edit Threshold button", () => {
+    it("opens the edit threshold modal", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(getTableRow("Sandton HQ"));
+      fireEvent.click(screen.getByRole("button", { name: /edit threshold/i }));
+      expect(screen.getByRole("heading", { name: /edit alert threshold/i })).toBeInTheDocument();
+    });
+
+    it("edit threshold modal has Update Threshold button", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(getTableRow("Sandton HQ"));
+      fireEvent.click(screen.getByRole("button", { name: /edit threshold/i }));
+      expect(screen.getByRole("button", { name: /update threshold/i })).toBeInTheDocument();
+    });
+
+    it("closes edit threshold modal after updating", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(getTableRow("Sandton HQ"));
+      fireEvent.click(screen.getByRole("button", { name: /edit threshold/i }));
+      fireEvent.click(screen.getByRole("button", { name: /update threshold/i }));
+      expect(screen.queryByRole("heading", { name: /edit alert threshold/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("View Historic Alerts button", () => {
+    it("opens the historic alerts modal", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      expect(screen.getByRole("heading", { name: /historic alerts/i })).toBeInTheDocument();
+    });
+
+    it("historic modal has status filter", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      expect(document.getElementById("historic-status-manager")).toBeInTheDocument();
+    });
+
+    it("historic modal has search input", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      expect(screen.getByPlaceholderText(/search historic alerts/i)).toBeInTheDocument();
+    });
+
+    it("historic modal has Close button", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      const modal = screen.getByRole("heading", { name: /historic alerts/i }).closest(".modal")!;
+      expect(within(modal as HTMLElement).getByRole("button", { name: /close/i })).toBeInTheDocument();
+    });
+
+    it("closes the historic modal when Close is clicked", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      const modal = screen.getByRole("heading", { name: /historic alerts/i }).closest(".modal")!;
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /close/i }));
+      expect(screen.queryByRole("heading", { name: /historic alerts/i })).not.toBeInTheDocument();
+    });
+
+    it("historic Reset button clears search", () => {
+      render(<ManagerAnomalyPage />);
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      const modal = screen.getByRole("heading", { name: /historic alerts/i }).closest(".modal")!;
+      const searchInput = screen.getByPlaceholderText(/search historic alerts/i);
+      fireEvent.change(searchInput, { target: { value: "Voltage" } });
+     
+      fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /^reset$/i }));
+      expect((searchInput as HTMLInputElement).value).toBe("");
+    });
+  });
+});
