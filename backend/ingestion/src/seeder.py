@@ -28,6 +28,10 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SEEDER_COST_ZAR_PER_KWH = 2.50
 ANOMALY_FREQUENCY_MULTIPLIER = float(os.getenv("ANOMALY_FREQUENCY_MULTIPLIER", "1.0"))
+SEEDER_DAYS_BACK = 30
+SEEDER_INTERVAL_SECONDS = 2.0
+SEEDER_CHUNK_SECONDS = 14400.0
+SEEDER_WRITE_BATCH_SIZE = 25000
 
 if not os.path.exists("/.dockerenv") and "localhost" not in INFLUXDB_URL:
     INFLUXDB_URL = INFLUXDB_URL.replace("influxdb", "localhost")
@@ -126,68 +130,90 @@ def generate_sensor_data(s):
     prof = get_sensor_profile(s_id, s.get("square_footage"), s.get("building_type"), s.get("num_sensors"))
     seed_val = int(hashlib.sha256(s_id.encode()).hexdigest(), 16) % (2**32)
     rng = np.random.default_rng(seed=seed_val)
-    
-    adjusted_hour = hour_fraction + prof["phase_shift_hrs"]
-    time_factor = np.sin((adjusted_hour - 6.0) * np.pi / 12.0)
-    evening_bump = np.exp(-0.5 * ((adjusted_hour - 18.0) / 2.0)**2) * 0.4
-    
-    noise = rng.normal(loc=0.0, scale=max(0.8, prof["amplitude_kw"] * 0.15), size=num_points)
-    
-    anomaly_mult = np.ones(num_points)
-    
-    base_anomalies_expected = (num_points * 2.0) / (30 * 24 * 3600)
-    num_anomalies_expected = base_anomalies_expected * ANOMALY_FREQUENCY_MULTIPLIER
-    num_anomalies = rng.poisson(num_anomalies_expected)
-    
-    for _ in range(num_anomalies):
-        start_idx = rng.integers(0, num_points)
-        duration_pts = rng.integers(30, 150)
-        end_idx = min(start_idx + duration_pts, num_points)
-        if rng.random() > 0.5:
-            multiplier = rng.uniform(3.0, 5.0)
-        else:
-            multiplier = rng.uniform(0.1, 0.3)
-        anomaly_mult[start_idx:end_idx] = multiplier
-    
-    power_kw = np.maximum(1.0, (prof["base_kw"] + (prof["amplitude_kw"] * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise) * anomaly_mult
-    
-    voltage_v = np.round(prof["nominal_voltage"] + rng.normal(loc=0.0, scale=0.8, size=num_points), 2)
-    current_a = np.round((power_kw * 1000.0) / voltage_v, 2)
-    cost_zar = np.round(power_kw * SEEDER_COST_ZAR_PER_KWH, 2)
-    power_kw = np.round(power_kw, 3)
 
-    power_kw_lst = power_kw.tolist()
-    cost_zar_lst = cost_zar.tolist()
-    voltage_v_lst = voltage_v.tolist()
-    current_a_lst = current_a.tolist()
-    ts_ns_lst = ts_ns_str.tolist()
-
-    lines = [
-        f"energy_telemetry,building_id={b_id},sensor_id={s_id} usage={u},cost_zar={c},voltage_v={v},current_a={a} {t}"
-        for u, c, v, a, t in zip(power_kw_lst, cost_zar_lst, voltage_v_lst, current_a_lst, ts_ns_lst)
-    ]
-    
-    chunk_size = 25000
     try:
         client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG, enable_gzip=True, timeout=60000)
         write_api = client.write_api(write_options=SYNCHRONOUS)
+        total_points = 0
+        current_start = start_ts
         try:
-            for i in range(0, len(lines), chunk_size):
-                chunk = "\n".join(lines[i:i + chunk_size])
-                write_api.write(bucket=INFLUXDB_BUCKET, record=chunk)
+            while current_start < end_ts:
+                current_end = min(current_start + SEEDER_CHUNK_SECONDS, end_ts)
+                ts_array = np.arange(current_start, current_end, SEEDER_INTERVAL_SECONDS)
+                if len(ts_array) == 0:
+                    current_start = current_end
+                    continue
+
+                num_points = len(ts_array)
+                total_points += num_points
+
+                dt_index = pd.to_datetime(ts_array, unit="s", utc=True)
+                hour_fraction = dt_index.hour + (dt_index.minute / 60.0) + (dt_index.second / 3600.0)
+                month_fraction = dt_index.month + (dt_index.day / 30.0)
+                weekday = dt_index.weekday
+                weekend_factor = np.where(weekday >= 5, 0.6, 1.0)
+                seasonal_factor = 1.0 + 0.3 * np.cos(2.0 * np.pi * (month_fraction - 1.0) / 12.0)
+                ts_ns_str = (ts_array * 1e9).astype(np.int64).astype(str)
+
+                adjusted_hour = hour_fraction + prof["phase_shift_hrs"]
+                time_factor = np.sin((adjusted_hour - 6.0) * np.pi / 12.0)
+                evening_bump = np.exp(-0.5 * ((adjusted_hour - 18.0) / 2.0)**2) * 0.4
+
+                noise = rng.normal(loc=0.0, scale=max(0.8, prof["amplitude_kw"] * 0.15), size=num_points)
+                anomaly_mult = np.ones(num_points)
+
+                base_anomalies_expected = (num_points * SEEDER_INTERVAL_SECONDS * 2.0) / (30 * 24 * 3600)
+                num_anomalies_expected = base_anomalies_expected * ANOMALY_FREQUENCY_MULTIPLIER
+                num_anomalies = rng.poisson(num_anomalies_expected)
+                min_anomaly_points = max(1, int(round(60.0 / SEEDER_INTERVAL_SECONDS)))
+                max_anomaly_points = max(min_anomaly_points + 1, int(round(300.0 / SEEDER_INTERVAL_SECONDS)))
+
+                for _ in range(num_anomalies):
+                    start_idx = rng.integers(0, num_points)
+                    duration_pts = rng.integers(min_anomaly_points, max_anomaly_points + 1)
+                    end_idx = min(start_idx + duration_pts, num_points)
+                    if rng.random() > 0.5:
+                        multiplier = rng.uniform(3.0, 5.0)
+                    else:
+                        multiplier = rng.uniform(0.1, 0.3)
+                    anomaly_mult[start_idx:end_idx] = multiplier
+
+                power_kw = np.maximum(1.0, (prof["base_kw"] + (prof["amplitude_kw"] * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise) * anomaly_mult
+                voltage_v = np.round(prof["nominal_voltage"] + rng.normal(loc=0.0, scale=0.8, size=num_points), 2)
+                current_a = np.round((power_kw * 1000.0) / voltage_v, 2)
+                cost_zar = np.round(power_kw * SEEDER_COST_ZAR_PER_KWH, 2)
+                power_kw = np.round(power_kw, 3)
+
+                lines = [
+                    f"energy_telemetry,building_id={b_id},sensor_id={s_id} usage={u},cost_zar={c},voltage_v={v},current_a={a} {t}"
+                    for u, c, v, a, t in zip(
+                        power_kw.tolist(),
+                        cost_zar.tolist(),
+                        voltage_v.tolist(),
+                        current_a.tolist(),
+                        ts_ns_str.tolist(),
+                    )
+                ]
+
+                for i in range(0, len(lines), SEEDER_WRITE_BATCH_SIZE):
+                    chunk = "\n".join(lines[i:i + SEEDER_WRITE_BATCH_SIZE])
+                    write_api.write(bucket=INFLUXDB_BUCKET, record=chunk)
+
+                current_start = current_end
         finally:
             write_api.close()
             client.close()
-        
-        print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Seeded {num_points} points for sensor {s_id}")
-        return num_points
+
+        print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Seeded {total_points} points for sensor {s_id}")
+        return total_points
     except Exception as e:
         print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] Error seeding sensor {s_id}: {str(e)}")
         return 0
 
 def _check_sensor_gap(s, query_api, days_back, end_time):
     end_ts = end_time.timestamp()
-    q = f'from(bucket: "{INFLUXDB_BUCKET}") |> range(start: -35d) |> filter(fn: (r) => r._measurement == "energy_telemetry" and r.sensor_id == "{s["sensor_id"]}") |> last() |> keep(columns: ["_time"])'
+    query_days = max(days_back + 5, 1)
+    q = f'from(bucket: "{INFLUXDB_BUCKET}") |> range(start: -{query_days}d) |> filter(fn: (r) => r._measurement == "energy_telemetry" and r.sensor_id == "{s["sensor_id"]}") |> last() |> keep(columns: ["_time"])'
     try:
         res = query_api.query(q)
         last_ts = None
@@ -198,11 +224,11 @@ def _check_sensor_gap(s, query_api, days_back, end_time):
                     last_ts = ts
                     
         if last_ts:
-            start_ts = last_ts.timestamp() + 2.0
+            start_ts = last_ts.timestamp() + SEEDER_INTERVAL_SECONDS
         else:
             start_ts = (end_time - timedelta(days=days_back)).timestamp()
             
-        if end_ts - start_ts > 10.0:
+        if end_ts - start_ts > max(SEEDER_INTERVAL_SECONDS, 10.0):
             s["start_ts"] = start_ts
             s["end_ts"] = end_ts
             return s
@@ -249,7 +275,7 @@ def seed_calculated_buildings(sensors_data: list, days_back: int = 7):
 if __name__ == "__main__":
     real_sensors = get_real_sensors()
     if real_sensors:
-        seed_calculated_buildings(sensors_data=real_sensors, days_back=30)
+        seed_calculated_buildings(sensors_data=real_sensors, days_back=SEEDER_DAYS_BACK)
     else:
         print("No active sensors found in Supabase database to seed.")
 

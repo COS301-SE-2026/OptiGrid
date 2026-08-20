@@ -14,7 +14,7 @@ import recommendationRoutes from "./routes/recommendation.routes";
 import thresholdRoutes from './routes/threshold.routes';
 import anomalyRoutes from './routes/anomaly.routes';
 import accountRoutes from "./routes/account.routes";
-import adminUserRoutes from "./routes/admin_user.routes"
+import adminUserRoutes from "./routes/admin_user.routes";
 import cors from 'cors';
 
 export interface CreateAppOptions {
