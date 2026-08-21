@@ -1,15 +1,11 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import ViewBuildingPage from "./page";
+import { useTelemetryStream } from "@/lib/useTelemetryStream";
 
 jest.mock("@/lib/useTelemetryStream", () => ({
-    useTelemetryStream: jest.fn().mockReturnValue({
-        liveData: null,
-        isConnected: true,
-        error: null,
-    }),
+    useTelemetryStream: jest.fn(),
 }));
 
 jest.mock("next/link", () => ({
@@ -53,6 +49,8 @@ const mockConsumption = {
   peak_usage_times: [{ timestamp: "2026-07-17T08:00:00.000Z", kwh: 120 }],
 };
 
+const mockUseTelemetryStream = useTelemetryStream as jest.MockedFunction<typeof useTelemetryStream>;
+
 function mockFetchOk(building = mockBuilding, consumption = mockConsumption) {
   global.fetch = jest.fn().mockImplementation((url: string) =>
     Promise.resolve({
@@ -67,6 +65,11 @@ function mockFetchOk(building = mockBuilding, consumption = mockConsumption) {
 describe("ViewBuildingPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseTelemetryStream.mockReturnValue({
+      liveData: null,
+      isConnected: true,
+      error: null,
+    });
   });
 
   it("loads the individual building endpoint", async () => {
@@ -86,6 +89,7 @@ describe("ViewBuildingPage", () => {
         cache: "no-store",
       },
     );
+    await waitFor(() => expect(mockUseTelemetryStream).toHaveBeenLastCalledWith("111"));
   });
 
   it("renders the safe building details returned by the endpoint", async () => {
@@ -98,6 +102,7 @@ describe("ViewBuildingPage", () => {
       expect(screen.getByText("tenant-111")).toBeInTheDocument();
       expect(screen.getByText("OFFICE")).toBeInTheDocument();
       expect(screen.getByText("ACTIVE")).toBeInTheDocument();
+      expect(screen.getByText("Online (Waiting for reading)")).toBeInTheDocument();
       expect(screen.getByText(/5000 m²/)).toBeInTheDocument();
       expect(screen.getByText("200")).toBeInTheDocument();
       expect(screen.getByText("230 V")).toBeInTheDocument();
@@ -112,6 +117,75 @@ describe("ViewBuildingPage", () => {
     });
   });
 
+  it("renders live telemetry for the opened building", async () => {
+    mockUseTelemetryStream.mockReturnValue({
+      liveData: {
+        building_id: "111",
+        sensor_id: "sensor-111",
+        source_type: "EMULATOR",
+        power_kw: 12.345,
+        voltage_v: 231.2,
+        current_a: 53.4,
+        timestamp: "2026-07-17T10:30:00.000Z",
+      },
+      isConnected: true,
+      error: null,
+    });
+    mockFetchOk();
+
+    render(<ViewBuildingPage params={makeParams("111")} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Real-Time Telemetry" })).toBeInTheDocument();
+      expect(screen.getByText("Online (Streaming)")).toBeInTheDocument();
+      expect(screen.getByText("EMULATOR")).toBeInTheDocument();
+      expect(screen.getByText("sensor-111")).toBeInTheDocument();
+      expect(screen.getByText("12.35 kW")).toBeInTheDocument();
+      expect(screen.getByText("231.2 V")).toBeInTheDocument();
+      expect(screen.getByText("53.4 A")).toBeInTheDocument();
+    });
+  });
+
+  it("does not show telemetry from a different building", async () => {
+    mockUseTelemetryStream.mockReturnValue({
+      liveData: {
+        building_id: "222",
+        sensor_id: "sensor-222",
+        power_kw: 99,
+        voltage_v: 240,
+        current_a: 75,
+        timestamp: "2026-07-17T10:30:00.000Z",
+      },
+      isConnected: true,
+      error: null,
+    });
+    mockFetchOk();
+
+    render(<ViewBuildingPage params={makeParams("111")} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Real-Time Telemetry" })).toBeInTheDocument();
+      expect(screen.queryByText("99 kW")).not.toBeInTheDocument();
+      expect(screen.queryByText("240 V")).not.toBeInTheDocument();
+      expect(screen.queryByText("75 A")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows telemetry stream errors", async () => {
+    mockUseTelemetryStream.mockReturnValue({
+      liveData: null,
+      isConnected: false,
+      error: new Error("Lost connection to telemetry stream."),
+    });
+    mockFetchOk();
+
+    render(<ViewBuildingPage params={makeParams("111")} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline / Connecting")).toBeInTheDocument();
+      expect(screen.getByText("Lost connection to telemetry stream.")).toBeInTheDocument();
+    });
+  });
 
 
   it("shows a consumption error without hiding building details", async () => {

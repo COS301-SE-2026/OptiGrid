@@ -1,6 +1,7 @@
 import userEvent from "@testing-library/user-event";
 import { render, screen } from "@testing-library/react";
 import { FAQAccordion } from "./accordion";
+import { Categories } from "./data";
 import type { FAQCategory } from "./data";
 
 const fixture: FAQCategory[] = [
@@ -99,7 +100,6 @@ describe("FAQAccordion", () => {
     });
 
     it("works with the real Categories data without errors", () => {
-        const { Categories } = require("./data");
         expect(() => render(<FAQAccordion category={Categories} />)).not.toThrow();
 
         const headings = screen.getAllByRole("heading");

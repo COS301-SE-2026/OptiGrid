@@ -318,4 +318,37 @@ describe('User Authentication Service - Login', () => {
             .rejects.toThrow('This account is already active. Please log in normally.');
         expect(mockedPrisma.user.update).not.toHaveBeenCalled();
     });
+
+    it('does not recover an account when Supabase rejects the credentials', async () => {
+        mockSignInWithPassword.mockResolvedValue({
+            data: {
+                user: null,
+                session: null,
+            },
+            error: {
+                code: 'invalid_credentials',
+                message: 'Invalid login credentials',
+            },
+        });
+
+        await expect(authServices.recoverAccount('test@testing.com', 'wrongpassword'))
+            .rejects.toThrow('Invalid email or password');
+        expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('does not recover when the authenticated user has no app profile', async () => {
+        mockSignInWithPassword.mockResolvedValue({
+            data: {
+                user: { id: 'uuid-1234', email: 'test@testing.com' },
+                session: { access_token: 'recovery-token' },
+            },
+            error: null,
+        });
+        mockedPrisma.user.findUnique.mockResolvedValue(null);
+
+        await expect(authServices.recoverAccount('test@testing.com', 'password1234'))
+            .rejects.toThrow('Account profile was not found.');
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
 });

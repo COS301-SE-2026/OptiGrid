@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useMemo,useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import DeleteModal from "@/components/DeleteModal";
 import { useRouter } from "next/navigation";
 import { getTabSessionPath } from "../../../lib/tab-session";
-
 
 type lifecycle_state = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED" | "INACTIVE";
 
@@ -29,7 +28,6 @@ interface Manager {
   email: string;
 }
 
-
 export default function AdminPage() {
   const router = useRouter();
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -39,16 +37,7 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [deleteTarget, setDeleteTarget] = useState<Building | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  // const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  // const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
-  // const [formError, setFormError] = useState<string>("");
-
-  // const [formName, setFormName] = useState<string>("");
-  // const [formState, setFormState] = useState<lifecycle_state>("PROVISIONING");
-  // const [formUserName, setFormUserName] = useState<string>("");
-  // const [formManagerName, setFormManagerName] = useState<string>("");
-
-
+  const [deleteError, setDeleteError] = useState<string>("");
 
   const filteredBuildings = useMemo(() => {
     return buildings.filter((building) => {
@@ -60,13 +49,10 @@ export default function AdminPage() {
         if (!building.building_name.toLowerCase().includes(query)) {
           return false;
         }
-
-      
       }
-
       return true;
     });
-  }, [buildings, lifecycleFilter,searchQuery]);
+  }, [buildings, lifecycleFilter, searchQuery]);
 
   const stats = useMemo(() => {
     const total = buildings.length;
@@ -80,27 +66,28 @@ export default function AdminPage() {
   }, [buildings]);
 
   const handleeditbuilding = (building: Building) => {
-    router.push(getTabSessionPath(`/buildings/${building.building_id}/edit`))
+    router.push(getTabSessionPath(`/buildings/${building.building_id}/edit`));
   };
-  //integration logic to delte building
+
   const executeDeleteBuilding = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
+    setDeleteError("");
     try {
       const resp = await fetch(`api/buildings/${deleteTarget.building_id}`, {
         method: "DELETE",
       });
       const data = await resp.json();
-      if(data.status === "success") {
+      if (data.status === "success") {
         setBuildings((prev) => prev.filter((b) => b.building_id !== deleteTarget.building_id));
         setDeleteTarget(null);
+      } 
+      else {
+        setDeleteError(data.message || "Unable to delete building.");
       }
-      else alert(data.message);
-
-    }
-    catch (error){
+    } catch (error) {
       console.error("Failed to delete building: ", error);
-      alert("Servor error when deleting building");
+      setDeleteError("Server error when deleting building");
     } finally {
       setIsDeleting(false);
     }
@@ -119,7 +106,7 @@ export default function AdminPage() {
   };
 
   const getstatelabel = (state: lifecycle_state) => {
-    const status= state?.toLowerCase() ||"provisioning";
+    const status = state?.toLowerCase() || "provisioning";
     const labels: Record<string, string> = {
       active: "ACTIVE",
       inactive: "INACTIVE",
@@ -130,46 +117,45 @@ export default function AdminPage() {
   };
 
   const getStateBadgeClass = (state: lifecycle_state) => {
-    const classes = {
-      active: "badge-success",
-      inactive: "badge-warning",
-      provisioning: "badge-warning",
-      provisioning_failed: "badge-danger",
+    const classes: Record<string, string> = {
+      ACTIVE: "badge-success",
+      INACTIVE: "badge-warning",
+      PROVISIONING: "badge-warning",
+      PROVISIONING_FAILED: "badge-danger",
     };
     return classes[state] || "badge-warning";
   };
-  //integration logic for fetching buildings
+
   useEffect(() => {
     const getBuildings = async () => {
       try {
         const resp = await fetch("/api/buildings/admin/");
         const data = await resp.json();
 
-        if(data.status === "success") {
+        if (data.status === "success") {
           const viewers: User[] = [];
           const managers: Manager[] = [];
-          const buildings = data.data.map((building: any) => {
+          const buildings = data.data.map((building) => {
             let viewerId = null;
             let managerId = null;
 
-            if(building.authorized_users && building.authorized_users.length > 0) {
-              building.authorized_users.forEach((link:any) => {
+            if (building.authorized_users && building.authorized_users.length > 0) {
+              building.authorized_users.forEach((link) => {
                 const auth_user = link.user;
-                if(!auth_user) return;
+                if (!auth_user) return;
 
-                if(auth_user.roleType === "VIEWER") {
+                if (auth_user.roleType === "VIEWER") {
                   viewerId = auth_user.userId;
-                  if(!viewers.find(existing => existing.user_id === auth_user.userId)) {
+                  if (!viewers.find(existing => existing.user_id === auth_user.userId)) {
                     viewers.push({
                       user_id: auth_user.userId,
                       first_name: auth_user.firstName,
                       email: auth_user.email
                     });
                   }
-                }
-                else if( auth_user.roleType === "BUILDING_MANAGER") {
+                } else if (auth_user.roleType === "BUILDING_MANAGER") {
                   managerId = auth_user.userId;
-                  if(!managers.find(existing => existing.manager_id === auth_user.userId)) {
+                  if (!managers.find(existing => existing.manager_id === auth_user.userId)) {
                     managers.push({
                       manager_id: auth_user.userId,
                       name: auth_user.firstName,
@@ -189,18 +175,15 @@ export default function AdminPage() {
           setBuildings(buildings);
           setUsers(viewers);
           setManagers(managers);
+        } else {
+          console.error("Failed to fetch building:", data.message);
         }
-        else {
-          console.error("Failed to fecth building:", data.message);
-        }
-      }
-      catch(error) {
+      } catch (error) {
         console.error("Internal Server Error when fetching buildings: ", error);
       }
     };
     getBuildings();
   }, []);
- 
 
   return (
     <div className="dashboard-page">
@@ -213,195 +196,225 @@ export default function AdminPage() {
                 {buildings.length} buildings total
               </div>
             </div>
-            <Link href="useradmin" className="btn btn-primary">
-    Manage Users
-  </Link>
-          </div>
-
-          
-          <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-            <div
+            <Link
+              href="useradmin"
+              className="btn btn-primary"
               style={{
-                display: "flex",
-                flexDirection: "row",
-                gap: "var(--space-4)",
-                alignItems: "center",
-                flexWrap: "wrap",
+                backgroundColor: "#3A6B7C",
+                color: "#FFFFFF",
               }}
             >
+              Manage Users
+            </Link>
+          </div>
+
+          <section aria-label="Filters and controls">
+            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
               <div
                 style={{
                   display: "flex",
+                  flexDirection: "row",
+                  gap: "var(--space-4)",
                   alignItems: "center",
-                  gap: "var(--space-2)",
-                  flex: 1,
+                  flexWrap: "wrap",
                 }}
               >
-                <label className="label" style={{ whiteSpace: "nowrap" }}>
-                  Lifecycle:
-                </label>
-                <select
-                  value={lifecycleFilter}
-                  onChange={(e) => setLifecycleFilter(e.target.value)}
-                  className="select"
-                  style={{ flex: 1 }}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-2)",
+                    flex: 1,
+                  }}
                 >
-                  <option value="all">All states</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="PROVISIONING">Provisioning</option>
-                  <option value="PROVISIONING_FAILED">Provisioning failed</option>
-                </select>
-              </div>
+                  <label className="label" htmlFor="lifecycle-filter" style={{ whiteSpace: "nowrap" }}>
+                    Lifecycle:
+                  </label>
+                  <select
+                    id="lifecycle-filter"
+                    value={lifecycleFilter}
+                    onChange={(e) => setLifecycleFilter(e.target.value)}
+                    className="select"
+                    style={{ flex: 1 }}
+                    aria-label="Filter buildings by lifecycle state"
+                  >
+                    <option value="all">All states</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                    <option value="PROVISIONING">Provisioning</option>
+                    <option value="PROVISIONING_FAILED">Provisioning failed</option>
+                  </select>
+                </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--space-2)",
-                  flex: 1,
-                }}
-              >
-                <label className="label" style={{ whiteSpace: "nowrap" }}>
-                  Search:
-                </label>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="building name..."
-                  className="input"
-                  style={{ flex: 1 }}
-                />
-              </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-2)",
+                    flex: 1,
+                  }}
+                >
+                  <label className="label" htmlFor="search-input" style={{ whiteSpace: "nowrap" }}>
+                    Search:
+                  </label>
+                  <input
+                    id="search-input"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="building name..."
+                    className="input"
+                    style={{ flex: 1 }}
+                    aria-label="Search buildings by name"
+                  />
+                </div>
 
-              <button
-                onClick={() => {
-                  setLifecycleFilter("all");
-                  setSearchQuery("");
-                }}
-                className="btn btn-secondary"
-              >
-                Reset filters
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLifecycleFilter("all");
+                    setSearchQuery("");
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Reset filters
+                </button>
+              </div>
             </div>
-          </div>
+          </section>
 
-          
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-              gap: "var(--space-4)",
-              marginBottom: "var(--space-5)",
-            }}
-          >
-            <div className="card dashboard-card-tight">
-              <div className="dashboard-kpi-label">Total</div>
-              <div className="dashboard-kpi-value">{stats.total}</div>
-            </div>
-            <div className="card dashboard-card-tight">
-              <div className="dashboard-kpi-label">ACTIVE</div>
-              <div className="dashboard-kpi-value" style={{ color: "var(--brand-success)" }}>
-                {stats.active}
+          <section aria-label="Building statistics">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+                gap: "var(--space-4)",
+                marginBottom: "var(--space-5)",
+              }}
+            >
+              <div className="card dashboard-card-tight">
+                <div className="dashboard-kpi-label">Total</div>
+                <div className="dashboard-kpi-value">{stats.total}</div>
+              </div>
+              <div className="card dashboard-card-tight">
+                <div className="dashboard-kpi-label">ACTIVE</div>
+                <div className="dashboard-kpi-value" style={{ color: "var(--brand-success)" }}>
+                  {stats.active}
+                </div>
+              </div>
+              <div className="card dashboard-card-tight">
+                <div className="dashboard-kpi-label">Inactive</div>
+                <div className="dashboard-kpi-value" style={{ color: "var(--brand-ink-muted)" }}>
+                  {stats.inactive}
+                </div>
+              </div>
+              <div className="card dashboard-card-tight">
+                <div className="dashboard-kpi-label">PROVISIONING</div>
+                <div className="dashboard-kpi-value" style={{ color: "var(--brand-warning)" }}>
+                  {stats.provisioning}
+                </div>
+              </div>
+              <div className="card dashboard-card-tight">
+                <div className="dashboard-kpi-label">PROVISIONING_FAILED</div>
+                <div className="dashboard-kpi-value" style={{ color: "var(--brand-danger)" }}>
+                  {stats.provisioning_failed}
+                </div>
+              </div>
+              <div className="card dashboard-card-tight">
+                <div className="dashboard-kpi-label">Assigned</div>
+                <div className="dashboard-kpi-value" style={{ color: "var(--brand-primary)" }}>
+                  {stats.assigned}
+                </div>
+              </div>
+              <div className="card dashboard-card-tight">
+                <div className="dashboard-kpi-label">Unassigned</div>
+                <div className="dashboard-kpi-value" style={{ color: "var(--brand-warning)" }}>
+                  {stats.unassigned}
+                </div>
               </div>
             </div>
-            <div className="card dashboard-card-tight">
-              <div className="dashboard-kpi-label">Inactive</div>
-              <div className="dashboard-kpi-value" style={{ color: "var(--brand-ink-muted)" }}>
-                {stats.inactive}
-              </div>
-            </div>
-            <div className="card dashboard-card-tight">
-              <div className="dashboard-kpi-label">PROVISIONING</div>
-              <div className="dashboard-kpi-value" style={{ color: "var(--brand-warning)" }}>
-                {stats.provisioning}
-              </div>
-            </div>
-            <div className="card dashboard-card-tight">
-              <div className="dashboard-kpi-label">PROVISIONING_FAILED</div>
-              <div className="dashboard-kpi-value" style={{ color: "var(--brand-danger)" }}>
-                {stats.provisioning_failed}
-              </div>
-            </div>
-            <div className="card dashboard-card-tight">
-              <div className="dashboard-kpi-label">Assigned</div>
-              <div className="dashboard-kpi-value" style={{ color: "var(--brand-primary)" }}>
-                {stats.assigned}
-              </div>
-            </div>
-            <div className="card dashboard-card-tight">
-              <div className="dashboard-kpi-label">Unassigned</div>
-              <div className="dashboard-kpi-value" style={{ color: "var(--brand-warning)" }}>
-                {stats.unassigned}
-              </div>
-            </div>
-          </div>
+          </section>
 
-
-          <div className="card" style={{ overflow: "hidden", padding: 0 }}>
-            <div style={{ overflow:"auto" }}>
-              <table className="dashboard-table">
-                <thead>
-                  <tr>
-                    <th>Building</th>
-                    <th>Building State</th>
-                    <th>Viewer</th>
-                    <th>Manager</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredBuildings.length === 0 ? (
+          <section aria-label="Buildings list">
+            <div className="card" style={{ overflow: "hidden", padding: 0 }}>
+              <div style={{ overflow: "auto" }}>
+                <table className="dashboard-table">
+                  <caption className="sr-only">All buildings with assigned viewer and manager</caption>
+                  <thead>
                     <tr>
-                      <td colSpan={5} className="dashboard-empty">
-                        No buildings found
-                      </td>
+                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        Building
+                      </th>
+                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        Building State
+                      </th>
+                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        Viewer
+                      </th>
+                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        Manager
+                      </th>
+                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        Actions
+                      </th>
                     </tr>
-                  ) : (
-                    filteredBuildings.map((building) => (
-                      <tr key={building.building_id}>
-                        <td style={{ fontWeight: "var(--fw-semibold)" }}>
-                          {building.building_name}
-                        </td>
-                        <td>
-                          <span className={`badge ${getStateBadgeClass(building.state)}`}>
-                            {getstatelabel(building.state)}
-                          </span>
-                        </td>
-                        <td>{getusername(building.user_id)}</td>
-                        <td>{getmanagername(building.manager_id)}</td>
-                        <td>
-                          <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-                            <button
-                              onClick={() => handleeditbuilding(building)}
-                              className="btn btn-primary"
-                              style={{
-                                fontSize: "var(--fs-small)",
-                                padding: "4px 12px",
-                              }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => setDeleteTarget(building)}
-                              className="btn btn-danger"
-                              style={{
-                                fontSize: "var(--fs-small)",
-                                padding: "4px 12px",
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
+                  </thead>
+                  <tbody>
+                    {filteredBuildings.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="dashboard-empty">
+                          No buildings found
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      filteredBuildings.map((building) => (
+                        <tr key={building.building_id}>
+                          <td style={{ fontWeight: "var(--fw-semibold)" }}>
+                            {building.building_name}
+                          </td>
+                          <td>
+                            <span className={`badge ${getStateBadgeClass(building.state)}`}>
+                              {getstatelabel(building.state)}
+                            </span>
+                          </td>
+                          <td>{getusername(building.user_id)}</td>
+                          <td>{getmanagername(building.manager_id)}</td>
+                          <td>
+                            <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleeditbuilding(building)}
+                                className="btn btn-primary"
+                                style={{
+                                  fontSize: "var(--fs-small)",
+                                  padding: "var(--space-1) var(--space-3)",
+                                  backgroundColor: "#3A6B7C",
+                                  color: "#FFFFFF",
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteTarget(building)}
+                                className="btn btn-danger"
+                                style={{
+                                  fontSize: "var(--fs-small)",
+                                  padding: "var(--space-1) var(--space-3)",
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </section>
         </div>
       </div>
       {deleteTarget && (
@@ -409,8 +422,12 @@ export default function AdminPage() {
           title="Delete building"
           targetName={deleteTarget.building_name}
           onConfirm={executeDeleteBuilding}
-          onCancel={() => setDeleteTarget(null)}
+          onCancel={() => {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }}
           deleting={isDeleting}
+          error={deleteError}
         />
       )}
     </div>

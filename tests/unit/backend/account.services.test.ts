@@ -1,4 +1,4 @@
-import { AccountStatus, UserRole } from '@prisma/client';
+import { AccountStatus, Prisma, UserRole } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 import prisma from '../../../backend/core/src/lib/prisma';
 import {
@@ -84,6 +84,25 @@ describe('account service', () => {
         }));
     });
 
+    it('returns an already deactivated account without updating it again', async () => {
+        const deactivatedViewer = {
+            ...viewer,
+            accountStatus: AccountStatus.DEACTIVATED,
+            deactivatedAt: new Date('2026-07-23T12:00:00.000Z'),
+        };
+        mockedPrisma.user.findUnique.mockResolvedValue(deactivatedViewer);
+
+        await expect(deactivateAccount(viewer.userId)).resolves.toEqual(deactivatedViewer);
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects deactivation when the account profile does not exist', async () => {
+        mockedPrisma.user.findUnique.mockResolvedValue(null);
+
+        await expect(deactivateAccount(viewer.userId)).rejects.toThrow('Account profile was not found.');
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+
     it('permanently deletes a non-admin from Supabase Auth and the app profile', async () => {
         mockedPrisma.user.findUnique.mockResolvedValue(viewer);
         mockedPrisma.user.delete.mockResolvedValue(viewer);
@@ -98,6 +117,27 @@ describe('account service', () => {
         });
     });
 
+    it('blocks administrators from permanently deleting themselves', async () => {
+        await expect(
+            permanentlyDeleteAccount(viewer.userId, viewer.userId),
+        ).rejects.toThrow('Administrators cannot permanently delete their own account.');
+
+        expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+        expect(mockDeleteUser).not.toHaveBeenCalled();
+        expect(mockedPrisma.user.delete).not.toHaveBeenCalled();
+    });
+
+    it('rejects permanent deletion when the target account does not exist', async () => {
+        mockedPrisma.user.findUnique.mockResolvedValue(null);
+
+        await expect(
+            permanentlyDeleteAccount('22222222-2222-4222-8222-222222222222', viewer.userId),
+        ).rejects.toThrow('Account profile was not found.');
+
+        expect(mockDeleteUser).not.toHaveBeenCalled();
+        expect(mockedPrisma.user.delete).not.toHaveBeenCalled();
+    });
+
     it('protects the final active administrator from permanent deletion', async () => {
         const admin = { ...viewer, roleType: UserRole.ADMIN };
         mockedPrisma.user.findUnique.mockResolvedValue(admin);
@@ -109,5 +149,40 @@ describe('account service', () => {
 
         expect(mockDeleteUser).not.toHaveBeenCalled();
         expect(mockedPrisma.user.delete).not.toHaveBeenCalled();
+    });
+
+    it('does not delete the app profile when Supabase Auth deletion fails', async () => {
+        mockedPrisma.user.findUnique.mockResolvedValue(viewer);
+        mockDeleteUser.mockResolvedValue({
+            error: { message: 'auth user delete failed' },
+        });
+
+        await expect(
+            permanentlyDeleteAccount('22222222-2222-4222-8222-222222222222', viewer.userId),
+        ).rejects.toThrow('Failed to permanently delete auth user: auth user delete failed');
+
+        expect(mockedPrisma.user.delete).not.toHaveBeenCalled();
+    });
+
+    it('throws when the app profile deletion fails with a database error', async () => {
+        mockedPrisma.user.findUnique.mockResolvedValue(viewer);
+        mockedPrisma.user.delete.mockRejectedValue(new Error('database unavailable'));
+
+        await expect(
+            permanentlyDeleteAccount('22222222-2222-4222-8222-222222222222', viewer.userId),
+        ).rejects.toThrow('database unavailable');
+    });
+
+    it('treats a missing app profile after Supabase deletion as a successful cascade', async () => {
+        const alreadyDeletedError = new Prisma.PrismaClientKnownRequestError('Record not found', {
+            code: 'P2025',
+            clientVersion: '1.0.0',
+        });
+        mockedPrisma.user.findUnique.mockResolvedValue(viewer);
+        mockedPrisma.user.delete.mockRejectedValue(alreadyDeletedError);
+
+        await expect(
+            permanentlyDeleteAccount('22222222-2222-4222-8222-222222222222', viewer.userId),
+        ).resolves.toEqual(viewer);
     });
 });

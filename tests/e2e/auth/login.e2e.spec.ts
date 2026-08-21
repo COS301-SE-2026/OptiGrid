@@ -73,7 +73,8 @@ test.describe("Login page", () => {
     const loginResponsePromise = page.waitForResponse("**/api/auth/login");
     await page.getByRole("button", { name: "Log in" }).click();
     const loginResponse = await loginResponsePromise;
-    expect(loginResponse.ok()).toBeTruthy();
+    const body = await loginResponse.json().catch(() => ({}));
+    expect(loginResponse.ok(), `Login failed: ${loginResponse.status()} ${JSON.stringify(body)}`).toBeTruthy();
 
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
     await expect(

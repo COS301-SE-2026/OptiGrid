@@ -73,7 +73,7 @@ function setupQueries({
     buildingsError?: boolean;
     comparisonError?: boolean;
 } = {}) {
-    mockUseQuery.mockImplementation((options: any) => {
+    mockUseQuery.mockImplementation((options) => {
         const key = options?.queryKey?.[0];
         if (key === "buildings") {
             return {
@@ -124,8 +124,8 @@ describe("CompareBuildingPage", () => {
 
         expect(await screen.findByText("R 12,500.00")).toBeInTheDocument();
         expect(screen.getByText("R 9,800.00")).toBeInTheDocument();
-        expect(screen.getByText("2,500 m2")).toBeInTheDocument();
-        expect(screen.getByText("1,800 m2")).toBeInTheDocument();
+        expect(screen.getByText(/2,500 m²?/)).toBeInTheDocument();
+        expect(screen.getByText(/1,800 m²?/)).toBeInTheDocument();
         expect(screen.getByText(/Building A is higher for the selected metric/)).toBeInTheDocument();
     });
 

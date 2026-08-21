@@ -55,12 +55,12 @@ function getForwardHeaders(request: Request, options: { includeContentType?: boo
 		headers.set("Authorization", resolvedAuthorizationHeader);
 	}
 
-	if (cookie){ 
+	if (cookie){
 		headers.set("Cookie", cookie)
-	};
-	if (includeContentType){ 
+	}
+	if (includeContentType){
 		headers.set("Content-Type", "application/json")
-	};
+	}
 	return headers;
 }
 

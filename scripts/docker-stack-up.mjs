@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 const root = resolve(process.cwd());
 const args = new Set(process.argv.slice(2));
 const skipBuild = args.has("--skip-build");
+const includeFrontend = args.has("--with-frontend") || process.env.STACK_FRONTEND === "1";
 const influxServiceHost = "influxdb";
 const influxServicePort = "8086";
 const redisServiceHost = "redis";
@@ -136,6 +137,7 @@ const resolvedSupabaseServiceRoleKey = providedSupabaseServiceRoleKey || provide
 const resolvedSupabaseKey = providedSupabaseKey || resolvedSupabaseServiceRoleKey;
 
 const env = {
+  frontendPort: process.env.FRONTEND_PORT ?? "3000",
   databaseUrl: process.env.DATABASE_URL,
   supabaseUrl: process.env.SUPABASE_URL ?? "https://example.supabase.co",
   supabaseKey: resolvedSupabaseKey,
@@ -169,6 +171,7 @@ const env = {
 };
 
 const composeProd = resolve(root, "infrastructure/docker/docker-compose.prod.yml");
+const composeFrontend = resolve(root, "infrastructure/docker-compose.local.frontend.yml");
 const generatedDir = resolve(root, "infrastructure/docker/.generated");
 const composeLocal = resolve(generatedDir, "docker-compose.local.yml");
 const envLocal = resolve(generatedDir, ".env.local");
@@ -186,7 +189,11 @@ function runQuietCapture(cmd) {
 }
 
 function composeCmd(command) {
-  return `docker compose -f "${composeLocal}" --env-file "${envLocal}" ${command}`;
+  const composeFiles = [`-f "${composeLocal}"`];
+  if (includeFrontend) {
+    composeFiles.push(`-f "${composeFrontend}"`);
+  }
+  return `docker compose ${composeFiles.join(" ")} --env-file "${envLocal}" ${command}`;
 }
 
 function sleep(ms) {
@@ -290,7 +297,7 @@ writeFileSync(
   envLocal,
   [
     "NODE_ENV=production",
-    "FRONTEND_PORT=3000",
+    `FRONTEND_PORT=${env.frontendPort}`,
     "CORE_PORT=4000",
     "INGESTION_PORT=8000",
     "ANALYTICS_PORT=8001",
@@ -317,7 +324,9 @@ writeFileSync(
 );
 
 if (!skipBuild) {
-  run("docker build -f frontend/Dockerfile -t ghcr.io/local/optigrid-frontend:latest .");
+  if (includeFrontend) {
+    run("docker build -f frontend/Dockerfile -t ghcr.io/local/optigrid-frontend:latest .");
+  }
   run("docker build -f backend/core/Dockerfile -t ghcr.io/local/optigrid-core:latest .");
   run("docker build -f backend/ingestion/Dockerfile -t ghcr.io/local/optigrid-ingestion:latest .");
   run("docker build -f backend/analytics/Dockerfile -t ghcr.io/local/optigrid-analytics:latest .");
@@ -327,11 +336,18 @@ run(composeCmd("up -d"));
 try {
   await waitForServiceHealthy("influxdb");
   await waitForServiceHealthy("mlflow");
-  await waitForHealth("frontend", ["http://localhost:3000/health"]);
   await waitForHealth("core", ["http://localhost:4000/health"]);
+  if (includeFrontend) {
+    await waitForHealth("frontend", [`http://localhost:${env.frontendPort}`]);
+  }
   await waitForWorkerRunning("ingestion");
   await waitForWorkerRunning("analytics");
   run(composeCmd("ps"));
+  if (includeFrontend) {
+    console.log(`Frontend: http://localhost:${env.frontendPort}`);
+  } else {
+    console.log("Frontend: disabled");
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Health check failed.");
   run(composeCmd("ps"));

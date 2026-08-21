@@ -12,7 +12,7 @@ export function LogoutButton() {
 	};
 
 	return (
-		<button type="button" onClick={handleLogout} className="btn btn-secondary w-full">
+		<button type="button" onClick={handleLogout} className="btn btn-secondary logout-button">
 			Logout
 		</button>
 	);

@@ -1,13 +1,10 @@
 import { Request, Response } from 'express';
 import prisma from '../../../backend/core/src/lib/prisma';
-import { createBuildingController, deleteBuildingController, getBuildingEnergyConsumptionController } from '../../../backend/core/src/controllers/building.controller';
-import { createBuilding, deleteBuildingService, getBuildingEnergyConsumptionDetails } from '../../../backend/core/src/services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
 import { buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
-import { createBuildingController, deleteBuildingController, getAllBuildingsController, getBuildingDetailsController, getBuildingEnergyConsumptionController } from '../../../backend/core/src/controllers/building.controller';
+import { createBuildingController, deleteBuildingController, getBuildingDetailsController, getBuildingEnergyConsumptionController } from '../../../backend/core/src/controllers/building.controller';
 import { createBuilding, deleteBuildingService, getAllBuildings, getBuildingDetails, getBuildingEnergyConsumptionDetails } from '../../../backend/core/src/services/building.services';
-import { checkIdempotencyKey, saveIdempotencyKey } from '../../../backend/core/src/services/idempotency.services';
-import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, createBuildingSchema, deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
+import { adminBuildingsSchema, buildingDetailsParamsSchema } from '../../../backend/core/src/validation/building.validation';
 import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
 import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
 import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';

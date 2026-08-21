@@ -92,6 +92,8 @@ enum RecommendationStatus {
   Pending
   Implemented
   Dismissed
+  Pending_Execution
+  Expired
 
   @@map("recommendation_status")
   @@schema("public")
@@ -242,6 +244,9 @@ model AlertThreshold {
   upper_limit_kw           Decimal?  @map("upper_limit_kw") @db.Decimal
   lower_limit_kw           Decimal?  @map("lower_limit_kw") @db.Decimal
   allowed_spike_percentage Decimal?  @map("allowed_spike_percentage") @db.Decimal
+  use_z_score              Boolean?  @default(false) @map("use_z_score")
+  z_score_threshold        Float?    @map("z_score_threshold")
+  muted_until              DateTime? @map("muted_until") @db.Timestamptz
   is_active                Boolean?  @default(true) @map("is_active")
   created_at               DateTime? @default(now()) @map("created_at") @db.Timestamptz
   updated_at               DateTime? @default(now()) @map("updated_at") @db.Timestamptz
@@ -263,6 +268,8 @@ model Anomaly {
   severity_level      String         @map("severity_level") @db.VarChar
   description         String?
   status              AnomalyStatus? @default(Open)
+  escalation_level    Int?           @default(0) @map("escalation_level")
+  z_score_value       Float?         @map("z_score_value")
   detected_timestamp  DateTime?      @default(now()) @map("detected_timestamp") @db.Timestamptz
   resolved_timestamp  DateTime?      @map("resolved_timestamp") @db.Timestamptz
   resolved_by_user_id String?        @map("resolved_by_user_id") @db.Uuid
@@ -328,6 +335,8 @@ model Notification {
   user_id         String?              @map("user_id") @db.Uuid
   channel         NotificationChannel?
   status          String?              @db.VarChar
+  content         String?
+  error_message   String?              @map("error_message")
   sent_at         DateTime?            @default(now()) @map("sent_at") @db.Timestamptz
 
   // Relations
@@ -344,6 +353,8 @@ model OptimisationRecommendation {
   strategy_description      String                @map("strategy_description")
   estimated_monthly_savings Decimal?              @map("estimated_monthly_savings") @db.Decimal
   status                    RecommendationStatus? @default(Pending)
+  applicable_range          Json?                 @map("applicable_range")
+  expires_at                DateTime?             @map("expires_at") @db.Timestamptz
   generated_date            DateTime?             @default(now()) @map("generated_date") @db.Timestamptz
   implemented_date          DateTime?             @map("implemented_date") @db.Timestamptz
 
@@ -359,8 +370,8 @@ model UtilityTariff {
   building_id       String?   @map("building_id") @db.Uuid
   season_name       String?   @map("season_name") @db.VarChar
   day_type          String?   @map("day_type") @db.VarChar
-  peak_rate_usd     Decimal   @map("peak_rate_usd") @db.Decimal
-  off_peak_rate_usd Decimal   @map("off_peak_rate_usd") @db.Decimal
+  peak_rate_zar     Decimal   @map("peak_rate_zar") @db.Decimal
+  off_peak_rate_zar Decimal   @map("off_peak_rate_zar") @db.Decimal
   peak_start_time   DateTime? @map("peak_start_time") @db.Time
   peak_end_time     DateTime? @map("peak_end_time") @db.Time
   created_at        DateTime? @default(now()) @map("created_at") @db.Timestamptz

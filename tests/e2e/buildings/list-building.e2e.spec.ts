@@ -130,13 +130,14 @@ test.describe("List buildings", () => {
 
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
 
-    const visibleRow = page.locator("tbody tr").filter({
+    const buildingsTable = page.getByRole("table", { name: "Your buildings" });
+    const visibleRow = buildingsTable.locator("tbody tr").filter({
       hasText: visibleBuilding.name,
     });
     await expect(visibleRow).toBeVisible();
     await expect(visibleRow).toContainText("Commercial");
     await expect(visibleRow).toContainText(visibleBuilding.address);
-    await expect(page.locator("tbody")).not.toContainText(hiddenBuilding.name);
+    await expect(buildingsTable.locator("tbody")).not.toContainText(hiddenBuilding.name);
     await expect(page.getByText("No buildings yet.")).toHaveCount(0);
   });
 });

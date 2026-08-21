@@ -133,6 +133,7 @@ describe('Influx usage queries', () => {
             { timestamp: '2026-07-11T00:00:00Z', kwh: 8, cost_zar: 20 },
         ]);
 
+        expect(iterateRows.mock.calls[0][0]).toContain('"energy_telemetry_downsampled"');
         expect(iterateRows.mock.calls[0][0]).toContain('"energy_telemetry"');
         expect(iterateRows.mock.calls[0][0]).toContain('aggregateWindow(every: 1d');
     });

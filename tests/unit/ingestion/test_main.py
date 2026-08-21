@@ -22,7 +22,7 @@ def test_ingest_entry_success(mock_redis):
     
     response = client.post("/ingest", json=payload)
     
-    assert response.status_code == 210
+    assert response.status_code == 201
     assert response.json()["status"] == "success"
     assert response.json()["message"] == "Data buffered"
     assert response.json()["building_id"] == "building-001"
@@ -50,3 +50,61 @@ def test_ingest_entry_empty_json_handling(mock_redis):
     
     assert response.status_code == 422
     mock_redis.lpush.assert_not_called()
+
+def test_root_endpoint():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json()["service"] == "OptiGrid Ingestion API"
+
+@patch('backend.ingestion.src.main.r')
+def test_health_check_success(mock_redis):
+    mock_redis.ping.return_value = True
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert response.json()["redis"] == "connected"
+
+@patch('backend.ingestion.src.main.r')
+def test_health_check_failure(mock_redis):
+    mock_redis.ping.side_effect = Exception("Connection lost")
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert "error: Connection lost" in response.json()["redis"]
+
+@patch('backend.ingestion.src.main.r')
+def test_init_building_success(mock_redis):
+    payload = {
+        "building_id": "bldg-test",
+        "hardware_auth_token": "token123",
+        "nominal_voltage": 220,
+        "max_current_threshold": 100,
+        "influx_bucket": "bldg-test-bucket",
+        "metadata": {"test": "data"}
+    }
+    response = client.post("/init-building", json=payload)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    assert response.json()["building_id"] == "bldg-test"
+    mock_redis.hset.assert_called_once()
+
+@patch('backend.ingestion.src.main.r')
+def test_init_building_exception(mock_redis):
+    mock_redis.hset.side_effect = Exception("Redis failure")
+    payload = {"building_id": "bldg-test"}
+    response = client.post("/init-building", json=payload)
+    assert response.status_code == 500
+    assert "Redis failure" in response.json()["detail"]
+
+@patch('backend.ingestion.src.main.r')
+def test_ingest_entry_connection_error(mock_redis):
+    import redis
+    mock_redis.lpush.side_effect = redis.exceptions.ConnectionError("Redis connection reset")
+    payload = {
+        "sensor_id": "sensor-001", 
+        "building_id": "building-001", 
+        "power_kw": 412.5
+    }
+    response = client.post("/ingest", json=payload)
+    assert response.status_code == 530
+    assert response.json()["detail"] == "Redis connection failed"
