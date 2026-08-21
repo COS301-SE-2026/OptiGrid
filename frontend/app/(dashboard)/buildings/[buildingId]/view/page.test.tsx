@@ -102,6 +102,7 @@ describe("ViewBuildingPage", () => {
       expect(screen.getByText("tenant-111")).toBeInTheDocument();
       expect(screen.getByText("OFFICE")).toBeInTheDocument();
       expect(screen.getByText("ACTIVE")).toBeInTheDocument();
+      expect(screen.getByText("Online (Waiting for reading)")).toBeInTheDocument();
       expect(screen.getByText(/5000 m²/)).toBeInTheDocument();
       expect(screen.getByText("200")).toBeInTheDocument();
       expect(screen.getByText("230 V")).toBeInTheDocument();
@@ -121,6 +122,7 @@ describe("ViewBuildingPage", () => {
       liveData: {
         building_id: "111",
         sensor_id: "sensor-111",
+        source_type: "EMULATOR",
         power_kw: 12.345,
         voltage_v: 231.2,
         current_a: 53.4,
@@ -136,6 +138,8 @@ describe("ViewBuildingPage", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Real-Time Telemetry" })).toBeInTheDocument();
       expect(screen.getByText("Online (Streaming)")).toBeInTheDocument();
+      expect(screen.getByText("EMULATOR")).toBeInTheDocument();
+      expect(screen.getByText("sensor-111")).toBeInTheDocument();
       expect(screen.getByText("12.35 kW")).toBeInTheDocument();
       expect(screen.getByText("231.2 V")).toBeInTheDocument();
       expect(screen.getByText("53.4 A")).toBeInTheDocument();

@@ -261,24 +261,62 @@ router.post('/login', validateBody(loginSchema), login)
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required: [email, password]
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 format: password
+ *             $ref: "#/components/schemas/AccountCredentials"
+ *           examples:
+ *             deactivatedViewer:
+ *               summary: Recover a deactivated viewer account
+ *               value:
+ *                 email: "viewer@optigrid.test"
+ *                 password: "SecurePass123!"
  *     responses:
  *       200:
  *         description: Account recovered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/AccountRecoveryResponse"
  *       400:
  *         description: Invalid credentials or invalid payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ApiError"
+ *             examples:
+ *               invalidCredentials:
+ *                 value:
+ *                   message: "Invalid email or password"
  *       404:
  *         description: Account profile not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ApiError"
+ *             examples:
+ *               missingProfile:
+ *                 value:
+ *                   code: "ACCOUNT_NOT_FOUND"
+ *                   message: "Account profile was not found."
  *       409:
  *         description: Account is already active
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ApiError"
+ *             examples:
+ *               alreadyActive:
+ *                 value:
+ *                   code: "ACCOUNT_ALREADY_ACTIVE"
+ *                   message: "This account is already active. Please log in normally."
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ApiError"
+ *             examples:
+ *               serverError:
+ *                 value:
+ *                   message: "Internal server error"
  */
 router.post('/recover-account', validateBody(loginSchema), recoverAccount);
 

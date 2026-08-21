@@ -57,6 +57,22 @@ describe("useTelemetryStream", () => {
         expect(result.current.error).toBeNull();
     });
 
+    it("uses the portfolio stream when no building id is provided", () => {
+        renderHook(() => useTelemetryStream());
+
+        expect(MockEventSource.instances).toHaveLength(1);
+        expect(MockEventSource.instances[0].url).toBe("/api/telemetry/stream/portfolio");
+    });
+
+    it("waits for a building id before opening a building stream", () => {
+        const { result } = renderHook(() => useTelemetryStream(""));
+
+        expect(MockEventSource.instances).toHaveLength(0);
+        expect(result.current.isConnected).toBe(false);
+        expect(result.current.liveData).toBeNull();
+        expect(result.current.error).toBeNull();
+    });
+
     it("updates connection state on EventSource open", () => {
         const { result } = renderHook(() => useTelemetryStream("bld-123"));
         const mockEs = MockEventSource.instances[0];
@@ -88,6 +104,33 @@ describe("useTelemetryStream", () => {
         });
 
         expect(result.current.liveData).toEqual(mockPayload);
+    });
+
+    it("resets stale data when the stream target changes", () => {
+        const { result, rerender } = renderHook(
+            ({ buildingId }) => useTelemetryStream(buildingId),
+            { initialProps: { buildingId: "bld-123" } },
+        );
+        const firstStream = MockEventSource.instances[0];
+
+        act(() => {
+            firstStream.emitMessage({
+                building_id: "bld-123",
+                sensor_id: "sens-123",
+                power_kw: 45.2,
+                timestamp: "2026-07-28T10:00:00.000Z",
+            });
+        });
+        expect(result.current.liveData?.building_id).toBe("bld-123");
+
+        rerender({ buildingId: "bld-456" });
+
+        expect(firstStream.closed).toBe(true);
+        expect(MockEventSource.instances).toHaveLength(2);
+        expect(MockEventSource.instances[1].url).toBe("/api/telemetry/stream/bld-456");
+        expect(result.current.liveData).toBeNull();
+        expect(result.current.isConnected).toBe(false);
+        expect(result.current.error).toBeNull();
     });
 
     it("handles connection errors and disconnects the stream", () => {
