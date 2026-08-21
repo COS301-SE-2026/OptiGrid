@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useBuildings } from "@/lib/useBuildings";
 import { openDialog } from "@/lib/openDialog";
+import { PageHeading } from "@/components/PageHeading";
 
 type RecommendationStatus =
     | "Pending"
@@ -584,16 +585,10 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
 
     return (
         <div>
-            <div
-                className="dashboard-section"
-                style={{
-                    borderBottom: "1px solid var(--brand-border)",
-                    paddingBottom: "var(--space-4)"
-                }}
-            >
-                <h1 className="dashboard-title">Insights</h1>
-                <p className="dashboard-subtitle">Suggested load-shifting strategies and their estimated cost savings.</p>
-            </div>
+            <PageHeading
+                title="Insights"
+                subtitle="Suggested load-shifting strategies and their estimated cost savings."
+            />
 
             <section className="card dashboard-section" aria-label="Recommendation filters">
                 <div
