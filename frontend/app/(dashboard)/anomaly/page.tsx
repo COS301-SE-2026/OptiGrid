@@ -10,9 +10,11 @@ import {
   FilterBar,
   AnomalyDetailsModal,
   HistoricAlertsModal,
+  ConfirmAnomalyActionModal,
   formatDate,
   formatChartTime,
   useAnomalyChartData,
+  parseNumberOrNull,
   mockManagerData,
   mockInitialThresholds,
 } from "../../../components/sharedanomaly";
@@ -157,9 +159,9 @@ export default function ManagerAnomalyPage() {
 
   const handleSaveThreshold = () => {
     if (editingThreshold) {
-      const parsedUpper = Number.parseFloat(thresholdForm.upper_limit) || null;
-      const parsedLower = Number.parseFloat(thresholdForm.lower_limit) || null;
-      const parsedSpike = Number.parseFloat(thresholdForm.allowed_spike_percentage) || null;
+      const parsedUpper = parseNumberOrNull(thresholdForm.upper_limit);
+      const parsedLower = parseNumberOrNull(thresholdForm.lower_limit);
+      const parsedSpike = parseNumberOrNull(thresholdForm.allowed_spike_percentage);
 
       setThresholds((prev) =>
         prev.map((t) =>
@@ -318,7 +320,7 @@ export default function ManagerAnomalyPage() {
                 borderLeft: "4px solid #8B1E3F",
                 backgroundColor: "var(--brand-surface)",
                 boxShadow: "var(--shadow-card)",
-                animation: "slideIn 0.3s ease-out",
+                
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -347,7 +349,7 @@ export default function ManagerAnomalyPage() {
                   style={{ background: "none", border: "none", color: "var(--brand-ink-muted)", cursor: "pointer", fontSize: "1.2rem" }}
                   aria-label="Dismiss notification"
                 >
-                  ×
+                  x
                 </button>
               </div>
               <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
@@ -358,18 +360,7 @@ export default function ManagerAnomalyPage() {
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
+
 
       <AnomalyDetailsModal
         anomaly={selectedAnomaly}
@@ -389,112 +380,36 @@ export default function ManagerAnomalyPage() {
         onStatusFilterChange={setHistoricFilter}
         onSearchChange={setHistoricSearch}
         onReset={resetHistoricFilters}
-        idPrefix="historic-manager"
+        idPrefix="manager"
       />
 
-      {showResolveModal && selectedAnomaly && (
-        <dialog
-          className="modal-overlay"
-          style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-4)", zIndex: 50, border: "none", backgroundColor: "transparent", width: "100%", height: "100%" }}
-          open={showResolveModal}
-          onClose={() => {
-            setShowResolveModal(false);
-            setSelectedAnomaly(null);
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowResolveModal(false);
-              setSelectedAnomaly(null);
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setShowResolveModal(false);
-              setSelectedAnomaly(null);
-            }
-          }}
-        >
-          <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
-            <h2 style={{ marginBottom: "var(--space-2)" }}>Resolve Anomaly</h2>
-            <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>
-              Confirm you want to resolve this anomaly.
-            </p>
-            <div style={{ marginBottom: "var(--space-4)" }}>
-              <p><strong>Building:</strong> {selectedAnomaly.building_name}</p>
-              <p><strong>Type:</strong> {selectedAnomaly.anomaly_type.replace(/_/g, " ")}</p>
-              <p><strong>Description:</strong> {selectedAnomaly.description}</p>
-            </div>
-            <div style={{ display: "flex", gap: "var(--space-3)" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowResolveModal(false);
-                  setSelectedAnomaly(null);
-                }}
-                className="btn btn-secondary"
-                style={{ flex: 1 }}
-              >
-                Cancel
-              </button>
-              <button type="button" onClick={confirmResolve} className="btn" style={{ flex: 1, backgroundColor: "#2F7D5D", color: "#FFFFFF" }}>
-                Resolve
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
+      <ConfirmAnomalyActionModal
+        open={showResolveModal}
+        anomaly={selectedAnomaly}
+        title="Resolve Anomaly"
+        message="Confirm you want to resolve this anomaly."
+        confirmLabel="Resolve"
+        confirmColor="#2F7D5D"
+        onConfirm={confirmResolve}
+        onCancel={() => {
+          setShowResolveModal(false);
+          setSelectedAnomaly(null);
+        }}
+      />
 
-      {showIgnoreModal && selectedAnomaly && (
-        <dialog
-          className="modal-overlay"
-          style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-4)", zIndex: 50, border: "none", backgroundColor: "transparent", width: "100%", height: "100%" }}
-          open={showIgnoreModal}
-          onClose={() => {
-            setShowIgnoreModal(false);
-            setSelectedAnomaly(null);
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowIgnoreModal(false);
-              setSelectedAnomaly(null);
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setShowIgnoreModal(false);
-              setSelectedAnomaly(null);
-            }
-          }}
-        >
-          <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
-            <h2 style={{ marginBottom: "var(--space-2)" }}>Ignore Anomaly</h2>
-            <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>
-              Are you sure you want to ignore this anomaly?
-            </p>
-            <div style={{ marginBottom: "var(--space-4)" }}>
-              <p><strong>Building:</strong> {selectedAnomaly.building_name}</p>
-              <p><strong>Type:</strong> {selectedAnomaly.anomaly_type.replace(/_/g, " ")}</p>
-              <p><strong>Description:</strong> {selectedAnomaly.description}</p>
-            </div>
-            <div style={{ display: "flex", gap: "var(--space-3)" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowIgnoreModal(false);
-                  setSelectedAnomaly(null);
-                }}
-                className="btn btn-secondary"
-                style={{ flex: 1 }}
-              >
-                Cancel
-              </button>
-              <button type="button" onClick={confirmIgnore} className="btn" style={{ flex: 1, backgroundColor: "#7A7A7A", color: "#FFFFFF" }}>
-                Ignore
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
+      <ConfirmAnomalyActionModal
+        open={showIgnoreModal}
+        anomaly={selectedAnomaly}
+        title="Ignore Anomaly"
+        message="Are you sure you want to ignore this anomaly?"
+        confirmLabel="Ignore"
+        confirmColor="#7A7A7A"
+        onConfirm={confirmIgnore}
+        onCancel={() => {
+          setShowIgnoreModal(false);
+          setSelectedAnomaly(null);
+        }}
+      />
 
       {showThresholdModal && (
         <dialog

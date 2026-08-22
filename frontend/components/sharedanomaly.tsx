@@ -391,10 +391,10 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
                       <div style={{ fontSize: "var(--fs-small)" }}>
                         <span className="text-muted">
                           {anomaly.threshold_details.metric_type}: 
-                          {anomaly.threshold_details.upper_limit && ` ${anomaly.threshold_details.upper_limit}`}
-                          {anomaly.threshold_details.lower_limit && ` - ${anomaly.threshold_details.lower_limit}`}
+                          {anomaly.threshold_details.upper_limit != null && ` ${anomaly.threshold_details.upper_limit}`}
+                          {anomaly.threshold_details.lower_limit != null && ` - ${anomaly.threshold_details.lower_limit}`}
                           {anomaly.threshold_details.unit && ` ${anomaly.threshold_details.unit}`}
-                          {anomaly.threshold_details.allowed_spike_percentage && ` (${anomaly.threshold_details.allowed_spike_percentage}%)`}
+                          {anomaly.threshold_details.allowed_spike_percentage != null && ` (${anomaly.threshold_details.allowed_spike_percentage}%)`}
                         </span>
                         <span
                           className="badge"
@@ -1022,10 +1022,6 @@ export function Modal({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Shared formatting + chart-data helpers                                     */
-/* Previously redefined identically in the manager and viewer anomaly pages.  */
-/* -------------------------------------------------------------------------- */
 
 export function formatDate(date: string) {
   return new Date(date).toLocaleString(undefined, {
@@ -1044,10 +1040,12 @@ export function formatChartTime(timestamp: string) {
   });
 }
 
-/**
- * Builds the chart series + anomaly markers for a single building.
- * Shared by the manager and viewer anomaly pages (previously duplicated).
- */
+export function parseNumberOrNull(value: string): number | null {
+  if (value.trim() === "") return null;
+  const parsed = Number.parseFloat(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 export function useAnomalyChartData(
   anomalies: Anomaly[],
   selectedBuildingForChart: string,
@@ -1083,11 +1081,6 @@ export function useAnomalyChartData(
 
   return { chartData, anomalyPoints };
 }
-
-/* -------------------------------------------------------------------------- */
-/* Shared modals                                                              */
-/* Previously duplicated (near-)identically in the manager and viewer pages. */
-/* -------------------------------------------------------------------------- */
 
 interface AnomalyDetailsModalProps {
   anomaly: Anomaly | null;
@@ -1207,11 +1200,10 @@ interface HistoricAlertsModalProps {
   onStatusFilterChange: (value: string) => void;
   onSearchChange: (value: string) => void;
   onReset: () => void;
-  /** Unique id prefix so form field ids don't collide when both roles render in the same DOM/tests. */
   idPrefix: string;
 }
 
-/** Historic alerts table modal. */
+
 export function HistoricAlertsModal({
   open,
   onClose,
@@ -1264,9 +1256,9 @@ export function HistoricAlertsModal({
         <h2 style={{ marginBottom: "var(--space-3)" }}>Historic Alerts</h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-            <label className="label" htmlFor={`${idPrefix}-status`}>Status:</label>
+            <label className="label" htmlFor={`historic-status-${idPrefix}`}>Status:</label>
             <select
-              id={`${idPrefix}-status`}
+              id={`historic-status-${idPrefix}`}
               value={statusFilter}
               onChange={(e) => onStatusFilterChange(e.target.value)}
               className="select"
@@ -1278,9 +1270,9 @@ export function HistoricAlertsModal({
             </select>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: 1 }}>
-            <label className="label" htmlFor={`${idPrefix}-search`}>Search:</label>
+            <label className="label" htmlFor={`historic-search-${idPrefix}`}>Search:</label>
             <input
-              id={`${idPrefix}-search`}
+              id={`historic-search-${idPrefix}`}
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
@@ -1342,5 +1334,54 @@ export function HistoricAlertsModal({
         </div>
       </div>
     </dialog>
+  );
+}
+
+interface ConfirmAnomalyActionModalProps {
+  open: boolean;
+  anomaly: Anomaly | null;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  confirmColor: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export function ConfirmAnomalyActionModal({
+  open,
+  anomaly,
+  title,
+  message,
+  confirmLabel,
+  confirmColor,
+  onConfirm,
+  onCancel,
+}: Readonly<ConfirmAnomalyActionModalProps>) {
+  if (!open || !anomaly) return null;
+
+  return (
+    <Modal open={open} onClose={onCancel} maxWidth="500px">
+      <h2 style={{ marginBottom: "var(--space-2)" }}>{title}</h2>
+      <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>{message}</p>
+      <div style={{ marginBottom: "var(--space-4)" }}>
+        <p><strong>Building:</strong> {anomaly.building_name}</p>
+        <p><strong>Type:</strong> {anomaly.anomaly_type.replace(/_/g, " ")}</p>
+        <p><strong>Description:</strong> {anomaly.description}</p>
+      </div>
+      <div style={{ display: "flex", gap: "var(--space-3)" }}>
+        <button type="button" onClick={onCancel} className="btn btn-secondary" style={{ flex: 1 }}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="btn"
+          style={{ flex: 1, backgroundColor: confirmColor, color: "#FFFFFF" }}
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </Modal>
   );
 }

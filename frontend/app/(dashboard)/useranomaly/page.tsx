@@ -150,7 +150,7 @@ export default function ViewerAnomalyPage() {
         onStatusFilterChange={setHistoricFilter}
         onSearchChange={setHistoricSearch}
         onReset={resetHistoricFilters}
-        idPrefix="historic-viewer"
+        idPrefix="viewer"
       />
     </div>
   );
