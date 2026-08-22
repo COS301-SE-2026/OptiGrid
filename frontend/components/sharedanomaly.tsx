@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useMemo, type MouseEvent } from "react";
 import {
   Line,
   XAxis,
@@ -331,17 +331,17 @@ interface AnomaliesTableProps {
   actions?: (anomaly: Anomaly) => ReactNode;
 }
 
-const handleRowKeyDown = (e: React.KeyboardEvent, anomaly: Anomaly, onRowClick: (anomaly: Anomaly) => void) => {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    onRowClick(anomaly);
-  }
-};
-
 export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
   const { anomalies, onRowClick, formatDate: formatDateProp, actions } = props;
   const hasActions = anomalies.some(a => a.status !== "Resolved" && a.status !== "Ignored");
   const colSpan = hasActions ? 8 : 7;
+
+  const handleRowClick = (e: MouseEvent<HTMLTableRowElement>, anomaly: Anomaly) => {
+    if ((e.target as HTMLElement).closest("button")) {
+      return;
+    }
+    onRowClick(anomaly);
+  };
 
   return (
     <div className="card" style={{ overflow: "hidden", padding: 0 }}>
@@ -370,14 +370,26 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
               anomalies.map((anomaly) => (
                 <tr
                   key={anomaly.anomaly_id}
-                  onClick={() => onRowClick(anomaly)}
-                  onKeyDown={(e) => handleRowKeyDown(e, anomaly, onRowClick)}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`View details for ${anomaly.building_name} anomaly`}
+                  onClick={(e) => handleRowClick(e, anomaly)}
                 >
                   <td style={{ fontWeight: "var(--fw-semibold)" }}>
-                    {anomaly.building_name}
+                    <button
+                      type="button"
+                      onClick={() => onRowClick(anomaly)}
+                      aria-label={`View details for ${anomaly.building_name} anomaly`}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        font: "inherit",
+                        fontWeight: "var(--fw-semibold)",
+                        color: "inherit",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      {anomaly.building_name}
+                    </button>
                   </td>
                   <td>{anomaly.anomaly_type.replace(/_/g, " ")}</td>
                   <td>
@@ -421,11 +433,8 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
                   </td>
                   {hasActions && (
                     <td>
-                      <div
-                        style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {actions && actions(anomaly)}
+                      <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                        {actions?.(anomaly)}
                       </div>
                     </td>
                   )}
@@ -972,7 +981,7 @@ export const mockInitialThresholds: AlertThreshold[] = [
 type ModalProps = {
   open: boolean;
   onClose: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
   maxWidth?: string;
 };
 
@@ -981,7 +990,7 @@ export function Modal({
   onClose,
   children,
   maxWidth = "600px",
-}: ModalProps) {
+}: Readonly<ModalProps>) {
   if (!open) {
     return null;
   }
@@ -989,6 +998,9 @@ export function Modal({
   return (
     <dialog
       className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
       style={{
         position: "fixed",
         inset: 0,
@@ -1228,112 +1240,87 @@ export function HistoricAlertsModal({
   });
 
   return (
-    <dialog
-      className="modal-overlay"
-      style={{
-        position: "fixed",
-        inset: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "var(--space-4)",
-        zIndex: 50,
-        border: "none",
-        backgroundColor: "transparent",
-        width: "100%",
-        height: "100%",
-      }}
-      open={open}
-      onClose={onClose}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
-    >
-      <div className="modal" style={{ maxWidth: "800px", width: "100%" }}>
-        <h2 style={{ marginBottom: "var(--space-3)" }}>Historic Alerts</h2>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-            <label className="label" htmlFor={`historic-status-${idPrefix}`}>Status:</label>
-            <select
-              id={`historic-status-${idPrefix}`}
-              value={statusFilter}
-              onChange={(e) => onStatusFilterChange(e.target.value)}
-              className="select"
-              style={{ minWidth: "120px" }}
-            >
-              <option value="all">All</option>
-              <option value="Resolved">Resolved</option>
-              <option value="Ignored">Ignored</option>
-            </select>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: 1 }}>
-            <label className="label" htmlFor={`historic-search-${idPrefix}`}>Search:</label>
-            <input
-              id={`historic-search-${idPrefix}`}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search historic alerts..."
-              className="input"
-              style={{ flex: 1 }}
-            />
-          </div>
-          <button type="button" onClick={onReset} className="btn btn-secondary">
-            Reset
-          </button>
+    <Modal open={open} onClose={onClose} maxWidth="800px">
+      <h2 style={{ marginBottom: "var(--space-3)" }}>Historic Alerts</h2>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          <label className="label" htmlFor={`historic-status-${idPrefix}`}>Status:</label>
+          <select
+            id={`historic-status-${idPrefix}`}
+            value={statusFilter}
+            onChange={(e) => onStatusFilterChange(e.target.value)}
+            className="select"
+            style={{ minWidth: "120px" }}
+          >
+            <option value="all">All</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Ignored">Ignored</option>
+          </select>
         </div>
-        <div style={{ maxHeight: "400px", overflow: "auto" }}>
-          <table className="dashboard-table">
-            <thead>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: 1 }}>
+          <label className="label" htmlFor={`historic-search-${idPrefix}`}>Search:</label>
+          <input
+            id={`historic-search-${idPrefix}`}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search historic alerts..."
+            className="input"
+            style={{ flex: 1 }}
+          />
+        </div>
+        <button type="button" onClick={onReset} className="btn btn-secondary">
+          Reset
+        </button>
+      </div>
+      <div style={{ maxHeight: "400px", overflow: "auto" }}>
+        <table className="dashboard-table">
+          <thead>
+            <tr>
+              <th scope="col">Building</th>
+              <th scope="col">Type</th>
+              <th scope="col">Severity</th>
+              <th scope="col">Status</th>
+              <th scope="col">Detected</th>
+              <th scope="col">Resolved</th>
+              <th scope="col">Resolved By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
               <tr>
-                <th scope="col">Building</th>
-                <th scope="col">Type</th>
-                <th scope="col">Severity</th>
-                <th scope="col">Status</th>
-                <th scope="col">Detected</th>
-                <th scope="col">Resolved</th>
-                <th scope="col">Resolved By</th>
+                <td colSpan={7} className="dashboard-empty">
+                  No historic alerts found
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="dashboard-empty">
-                    No historic alerts found
+            ) : (
+              filtered.map((anomaly) => (
+                <tr key={anomaly.anomaly_id}>
+                  <td style={{ fontWeight: "var(--fw-semibold)" }}>{anomaly.building_name}</td>
+                  <td>{anomaly.anomaly_type.replace(/_/g, " ")}</td>
+                  <td><SeverityBadge severity={anomaly.severity_level} /></td>
+                  <td><StatusBadge status={anomaly.status} /></td>
+                  <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                    {formatDate(anomaly.detected_timestamp)}
+                  </td>
+                  <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                    {anomaly.resolved_timestamp ? formatDate(anomaly.resolved_timestamp) : "-"}
+                  </td>
+                  <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                    {anomaly.resolved_by || "-"}
                   </td>
                 </tr>
-              ) : (
-                filtered.map((anomaly) => (
-                  <tr key={anomaly.anomaly_id}>
-                    <td style={{ fontWeight: "var(--fw-semibold)" }}>{anomaly.building_name}</td>
-                    <td>{anomaly.anomaly_type.replace(/_/g, " ")}</td>
-                    <td><SeverityBadge severity={anomaly.severity_level} /></td>
-                    <td><StatusBadge status={anomaly.status} /></td>
-                    <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                      {formatDate(anomaly.detected_timestamp)}
-                    </td>
-                    <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                      {anomaly.resolved_timestamp ? formatDate(anomaly.resolved_timestamp) : "-"}
-                    </td>
-                    <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                      {anomaly.resolved_by || "-"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
-          <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>
-            Close
-          </button>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
-    </dialog>
+      <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
+        <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>
+          Close
+        </button>
+      </div>
+    </Modal>
   );
 }
 

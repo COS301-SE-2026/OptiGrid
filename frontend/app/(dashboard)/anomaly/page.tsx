@@ -8,6 +8,7 @@ import {
   AnalyticsSummary,
   EnergyChart,
   FilterBar,
+  Modal,
   AnomalyDetailsModal,
   HistoricAlertsModal,
   ConfirmAnomalyActionModal,
@@ -28,9 +29,20 @@ interface NotificationPopup {
   timestamp: string;
 }
 
+/**
+ * Extracted so the useEffect below doesn't nest a lookup callback inside the
+ * filter callback inside the setState updater inside setTimeout — SonarQube
+ * flagged the previous inline version for nesting functions more than 5
+ * levels deep.
+ */
+function isNotificationStillActive(notification: NotificationPopup, anomalies: Anomaly[]): boolean {
+  const anomaly = anomalies.find((a) => a.anomaly_id === notification.id);
+  return !anomaly || anomaly.severity_level !== "critical" || anomaly.status !== "Open";
+}
+
 export default function ManagerAnomalyPage() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>(mockManagerData.anomalies);
-  const [thresholds, setThresholds] = useState<AlertThreshold[]>(mockInitialThresholds);
+  const [, setThresholds] = useState<AlertThreshold[]>(mockInitialThresholds);
   const [buildings] = useState(mockManagerData.buildings);
   const [historicAnomalies] = useState<Anomaly[]>(mockManagerData.historic);
   const [selectedBuilding, setSelectedBuilding] = useState<string>("all");
@@ -64,20 +76,17 @@ export default function ManagerAnomalyPage() {
 
   useEffect(() => {
     const criticalOpen = anomalies.filter((a) => a.severity_level === "critical" && a.status === "Open");
-    const newNotifications = criticalOpen.map((anomaly) => ({
-      id: anomaly.anomaly_id,
-      message: anomaly.description,
-      building: anomaly.building_name,
-      timestamp: new Date().toLocaleTimeString(),
-    }));
-    setNotifications(newNotifications);
+    setNotifications(
+      criticalOpen.map((anomaly) => ({
+        id: anomaly.anomaly_id,
+        message: anomaly.description,
+        building: anomaly.building_name,
+        timestamp: new Date().toLocaleTimeString(),
+      }))
+    );
 
     const timer = setTimeout(() => {
-      setNotifications((prev) =>
-        prev.filter((n) =>
-          anomalies.some((a) => a.anomaly_id === n.id && (a.severity_level !== "critical" || a.status !== "Open"))
-        )
-      );
+      setNotifications((prev) => prev.filter((n) => isNotificationStillActive(n, anomalies)));
     }, 10000);
 
     return () => clearTimeout(timer);
@@ -320,7 +329,6 @@ export default function ManagerAnomalyPage() {
                 borderLeft: "4px solid #8B1E3F",
                 backgroundColor: "var(--brand-surface)",
                 boxShadow: "var(--shadow-card)",
-                
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -359,8 +367,6 @@ export default function ManagerAnomalyPage() {
           ))}
         </div>
       )}
-
-
 
       <AnomalyDetailsModal
         anomaly={selectedAnomaly}
@@ -411,149 +417,134 @@ export default function ManagerAnomalyPage() {
         }}
       />
 
-      {showThresholdModal && (
-        <dialog
-          className="modal-overlay"
-          style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-4)", zIndex: 50, border: "none", backgroundColor: "transparent", width: "100%", height: "100%" }}
-          open={showThresholdModal}
-          onClose={() => {
-            setShowThresholdModal(false);
-            setEditingThreshold(null);
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowThresholdModal(false);
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setShowThresholdModal(false);
-            }
-          }}
-        >
-          <div className="modal" style={{ maxWidth: "600px", width: "100%" }}>
-            <h2 style={{ marginBottom: "var(--space-2)" }}>{editingThreshold ? "Edit Alert Threshold" : "Configure Alert Threshold"}</h2>
-            <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>
-              {editingThreshold ? `Update threshold for ${editingThreshold.building_name}` : "Set thresholds for anomaly detection across your buildings."}
-            </p>
-            <div style={{ display: "grid", gap: "var(--space-4)" }}>
-              <div>
-                <label className="label" htmlFor="threshold-building">Building</label>
-                <select
-                  id="threshold-building"
-                  className="select"
-                  value={thresholdForm.building_id}
-                  onChange={(e) => setThresholdForm({ ...thresholdForm, building_id: e.target.value })}
-                  aria-label="Select building"
-                  disabled={!!editingThreshold}
-                >
-                  <option value="">Select building...</option>
-                  {buildings.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label" htmlFor="threshold-metric">Metric Type</label>
-                <select
-                  id="threshold-metric"
-                  className="select"
-                  value={thresholdForm.metric_type}
-                  onChange={(e) => setThresholdForm({ ...thresholdForm, metric_type: e.target.value })}
-                  aria-label="Select metric type"
-                >
-                  <option value="power">Power (kW)</option>
-                  <option value="energy">Energy (kWh)</option>
-                  <option value="current">Current (A)</option>
-                  <option value="voltage">Voltage (V)</option>
-                </select>
-              </div>
-              <div>
-                <label className="label" htmlFor="threshold-unit">Unit</label>
-                <input
-                  id="threshold-unit"
-                  type="text"
-                  className="input"
-                  value={thresholdForm.unit}
-                  onChange={(e) => setThresholdForm({ ...thresholdForm, unit: e.target.value })}
-                  placeholder="e.g., kW"
-                  aria-label="Unit"
-                />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                <div>
-                  <label className="label" htmlFor="upper-limit">Upper Limit</label>
-                  <input
-                    id="upper-limit"
-                    type="number"
-                    className="input"
-                    value={thresholdForm.upper_limit}
-                    onChange={(e) => setThresholdForm({ ...thresholdForm, upper_limit: e.target.value })}
-                    placeholder="e.g., 100"
-                    step="0.01"
-                    aria-label="Upper limit value"
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="lower-limit">Lower Limit</label>
-                  <input
-                    id="lower-limit"
-                    type="number"
-                    className="input"
-                    value={thresholdForm.lower_limit}
-                    onChange={(e) => setThresholdForm({ ...thresholdForm, lower_limit: e.target.value })}
-                    placeholder="e.g., 10"
-                    step="0.01"
-                    aria-label="Lower limit value"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="label" htmlFor="spike-percentage">Allowed Spike (%)</label>
-                <input
-                  id="spike-percentage"
-                  type="number"
-                  className="input"
-                  value={thresholdForm.allowed_spike_percentage}
-                  onChange={(e) => setThresholdForm({ ...thresholdForm, allowed_spike_percentage: e.target.value })}
-                  placeholder="e.g., 20"
-                  step="0.1"
-                  aria-label="Allowed spike percentage"
-                />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-                <input
-                  type="checkbox"
-                  id="threshold-active"
-                  checked={thresholdForm.is_active}
-                  onChange={(e) => setThresholdForm({ ...thresholdForm, is_active: e.target.checked })}
-                  style={{ width: "18px", height: "18px" }}
-                  aria-label="Threshold active"
-                />
-                <label className="label" htmlFor="threshold-active" style={{ margin: 0 }}>
-                  Active
-                </label>
-              </div>
+      <Modal
+        open={showThresholdModal}
+        onClose={() => {
+          setShowThresholdModal(false);
+          setEditingThreshold(null);
+        }}
+        maxWidth="600px"
+      >
+        <h2 style={{ marginBottom: "var(--space-2)" }}>{editingThreshold ? "Edit Alert Threshold" : "Configure Alert Threshold"}</h2>
+        <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>
+          {editingThreshold ? `Update threshold for ${editingThreshold.building_name}` : "Set thresholds for anomaly detection across your buildings."}
+        </p>
+        <div style={{ display: "grid", gap: "var(--space-4)" }}>
+          <div>
+            <label className="label" htmlFor="threshold-building">Building</label>
+            <select
+              id="threshold-building"
+              className="select"
+              value={thresholdForm.building_id}
+              onChange={(e) => setThresholdForm({ ...thresholdForm, building_id: e.target.value })}
+              aria-label="Select building"
+              disabled={!!editingThreshold}
+            >
+              <option value="">Select building...</option>
+              {buildings.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="threshold-metric">Metric Type</label>
+            <select
+              id="threshold-metric"
+              className="select"
+              value={thresholdForm.metric_type}
+              onChange={(e) => setThresholdForm({ ...thresholdForm, metric_type: e.target.value })}
+              aria-label="Select metric type"
+            >
+              <option value="power">Power (kW)</option>
+              <option value="energy">Energy (kWh)</option>
+              <option value="current">Current (A)</option>
+              <option value="voltage">Voltage (V)</option>
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="threshold-unit">Unit</label>
+            <input
+              id="threshold-unit"
+              type="text"
+              className="input"
+              value={thresholdForm.unit}
+              onChange={(e) => setThresholdForm({ ...thresholdForm, unit: e.target.value })}
+              placeholder="e.g., kW"
+              aria-label="Unit"
+            />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+            <div>
+              <label className="label" htmlFor="upper-limit">Upper Limit</label>
+              <input
+                id="upper-limit"
+                type="number"
+                className="input"
+                value={thresholdForm.upper_limit}
+                onChange={(e) => setThresholdForm({ ...thresholdForm, upper_limit: e.target.value })}
+                placeholder="e.g., 100"
+                step="0.01"
+                aria-label="Upper limit value"
+              />
             </div>
-            <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-5)" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowThresholdModal(false);
-                  setEditingThreshold(null);
-                }}
-                className="btn btn-secondary"
-                style={{ flex: 1 }}
-              >
-                Cancel
-              </button>
-              <button type="button" onClick={handleSaveThreshold} className="btn btn-primary" style={{ flex: 1, backgroundColor: "#3A6B7C", color: "#FFFFFF" }}>
-                {editingThreshold ? "Update Threshold" : "Save Threshold"}
-              </button>
+            <div>
+              <label className="label" htmlFor="lower-limit">Lower Limit</label>
+              <input
+                id="lower-limit"
+                type="number"
+                className="input"
+                value={thresholdForm.lower_limit}
+                onChange={(e) => setThresholdForm({ ...thresholdForm, lower_limit: e.target.value })}
+                placeholder="e.g., 10"
+                step="0.01"
+                aria-label="Lower limit value"
+              />
             </div>
           </div>
-        </dialog>
-      )}
+          <div>
+            <label className="label" htmlFor="spike-percentage">Allowed Spike (%)</label>
+            <input
+              id="spike-percentage"
+              type="number"
+              className="input"
+              value={thresholdForm.allowed_spike_percentage}
+              onChange={(e) => setThresholdForm({ ...thresholdForm, allowed_spike_percentage: e.target.value })}
+              placeholder="e.g., 20"
+              step="0.1"
+              aria-label="Allowed spike percentage"
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <input
+              type="checkbox"
+              id="threshold-active"
+              checked={thresholdForm.is_active}
+              onChange={(e) => setThresholdForm({ ...thresholdForm, is_active: e.target.checked })}
+              style={{ width: "18px", height: "18px" }}
+              aria-label="Threshold active"
+            />
+            <label className="label" htmlFor="threshold-active" style={{ margin: 0 }}>
+              Active
+            </label>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-5)" }}>
+          <button
+            type="button"
+            onClick={() => {
+              setShowThresholdModal(false);
+              setEditingThreshold(null);
+            }}
+            className="btn btn-secondary"
+            style={{ flex: 1 }}
+          >
+            Cancel
+          </button>
+          <button type="button" onClick={handleSaveThreshold} className="btn btn-primary" style={{ flex: 1, backgroundColor: "#3A6B7C", color: "#FFFFFF" }}>
+            {editingThreshold ? "Update Threshold" : "Save Threshold"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

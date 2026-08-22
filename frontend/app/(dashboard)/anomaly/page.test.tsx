@@ -20,13 +20,6 @@ beforeAll(() => jest.useFakeTimers());
 afterAll(() => jest.useRealTimers());
 beforeEach(() => jest.clearAllMocks());
 
-const getKpiSection = () => {
-  const kpiContainer = document.querySelector('[style*="grid-template-columns"]');
-  if (kpiContainer) {
-    return kpiContainer as HTMLElement;
-  }
-  return document.body;
-};
 
 const getAnomaliesSection = () => {
   return screen.getByRole("region", { name: /anomalies list/i });
@@ -57,7 +50,7 @@ const findKpiLabel = (labelText: string) => {
   return null;
 };
 
-// Fix: Use the correct IDs without "manager-" prefix
+
 const getBuildingFilter = () =>
   document.getElementById("building-filter") as HTMLSelectElement;
 const getStatusFilter = () =>
@@ -167,29 +160,15 @@ describe("ManagerAnomalyPage", () => {
   });
 
   describe("Reset button", () => {
-    it("resets building filter to all", () => {
+    it.each([
+      { name: "building", getFilter: getBuildingFilter, value: "b1" },
+      { name: "status", getFilter: getStatusFilter, value: "Open" },
+      { name: "severity", getFilter: getSeverityFilter, value: "critical" },
+    ])("resets $name filter to all", ({ getFilter, value }) => {
       render(<ManagerAnomalyPage />);
-      const filter = getBuildingFilter();
+      const filter = getFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "b1" } });
-      fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
-      expect(filter.value).toBe("all");
-    });
-
-    it("resets status filter to all", () => {
-      render(<ManagerAnomalyPage />);
-      const filter = getStatusFilter();
-      expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "Open" } });
-      fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
-      expect(filter.value).toBe("all");
-    });
-
-    it("resets severity filter to all", () => {
-      render(<ManagerAnomalyPage />);
-      const filter = getSeverityFilter();
-      expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "critical" } });
+      fireEvent.change(filter, { target: { value } });
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
       expect(filter.value).toBe("all");
     });
@@ -470,28 +449,15 @@ describe("ManagerAnomalyPage", () => {
       expect(screen.getByRole("heading", { name: /configure alert threshold/i })).toBeInTheDocument();
     });
 
-    it("threshold modal has building select", () => {
+    it.each([
+      { label: "building select", id: "threshold-building" },
+      { label: "upper limit input", id: "upper-limit" },
+      { label: "lower limit input", id: "lower-limit" },
+      { label: "spike percentage input", id: "spike-percentage" },
+    ])("threshold modal has $label", ({ id }) => {
       render(<ManagerAnomalyPage />);
       fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
-      expect(document.getElementById("threshold-building")).toBeInTheDocument();
-    });
-
-    it("threshold modal has upper limit input", () => {
-      render(<ManagerAnomalyPage />);
-      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
-      expect(document.getElementById("upper-limit")).toBeInTheDocument();
-    });
-
-    it("threshold modal has lower limit input", () => {
-      render(<ManagerAnomalyPage />);
-      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
-      expect(document.getElementById("lower-limit")).toBeInTheDocument();
-    });
-
-    it("threshold modal has spike percentage input", () => {
-      render(<ManagerAnomalyPage />);
-      fireEvent.click(screen.getByRole("button", { name: /configure threshold/i }));
-      expect(document.getElementById("spike-percentage")).toBeInTheDocument();
+      expect(document.getElementById(id)).toBeInTheDocument();
     });
 
     it("threshold modal has Save Threshold button", () => {
@@ -527,30 +493,7 @@ describe("ManagerAnomalyPage", () => {
     });
   });
 
-  // Skip Edit Threshold tests - button doesn't exist in details modal
-  describe.skip("Edit Threshold button", () => {
-    it("opens the edit threshold modal", () => {
-      render(<ManagerAnomalyPage />);
-      fireEvent.click(getTableRow("Sandton HQ"));
-      fireEvent.click(screen.getByRole("button", { name: /edit threshold/i }));
-      expect(screen.getByRole("heading", { name: /edit alert threshold/i })).toBeInTheDocument();
-    });
 
-    it("edit threshold modal has Update Threshold button", () => {
-      render(<ManagerAnomalyPage />);
-      fireEvent.click(getTableRow("Sandton HQ"));
-      fireEvent.click(screen.getByRole("button", { name: /edit threshold/i }));
-      expect(screen.getByRole("button", { name: /update threshold/i })).toBeInTheDocument();
-    });
-
-    it("closes edit threshold modal after updating", () => {
-      render(<ManagerAnomalyPage />);
-      fireEvent.click(getTableRow("Sandton HQ"));
-      fireEvent.click(screen.getByRole("button", { name: /edit threshold/i }));
-      fireEvent.click(screen.getByRole("button", { name: /update threshold/i }));
-      expect(screen.queryByRole("heading", { name: /edit alert threshold/i })).not.toBeInTheDocument();
-    });
-  });
 
   describe("View Historic Alerts button", () => {
     it("opens the historic alerts modal", () => {
