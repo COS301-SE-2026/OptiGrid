@@ -4,9 +4,9 @@ import "@testing-library/jest-dom";
 import ManagerAnomalyPage from "./page";
 
 jest.mock("recharts", () => ({
-  ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
-  ComposedChart: ({ children }: any) => <div>{children}</div>,
-  LineChart: ({ children }: any) => <div>{children}</div>,
+  ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  ComposedChart: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  LineChart: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   Line: () => null,
   XAxis: () => null,
   YAxis: () => null,
@@ -20,6 +20,13 @@ beforeAll(() => jest.useFakeTimers());
 afterAll(() => jest.useRealTimers());
 beforeEach(() => jest.clearAllMocks());
 
+const getKpiSection = () => {
+  const kpiContainer = document.querySelector('[style*="grid-template-columns"]');
+  if (kpiContainer) {
+    return kpiContainer as HTMLElement;
+  }
+  return document.body;
+};
 
 const getAnomaliesSection = () => {
   return screen.getByRole("region", { name: /anomalies list/i });
@@ -32,11 +39,18 @@ const getTableCell = (text: string) => {
     .find((cell) => cell.textContent?.trim() === text);
 };
 
-const getTableRow = (buildingName: string) => {
+const getTableRow = (buildingName: string): HTMLElement => {
   const section = getAnomaliesSection();
   const cells = within(section).getAllByRole("cell");
   const cell = cells.find((c) => c.textContent?.trim() === buildingName);
-  return cell?.closest("tr")!;
+  if (!cell) {
+    throw new Error(`No table cell found with text "${buildingName}"`);
+  }
+  const row = cell.closest("tr");
+  if (!row) {
+    throw new Error(`Cell "${buildingName}" is not inside a <tr>`);
+  }
+  return row as HTMLElement;
 };
 
 const findKpiLabel = (labelText: string) => {
@@ -49,7 +63,6 @@ const findKpiLabel = (labelText: string) => {
   }
   return null;
 };
-
 
 const getBuildingFilter = () =>
   document.getElementById("building-filter") as HTMLSelectElement;
@@ -493,8 +506,8 @@ describe("ManagerAnomalyPage", () => {
     });
   });
 
-
-
+ 
+ 
   describe("View Historic Alerts button", () => {
     it("opens the historic alerts modal", () => {
       render(<ManagerAnomalyPage />);

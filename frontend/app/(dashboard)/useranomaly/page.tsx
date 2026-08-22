@@ -13,6 +13,8 @@ import {
   formatDate,
   formatChartTime,
   useAnomalyChartData,
+  useAnomalyFilters,
+  useHistoricFilterState,
   mockViewerData,
 } from "../../../components/sharedanomaly";
 
@@ -22,51 +24,35 @@ export default function ViewerAnomalyPage() {
   const [anomalies] = useState<Anomaly[]>(mockViewerData.anomalies);
   const [buildings] = useState(mockViewerData.buildings);
   const [historicAnomalies] = useState<Anomaly[]>(mockViewerData.historic);
-  const [selectedBuilding, setSelectedBuilding] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [severityFilter, setSeverityFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showHistoricModal, setShowHistoricModal] = useState<boolean>(false);
-  const [historicFilter, setHistoricFilter] = useState<string>("all");
-  const [historicSearch, setHistoricSearch] = useState<string>("");
   const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("b1");
   const [chartMetric, setChartMetric] = useState<MetricType>("power");
+
+  const {
+    selectedBuilding,
+    statusFilter,
+    severityFilter,
+    searchQuery,
+    setSelectedBuilding,
+    setStatusFilter,
+    setSeverityFilter,
+    setSearchQuery,
+    filteredAnomalies,
+    resetFilters,
+  } = useAnomalyFilters(anomalies);
+
+  const { historicFilter, historicSearch, setHistoricFilter, setHistoricSearch, resetHistoricFilters } =
+    useHistoricFilterState();
 
   const newAnomalies = useMemo(() => {
     return anomalies.filter((a) => a.status === "Open" || a.status === "In_Progress").length;
   }, [anomalies]);
 
-  const filteredAnomalies = useMemo(() => {
-    return anomalies.filter((anomaly) => {
-      const matchesBuilding = selectedBuilding === "all" || anomaly.building_id === selectedBuilding;
-      const matchesStatus = statusFilter === "all" || anomaly.status === statusFilter;
-      const matchesSeverity = severityFilter === "all" || anomaly.severity_level === severityFilter;
-      const matchesSearch =
-        !searchQuery ||
-        anomaly.anomaly_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        anomaly.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        anomaly.building_name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesBuilding && matchesStatus && matchesSeverity && matchesSearch;
-    });
-  }, [anomalies, selectedBuilding, statusFilter, severityFilter, searchQuery]);
-
   const handleViewDetails = (anomaly: Anomaly) => {
     setSelectedAnomaly(anomaly);
     setShowDetailsModal(true);
-  };
-
-  const resetFilters = () => {
-    setSelectedBuilding("all");
-    setStatusFilter("all");
-    setSeverityFilter("all");
-    setSearchQuery("");
-  };
-
-  const resetHistoricFilters = () => {
-    setHistoricFilter("all");
-    setHistoricSearch("");
   };
 
   const totalBuildings = useMemo(() => {
@@ -97,7 +83,7 @@ export default function ViewerAnomalyPage() {
             </div>
           </div>
 
-          <AnalyticsSummary anomalies={anomalies} buildings={buildings} totalBuildings={totalBuildings} />
+          <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} />
 
           <EnergyChart
             chartData={chartData}

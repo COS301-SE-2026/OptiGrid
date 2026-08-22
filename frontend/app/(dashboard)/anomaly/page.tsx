@@ -15,6 +15,8 @@ import {
   formatDate,
   formatChartTime,
   useAnomalyChartData,
+  useAnomalyFilters,
+  useHistoricFilterState,
   parseNumberOrNull,
   mockManagerData,
   mockInitialThresholds,
@@ -29,12 +31,6 @@ interface NotificationPopup {
   timestamp: string;
 }
 
-/**
- * Extracted so the useEffect below doesn't nest a lookup callback inside the
- * filter callback inside the setState updater inside setTimeout — SonarQube
- * flagged the previous inline version for nesting functions more than 5
- * levels deep.
- */
 function isNotificationStillActive(notification: NotificationPopup, anomalies: Anomaly[]): boolean {
   const anomaly = anomalies.find((a) => a.anomaly_id === notification.id);
   return !anomaly || anomaly.severity_level !== "critical" || anomaly.status !== "Open";
@@ -45,10 +41,6 @@ export default function ManagerAnomalyPage() {
   const [, setThresholds] = useState<AlertThreshold[]>(mockInitialThresholds);
   const [buildings] = useState(mockManagerData.buildings);
   const [historicAnomalies] = useState<Anomaly[]>(mockManagerData.historic);
-  const [selectedBuilding, setSelectedBuilding] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [severityFilter, setSeverityFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showResolveModal, setShowResolveModal] = useState<boolean>(false);
@@ -57,8 +49,6 @@ export default function ManagerAnomalyPage() {
   const [showThresholdModal, setShowThresholdModal] = useState<boolean>(false);
   const [editingThreshold, setEditingThreshold] = useState<AlertThreshold | null>(null);
   const [notifications, setNotifications] = useState<NotificationPopup[]>([]);
-  const [historicFilter, setHistoricFilter] = useState<string>("all");
-  const [historicSearch, setHistoricSearch] = useState<string>("");
   const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("b1");
   const [chartMetric, setChartMetric] = useState<MetricType>("power");
 
@@ -73,6 +63,22 @@ export default function ManagerAnomalyPage() {
     is_active: true,
   };
   const [thresholdForm, setThresholdForm] = useState(emptyThresholdForm);
+
+  const {
+    selectedBuilding,
+    statusFilter,
+    severityFilter,
+    searchQuery,
+    setSelectedBuilding,
+    setStatusFilter,
+    setSeverityFilter,
+    setSearchQuery,
+    filteredAnomalies,
+    resetFilters,
+  } = useAnomalyFilters(anomalies);
+
+  const { historicFilter, historicSearch, setHistoricFilter, setHistoricSearch, resetHistoricFilters } =
+    useHistoricFilterState();
 
   useEffect(() => {
     const criticalOpen = anomalies.filter((a) => a.severity_level === "critical" && a.status === "Open");
@@ -91,20 +97,6 @@ export default function ManagerAnomalyPage() {
 
     return () => clearTimeout(timer);
   }, [anomalies]);
-
-  const filteredAnomalies = useMemo(() => {
-    return anomalies.filter((anomaly) => {
-      const matchesBuilding = selectedBuilding === "all" || anomaly.building_id === selectedBuilding;
-      const matchesStatus = statusFilter === "all" || anomaly.status === statusFilter;
-      const matchesSeverity = severityFilter === "all" || anomaly.severity_level === severityFilter;
-      const matchesSearch =
-        !searchQuery ||
-        anomaly.anomaly_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        anomaly.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        anomaly.building_name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesBuilding && matchesStatus && matchesSeverity && matchesSearch;
-    });
-  }, [anomalies, selectedBuilding, statusFilter, severityFilter, searchQuery]);
 
   const combinedHistoric = useMemo(
     () => [...historicAnomalies, ...anomalies.filter((a) => a.status === "Resolved" || a.status === "Ignored")],
@@ -152,18 +144,6 @@ export default function ManagerAnomalyPage() {
     }
     setShowIgnoreModal(false);
     setSelectedAnomaly(null);
-  };
-
-  const resetFilters = () => {
-    setSelectedBuilding("all");
-    setStatusFilter("all");
-    setSeverityFilter("all");
-    setSearchQuery("");
-  };
-
-  const resetHistoricFilters = () => {
-    setHistoricFilter("all");
-    setHistoricSearch("");
   };
 
   const handleSaveThreshold = () => {
@@ -269,7 +249,7 @@ export default function ManagerAnomalyPage() {
             </div>
           </div>
 
-          <AnalyticsSummary anomalies={anomalies} buildings={buildings} totalBuildings={totalBuildings} />
+          <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} />
 
           <EnergyChart
             chartData={chartData}

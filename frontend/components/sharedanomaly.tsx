@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useMemo, type MouseEvent } from "react";
+import { ReactNode, useMemo, useState, type MouseEvent } from "react";
 import {
   Line,
   XAxis,
@@ -167,11 +167,9 @@ export function NotificationBadge({ count }: Readonly<{ count: number }>) {
 
 export function AnalyticsSummary({ 
   anomalies, 
-  buildings, 
   totalBuildings 
 }: Readonly<{
   anomalies: Anomaly[]; 
-  buildings: Building[]; 
   totalBuildings: number;
 }>) {
   const openAnomalies = anomalies.filter((a) => a.status === "Open" || a.status === "In_Progress");
@@ -587,7 +585,7 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
                 strokeDasharray="3 3"
                 strokeWidth={1}
                 label={{
-                  value: "⚠",
+                  
                   position: "top",
                   fill: "#8B1E3F",
                   fontSize: 14,
@@ -1094,13 +1092,67 @@ export function useAnomalyChartData(
   return { chartData, anomalyPoints };
 }
 
+
+export function useAnomalyFilters(anomalies: Anomaly[]) {
+  const [selectedBuilding, setSelectedBuilding] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const filteredAnomalies = useMemo(() => {
+    return anomalies.filter((anomaly) => {
+      const matchesBuilding = selectedBuilding === "all" || anomaly.building_id === selectedBuilding;
+      const matchesStatus = statusFilter === "all" || anomaly.status === statusFilter;
+      const matchesSeverity = severityFilter === "all" || anomaly.severity_level === severityFilter;
+      const matchesSearch =
+        !searchQuery ||
+        anomaly.anomaly_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        anomaly.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        anomaly.building_name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesBuilding && matchesStatus && matchesSeverity && matchesSearch;
+    });
+  }, [anomalies, selectedBuilding, statusFilter, severityFilter, searchQuery]);
+
+  const resetFilters = () => {
+    setSelectedBuilding("all");
+    setStatusFilter("all");
+    setSeverityFilter("all");
+    setSearchQuery("");
+  };
+
+  return {
+    selectedBuilding,
+    statusFilter,
+    severityFilter,
+    searchQuery,
+    setSelectedBuilding,
+    setStatusFilter,
+    setSeverityFilter,
+    setSearchQuery,
+    filteredAnomalies,
+    resetFilters,
+  };
+}
+
+export function useHistoricFilterState() {
+  const [historicFilter, setHistoricFilter] = useState<string>("all");
+  const [historicSearch, setHistoricSearch] = useState<string>("");
+
+  const resetHistoricFilters = () => {
+    setHistoricFilter("all");
+    setHistoricSearch("");
+  };
+
+  return { historicFilter, historicSearch, setHistoricFilter, setHistoricSearch, resetHistoricFilters };
+}
+
 interface AnomalyDetailsModalProps {
   anomaly: Anomaly | null;
   open: boolean;
   onClose: () => void;
 }
 
-/** Read-only anomaly details modal. */
+
 export function AnomalyDetailsModal({ anomaly, open, onClose }: Readonly<AnomalyDetailsModalProps>) {
   if (!open || !anomaly) return null;
 
