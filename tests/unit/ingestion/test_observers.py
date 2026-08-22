@@ -10,6 +10,11 @@ class MockObserver(Observer):
     def update(self, payload: dict):
         self.payloads.append(payload)
 
+
+class FailingObserver(Observer):
+    def update(self, payload: dict):
+        raise RuntimeError("Observer failed")
+
 class TestObservers(unittest.TestCase):
     def test_telemetry_subject_attach_detach_notify(self):
         subject = TelemetrySubject()
@@ -37,6 +42,24 @@ class TestObservers(unittest.TestCase):
         self.assertEqual(len(obs1.payloads), 1)  # obs1 should not receive new payload
         self.assertEqual(len(obs2.payloads), 2)
         self.assertEqual(obs2.payloads[1], payload2)
+
+    def test_telemetry_subject_reports_observer_failure_and_continues(self):
+        failure_handler = MagicMock()
+        subject = TelemetrySubject(failure_handler=failure_handler)
+        failing_observer = FailingObserver()
+        healthy_observer = MockObserver()
+        subject.attach(failing_observer)
+        subject.attach(healthy_observer)
+        payload = {"building_id": "building-001", "sensor_id": "sensor-001"}
+
+        subject.notify(payload)
+
+        failure_handler.assert_called_once()
+        observer, reported_payload, error = failure_handler.call_args.args
+        self.assertIs(observer, failing_observer)
+        self.assertEqual(reported_payload, payload)
+        self.assertIsInstance(error, RuntimeError)
+        self.assertEqual(healthy_observer.payloads, [payload])
 
     def test_influx_storage_observer(self):
         mock_write_api = MagicMock()
