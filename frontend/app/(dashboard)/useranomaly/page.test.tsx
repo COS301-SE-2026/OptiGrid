@@ -4,9 +4,11 @@ import "@testing-library/jest-dom";
 import ViewerAnomalyPage from "./page";
 
 jest.mock("recharts", () => ({
-  ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
-  ComposedChart: ({ children }: any) => <div>{children}</div>,
-  LineChart: ({ children }: any) => <div>{children}</div>,
+  
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+ComposedChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+LineChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+
   Line: () => null,
   XAxis: () => null,
   YAxis: () => null,
@@ -31,7 +33,18 @@ const getTableRow = (buildingName: string) => {
   const section = getAnomaliesSection();
   const cells = within(section).getAllByRole("cell");
   const cell = cells.find((c) => c.textContent?.trim() === buildingName);
-  return cell?.closest("tr")!;
+  if (!cell) {
+  throw new Error(`Could not find table cell for building: ${buildingName}`);
+}
+
+const row = cell.closest("tr");
+
+if (!row) {
+  throw new Error(`Could not find table row for building: ${buildingName}`);
+}
+
+return row;
+
 };
 
 const getHistoricModal = () => {
