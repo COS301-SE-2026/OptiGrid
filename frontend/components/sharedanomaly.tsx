@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
 import {
   Line,
   XAxis,
@@ -339,7 +339,7 @@ const handleRowKeyDown = (e: React.KeyboardEvent, anomaly: Anomaly, onRowClick: 
 };
 
 export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
-  const { anomalies, onRowClick, formatDate, actions } = props;
+  const { anomalies, onRowClick, formatDate: formatDateProp, actions } = props;
   const hasActions = anomalies.some(a => a.status !== "Resolved" && a.status !== "Ignored");
   const colSpan = hasActions ? 8 : 7;
 
@@ -417,7 +417,7 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
                   </td>
                   <td>{anomaly.description}</td>
                   <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                    {formatDate(anomaly.detected_timestamp)}
+                    {formatDateProp(anomaly.detected_timestamp)}
                   </td>
                   {hasActions && (
                     <td>
@@ -459,7 +459,7 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
     chartMetric,
     onBuildingChange,
     onMetricChange,
-    formatChartTime,
+    formatChartTime: formatChartTimeProp,
   } = props;
 
   const getDataKey = () => chartMetric === "power" ? "actual" : "cost";
@@ -510,7 +510,7 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--brand-border)" />
             <XAxis
               dataKey="timestamp"
-              tickFormatter={formatChartTime}
+              tickFormatter={formatChartTimeProp}
               tick={{ fill: "var(--brand-ink-muted)", fontSize: 10 }}
               axisLine={false}
               tickLine={false}
@@ -1017,6 +1017,329 @@ export function Modal({
     >
       <div className="modal" style={{ maxWidth, width: "100%" }}>
         {children}
+      </div>
+    </dialog>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared formatting + chart-data helpers                                     */
+/* Previously redefined identically in the manager and viewer anomaly pages.  */
+/* -------------------------------------------------------------------------- */
+
+export function formatDate(date: string) {
+  return new Date(date).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function formatChartTime(timestamp: string) {
+  return new Date(timestamp).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * Builds the chart series + anomaly markers for a single building.
+ * Shared by the manager and viewer anomaly pages (previously duplicated).
+ */
+export function useAnomalyChartData(
+  anomalies: Anomaly[],
+  selectedBuildingForChart: string,
+  chartMetric: MetricType,
+  consumptionData: typeof mockConsumptionData = mockConsumptionData
+) {
+  const chartData = useMemo(() => {
+    const buildingId = selectedBuildingForChart !== "all" ? selectedBuildingForChart : "b1";
+    const buildingAnomalies = anomalies.filter((a) => a.building_id === buildingId);
+    const anomalyTimestamps = new Set(
+      buildingAnomalies.map(
+        (a) => a.detected_timestamp.split("T")[0] + "T" + a.detected_timestamp.split("T")[1].slice(0, 8)
+      )
+    );
+
+    return consumptionData.map((point) => {
+      const isAnomaly = anomalyTimestamps.has(point.timestamp.slice(0, 16) + "Z");
+      return {
+        ...point,
+        isAnomaly: isAnomaly || point.isAnomaly,
+      };
+    });
+  }, [consumptionData, selectedBuildingForChart, anomalies]);
+
+  const anomalyPoints = useMemo(() => {
+    return chartData
+      .filter((point) => point.isAnomaly)
+      .map((point) => ({
+        x: point.timestamp,
+        y: chartMetric === "power" ? point.actual : point.cost,
+      }));
+  }, [chartData, chartMetric]);
+
+  return { chartData, anomalyPoints };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared modals                                                              */
+/* Previously duplicated (near-)identically in the manager and viewer pages. */
+/* -------------------------------------------------------------------------- */
+
+interface AnomalyDetailsModalProps {
+  anomaly: Anomaly | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+/** Read-only anomaly details modal. */
+export function AnomalyDetailsModal({ anomaly, open, onClose }: Readonly<AnomalyDetailsModalProps>) {
+  if (!open || !anomaly) return null;
+
+  return (
+    <Modal open={open} onClose={onClose} maxWidth="600px">
+      <h2 style={{ marginBottom: "var(--space-3)" }}>Anomaly Details</h2>
+
+      <div style={{ display: "grid", gap: "var(--space-3)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+          <div>
+            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Building</p>
+            <p style={{ fontWeight: "var(--fw-semibold)" }}>{anomaly.building_name}</p>
+          </div>
+          <div>
+            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Type</p>
+            <p style={{ fontWeight: "var(--fw-semibold)" }}>{anomaly.anomaly_type.replace(/_/g, " ")}</p>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+          <div>
+            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Severity</p>
+            <SeverityBadge severity={anomaly.severity_level} />
+          </div>
+          <div>
+            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Status</p>
+            <StatusBadge status={anomaly.status} />
+          </div>
+        </div>
+
+        <div>
+          <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Description</p>
+          <p>{anomaly.description}</p>
+        </div>
+
+        {anomaly.threshold_details && (
+          <div>
+            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Threshold Details</p>
+            <div style={{ fontSize: "var(--fs-small)" }}>
+              <p><strong>Metric:</strong> {anomaly.threshold_details.metric_type}</p>
+              <p><strong>Unit:</strong> {anomaly.threshold_details.unit}</p>
+              {anomaly.threshold_details.upper_limit !== null && (
+                <p>
+                  <strong>Upper Limit:</strong> {anomaly.threshold_details.upper_limit}{" "}
+                  {anomaly.threshold_details.unit}
+                </p>
+              )}
+              {anomaly.threshold_details.lower_limit !== null && (
+                <p>
+                  <strong>Lower Limit:</strong> {anomaly.threshold_details.lower_limit}{" "}
+                  {anomaly.threshold_details.unit}
+                </p>
+              )}
+              {anomaly.threshold_details.allowed_spike_percentage !== null && (
+                <p><strong>Allowed Spike:</strong> {anomaly.threshold_details.allowed_spike_percentage}%</p>
+              )}
+              <p>
+                <strong>Status:</strong>{" "}
+                <span
+                  className="badge"
+                  style={{
+                    backgroundColor: anomaly.threshold_details.is_active ? "#2F7D5D" : "#7A7A7A",
+                    color: "#FFFFFF",
+                    padding: "var(--space-1) var(--space-2)",
+                    borderRadius: "var(--radius-pill)",
+                    fontSize: "var(--fs-small)",
+                    fontWeight: "var(--fw-medium)",
+                  }}
+                >
+                  {anomaly.threshold_details.is_active ? "Active" : "Inactive"}
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+          <div>
+            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Detected</p>
+            <p>{formatDate(anomaly.detected_timestamp)}</p>
+          </div>
+          {anomaly.resolved_timestamp && (
+            <div>
+              <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Resolved</p>
+              <p>{formatDate(anomaly.resolved_timestamp)}</p>
+              {anomaly.resolved_by && (
+                <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>By: {anomaly.resolved_by}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
+        <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>
+          Close
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+interface HistoricAlertsModalProps {
+  open: boolean;
+  onClose: () => void;
+  anomalies: Anomaly[];
+  statusFilter: string;
+  searchQuery: string;
+  onStatusFilterChange: (value: string) => void;
+  onSearchChange: (value: string) => void;
+  onReset: () => void;
+  /** Unique id prefix so form field ids don't collide when both roles render in the same DOM/tests. */
+  idPrefix: string;
+}
+
+/** Historic alerts table modal. */
+export function HistoricAlertsModal({
+  open,
+  onClose,
+  anomalies,
+  statusFilter,
+  searchQuery,
+  onStatusFilterChange,
+  onSearchChange,
+  onReset,
+  idPrefix,
+}: Readonly<HistoricAlertsModalProps>) {
+  if (!open) return null;
+
+  const filtered = anomalies.filter((anomaly) => {
+    const matchesStatus = statusFilter === "all" || anomaly.status === statusFilter;
+    const matchesSearch =
+      !searchQuery ||
+      anomaly.anomaly_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      anomaly.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      anomaly.building_name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  return (
+    <dialog
+      className="modal-overlay"
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "var(--space-4)",
+        zIndex: 50,
+        border: "none",
+        backgroundColor: "transparent",
+        width: "100%",
+        height: "100%",
+      }}
+      open={open}
+      onClose={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <div className="modal" style={{ maxWidth: "800px", width: "100%" }}>
+        <h2 style={{ marginBottom: "var(--space-3)" }}>Historic Alerts</h2>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <label className="label" htmlFor={`${idPrefix}-status`}>Status:</label>
+            <select
+              id={`${idPrefix}-status`}
+              value={statusFilter}
+              onChange={(e) => onStatusFilterChange(e.target.value)}
+              className="select"
+              style={{ minWidth: "120px" }}
+            >
+              <option value="all">All</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Ignored">Ignored</option>
+            </select>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: 1 }}>
+            <label className="label" htmlFor={`${idPrefix}-search`}>Search:</label>
+            <input
+              id={`${idPrefix}-search`}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search historic alerts..."
+              className="input"
+              style={{ flex: 1 }}
+            />
+          </div>
+          <button type="button" onClick={onReset} className="btn btn-secondary">
+            Reset
+          </button>
+        </div>
+        <div style={{ maxHeight: "400px", overflow: "auto" }}>
+          <table className="dashboard-table">
+            <thead>
+              <tr>
+                <th scope="col">Building</th>
+                <th scope="col">Type</th>
+                <th scope="col">Severity</th>
+                <th scope="col">Status</th>
+                <th scope="col">Detected</th>
+                <th scope="col">Resolved</th>
+                <th scope="col">Resolved By</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="dashboard-empty">
+                    No historic alerts found
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((anomaly) => (
+                  <tr key={anomaly.anomaly_id}>
+                    <td style={{ fontWeight: "var(--fw-semibold)" }}>{anomaly.building_name}</td>
+                    <td>{anomaly.anomaly_type.replace(/_/g, " ")}</td>
+                    <td><SeverityBadge severity={anomaly.severity_level} /></td>
+                    <td><StatusBadge status={anomaly.status} /></td>
+                    <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                      {formatDate(anomaly.detected_timestamp)}
+                    </td>
+                    <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                      {anomaly.resolved_timestamp ? formatDate(anomaly.resolved_timestamp) : "-"}
+                    </td>
+                    <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                      {anomaly.resolved_by || "-"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
+          <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>
+            Close
+          </button>
+        </div>
       </div>
     </dialog>
   );

@@ -8,11 +8,11 @@ import {
   AnalyticsSummary,
   EnergyChart,
   FilterBar,
-  Modal,
-  
-  StatusBadge,
-  SeverityBadge,
-  mockConsumptionData,
+  AnomalyDetailsModal,
+  HistoricAlertsModal,
+  formatDate,
+  formatChartTime,
+  useAnomalyChartData,
   mockManagerData,
   mockInitialThresholds,
 } from "../../../components/sharedanomaly";
@@ -48,7 +48,7 @@ export default function ManagerAnomalyPage() {
   const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("b1");
   const [chartMetric, setChartMetric] = useState<MetricType>("power");
 
-  const [thresholdForm, setThresholdForm] = useState({
+  const emptyThresholdForm = {
     threshold_id: "",
     building_id: "",
     metric_type: "power",
@@ -57,11 +57,12 @@ export default function ManagerAnomalyPage() {
     lower_limit: "",
     allowed_spike_percentage: "",
     is_active: true,
-  });
+  };
+  const [thresholdForm, setThresholdForm] = useState(emptyThresholdForm);
 
   useEffect(() => {
-    const criticalOpen = anomalies.filter(a => a.severity_level === "critical" && a.status === "Open");
-    const newNotifications = criticalOpen.map(anomaly => ({
+    const criticalOpen = anomalies.filter((a) => a.severity_level === "critical" && a.status === "Open");
+    const newNotifications = criticalOpen.map((anomaly) => ({
       id: anomaly.anomaly_id,
       message: anomaly.description,
       building: anomaly.building_name,
@@ -70,9 +71,11 @@ export default function ManagerAnomalyPage() {
     setNotifications(newNotifications);
 
     const timer = setTimeout(() => {
-      setNotifications(prev => prev.filter(n => 
-        anomalies.some(a => a.anomaly_id === n.id && (a.severity_level !== "critical" || a.status !== "Open"))
-      ));
+      setNotifications((prev) =>
+        prev.filter((n) =>
+          anomalies.some((a) => a.anomaly_id === n.id && (a.severity_level !== "critical" || a.status !== "Open"))
+        )
+      );
     }, 10000);
 
     return () => clearTimeout(timer);
@@ -83,7 +86,8 @@ export default function ManagerAnomalyPage() {
       const matchesBuilding = selectedBuilding === "all" || anomaly.building_id === selectedBuilding;
       const matchesStatus = statusFilter === "all" || anomaly.status === statusFilter;
       const matchesSeverity = severityFilter === "all" || anomaly.severity_level === severityFilter;
-      const matchesSearch = !searchQuery ||
+      const matchesSearch =
+        !searchQuery ||
         anomaly.anomaly_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
         anomaly.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         anomaly.building_name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -91,34 +95,10 @@ export default function ManagerAnomalyPage() {
     });
   }, [anomalies, selectedBuilding, statusFilter, severityFilter, searchQuery]);
 
-  const filteredHistoric = useMemo(() => {
-    const allHistoric = [...historicAnomalies, ...anomalies.filter(a => a.status === "Resolved" || a.status === "Ignored")];
-    return allHistoric.filter((anomaly) => {
-      const matchesStatus = historicFilter === "all" || anomaly.status === historicFilter;
-      const matchesSearch = !historicSearch ||
-        anomaly.anomaly_type.toLowerCase().includes(historicSearch.toLowerCase()) ||
-        anomaly.description.toLowerCase().includes(historicSearch.toLowerCase()) ||
-        anomaly.building_name.toLowerCase().includes(historicSearch.toLowerCase());
-      return matchesStatus && matchesSearch;
-    });
-  }, [anomalies, historicAnomalies, historicFilter, historicSearch]);
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const formatChartTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const combinedHistoric = useMemo(
+    () => [...historicAnomalies, ...anomalies.filter((a) => a.status === "Resolved" || a.status === "Ignored")],
+    [anomalies, historicAnomalies]
+  );
 
   const handleViewDetails = (anomaly: Anomaly) => {
     setSelectedAnomaly(anomaly);
@@ -137,16 +117,13 @@ export default function ManagerAnomalyPage() {
 
   const confirmResolve = () => {
     if (selectedAnomaly) {
-      setAnomalies(prev => prev.map(a =>
-        a.anomaly_id === selectedAnomaly.anomaly_id
-          ? {
-              ...a,
-              status: "Resolved",
-              resolved_timestamp: new Date().toISOString(),
-              resolved_by: "Tali Seaba",
-            }
-          : a
-      ));
+      setAnomalies((prev) =>
+        prev.map((a) =>
+          a.anomaly_id === selectedAnomaly.anomaly_id
+            ? { ...a, status: "Resolved", resolved_timestamp: new Date().toISOString(), resolved_by: "Tali Seaba" }
+            : a
+        )
+      );
     }
     setShowResolveModal(false);
     setSelectedAnomaly(null);
@@ -154,16 +131,13 @@ export default function ManagerAnomalyPage() {
 
   const confirmIgnore = () => {
     if (selectedAnomaly) {
-      setAnomalies(prev => prev.map(a =>
-        a.anomaly_id === selectedAnomaly.anomaly_id
-          ? {
-              ...a,
-              status: "Ignored",
-              resolved_timestamp: new Date().toISOString(),
-              resolved_by: "Tali Seaba",
-            }
-          : a
-      ));
+      setAnomalies((prev) =>
+        prev.map((a) =>
+          a.anomaly_id === selectedAnomaly.anomaly_id
+            ? { ...a, status: "Ignored", resolved_timestamp: new Date().toISOString(), resolved_by: "Tali Seaba" }
+            : a
+        )
+      );
     }
     setShowIgnoreModal(false);
     setSelectedAnomaly(null);
@@ -181,100 +155,49 @@ export default function ManagerAnomalyPage() {
     setHistoricSearch("");
   };
 
-  const handleEditThresholdInDetails = (anomaly: Anomaly) => {
-    if (anomaly.threshold_details) {
-      setEditingThreshold({
-        threshold_id: anomaly.threshold_details.threshold_id || "",
-        building_id: anomaly.building_id,
-        building_name: anomaly.building_name,
-        metric_type: anomaly.threshold_details.metric_type,
-        unit: anomaly.threshold_details.unit,
-        upper_limit: anomaly.threshold_details.upper_limit,
-        lower_limit: anomaly.threshold_details.lower_limit,
-        allowed_spike_percentage: anomaly.threshold_details.allowed_spike_percentage,
-        is_active: anomaly.threshold_details.is_active,
-      });
-      setThresholdForm({
-        threshold_id: anomaly.threshold_details.threshold_id || "",
-        building_id: anomaly.building_id,
-        metric_type: anomaly.threshold_details.metric_type,
-        unit: anomaly.threshold_details.unit,
-        upper_limit: anomaly.threshold_details.upper_limit?.toString() || "",
-        lower_limit: anomaly.threshold_details.lower_limit?.toString() || "",
-        allowed_spike_percentage: anomaly.threshold_details.allowed_spike_percentage?.toString() || "",
-        is_active: anomaly.threshold_details.is_active,
-      });
-      setShowThresholdModal(true);
-    }
-  };
-
   const handleSaveThreshold = () => {
     if (editingThreshold) {
-      setThresholds(prev => prev.map(t =>
-        t.threshold_id === editingThreshold.threshold_id
-          ? {
-              ...t,
-              upper_limit: Number.parseFloat(thresholdForm.upper_limit) || null,
-              lower_limit: Number.parseFloat(thresholdForm.lower_limit) || null,
-              allowed_spike_percentage: Number.parseFloat(thresholdForm.allowed_spike_percentage) || null,
-              is_active: thresholdForm.is_active,
-            }
-          : t
-      ));
-      
-      setAnomalies(prev => prev.map(a =>
-        a.building_id === editingThreshold.building_id
-          ? {
-              ...a,
-              threshold_details: {
-                ...a.threshold_details,
-                upper_limit: Number.parseFloat(thresholdForm.upper_limit) || null,
-                lower_limit: Number.parseFloat(thresholdForm.lower_limit) || null,
-                allowed_spike_percentage: Number.parseFloat(thresholdForm.allowed_spike_percentage) || null,
-                is_active: thresholdForm.is_active,
-              },
-            }
-          : a
-      ));
+      const parsedUpper = Number.parseFloat(thresholdForm.upper_limit) || null;
+      const parsedLower = Number.parseFloat(thresholdForm.lower_limit) || null;
+      const parsedSpike = Number.parseFloat(thresholdForm.allowed_spike_percentage) || null;
+
+      setThresholds((prev) =>
+        prev.map((t) =>
+          t.threshold_id === editingThreshold.threshold_id
+            ? { ...t, upper_limit: parsedUpper, lower_limit: parsedLower, allowed_spike_percentage: parsedSpike, is_active: thresholdForm.is_active }
+            : t
+        )
+      );
+
+      setAnomalies((prev) =>
+        prev.map((a) =>
+          a.building_id === editingThreshold.building_id
+            ? {
+                ...a,
+                threshold_details: {
+                  ...a.threshold_details,
+                  upper_limit: parsedUpper,
+                  lower_limit: parsedLower,
+                  allowed_spike_percentage: parsedSpike,
+                  is_active: thresholdForm.is_active,
+                },
+              }
+            : a
+        )
+      );
     }
     setShowThresholdModal(false);
     setEditingThreshold(null);
-    setThresholdForm({
-      threshold_id: "",
-      building_id: "",
-      metric_type: "power",
-      unit: "kW",
-      upper_limit: "",
-      lower_limit: "",
-      allowed_spike_percentage: "",
-      is_active: true,
-    });
+    setThresholdForm(emptyThresholdForm);
   };
 
-  const totalBuildings = useMemo(() => {
-    return buildings.length;
-  }, [buildings]);
+  const totalBuildings = useMemo(() => buildings.length, [buildings]);
 
-  const chartData = useMemo(() => {
-    const buildingId = selectedBuildingForChart !== "all" ? selectedBuildingForChart : "b1";
-    const buildingAnomalies = anomalies.filter(a => a.building_id === buildingId);
-    const anomalyTimestamps = new Set(buildingAnomalies.map(a => a.detected_timestamp.split("T")[0] + "T" + a.detected_timestamp.split("T")[1].slice(0, 8)));
-
-    return mockConsumptionData.map(point => {
-      const isAnomaly = anomalyTimestamps.has(point.timestamp.slice(0, 16) + "Z");
-      return {
-        ...point,
-        isAnomaly: isAnomaly || point.isAnomaly,
-      };
-    });
-  }, [selectedBuildingForChart, anomalies]);
-
-  const anomalyPoints = useMemo(() => {
-    return chartData.filter(point => point.isAnomaly).map(point => ({
-      x: point.timestamp,
-      y: chartMetric === "power" ? point.actual : point.cost,
-    }));
-  }, [chartData, chartMetric]);
+  const { chartData, anomalyPoints } = useAnomalyChartData(
+    anomalies,
+    selectedBuildingForChart,
+    chartMetric
+  );
 
   const renderActions = (anomaly: Anomaly) => {
     if (anomaly.status === "Resolved" || anomaly.status === "Ignored") {
@@ -291,12 +214,7 @@ export default function ManagerAnomalyPage() {
           type="button"
           onClick={() => handleResolve(anomaly)}
           className="btn"
-          style={{
-            fontSize: "var(--fs-small)",
-            padding: "var(--space-1) var(--space-3)",
-            backgroundColor: "#2F7D5D",
-            color: "#FFFFFF",
-          }}
+          style={{ fontSize: "var(--fs-small)", padding: "var(--space-1) var(--space-3)", backgroundColor: "#2F7D5D", color: "#FFFFFF" }}
         >
           Resolve
         </button>
@@ -304,12 +222,7 @@ export default function ManagerAnomalyPage() {
           type="button"
           onClick={() => handleIgnore(anomaly)}
           className="btn"
-          style={{
-            fontSize: "var(--fs-small)",
-            padding: "var(--space-1) var(--space-3)",
-            backgroundColor: "#7A7A7A",
-            color: "#FFFFFF",
-          }}
+          style={{ fontSize: "var(--fs-small)", padding: "var(--space-1) var(--space-3)", backgroundColor: "#7A7A7A", color: "#FFFFFF" }}
         >
           Ignore
         </button>
@@ -331,41 +244,21 @@ export default function ManagerAnomalyPage() {
                 type="button"
                 onClick={() => {
                   setEditingThreshold(null);
-                  setThresholdForm({
-                    threshold_id: "",
-                    building_id: "",
-                    metric_type: "power",
-                    unit: "kW",
-                    upper_limit: "",
-                    lower_limit: "",
-                    allowed_spike_percentage: "",
-                    is_active: true,
-                  });
+                  setThresholdForm(emptyThresholdForm);
                   setShowThresholdModal(true);
                 }}
                 className="btn btn-primary"
-                style={{
-                  backgroundColor: "#3A6B7C",
-                  color: "#FFFFFF",
-                }}
+                style={{ backgroundColor: "#3A6B7C", color: "#FFFFFF" }}
               >
                 Configure Threshold
               </button>
-              <button
-                type="button"
-                onClick={() => setShowHistoricModal(true)}
-                className="btn btn-secondary"
-              >
+              <button type="button" onClick={() => setShowHistoricModal(true)} className="btn btn-secondary">
                 View Historic Alerts
               </button>
             </div>
           </div>
 
-          <AnalyticsSummary
-            anomalies={anomalies}
-            buildings={buildings}
-            totalBuildings={totalBuildings}
-          />
+          <AnalyticsSummary anomalies={anomalies} buildings={buildings} totalBuildings={totalBuildings} />
 
           <EnergyChart
             chartData={chartData}
@@ -396,12 +289,7 @@ export default function ManagerAnomalyPage() {
             <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
               Current Anomalies
             </h2>
-            <AnomaliesTable
-              anomalies={filteredAnomalies}
-              onRowClick={handleViewDetails}
-              formatDate={formatDate}
-              actions={renderActions}
-            />
+            <AnomaliesTable anomalies={filteredAnomalies} onRowClick={handleViewDetails} formatDate={formatDate} actions={renderActions} />
           </section>
         </main>
       </div>
@@ -449,24 +337,14 @@ export default function ManagerAnomalyPage() {
                     >
                       Critical
                     </span>
-                    <span style={{ fontWeight: "var(--fw-semibold)" }}>
-                      {notification.building}
-                    </span>
+                    <span style={{ fontWeight: "var(--fw-semibold)" }}>{notification.building}</span>
                   </div>
-                  <p style={{ marginTop: "var(--space-1)", fontSize: "var(--fs-body)" }}>
-                    {notification.message}
-                  </p>
+                  <p style={{ marginTop: "var(--space-1)", fontSize: "var(--fs-body)" }}>{notification.message}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--brand-ink-muted)",
-                    cursor: "pointer",
-                    fontSize: "1.2rem",
-                  }}
+                  onClick={() => setNotifications((prev) => prev.filter((n) => n.id !== notification.id))}
+                  style={{ background: "none", border: "none", color: "var(--brand-ink-muted)", cursor: "pointer", fontSize: "1.2rem" }}
                   aria-label="Dismiss notification"
                 >
                   ×
@@ -493,366 +371,31 @@ export default function ManagerAnomalyPage() {
         }
       `}</style>
 
-      {showDetailsModal && selectedAnomaly && (
-       <Modal
-          open={showDetailsModal}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedAnomaly(null);
-          }}
-          maxWidth="600px"
-        >
-          <h2 style={{ marginBottom: "var(--space-3)" }}>
-            Anomaly Details
-          </h2>
+      <AnomalyDetailsModal
+        anomaly={selectedAnomaly}
+        open={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedAnomaly(null);
+        }}
+      />
 
-          <div style={{ display: "grid", gap: "var(--space-3)" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "var(--space-3)",
-              }}
-            >
-              <div>
-                <p
-                  className="text-muted"
-                  style={{ fontSize: "var(--fs-small)" }}
-                >
-                  Building
-                </p>
-                <p style={{ fontWeight: "var(--fw-semibold)" }}>
-                  {selectedAnomaly.building_name}
-                </p>
-              </div>
-
-              <div>
-                <p
-                  className="text-muted"
-                  style={{ fontSize: "var(--fs-small)" }}
-                >
-                  Type
-                </p>
-                <p style={{ fontWeight: "var(--fw-semibold)" }}>
-                  {selectedAnomaly.anomaly_type.replace(/_/g, " ")}
-                </p>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "var(--space-3)",
-              }}
-            >
-              <div>
-                <p
-                  className="text-muted"
-                  style={{ fontSize: "var(--fs-small)" }}
-                >
-                  Severity
-                </p>
-                <SeverityBadge
-                  severity={selectedAnomaly.severity_level}
-                />
-              </div>
-
-              <div>
-                <p
-                  className="text-muted"
-                  style={{ fontSize: "var(--fs-small)" }}
-                >
-                  Status
-                </p>
-                <StatusBadge status={selectedAnomaly.status} />
-              </div>
-            </div>
-
-            <div>
-              <p
-                className="text-muted"
-                style={{ fontSize: "var(--fs-small)" }}
-              >
-                Description
-              </p>
-              <p>{selectedAnomaly.description}</p>
-            </div>
-
-            {selectedAnomaly.threshold_details && (
-              <div>
-                <p
-                  className="text-muted"
-                  style={{ fontSize: "var(--fs-small)" }}
-                >
-                  Threshold Details
-                </p>
-
-                <div style={{ fontSize: "var(--fs-small)" }}>
-                  <p>
-                    <strong>Metric:</strong>{" "}
-                    {selectedAnomaly.threshold_details.metric_type}
-                  </p>
-
-                  <p>
-                    <strong>Unit:</strong>{" "}
-                    {selectedAnomaly.threshold_details.unit}
-                  </p>
-
-                  {selectedAnomaly.threshold_details.upper_limit !== null && (
-                    <p>
-                      <strong>Upper Limit:</strong>{" "}
-                      {selectedAnomaly.threshold_details.upper_limit}{" "}
-                      {selectedAnomaly.threshold_details.unit}
-                    </p>
-                  )}
-
-                  {selectedAnomaly.threshold_details.lower_limit !== null && (
-                    <p>
-                      <strong>Lower Limit:</strong>{" "}
-                      {selectedAnomaly.threshold_details.lower_limit}{" "}
-                      {selectedAnomaly.threshold_details.unit}
-                    </p>
-                  )}
-
-                  {selectedAnomaly.threshold_details.allowed_spike_percentage !== null && (
-                    <p>
-                      <strong>Allowed Spike:</strong>{" "}
-                      {selectedAnomaly.threshold_details.allowed_spike_percentage}%
-                    </p>
-                  )}
-
-                  <p>
-                    <strong>Status:</strong>{" "}
-                    <span
-                      className="badge"
-                      style={{
-                        backgroundColor: selectedAnomaly.threshold_details.is_active
-                          ? "#2F7D5D"
-                          : "#7A7A7A",
-                        color: "#FFFFFF",
-                        padding: "var(--space-1) var(--space-2)",
-                        borderRadius: "var(--radius-pill)",
-                        fontSize: "var(--fs-small)",
-                        fontWeight: "var(--fw-medium)",
-                      }}
-                    >
-                      {selectedAnomaly.threshold_details.is_active
-                        ? "Active"
-                        : "Inactive"}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "var(--space-3)",
-              }}
-            >
-              <div>
-                <p
-                  className="text-muted"
-                  style={{ fontSize: "var(--fs-small)" }}
-                >
-                  Detected
-                </p>
-                <p>
-                  {formatDate(selectedAnomaly.detected_timestamp)}
-                </p>
-              </div>
-
-              {selectedAnomaly.resolved_timestamp && (
-                <div>
-                  <p
-                    className="text-muted"
-                    style={{ fontSize: "var(--fs-small)" }}
-                  >
-                    Resolved
-                  </p>
-
-                  <p>
-                    {formatDate(selectedAnomaly.resolved_timestamp)}
-                  </p>
-
-                  {selectedAnomaly.resolved_by && (
-                    <p
-                      className="text-muted"
-                      style={{ fontSize: "var(--fs-small)" }}
-                    >
-                      By: {selectedAnomaly.resolved_by}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "var(--space-3)",
-              marginTop: "var(--space-4)",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setShowDetailsModal(false);
-                setSelectedAnomaly(null);
-              }}
-              className="btn btn-secondary"
-              style={{ flex: 1 }}
-            >
-              Close
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {showHistoricModal && (
-        <dialog
-          className="modal-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "var(--space-4)",
-            zIndex: 50,
-            border: "none",
-            backgroundColor: "transparent",
-            width: "100%",
-            height: "100%",
-          }}
-          open={showHistoricModal}
-          onClose={() => setShowHistoricModal(false)}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowHistoricModal(false);
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setShowHistoricModal(false);
-            }
-          }}
-        >
-          <div className="modal" style={{ maxWidth: "800px", width: "100%" }}>
-            <h2 style={{ marginBottom: "var(--space-3)" }}>Historic Alerts</h2>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                <label className="label" htmlFor="historic-status-manager">Status:</label>
-                <select
-                  id="historic-status-manager"
-                  value={historicFilter}
-                  onChange={(e) => setHistoricFilter(e.target.value)}
-                  className="select"
-                  style={{ minWidth: "120px" }}
-                >
-                  <option value="all">All</option>
-                  <option value="Resolved">Resolved</option>
-                  <option value="Ignored">Ignored</option>
-                </select>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: 1 }}>
-                <label className="label" htmlFor="historic-search-manager">Search:</label>
-                <input
-                  id="historic-search-manager"
-                  type="text"
-                  value={historicSearch}
-                  onChange={(e) => setHistoricSearch(e.target.value)}
-                  placeholder="Search historic alerts..."
-                  className="input"
-                  style={{ flex: 1 }}
-                />
-              </div>
-              <button type="button" onClick={resetHistoricFilters} className="btn btn-secondary">
-                Reset
-              </button>
-            </div>
-            <div style={{ maxHeight: "400px", overflow: "auto" }}>
-              <table className="dashboard-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Building</th>
-                    <th scope="col">Type</th>
-                    <th scope="col">Severity</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Detected</th>
-                    <th scope="col">Resolved</th>
-                    <th scope="col">Resolved By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredHistoric.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="dashboard-empty">
-                        No historic alerts found
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredHistoric.map((anomaly) => (
-                      <tr key={anomaly.anomaly_id}>
-                        <td style={{ fontWeight: "var(--fw-semibold)" }}>
-                          {anomaly.building_name}
-                        </td>
-                        <td>{anomaly.anomaly_type.replace(/_/g, " ")}</td>
-                        <td>
-                          <SeverityBadge severity={anomaly.severity_level} />
-                        </td>
-                        <td>
-                          <StatusBadge status={anomaly.status} />
-                        </td>
-                        <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                          {formatDate(anomaly.detected_timestamp)}
-                        </td>
-                        <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                          {anomaly.resolved_timestamp ? formatDate(anomaly.resolved_timestamp) : "-"}
-                        </td>
-                        <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                          {anomaly.resolved_by || "-"}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
-              <button
-                type="button"
-                onClick={() => setShowHistoricModal(false)}
-                className="btn btn-secondary"
-                style={{ flex: 1 }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
+      <HistoricAlertsModal
+        open={showHistoricModal}
+        onClose={() => setShowHistoricModal(false)}
+        anomalies={combinedHistoric}
+        statusFilter={historicFilter}
+        searchQuery={historicSearch}
+        onStatusFilterChange={setHistoricFilter}
+        onSearchChange={setHistoricSearch}
+        onReset={resetHistoricFilters}
+        idPrefix="historic-manager"
+      />
 
       {showResolveModal && selectedAnomaly && (
         <dialog
           className="modal-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "var(--space-4)",
-            zIndex: 50,
-            border: "none",
-            backgroundColor: "transparent",
-            width: "100%",
-            height: "100%",
-          }}
+          style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-4)", zIndex: 50, border: "none", backgroundColor: "transparent", width: "100%", height: "100%" }}
           open={showResolveModal}
           onClose={() => {
             setShowResolveModal(false);
@@ -893,16 +436,7 @@ export default function ManagerAnomalyPage() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={confirmResolve}
-                className="btn"
-                style={{
-                  flex: 1,
-                  backgroundColor: "#2F7D5D",
-                  color: "#FFFFFF",
-                }}
-              >
+              <button type="button" onClick={confirmResolve} className="btn" style={{ flex: 1, backgroundColor: "#2F7D5D", color: "#FFFFFF" }}>
                 Resolve
               </button>
             </div>
@@ -913,19 +447,7 @@ export default function ManagerAnomalyPage() {
       {showIgnoreModal && selectedAnomaly && (
         <dialog
           className="modal-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "var(--space-4)",
-            zIndex: 50,
-            border: "none",
-            backgroundColor: "transparent",
-            width: "100%",
-            height: "100%",
-          }}
+          style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-4)", zIndex: 50, border: "none", backgroundColor: "transparent", width: "100%", height: "100%" }}
           open={showIgnoreModal}
           onClose={() => {
             setShowIgnoreModal(false);
@@ -966,16 +488,7 @@ export default function ManagerAnomalyPage() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={confirmIgnore}
-                className="btn"
-                style={{
-                  flex: 1,
-                  backgroundColor: "#7A7A7A",
-                  color: "#FFFFFF",
-                }}
-              >
+              <button type="button" onClick={confirmIgnore} className="btn" style={{ flex: 1, backgroundColor: "#7A7A7A", color: "#FFFFFF" }}>
                 Ignore
               </button>
             </div>
@@ -986,19 +499,7 @@ export default function ManagerAnomalyPage() {
       {showThresholdModal && (
         <dialog
           className="modal-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "var(--space-4)",
-            zIndex: 50,
-            border: "none",
-            backgroundColor: "transparent",
-            width: "100%",
-            height: "100%",
-          }}
+          style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-4)", zIndex: 50, border: "none", backgroundColor: "transparent", width: "100%", height: "100%" }}
           open={showThresholdModal}
           onClose={() => {
             setShowThresholdModal(false);
@@ -1016,13 +517,9 @@ export default function ManagerAnomalyPage() {
           }}
         >
           <div className="modal" style={{ maxWidth: "600px", width: "100%" }}>
-            <h2 style={{ marginBottom: "var(--space-2)" }}>
-              {editingThreshold ? "Edit Alert Threshold" : "Configure Alert Threshold"}
-            </h2>
+            <h2 style={{ marginBottom: "var(--space-2)" }}>{editingThreshold ? "Edit Alert Threshold" : "Configure Alert Threshold"}</h2>
             <p className="text-muted" style={{ marginBottom: "var(--space-4)" }}>
-              {editingThreshold
-                ? `Update threshold for ${editingThreshold.building_name}`
-                : "Set thresholds for anomaly detection across your buildings."}
+              {editingThreshold ? `Update threshold for ${editingThreshold.building_name}` : "Set thresholds for anomaly detection across your buildings."}
             </p>
             <div style={{ display: "grid", gap: "var(--space-4)" }}>
               <div>
@@ -1135,16 +632,7 @@ export default function ManagerAnomalyPage() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={handleSaveThreshold}
-                className="btn btn-primary"
-                style={{
-                  flex: 1,
-                  backgroundColor: "#3A6B7C",
-                  color: "#FFFFFF",
-                }}
-              >
+              <button type="button" onClick={handleSaveThreshold} className="btn btn-primary" style={{ flex: 1, backgroundColor: "#3A6B7C", color: "#FFFFFF" }}>
                 {editingThreshold ? "Update Threshold" : "Save Threshold"}
               </button>
             </div>
