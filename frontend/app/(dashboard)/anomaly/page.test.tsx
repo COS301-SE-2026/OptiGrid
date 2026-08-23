@@ -64,6 +64,7 @@ const findKpiLabel = (labelText: string) => {
   return null;
 };
 
+
 const getBuildingFilter = () =>
   document.getElementById("building-filter") as HTMLSelectElement;
 const getStatusFilter = () =>
@@ -207,15 +208,6 @@ describe("ManagerAnomalyPage", () => {
   });
 
   describe("Building filter", () => {
-    it("filters to show only Sandton HQ in the table", () => {
-      render(<ManagerAnomalyPage />);
-      const filter = getBuildingFilter();
-      expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "b1" } });
-      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
-      expect(getTableCell("Hillcrest")).toBeUndefined();
-    });
-
     it("shows No anomalies found when filter matches nothing", () => {
       render(<ManagerAnomalyPage />);
       const filter = getBuildingFilter();
@@ -225,43 +217,20 @@ describe("ManagerAnomalyPage", () => {
     });
   });
 
-  describe("Status filter", () => {
-    it("filters to show only Open anomalies", () => {
+  describe("Single-filter", () => {
+    it.each([
+      { label: "Building filter shows only Sandton HQ", getFilter: getBuildingFilter, value: "b1", expected: "Sandton HQ", unexpected: "Hillcrest" },
+      { label: "Status filter shows only Open anomalies", getFilter: getStatusFilter, value: "Open", expected: "Sandton HQ", unexpected: "Hillcrest" },
+      { label: "Status filter shows only In Progress anomalies", getFilter: getStatusFilter, value: "In_Progress", expected: "Hillcrest", unexpected: "Sandton HQ" },
+      { label: "Severity filter shows only critical anomalies", getFilter: getSeverityFilter, value: "critical", expected: "Sandton HQ", unexpected: "Hillcrest" },
+      { label: "Severity filter shows only high severity anomalies", getFilter: getSeverityFilter, value: "high", expected: "Hillcrest", unexpected: "Sandton HQ" },
+    ])("$label", ({ getFilter, value, expected, unexpected }) => {
       render(<ManagerAnomalyPage />);
-      const filter = getStatusFilter();
+      const filter = getFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "Open" } });
-      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
-      expect(getTableCell("Hillcrest")).toBeUndefined();
-    });
-
-    it("filters to show only In Progress anomalies", () => {
-      render(<ManagerAnomalyPage />);
-      const filter = getStatusFilter();
-      expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "In_Progress" } });
-      expect(getTableCell("Hillcrest")).toBeInTheDocument();
-      expect(getTableCell("Sandton HQ")).toBeUndefined();
-    });
-  });
-
-  describe("Severity filter", () => {
-    it("filters to show only critical anomalies", () => {
-      render(<ManagerAnomalyPage />);
-      const filter = getSeverityFilter();
-      expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "critical" } });
-      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
-      expect(getTableCell("Hillcrest")).toBeUndefined();
-    });
-
-    it("filters to show only high severity anomalies", () => {
-      render(<ManagerAnomalyPage />);
-      const filter = getSeverityFilter();
-      expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "high" } });
-      expect(getTableCell("Hillcrest")).toBeInTheDocument();
-      expect(getTableCell("Sandton HQ")).toBeUndefined();
+      fireEvent.change(filter, { target: { value } });
+      expect(getTableCell(expected)).toBeInTheDocument();
+      expect(getTableCell(unexpected)).toBeUndefined();
     });
   });
 
@@ -321,12 +290,6 @@ describe("ManagerAnomalyPage", () => {
       expect(within(modal as HTMLElement).getByRole("button", { name: /close/i })).toBeInTheDocument();
     });
 
-    // Skip - Edit Threshold button doesn't exist in details modal
-    it.skip("modal has an Edit Threshold button", () => {
-      render(<ManagerAnomalyPage />);
-      fireEvent.click(getTableRow("Sandton HQ"));
-      expect(screen.getByRole("button", { name: /edit threshold/i })).toBeInTheDocument();
-    });
   });
 
   describe("Close button", () => {
@@ -506,8 +469,6 @@ describe("ManagerAnomalyPage", () => {
     });
   });
 
- 
- 
   describe("View Historic Alerts button", () => {
     it("opens the historic alerts modal", () => {
       render(<ManagerAnomalyPage />);

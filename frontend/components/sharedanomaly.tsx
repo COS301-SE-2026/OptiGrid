@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useMemo, useState, type MouseEvent } from "react";
+import { ReactNode, useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   Line,
   XAxis,
@@ -989,6 +989,18 @@ export function Modal({
   children,
   maxWidth = "600px",
 }: Readonly<ModalProps>) {
+ 
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) {
     return null;
   }
@@ -996,37 +1008,50 @@ export function Modal({
   return (
     <dialog
       className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      tabIndex={-1}
+      open
       style={{
         position: "fixed",
         inset: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "var(--space-4)",
         zIndex: 50,
         border: "none",
         backgroundColor: "transparent",
         width: "100%",
         height: "100%",
-      }}
-      open
-      onClose={onClose}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          onClose();
-        }
+        padding: 0,
       }}
     >
-      <div className="modal" style={{ maxWidth, width: "100%" }}>
-        {children}
+
+      <button
+        type="button"
+        aria-label="Close dialog"
+        tabIndex={-1}
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          cursor: "default",
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: "100%",
+          padding: "var(--space-4)",
+          pointerEvents: "none",
+        }}
+      >
+        <div className="modal" style={{ maxWidth, width: "100%", pointerEvents: "auto" }}>
+          {children}
+        </div>
       </div>
     </dialog>
   );
@@ -1133,6 +1158,7 @@ export function useAnomalyFilters(anomalies: Anomaly[]) {
     resetFilters,
   };
 }
+
 
 export function useHistoricFilterState() {
   const [historicFilter, setHistoricFilter] = useState<string>("all");

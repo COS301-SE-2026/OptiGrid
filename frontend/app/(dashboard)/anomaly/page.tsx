@@ -31,14 +31,16 @@ interface NotificationPopup {
   timestamp: string;
 }
 
+
 function isNotificationStillActive(notification: NotificationPopup, anomalies: Anomaly[]): boolean {
   const anomaly = anomalies.find((a) => a.anomaly_id === notification.id);
-  return !anomaly || anomaly.severity_level !== "critical" || anomaly.status !== "Open";
+  return anomaly?.severity_level !== "critical" || anomaly?.status !== "Open";
 }
 
 export default function ManagerAnomalyPage() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>(mockManagerData.anomalies);
-  const [, setThresholds] = useState<AlertThreshold[]>(mockInitialThresholds);
+  
+  const [thresholds, setThresholds] = useState<AlertThreshold[]>(mockInitialThresholds);
   const [buildings] = useState(mockManagerData.buildings);
   const [historicAnomalies] = useState<Anomaly[]>(mockManagerData.historic);
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
