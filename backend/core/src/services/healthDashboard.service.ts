@@ -33,11 +33,11 @@ export interface FailureLog {
     timestamp: string | null;
 }
 
-interface DashboardRedisClient extends RedisHealthClient {
+export interface DashboardRedisClient extends RedisHealthClient {
     hgetall(key: string): Promise<Record<string, string>>;
 }
 
-interface HealthDashboardDependencies extends SystemHealthDependencies {
+export interface HealthDashboardDependencies extends SystemHealthDependencies {
     database: DatabaseHealthClient;
     redis: DashboardRedisClient;
     findFailureLogs(options: HealthDashboardOptions): Promise<FailureLog[]>;
@@ -140,9 +140,9 @@ async function readIngestionSummary(
 }
 
 async function readDatabaseUptime(database: DatabaseHealthClient): Promise<number> {
-    const rows = await database.$queryRawUnsafe<Array<{ uptime_seconds: unknown }>>(
+    const rows = await database.$queryRawUnsafe(
         'SELECT EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - pg_postmaster_start_time())) AS uptime_seconds',
-    );
+    ) as Array<{ uptime_seconds: unknown }>;
     const uptime = Number(rows[0]?.uptime_seconds);
     if (!Number.isFinite(uptime) || uptime < 0) {
         throw new Error('Invalid database uptime response');

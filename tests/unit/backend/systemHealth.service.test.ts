@@ -120,4 +120,32 @@ describe("collectSystemHealth", () => {
 
     expect(dependencies.redis.llen).toHaveBeenCalledWith("custom_ingestion_queue");
   });
+
+  it("marks Redis down when ping returns an unexpected response", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.redis.ping = jest.fn().mockResolvedValue("LOADING");
+
+    const result = await collectSystemHealth(dependencies);
+
+    expect(result.status).toBe("degraded");
+    expect(result.dependencies.redis).toMatchObject({
+      status: "down",
+      queueDepth: null,
+      message: "Dependency check failed",
+    });
+    expect(dependencies.redis.llen).not.toHaveBeenCalled();
+  });
+
+  it("marks Redis down when queue depth cannot be read", async () => {
+    const dependencies = healthyDependencies();
+    dependencies.redis.llen = jest.fn().mockRejectedValue(new Error("permission denied"));
+
+    const result = await collectSystemHealth(dependencies);
+
+    expect(result.status).toBe("degraded");
+    expect(result.dependencies.redis).toMatchObject({
+      status: "down",
+      queueDepth: null,
+    });
+  });
 });

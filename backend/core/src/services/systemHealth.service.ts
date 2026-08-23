@@ -2,7 +2,7 @@ export type DependencyStatus = "up" | "down";
 export type SystemHealthStatus = "healthy" | "degraded" | "unhealthy";
 
 export interface DatabaseHealthClient {
-  $queryRawUnsafe<T = unknown>(query: string): Promise<T>;
+  $queryRawUnsafe(query: string): Promise<unknown>;
 }
 
 export interface RedisHealthClient {
