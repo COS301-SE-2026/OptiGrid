@@ -128,41 +128,34 @@ describe("ViewerAnomalyPage", () => {
   });
 
   describe("stats", () => {
-    it("renders Total Alerts label", () => {
-      render(<ViewerAnomalyPage />);
-      const label = findKpiLabel("Total Alerts");
-      expect(label).toBeInTheDocument();
-    });
+    it.each([
+    { label: "Total Alerts", type: "label" },
+    { label: "Open", type: "label" },
+    { label: "Critical", type: "label" },
+    { label: "Critical", type: "count", value: "1" },
+    { label: "Buildings", type: "label" },
+  ])("renders $label $type", ({ label, type, value }) => {
+    render(<ViewerAnomalyPage />);
 
-    it("renders Open label", () => {
-      render(<ViewerAnomalyPage />);
-      const label = findKpiLabel("Open");
-      expect(label).toBeInTheDocument();
-    });
+    if (type === "label") {
+      expect(findKpiLabel(label)).toBeInTheDocument();
+      return;
+    }
 
-    it("renders Critical label", () => {
-      render(<ViewerAnomalyPage />);
-      const label = findKpiLabel("Critical");
-      expect(label).toBeInTheDocument();
-    });
+    const valueElement = screen.getAllByText(value!).find(
+      (el) =>
+        el
+          .closest(".dashboard-card-tight")
+          ?.querySelector(".dashboard-kpi-label")
+          ?.textContent === label
+    );
 
-    it("renders Critical count", () => {
-      render(<ViewerAnomalyPage />);
-      const criticalValue = screen.getAllByText("1").find(el => 
-        el.closest(".dashboard-card-tight")?.querySelector(".dashboard-kpi-label")?.textContent === "Critical"
-      );
-      expect(criticalValue).toBeInTheDocument();
-    });
-
-    it("renders Buildings label", () => {
-      render(<ViewerAnomalyPage />);
-      const label = findKpiLabel("Buildings");
-      expect(label).toBeInTheDocument();
-    });
+    expect(valueElement).toBeInTheDocument();
+    
   });
 
 
-  });
+  
 
 
   describe("Severity filter", () => {
@@ -339,3 +332,5 @@ describe("ViewerAnomalyPage", () => {
       expect(within(modal as HTMLElement).getByText(/no historic alerts found/i)).toBeInTheDocument();
     });
   });
+  });
+});

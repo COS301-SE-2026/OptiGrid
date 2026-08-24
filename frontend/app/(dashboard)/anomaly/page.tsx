@@ -293,7 +293,6 @@ export default function ManagerAnomalyPage() {
             position: "fixed",
             top: "var(--space-5)",
             right: "var(--space-5)",
-            zIndex: 100,
             display: "flex",
             flexDirection: "column",
             gap: "var(--space-3)",

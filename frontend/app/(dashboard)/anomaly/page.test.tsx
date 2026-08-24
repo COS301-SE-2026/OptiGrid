@@ -113,45 +113,32 @@ describe("ManagerAnomalyPage", () => {
   });
 
   describe("stats", () => {
-    it("renders Total Alerts label", () => {
-      render(<ManagerAnomalyPage />);
-      const label = findKpiLabel("Total Alerts");
-      expect(label).toBeInTheDocument();
-    });
+      it.each([
+    { label: "Total Alerts", type: "label" },
+    { label: "Open", type: "label" },
+    { label: "Critical", type: "label" },
+    { label: "Buildings", type: "label" },
+    { label: "Total Alerts", type: "count", value: "2" },
+    { label: "Critical", type: "count", value: "1" },
+  ])("renders $label $type", ({ label, type, value }) => {
+    render(<ManagerAnomalyPage />);
 
-    it("renders Total Alerts count", () => {
-      render(<ManagerAnomalyPage />);
-      const totalCard = screen.getAllByText("2").find((el) => 
-        el.closest(".dashboard-card-tight")?.querySelector(".dashboard-kpi-label")?.textContent === "Total Alerts"
-      );
-      expect(totalCard).toBeInTheDocument();
-    });
+    if (type === "label") {
+      expect(findKpiLabel(label)).toBeInTheDocument();
+      return;
+    }
 
-    it("renders Open label", () => {
-      render(<ManagerAnomalyPage />);
-      const label = findKpiLabel("Open");
-      expect(label).toBeInTheDocument();
-    });
+    const valueElement = screen.getAllByText(value!).find(
+      (el) =>
+        el
+          .closest(".dashboard-card-tight")
+          ?.querySelector(".dashboard-kpi-label")
+          ?.textContent === label
+    );
 
-    it("renders Critical label", () => {
-      render(<ManagerAnomalyPage />);
-      const label = findKpiLabel("Critical");
-      expect(label).toBeInTheDocument();
-    });
+    expect(valueElement).toBeInTheDocument();
+  });
 
-    it("renders Critical count", () => {
-      render(<ManagerAnomalyPage />);
-      const criticalValue = screen.getAllByText("1").find((el) => 
-        el.closest(".dashboard-card-tight")?.querySelector(".dashboard-kpi-label")?.textContent === "Critical"
-      );
-      expect(criticalValue).toBeInTheDocument();
-    });
-
-    it("renders Buildings label", () => {
-      render(<ManagerAnomalyPage />);
-      const label = findKpiLabel("Buildings");
-      expect(label).toBeInTheDocument();
-    });
   });
 
   describe("Critical notifications", () => {
