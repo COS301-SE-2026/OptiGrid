@@ -59,6 +59,9 @@ The system connects building managers and energy grids through a sophisticated d
 **Brand Style Guide:**
 [Brand Style Guide](docs/Brand_Style_Guide.pdf)
 
+**Backend API:**
+[System Health Dashboard API](docs/System_Health_API.md)
+
 ## Demo 1
 
 **SRS Document:**
