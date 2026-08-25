@@ -8,7 +8,7 @@ import optuna
 import pandas as pd
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 from supabase import Client, create_client
 import uuid
 
@@ -241,7 +241,9 @@ class AnalyticsEngine:
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
-            scores = cross_val_score(model, X, y, cv=3, scoring='neg_mean_absolute_percentage_error')
+            #chnaged metric to MAE n used timeseries
+            timeSeriesCV = TimeSeriesSplit(n_splits=3)
+            scores = cross_val_score(model, X, y, cv=timeSeriesCV, scoring='neg_mean_absolute_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
@@ -282,16 +284,13 @@ class AnalyticsEngine:
         
         # predicting each hour in the upcoming week
         forecast_series = []
-        trend_drift = 0.0
-        
+
         for i in range(1, 169):
             next_time = last_timestamp + timedelta(hours=i)
             next_features = pd.DataFrame([{'hour': next_time.hour, 'day_of_week': next_time.dayofweek, 'lag_1': current_lag}])
             pred = best_model.predict(next_features)[0]
-            
-            trend_drift += np.random.normal(0, recent_std * 0.05)  # NOSONAR
-            noise = np.random.normal(0, recent_std * 0.15)  # NOSONAR
-            pred_with_noise = max(0.1, pred + trend_drift + noise)
+
+            pred_with_noise = max(0.1, float(pred))
             
             forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred_with_noise, 2)})
             
@@ -345,7 +344,9 @@ class AnalyticsEngine:
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
-            scores = cross_val_score(model, X, y, cv=2, scoring='neg_mean_absolute_percentage_error')
+            #change metirc to MAE n use timeseries
+            timeSeriesCV = TimeSeriesSplit(n_splits=2)
+            scores = cross_val_score(model, X, y, cv=timeSeriesCV, scoring='neg_mean_absolute_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
@@ -385,9 +386,6 @@ class AnalyticsEngine:
         recent_std = df['usage'].tail(4).std()
         if pd.isna(recent_std) or recent_std == 0:
             recent_std = df['usage'].mean() * 0.05
-            
-        trend_drift = 0.0
-        
         forecast_series = []
         for i in range(1, 13):
             next_time = last_timestamp + timedelta(weeks=i)
@@ -402,11 +400,8 @@ class AnalyticsEngine:
                 'lag_1': current_lag
             }])
             pred = best_model.predict(next_features)[0]
-            
-            # add some noise
-            trend_drift += np.random.normal(0, recent_std * 0.1)  # NOSONAR
-            noise = np.random.normal(0, recent_std * 0.2)  # NOSONAR
-            pred_with_noise = max(0.1, pred + trend_drift + noise)
+            #removed noise
+            pred_with_noise = max(0.1, float(pred))
             
             forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred_with_noise, 2)})
             current_lag = pred
