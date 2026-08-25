@@ -72,3 +72,22 @@ class RecommendationSynthesizer:
                 recs.append(rec)
 
         return recs
+
+    def get_probable_equipment(self, builing_type: str, sample_size: int = 2) -> str:
+        #added things that may be causing high usage since sensors dont measure equipment, only measure usage
+        mapping = {
+            "Construction": ["Cranes", "Heavy Power Tools", "Site Lighting", "Temporary Heaters", "Welders"],
+            "ShoppingCentre": ["Escalators", "Large Refrigeration Units", "HVAC Zones", "Display Lighting", "Air Curtains"],
+            "Commercial": ["HVAC Zones", "Elevator Banks", "Server Rooms", "Office Lighting", "Water Pumps"],
+            "Industrial": ["Heavy Machinery", "Assembly Lines", "Compressors", "Industrial Fans", "Ovens/Furnaces"],
+            "Healthcare": ["Non-Critical HVAC", "Secondary Lighting", "Sterilization Equipment", "Laundry Facilities"],
+            "Residential": ["Communal AC", "Pool Pumps", "Geysers", "Communal Lighting", "Elevators"],
+            "Mixed_Use": ["Communal HVAC", "Elevators", "Retail Refrigeration", "Parking Lighting", "Water Pumps"]
+        }
+
+        equipment = mapping.get(builing_type, [
+            "HVAC", "High-Load Equipment", "Lighting", "Pumps"
+        ])
+        #random recommnedation given
+        out = random.sample(equipment, min(sample_size, len(equipment)))
+        return " or ".join(out)
