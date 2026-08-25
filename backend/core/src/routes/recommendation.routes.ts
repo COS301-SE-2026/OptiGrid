@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { applyRecommendationController } from '../controllers/recommendation.controller';
+import { applyRecommendationController, viewRecommendationController, updateTariffController } from '../controllers/recommendation.controller';
 
 const router = Router({ mergeParams: true });
 
@@ -91,5 +91,7 @@ const router = Router({ mergeParams: true });
  *                   example: "Internal server error"
  */
 router.post('/:recommendation_id/apply', applyRecommendationController);
+router.get('/', viewRecommendationController);
+router.put('/tariffs', updateTariffController);
 
 export default router;
