@@ -91,3 +91,60 @@ class RecommendationSynthesizer:
         #random recommnedation given
         out = random.sample(equipment, min(sample_size, len(equipment)))
         return " or ".join(out)
+
+    def _calculate_peak_shaving(self, building_id, building_type, forecast_peak, threshold_kw, tariffs, time_window, peak_base_ratio):
+        equipment = self.get_probable_equipment(building_type)
+        kw_reduced = forecast_peak-threshold_kw
+
+        peak_rate = 1.5
+        standard_rate = 1.0
+        peak_start = "14:00"
+        peak_end = "18:00"
+
+        if tariffs:
+            tar = tariffs[0]
+            peak_rate = float(tar.get("peak_rate_zar", 1.5))
+            if tar.get("peak_start_time"):
+                peak_start = str(tar["peak_start_time"])[:5]
+            if tar.get("peak_end_time"):
+                peak_end = str(tar["peak_start_time"])[:5]
+
+        peak_kwh_saved = kw_reduced * 2.0
+        rate = 1
+        if time_window == "weekly":
+            rate = 4
+        monthly_savings = (peak_rate*peak_kwh_saved) * rate
+
+        if monthly_savings < 50.0:
+            return None
+
+        #need to check if rec is duplicate
+        context = "Peak Shaving"
+
+        strategy = (
+            f"Aggregate sensors forecast a peak load of {round(forecast_peak, 2)}kW, exceeding your threshold by {round((peak_base_ratio - 1) * 100, 1)}%."
+            f"To shift load away from peak tariff hours ({peak_start} - {peak_end}), investigate likely drivers such as {equipment}."
+        )
+
+        return {
+            "building_id": building_id,
+            "strategy_description": strategy,
+            "estimated_monthly_savings": round(monthly_savings, 2),
+            "status": "Pending",
+            "applicable_range": {
+                "time_window":{
+                    "start": peak_start, 
+                    "end": peak_end,
+                    "timezone": "Africa/Johannesburg"
+                },
+                "load_bounds_kw": {
+                    "min_expected": round(threshold_kw, 2),
+                    "max_allowed": round(forecast_peak, 2)
+                },
+                "assumed_equipment": equipment,
+                "confidence_score": 0.85,
+                "context": context
+            },
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=(7 if time_window == "weekly" else 30))).isoformat()
+        }
+        
