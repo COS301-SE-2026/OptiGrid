@@ -2,7 +2,7 @@ import uuid
 import random
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, List, Any
+from typing import Dict, List, Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
