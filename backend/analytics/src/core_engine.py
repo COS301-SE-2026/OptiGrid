@@ -11,7 +11,7 @@ from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 from supabase import Client, create_client
 import uuid
-
+from backend.analytics.src.recommendation_engine import RecommendationSynthesizer
 from backend.analytics.src.config import (
     INFLUXDB_BUCKET,
     INFLUXDB_ORG,
@@ -47,6 +47,11 @@ class AnalyticsEngine:
             self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         except Exception as e:
             logger.warning("Supabase client initialisation failed; analytics writes disabled: %s", e)
+            
+        self.synthesizer = RecommendationSynthesizer(self.supabase)
+        self.active_info = {}
+        self.tariffs_building = {}
+        self.anomalies_buiilding = {}
 
     def register_new_building(self, building_id: str) -> bool:
         """
@@ -82,21 +87,24 @@ class AnalyticsEngine:
             logger.exception("Error executing provisioning cycle logic for %s", clean_id)
             raise
 
-    def get_active_building_ids(self) -> List[str]:
+    def get_active_building_info(self) -> dict:
         # return empty list if SUpabase client no available
         if self.supabase is None:
-            return []
+            return {}
         try:
             # query buildings table for active buildings only
-            res = self.supabase.table("buildings").select("building_id").filter("lifecycle_state", "eq", "active").execute()
+            res = self.supabase.table("buildings").select("building_id, building_type").filter("lifecycle_state", "eq", "active").execute()
             if res.data:
                 # extract building_id fromeach row, filter out rows missing the field
-                return [row["building_id"] for row in res.data if "building_id" in row]
-            return []
+                return {row["building_id"]: row.get("building_type", "Commercial") for row in res.data if "building_id" in row}
+            return {}
         except Exception:
             # log error
             logger.exception("Failed to fetch active building list from Supabase")
-            return []
+            return {}
+
+    def get_active_building_id(self)-> List[str]:
+        return list(self.get_active_building_info().keys())
 
     def seed_missing_influx_telemetry(self, building_id: str, days_back: int = 14):
         clean_id = str(building_id).replace("\r", "").replace("\n", "")
@@ -421,6 +429,26 @@ class AnalyticsEngine:
         clean_id = str(building_id).replace("\r", "").replace("\n", "")
         logger.info("Processing single building analytics pass for building_id: %s", clean_id)
         self.register_new_building(clean_id)
+        try:
+            if self.supabase:
+                building = self.supabase("buildings").select("building_type").eq("building_id", clean_id).execute()
+                build_type = building.data[0].get("building_type", "Commercial") if building.data else "Commercial"
+                tariff = self.supabase.table("utility_tariffs").select("*").eq("building_id", clean_id).execute()
+                tariffs = tariff.data if tariff.data else []
+                anomaly = self.supabase.table("anomalies").select("*").eq("building_id", clean_id).eq("status", "Open").execute()
+                anomalies = anomaly.data if anomaly.data else []
+            else:
+                build_type = "Commercial" 
+                tariffs = []
+                anomalies = []
+        except Exception:
+            build_type = "Commercial" 
+            tariffs = []
+            anomalies = []
+
+        self.active_info[clean_id] = build_type
+        self.tariffs_building[clean_id] = tariffs
+        self.anomalies_buiilding[clean_id] = anomalies
         
         # query influx 30 days
         query_weekly = f'''
@@ -612,12 +640,29 @@ class AnalyticsEngine:
             self._process_monthly_batch(df_monthly)
 
     def process_all_buildings(self):
-        active_ids = self.get_active_building_ids()
+        active_info = self.get_active_building_info()
+        active_ids = list(active_info.keys())
         logger.info("Found %d ACTIVE buildings from Supabase database.", len(active_ids))
 
         for b_id in active_ids:
             self.register_new_building(b_id)
 
+        if self.supabase:
+            try:
+                #we put tariffs and anomailes in large amounts in engine
+                tariffs = self.supabase.table("utility_tariffs").select("*").in_("building_id", active_ids).execute()
+                if tariffs.data:
+                    for i in tariffs.data:
+                        self.tariffs_building.setdefault(i["building_id"], []).append(i)
+
+                anomalies = self.supabase.table("anomalies").select("*").in_("building_id", active_ids).exceute()
+                if anomalies.data:
+                    for i in anomalies.data:
+                        self.anomalies_buiilding.setdefault(i["building_id"], []).append(i)
+            except Exception as error:
+                logger.warning("Failed to load into tariff and anomaly: ", error)
+
+        self.active_info = active_info
         # query to fetch last 30 days usage for weekly analysis
         query_weekly = f'''
         from(bucket: "{INFLUXDB_BUCKET}") 
@@ -719,62 +764,37 @@ class AnalyticsEngine:
                     df_monthly['usage'] = pd.to_numeric(df_monthly['usage'], errors='coerce').fillna(0.0)
                     self._process_monthly_batch(df_monthly)
 
-    def _generate_recommendations(self, building_id: str, df: pd.DataFrame, ml_metrics: dict, time: str):
+    def _generate_recommendations(self, building_id: str, df: pd.DataFrame, ml_metrics: dict, time_window_type: str):
         if not self.supabase or df.empty:
             return
-    
+
+        build_type = self.active_info.get(building_id, "Commercial")
+        tariffs = self.tariffs_building.get(building_id, [])
+        anomalies = self.anomalies_buiilding.get(building_id, [])
+        
         mean_usage = df['usage'].mean()
         std_usage = df['usage'].std()        
         forecast_peak = ml_metrics.get("forecast_peak", 0.0) 
-        #estimated peak-to-base load and std base
-        min_historic = ml_metrics.get("min_historic", mean_usage * 0.5)
-        base_load = min_historic if min_historic > 0 else 1.0
-        peak_base_ratio = forecast_peak / base_load
         threshold_kw = mean_usage + (1.5 * std_usage)
-    
-        #reccomendation sent if the staement passes
-        if forecast_peak > threshold_kw and peak_base_ratio > 1.3:
-            kw_reduced = forecast_peak - threshold_kw
 
-            #TOU rates, assuming no standard rate reductions atm(need to discuss), calculated saving with TOU strcut
-            peak_kWh_saved = kw_reduced * 2.0
-            standard_kWh_saved = 0.0
-            peak_rate = UTILITY_RATE_KWH * 1.5
-            stan_rate = UTILITY_RATE_KWH * 1.0
-
-            zar_savings = (peak_rate * peak_kWh_saved) + (stan_rate * standard_kWh_saved)
-            if zar_savings < 50.0:
-                return
-    
-            applicable_range = {
-                "time_window": {
-                    "start": "14:00",
-                    "end": "18:00",
-                    "timezone": "Africa/Johannesburg"
-                },
-                "load_bounds_kw": {
-                    "min_expected": round(threshold_kw, 2),
-                    "max_allowed": round(forecast_peak, 2)
-                },
-                "target_equipment": "AC_Zone_Primary",
-                "confidence_score": 0.85
-            }    
-            #expire 7 days for weekly and 30 days for monthly
-            expire_days = 7 if time == "weekly" else 30
-            expires_at = datetime.now(timezone.utc) + timedelta(days=expire_days)
-            monthly_savings_zar = zar_savings * (4 if time == "weekly" else 1)
-
-            rec_data = {
-                "recommendation_id": str(uuid.uuid4()),
-                "building_id": building_id,
-                "strategy_description": f"Reduce AC usage during peak hours to avoid {round(forecast_peak, 2)}kW peak. Peak-to-base ratio is {round(peak_base_ratio, 2)}.",
-                "estimated_monthly_savings": round(monthly_savings_zar, 2),
-                "status": "Generated",
-                "applicable_range": applicable_range,
-                "expires_at": expires_at.isoformat(),
-            }
+        recs_data = self.synthesizer.generate_data_driven_rec(
+            building_id=building_id,
+            building_type=build_type,
+            forecast_peak=forecast_peak,
+            thresold_kw=threshold_kw,
+            tariffs=tariffs,
+            anomalies=anomalies,
+            time_window= time_window_type
+        )
+        recs_not_data = self.synthesizer.generate_non_data_driven_recs(
+            building_id=building_id,
+            building_type=build_type,
+            tariffs=tariffs
+        )
+        recs_all = recs_data + recs_not_data
+        if recs_all:
             try:
-                self.supabase.table("optimisation_recommendations").upsert(rec_data).execute()
+                self.supabase.table("optimisation_recommendations").upsert(recs_all).execute()
             except Exception as e:
-                logger.exception("Failed to insert recommendation for: ", building_id)
+                logger.exception("Failed to insert recommendations for: ", building_id)
     
