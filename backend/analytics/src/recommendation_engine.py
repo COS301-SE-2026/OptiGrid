@@ -118,8 +118,9 @@ class RecommendationSynthesizer:
         if monthly_savings < 50.0:
             return None
 
-        #need to check if rec is duplicate
         context = "Peak Shaving"
+        if self._is_duplicate(building_id, context):
+            return None
 
         strategy = (
             f"Aggregate sensors forecast a peak load of {round(forecast_peak, 2)}kW, exceeding your threshold by {round((peak_base_ratio - 1) * 100, 1)}%."
@@ -151,7 +152,8 @@ class RecommendationSynthesizer:
 
     def _calculate_anomaly_investigation(self, building_id, building_type, anomaly):
         context: f"Anomaly Investigation {anomaly.get('anomaly_id')}"
-        #need to check for duplicate recs
+        if self._is_duplicate(building_id, context):
+            return None
 
         equipment = self.get_probable_equipment(building_type, sample_size=3)
         desc = anomaly.get("description", "Unusual aggregate consumption detected")
@@ -176,7 +178,9 @@ class RecommendationSynthesizer:
         }
 
     def _calculate_season_optimisation(self, building_id, building_type, context):
-        #still need to check duplicate
+        if self._is_duplicate(building_id, context):
+            return None
+
         equipment = self.get_probable_equipment(building_type)
         if context == "Winter Optimization":
             strategy = f"Winter tariffs are active. Shift non-essential heavy loads (like {equipment}) to off-peak hours to avoid seasonal peak surcharges."
@@ -193,10 +197,34 @@ class RecommendationSynthesizer:
             "strategy_description": strategy,
             "estimated_monthly_savings": savings,
             "status": "Pending",
-            "recommendation_category": "non_data"
+            "recommendation_category": "non_data",
             "applicable_range": {
                 "assumed_equipment": equipment,
                 "context": context
             },
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
         }
+
+    def _is_duplicate(self, building_id:str, context: str) -> bool:
+        if not self.supabase: 
+            return False
+
+        try:
+            #variable to keep track of seven day limit
+            seven = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            resp = self.supabase.table("optimisation_recommendation").select("applicable_range") \
+            .eq("building_id", building_id) \
+            .in_("status", ["Pending", "Implemented"]) \
+            .gte("generated_data", seven) \
+            .execute()
+
+            if resp.data:
+                for i in resp.data:
+                    range = i.get("applicable_range") or {}
+                    context_existed = range.get("context","")
+                    if context_existed == context:
+                        return True
+            return False
+        except Exception as error:
+            logger.warning("Failed deduplication check for %s: %s", building_id, error)
+            return False
