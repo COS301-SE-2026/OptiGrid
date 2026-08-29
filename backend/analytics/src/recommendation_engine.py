@@ -73,7 +73,7 @@ class RecommendationSynthesizer:
 
         return recs
 
-    def get_probable_equipment(self, builing_type: str, sample_size: int = 2) -> str:
+    def get_probable_equipment(self, building_type: str, sample_size: int = 2) -> str:
         #added things that may be causing high usage since sensors dont measure equipment, only measure usage
         mapping = {
             "Construction": ["Cranes", "Heavy Power Tools", "Site Lighting", "Temporary Heaters", "Welders"],
@@ -85,7 +85,7 @@ class RecommendationSynthesizer:
             "Mixed_Use": ["Communal HVAC", "Elevators", "Retail Refrigeration", "Parking Lighting", "Water Pumps"]
         }
 
-        equipment = mapping.get(builing_type, [
+        equipment = mapping.get(building_type, [
             "HVAC", "High-Load Equipment", "Lighting", "Pumps"
         ])
         #random recommnedation given
@@ -131,6 +131,7 @@ class RecommendationSynthesizer:
             "strategy_description": strategy,
             "estimated_monthly_savings": round(monthly_savings, 2),
             "status": "Pending",
+            "recommendation_category": "data",
             "applicable_range": {
                 "time_window":{
                     "start": peak_start, 
@@ -147,4 +148,55 @@ class RecommendationSynthesizer:
             },
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=(7 if time_window == "weekly" else 30))).isoformat()
         }
-        
+
+    def _calculate_anomaly_investigation(self, building_id, building_type, anomaly):
+        context: f"Anomaly Investigation {anomaly.get('anomaly_id')}"
+        #need to check for duplicate recs
+
+        equipment = self.get_probable_equipment(building_type, sample_size=3)
+        desc = anomaly.get("description", "Unusual aggregate consumption detected")
+
+        startegy = {
+            f"Anomaly detected: {desc}. Because we track overall consumption, this could be caused by"
+            f" systems left running overnight or malfunctioning equipment (likely {equipment}).Investigate affected zones to reduce the baseload."
+        }
+
+        return {
+            "building_id": building_id,
+            "strategy_description": startegy,
+            "estimated_monthly_savings": 200.0,
+            "status": "Pending",
+            "recommendation_category": "data",
+            "applicable_range": {
+                "assumed_equipment": equipment,
+                "context": context,
+                "anomaly_id": anomaly.get("anomaly_id")
+            },
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        }
+
+    def _calculate_season_optimisation(self, building_id, building_type, context):
+        #still need to check duplicate
+        equipment = self.get_probable_equipment(building_type)
+        if context == "Winter Optimization":
+            strategy = f"Winter tariffs are active. Shift non-essential heavy loads (like {equipment}) to off-peak hours to avoid seasonal peak surcharges."
+            savings: 500.0
+        elif context == "Summer Lighting":
+            strategy: f"Sunset is occurring later. Adjust outdoor lighting and communal area timer schedules to match daylight hours."
+            savings: 150.0
+        else:
+            strategy: f"Winter temperatures increase aggregate load. Ensure climate control and heating systems (such as {equipment}) are on strict timers to prevent overnight idling."
+            savings: 300.0
+
+        return {
+            "building_id": building_id,
+            "strategy_description": strategy,
+            "estimated_monthly_savings": savings,
+            "status": "Pending",
+            "recommendation_category": "non_data"
+            "applicable_range": {
+                "assumed_equipment": equipment,
+                "context": context
+            },
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        }
