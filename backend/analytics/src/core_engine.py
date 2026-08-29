@@ -103,7 +103,7 @@ class AnalyticsEngine:
             logger.exception("Failed to fetch active building list from Supabase")
             return {}
 
-    def get_active_building_id(self)-> List[str]:
+    def get_active_building_ids(self)-> List[str]:
         return list(self.get_active_building_info().keys())
 
     def seed_missing_influx_telemetry(self, building_id: str, days_back: int = 14):
@@ -640,8 +640,7 @@ class AnalyticsEngine:
             self._process_monthly_batch(df_monthly)
 
     def process_all_buildings(self):
-        active_info = self.get_active_building_info()
-        active_ids = list(active_info.keys())
+        active_ids = self.get_active_building_ids()
         logger.info("Found %d ACTIVE buildings from Supabase database.", len(active_ids))
 
         for b_id in active_ids:
@@ -655,14 +654,15 @@ class AnalyticsEngine:
                     for i in tariffs.data:
                         self.tariffs_building.setdefault(i["building_id"], []).append(i)
 
-                anomalies = self.supabase.table("anomalies").select("*").in_("building_id", active_ids).exceute()
+                anomalies = self.supabase.table("anomalies").select("*").in_("building_id", active_ids).execute()
                 if anomalies.data:
                     for i in anomalies.data:
                         self.anomalies_buiilding.setdefault(i["building_id"], []).append(i)
             except Exception as error:
                 logger.warning("Failed to load into tariff and anomaly: ", error)
 
-        self.active_info = active_info
+        if not hasattr(self, 'active_info') or not self.active_info:
+            self.active_info = self.get_active_building_info()
         # query to fetch last 30 days usage for weekly analysis
         query_weekly = f'''
         from(bucket: "{INFLUXDB_BUCKET}") 
@@ -792,6 +792,10 @@ class AnalyticsEngine:
             tariffs=tariffs
         )
         recs_all = recs_data + recs_not_data
+        for i in recs_all:
+            if "recommendation_id" not in i:
+                i["recommendation_id"] = str(uuid.uuid4())
+                
         if recs_all:
             try:
                 self.supabase.table("optimisation_recommendations").upsert(recs_all).execute()
