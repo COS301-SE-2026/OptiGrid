@@ -107,7 +107,7 @@ class RecommendationSynthesizer:
             if tar.get("peak_start_time"):
                 peak_start = str(tar["peak_start_time"])[:5]
             if tar.get("peak_end_time"):
-                peak_end = str(tar["peak_start_time"])[:5]
+                peak_end = str(tar["peak_end_time"])[:5]
 
         peak_kwh_saved = kw_reduced * 2.0
         rate = 1
@@ -151,7 +151,7 @@ class RecommendationSynthesizer:
         }
 
     def _calculate_anomaly_investigation(self, building_id, building_type, anomaly):
-        context: f"Anomaly Investigation {anomaly.get('anomaly_id')}"
+        context= f"Anomaly Investigation {anomaly.get('anomaly_id')}"
         if self._is_duplicate(building_id, context):
             return None
 
@@ -184,13 +184,13 @@ class RecommendationSynthesizer:
         equipment = self.get_probable_equipment(building_type)
         if context == "Winter Optimization":
             strategy = f"Winter tariffs are active. Shift non-essential heavy loads (like {equipment}) to off-peak hours to avoid seasonal peak surcharges."
-            savings: 500.0
+            savings = 500.0
         elif context == "Summer Lighting":
-            strategy: f"Sunset is occurring later. Adjust outdoor lighting and communal area timer schedules to match daylight hours."
-            savings: 150.0
+            strategy= f"Sunset is occurring later. Adjust outdoor lighting and communal area timer schedules to match daylight hours."
+            savings =150.0
         else:
-            strategy: f"Winter temperatures increase aggregate load. Ensure climate control and heating systems (such as {equipment}) are on strict timers to prevent overnight idling."
-            savings: 300.0
+            strategy=  f"Winter temperatures increase aggregate load. Ensure climate control and heating systems (such as {equipment}) are on strict timers to prevent overnight idling."
+            savings = 300.0
 
         return {
             "building_id": building_id,
@@ -215,13 +215,13 @@ class RecommendationSynthesizer:
             resp = self.supabase.table("optimisation_recommendation").select("applicable_range") \
             .eq("building_id", building_id) \
             .in_("status", ["Pending", "Implemented"]) \
-            .gte("generated_data", seven) \
+            .gte("generated_date", seven) \
             .execute()
 
             if resp.data:
                 for i in resp.data:
-                    range = i.get("applicable_range") or {}
-                    context_existed = range.get("context","")
+                    raNge = i.get("applicable_range") or {}
+                    context_existed = raNge.get("context","")
                     if context_existed == context:
                         return True
             return False
