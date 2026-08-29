@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode 
 import { useBuildings } from "@/lib/useBuildings";
 import { openDialog } from "@/lib/openDialog";
 import { PageHeading } from "@/components/PageHeading";
+import { formatDate } from "@/lib/formatDate";
 
 type RecommendationStatus =
     | "Pending"
@@ -99,22 +100,6 @@ function formatZar(value: number | null): string {
         return "-";
     }
     return `R ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatDate(value: string | null): string {
-    if (!value) {
-        return "-";
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return "-";
-    }
-
-    return new Intl.DateTimeFormat("en", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-    }).format(date);
 }
 
 function formatTimeWindow(window: TimeWindow | undefined): string | null {
