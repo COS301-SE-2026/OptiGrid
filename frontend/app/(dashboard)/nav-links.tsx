@@ -12,6 +12,8 @@ const navigation = [
     { label: "Admin", href: "/admin", roles: ["ADMIN"] },
     { label: "Billing", href: "/billing", roles: ["ADMIN"] },
     { label: "Manage", href: "/manager", roles: ["BUILDING_MANAGER"] },
+    { label: "Anomaly", href: "/anomaly", roles:["BUILDING_MANAGER"]},
+    { label: "Anomaly", href: "/useranomaly", roles:["VIEWER"]},
     { label: "Settings", href:"/settings"},
    
     
