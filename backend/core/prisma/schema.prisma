@@ -230,10 +230,6 @@ model AlertThreshold {
   building_id              String?   @map("building_id") @db.Uuid
   metric_type              String    @map("metric_type") @db.VarChar
   unit                     String?   @db.VarChar
-  upper_limit_kw           Decimal?  @map("upper_limit_kw") @db.Decimal
-  lower_limit_kw           Decimal?  @map("lower_limit_kw") @db.Decimal
-  allowed_spike_percentage Decimal?  @map("allowed_spike_percentage") @db.Decimal
-  use_z_score              Boolean?  @default(false) @map("use_z_score")
   z_score_threshold        Float?    @map("z_score_threshold")
   muted_until              DateTime? @map("muted_until") @db.Timestamptz
   is_active                Boolean?  @default(true) @map("is_active")

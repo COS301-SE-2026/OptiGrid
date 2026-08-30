@@ -136,24 +136,15 @@ class AnomalyDetectorObserver(Observer):
         if t.get("metric_type") != "POWER_USAGE":
             return False, "Warning", None, z_score
             
-        upper = t.get("upper_limit_kw")
-        lower = t.get("lower_limit_kw")
-        use_z_score = t.get("use_z_score", False)
         z_thresh = t.get("z_score_threshold")
         
-        if upper is not None and power_kw > float(upper):
-            sev = "Critical" if abs(power_kw - float(upper)) / float(upper) > 0.5 else "Warning"
-            return True, sev, float(upper), z_score
+        if z_score is None:
+            z_score = self._update_ema_zscore(sensor_id, power_kw)
             
-        if lower is not None and power_kw < float(lower):
-            sev = "Critical" if abs(power_kw - float(lower)) / float(lower) > 0.5 else "Warning"
-            return True, sev, float(lower), z_score
-            
-        if use_z_score:
-            if z_score is None:
-                z_score = self._update_ema_zscore(sensor_id, power_kw)
-            if z_thresh is not None and abs(z_score) > float(z_thresh):
-                return True, "Warning", float(z_thresh), z_score
+        if z_thresh is not None and abs(z_score) > float(z_thresh):
+            # If z-score is very high (> 3.0), classify as Critical, otherwise Warning
+            sev = "Critical" if abs(z_score) > max(3.0, float(z_thresh)) else "Warning"
+            return True, sev, None, z_score
             
         return False, "Warning", None, z_score
 
@@ -184,7 +175,7 @@ class AnomalyDetectorObserver(Observer):
             if is_anomaly:
                 self._trigger_anomaly(
                     building_id, sensor_id, "POWER_USAGE", severity, power_kw, expected,
-                    z_score if t.get("use_z_score", False) else None, now, payload.get("timestamp")
+                    z_score, now, payload.get("timestamp")
                 )
                 
     def _trigger_anomaly(self, building_id, sensor_id, metric, severity, value, limit, z_score, now, timestamp_str):
