@@ -98,7 +98,7 @@ class RecommendationSynthesizer:
         kw_reduced = forecast_peak-threshold_kw
 
         peak_rate = 1.5
-        standard_rate = 1.0
+        #standard_rate = 1.0
         peak_start = "14:00"
         peak_end = "18:00"
 
@@ -187,7 +187,7 @@ class RecommendationSynthesizer:
             strategy = f"Winter tariffs are active. Shift non-essential heavy loads (like {equipment}) to off-peak hours to avoid seasonal peak surcharges."
             savings = 500.0
         elif context == "Summer Lighting":
-            strategy= f"Sunset is occurring later. Adjust outdoor lighting and communal area timer schedules to match daylight hours."
+            strategy= "Sunset is occurring later. Adjust outdoor lighting and communal area timer schedules to match daylight hours."
             savings =150.0
         else:
             strategy=  f"Winter temperatures increase aggregate load. Ensure climate control and heating systems (such as {equipment}) are on strict timers to prevent overnight idling."

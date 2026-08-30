@@ -251,8 +251,8 @@ class AnalyticsEngine:
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
             #chnaged metric to MAE n used timeseries
-            timeSeriesCV = TimeSeriesSplit(n_splits=3)
-            scores = cross_val_score(model, X, y, cv=timeSeriesCV, scoring='neg_mean_absolute_error')
+            time_series_CV = TimeSeriesSplit(n_splits=3)
+            scores = cross_val_score(model, X, y, cv=time_series_CV, scoring='neg_mean_absolute_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
@@ -354,8 +354,8 @@ class AnalyticsEngine:
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
             #change metirc to MAE n use timeseries
-            timeSeriesCV = TimeSeriesSplit(n_splits=2)
-            scores = cross_val_score(model, X, y, cv=timeSeriesCV, scoring='neg_mean_absolute_error')
+            time_series = TimeSeriesSplit(n_splits=2)
+            scores = cross_val_score(model, X, y, cv=time_series, scoring='neg_mean_absolute_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
