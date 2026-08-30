@@ -44,7 +44,7 @@ describe('Recommendation integration tests', () => {
 			await client.query(
 				`insert into optimisation_recommendations (recommendation_id, building_id, status, strategy_description, applicable_range)
 				 values ($1, $2, $3, $4, $5)`,
-				[recommendationId, buildingId, 'Pending', 'Test strategy', 'test range']
+				[recommendationId, buildingId, 'Pending', 'Test strategy', JSON.stringify({ range: 'test range' })]
 			);
 			await client.query(
 				`insert into optimisation_recommendations (recommendation_id, building_id, status, strategy_description, applicable_range)

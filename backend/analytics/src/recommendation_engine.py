@@ -1,5 +1,5 @@
 import uuid
-import random
+import secrets
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any
@@ -89,7 +89,8 @@ class RecommendationSynthesizer:
             "HVAC", "High-Load Equipment", "Lighting", "Pumps"
         ])
         #random recommnedation given
-        out = random.sample(equipment, min(sample_size, len(equipment)))
+        sr = secrets.SystemRandom()
+        out = sr.sample(equipment, min(sample_size, len(equipment)))
         return " or ".join(out)
 
     def _calculate_peak_shaving(self, building_id, building_type, forecast_peak, threshold_kw, tariffs, time_window, peak_base_ratio):

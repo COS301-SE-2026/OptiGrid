@@ -115,7 +115,8 @@ class AnalyticsEngine:
             start_time = end_time - timedelta(days=days_back)
             
             import hashlib
-            import random
+            import secrets
+            sr = secrets.SystemRandom()
             h = int(hashlib.sha256(clean_id.encode("utf-8")).hexdigest(), 16)
             base_kw = 12.0 + ((h % 5300) / 100.0)
             amplitude_kw = 6.0 + (((h >> 16) % 1800) / 100.0)
@@ -136,7 +137,7 @@ class AnalyticsEngine:
                 month_fraction = current_time.month + (current_time.day / 30.0)
                 seasonal_factor = 1.0 + 0.25 * np.cos(4.0 * np.pi * (month_fraction - 1.0) / 12.0)
                 
-                noise = random.gauss(0.0, max(0.8, amplitude_kw * 0.15))
+                noise = sr.gauss(0.0, max(0.8, amplitude_kw * 0.15))
                 
                 raw_usage = max(1.0, (base_kw + (amplitude_kw * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise)
                 cost_zar = round(raw_usage * UTILITY_RATE_KWH, 2)
