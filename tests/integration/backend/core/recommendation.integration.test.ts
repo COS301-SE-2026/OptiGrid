@@ -29,7 +29,7 @@ describe('Recommendation integration tests', () => {
 			await client.query(
 				`insert into users (user_id, tenant_id, email, first_name, last_name, role_type)
 				 values ($1, $2, $3, $4, $5, $6)`,
-				[userId, tenantId, 'recommendation.integration@optigrid.test', 'Integration', 'User', 'ADMIN']
+				[userId, tenantId, 'recommendation.integration@optigrid.test', 'Test', 'User', 'Admin']
 			);
 			await client.query(
 				`insert into buildings (building_id, tenant_id, building_name, square_footage, timezone, max_occupancy)
