@@ -90,7 +90,7 @@ class RecommendationSynthesizer:
         ])
         #random recommnedation given
         sr = secrets.SystemRandom()
-        out = sr.sample(equipment, min(sample_size, len(equipment)))
+        out = sr.sample(equipment, min(sample_size, len(equipment))) # NOSONAR
         return " or ".join(out)
 
     def _calculate_peak_shaving(self, building_id, building_type, forecast_peak, threshold_kw, tariffs, time_window, peak_base_ratio):

@@ -137,7 +137,7 @@ class AnalyticsEngine:
                 month_fraction = current_time.month + (current_time.day / 30.0)
                 seasonal_factor = 1.0 + 0.25 * np.cos(4.0 * np.pi * (month_fraction - 1.0) / 12.0)
                 
-                noise = sr.gauss(0.0, max(0.8, amplitude_kw * 0.15))
+                noise = sr.gauss(0.0, max(0.8, amplitude_kw * 0.15)) # NOSONAR
                 
                 raw_usage = max(1.0, (base_kw + (amplitude_kw * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise)
                 cost_zar = round(raw_usage * UTILITY_RATE_KWH, 2)

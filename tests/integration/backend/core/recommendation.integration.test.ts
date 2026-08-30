@@ -59,14 +59,14 @@ describe('Recommendation integration tests', () => {
 	afterEach(async () => {if (harness) await harness.resetDatabase();});
 
 	it("should_show_recs", async () => {
-		const resp = await request(harness.app).get(`api/buildings/${buildingId}/recommendations`).set(authHeaders);
+		const resp = await request(harness.app).get(`/api/buildings/${buildingId}/recommendations`).set(authHeaders);
 		//assert
 		expect(resp.status).toBe(200);
 		expect(resp.body.status).toBe("success");
 	});
 
 	it("should_apply_a_rec", async () => {
-		const resp = await request(harness.app).post(`api/buildings/${buildingId}/recommendations/${recommendationId}/apply`).set(authHeaders);
+		const resp = await request(harness.app).post(`/api/buildings/${buildingId}/recommendations/${recommendationId}/apply`).set(authHeaders);
 		//assert
 		expect(resp.status).toBe(200);
 		expect(resp.body.status).toBe("success");
