@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { applyRecommendationController, viewRecommendationController, updateTariffController } from '../controllers/recommendation.controller';
+import { applyRecommendationController, viewRecommendationController, updateTariffController, dismissRecommendationController } from '../controllers/recommendation.controller';
 
 const router = Router({ mergeParams: true });
 
@@ -93,5 +93,6 @@ const router = Router({ mergeParams: true });
 router.post('/:recommendation_id/apply', applyRecommendationController);
 router.get('/', viewRecommendationController);
 router.put('/tariffs', updateTariffController);
+router.post('/:recommendation_id/dismiss', dismissRecommendationController);
 
 export default router;
