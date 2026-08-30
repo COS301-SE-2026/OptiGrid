@@ -14,8 +14,8 @@ describe("Recommendation Route Unit tests", () => {
 		}) as jest.Mock;
 	});
 
-	it("posts an approval to Core with the access token", async () => {
-		const request = new Request(
+	it("should_apply_the_recommendation", async () => {
+		const req = new Request(
 			"http://localhost/api/buildings/building-123/recommendations/rec-1/apply",
 			{
 				method: "POST",
@@ -24,46 +24,44 @@ describe("Recommendation Route Unit tests", () => {
 				},
 			},
 		);
-
-		const response = await POST(request, {
+		//act
+		const resp = await POST(req, {
 			params: Promise.resolve({ 
 				buildingId: "building-123", 
 				recommendationId: "rec-1" 
 			}),
 		});
-
-		expect(response.status).toBe(200);
+		//assert
+		expect(resp.status).toBe(200);
 		expect(global.fetch).toHaveBeenCalledWith(
 			"https://core.test/api/buildings/building-123/recommendations/rec-1/apply",
 			expect.objectContaining({ method: "POST" }),
 		);
-
 		const [, options] = (global.fetch as jest.Mock).mock.calls[0];
 		const headers = options.headers as Headers;
 		expect(headers.get("Authorization")).toBe("Bearer access-token");
 	});
 
-	it("rejects unauthenticated requests without calling Core", async () => {
-		const request = new Request(
+	it("should_return_401", async () => {
+		const req = new Request(
 			"http://localhost/api/buildings/building-123/recommendations/rec-1/apply",
 			{ method: "POST" },
 		);
-
-		const response = await POST(request, {
+		//act
+		const resp = await POST(req, {
 			params: Promise.resolve({ 
 				buildingId: "building-123", 
 				recommendationId: "rec-1" 
 			}),
 		});
-
-		expect(response.status).toBe(401);
+		//asseert
+		expect(resp.status).toBe(401);
 		expect(global.fetch).not.toHaveBeenCalled();
 	});
 
-	it("returns 502 when Core cannot be reached", async () => {
+	it("should_return_502", async () => {
 		global.fetch = jest.fn().mockRejectedValue(new Error("connection refused")) as jest.Mock;
-
-		const request = new Request(
+		const req = new Request(
 			"http://localhost/api/buildings/building-123/recommendations/rec-1/apply",
 			{
 				method: "POST",
@@ -72,14 +70,14 @@ describe("Recommendation Route Unit tests", () => {
 				},
 			},
 		);
-
-		const response = await POST(request, {
+		//act
+		const resp = await POST(req, {
 			params: Promise.resolve({ 
 				buildingId: "building-123", 
 				recommendationId: "rec-1" 
 			}),
 		});
-
-		expect(response.status).toBe(502);
+		//assert
+		expect(resp.status).toBe(502);
 	});
 });
