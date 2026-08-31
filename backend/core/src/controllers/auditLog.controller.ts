@@ -1,5 +1,6 @@
 import { listAuditLogs } from '../services/auditLog.service';
 import { auditLogQuerySchema } from '../validation/auditLog.validation';
+import { UserRole } from '@prisma/client';
 import { Request, Response } from 'express';
 
 export const listAuditLogsController = async (req: Request, resp: Response) => {
@@ -12,9 +13,18 @@ export const listAuditLogsController = async (req: Request, resp: Response) => {
     }
 
     const query = auditLogQuerySchema.parse(req.query);
+    const isBuildingManager = req.user.roleType === UserRole.BUILDING_MANAGER;
+
+    if (isBuildingManager && query.user_id && query.user_id !== req.user.id) {
+      return resp.status(403).json({
+        status: "error",
+        message: "Building managers can only view their own audit logs"
+      });
+    }
+
     const data = await listAuditLogs({
       action_type: query.action_type,
-      user_id: query.user_id,
+      user_id: isBuildingManager ? req.user.id : query.user_id,
       from: query.from,
       to: query.to,
       limit: query.limit

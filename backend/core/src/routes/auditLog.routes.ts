@@ -110,9 +110,9 @@ const router = Router();
  *       '401':
  *         description: Unauthorized
  *       '403':
- *         description: Forbidden, the caller is not an admin
+ *         description: Forbidden, the caller is not an admin or building manager
  *       '500':
  *         description: Internal Server Error
  */
-router.get('/', reqRole([UserRole.ADMIN]), listAuditLogsController);
+router.get('/', reqRole([UserRole.ADMIN, UserRole.BUILDING_MANAGER]), listAuditLogsController);
 export default router;

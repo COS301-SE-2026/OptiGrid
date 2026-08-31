@@ -12,8 +12,7 @@ export default async function AuditPage() {
         redirect("/login");
     }
 
-    //only admins ae allowed to check audit logs cuz they expose whole system activity 
-    if (user.roleType !== "ADMIN") {
+    if (user.roleType !== "ADMIN" && user.roleType !== "BUILDING_MANAGER") {
         redirect("/dashboard");
     }
     return <AuditClient />;

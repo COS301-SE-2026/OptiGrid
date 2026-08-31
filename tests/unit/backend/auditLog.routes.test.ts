@@ -52,12 +52,22 @@ describe("Audit Log Routes", () => {
         (prisma.auditLog.findMany as jest.Mock).mockResolvedValue([mockedLog]);
     });
 
-    it("rejects a non admin", async () => {
+    it("rejects a viewer", async () => {
         currentRole = "VIEWER";
 
         const response = await request(createAuditApp()).get('/api/admin/audit-logs');
         expect(response.status).toBe(403);
         expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
+    });
+
+    it("allows a building manager to view their own audit logs", async () => {
+        currentRole = "BUILDING_MANAGER";
+
+        const response = await request(createAuditApp()).get('/api/admin/audit-logs');
+
+        expect(response.status).toBe(200);
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+        expect(args.where.user_id).toBe("admin-1");
     });
 
     it("returns the logs in the shape which the view expects", async () => {
