@@ -298,6 +298,9 @@ model AuditLog {
   user     User?     @relation(fields: [user_id], references: [userId], onDelete: SetNull)
   building Building? @relation(fields: [building_id], references: [building_id], onDelete: SetNull)
 
+  @@index([user_id])
+  @@index([action_type])
+  @@index([timestamp])
   @@index([building_id])
   @@map("audit_logs")
   @@schema("public")

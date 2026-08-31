@@ -119,6 +119,19 @@ describe("Audit Log Routes", () => {
         expect(response.status).toBe(400);
         expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
     });
+
+    it.each([
+        { query: { page: "ADMIN" }, label: "unsupported page" },
+        { query: { cursor: "not-a-uuid" }, label: "invalid cursor" },
+        { query: { action_type: "LOGIN", page: "DASHBOARD" }, label: "conflicting action and page filters" },
+    ])("rejects $label", async ({ query }) => {
+        const response = await request(createAuditApp())
+            .get('/api/admin/audit-logs')
+            .query(query);
+
+        expect(response.status).toBe(400);
+        expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
+    });
 });
 
 

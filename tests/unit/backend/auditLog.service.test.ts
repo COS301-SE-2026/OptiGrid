@@ -100,6 +100,36 @@ describe("Audit Log Service", () => {
         ]);
     });
 
+    it("keeps a cross-user filter inside the manager's authorized-building scope", async () => {
+        await listAuditLogs({
+            manager_id: "manager-1",
+            user_id: "other-user",
+            limit: 50,
+        });
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+
+        expect(args.where.user_id).toBe("other-user");
+        expect(args.where.OR).toEqual([
+            { user_id: "manager-1" },
+            {
+                building: {
+                    is: {
+                        authorized_users: {
+                            some: { user_id: "manager-1" }
+                        }
+                    }
+                }
+            }
+        ]);
+    });
+
+    it("does not return a cursor when the current page is the final page", async () => {
+        const result = await listAuditLogs({ limit: 1 });
+
+        expect(result.items).toHaveLength(1);
+        expect(result.nextCursor).toBeNull();
+    });
+
     it("cover the whole of the last day in a range", async () => {
         await listAuditLogs({
             from: new Date("2026-08-01T00:00:00Z"),
