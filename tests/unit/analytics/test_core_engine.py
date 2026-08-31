@@ -357,7 +357,7 @@ def test_process_all_buildings_negative_empty_influx(mock_register, mock_get_ids
     
     # building registered but no analytics uploaded
     mock_register.assert_called_once_with('bld_test_1')
-    engine.supabase.table.assert_not_called()  # no data to upload
+    engine.supabase.table.return_value.upsert.assert_not_called()  # no data to upload
 
 @patch.object(AnalyticsEngine, 'get_active_building_ids')
 @patch.object(AnalyticsEngine, 'register_new_building')
@@ -498,13 +498,15 @@ def test_recommendations_positive(uuid, engine):
     upsert.assert_called_once()
     #assert
     payload = upsert.call_args[0][0]
-    assert payload["recommendation_id"] == "uuid-123"
-    assert payload["building_id"] == "building-123"
-    assert payload["status"] == "Generated"
-    assert payload["estimated_monthly_savings"] > 50.0
+    assert payload[0]["recommendation_id"] == "uuid-123"
+    assert payload[0]["building_id"] == "building-123"
+    assert payload[0]["status"] == "Pending"
+    assert payload[0]["estimated_monthly_savings"] > 50.0
 
-def test_recommendations_negative(engine):
+@patch("backend.analytics.src.core_engine.RecommendationSynthesizer.generate_non_data_driven_recs")
+def test_recommendations_negative(mock_non_data, engine):
     """Test sending a recommendation when reqs are not met"""
+    mock_non_data.return_value = []
     df = pd.DataFrame({'usage': [100.0, 100.0, 100.0, 100.0]})
     ml_metrics= {
         "forecast_peak": 110.0,
@@ -515,12 +517,14 @@ def test_recommendations_negative(engine):
     engine.supabase.table.return_value.upsert.assert_not_called()
 
 @patch('backend.analytics.src.core_engine.UTILITY_RATE_KWH', 0.01)
-def test_recommendations_low_savings(engine):
+@patch("backend.analytics.src.core_engine.RecommendationSynthesizer.generate_non_data_driven_recs")
+def test_recommendations_low_savings(mock_non_data, engine):
     """Test that no recommendation is snet if savings < R50 """
-    df = pd.DataFrame({'usage': [100.0, 100.0, 100.0]})
+    mock_non_data.return_value = []
+    df = pd.DataFrame({'usage': [10.0, 10.0, 10.0]})
     ml_metrics= {
-        "forecast_peak": 200.0,
-        "min_historic": 50.0
+        "forecast_peak": 13.1,
+        "min_historic": 5.0
     }
     engine._generate_recommendations("building", df, ml_metrics, "weekly")
     engine.supabase.table.return_value.upsert.assert_not_called()

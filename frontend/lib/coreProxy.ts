@@ -58,8 +58,9 @@ type ProxyMessages = {
 
 type ProxyOptions = ProxyMessages & {
 	path: string;
-	method?: "GET" | "POST";
+	method?: "GET" | "POST" | "PUT";
 	query?: URLSearchParams;
+	body?: unknown;
 };
 
 //forward an authenticated request to core and mirror its status and body back
@@ -71,11 +72,15 @@ export async function proxyCore(request: Request, options: ProxyOptions) {
 
 	const queryString = options.query?.toString() ?? "";
 	const query = queryString ? `?${queryString}` : "";
+	if (options.body !== undefined) {
+		headers.set("Content-Type", "application/json");
+	}
 
 	try {
 		const coreResponse = await fetch(`${getCoreUrl()}${options.path}${query}`, {
 			method: options.method ?? "GET",
 			headers,
+			body: options.body === undefined ? undefined : JSON.stringify(options.body),
 			cache: "no-store"
 		});
 
@@ -148,6 +153,47 @@ export function recommendationProxyPost(options: RecommendationRouteOptions) {
 		return proxyCore(request, {
 			path: `/api/buildings/${building}/recommendations/${recommendation}/${options.action}`,
 			method: "POST",
+			successMessage: options.successMessage,
+			failureMessage: options.failureMessage,
+			unreachableMessage: options.unreachableMessage,
+		});
+	};
+}
+type BuildingPutOptions = ProxyMessages & {
+	segment: string;
+	allowedFields: string[];
+};
+
+// this function build a PUT handler that forwards only the whitelisted fields to the core
+export function buildingProxyPut(options: BuildingPutOptions) {
+	return async function PUT(
+		request: Request,
+		{ params }: { params: Promise<{ buildingId: string }> },
+	) {
+		const { buildingId } = await params;
+		if (!buildingId) {
+			return NextResponse.json({ message: "Building id is required." }, { status: 400 });
+		}
+
+		let received: Record<string, unknown>;
+		try {
+			received = (await request.json()) as Record<string, unknown>;
+		}
+		catch {
+			return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
+		}
+
+		const body: Record<string, unknown> = {};
+		for (const field of options.allowedFields) {
+			if (received?.[field] !== undefined) {
+				body[field] = received[field];
+			}
+		}
+
+		return proxyCore(request, {
+			path: `/api/buildings/${encodeURIComponent(buildingId)}/${options.segment}`,
+			method: "PUT",
+			body,
 			successMessage: options.successMessage,
 			failureMessage: options.failureMessage,
 			unreachableMessage: options.unreachableMessage,

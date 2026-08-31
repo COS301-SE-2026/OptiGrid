@@ -3,6 +3,7 @@ import { createBuilding, compareBuildingsService, deleteBuildingService, getAllB
   getPortfolioConsumption, listBuildingsForUser, getBuildingDetails, updateBuildingService, getManagerBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import { getClientIp, recordAuditLog } from '../services/auditLog.service';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -59,6 +60,15 @@ export const createBuildingController = async (req: Request, res: Response) => {
       status: 'success',
       data: building
     };
+
+    await recordAuditLog({
+      userId,
+      buildingId: building.building_id,
+      actionType: "CREATE",
+      targetTable: "buildings",
+      newValue: building,
+      ipAddress: getClientIp(req)
+    });
     await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     res.status(201).json(successResponse);
 
@@ -304,6 +314,14 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
       message: 'Building successfully deleted'
     };
 
+    await recordAuditLog({
+      userId,
+      actionType: "DELETE",
+      targetTable: "buildings",
+      oldValue: { building_id },
+      ipAddress: getClientIp(req)
+    });
+
     //store in redis cache cache before responding
     await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     return res.status(200).json(successResponse);
@@ -339,6 +357,15 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     const validatedPayload = updateBuildingSchema.parse(req.body);
 
     const building = await updateBuildingService(req.user.id, building_id, validatedPayload, role);
+    await recordAuditLog({
+      userId: req.user.id,
+      buildingId: building_id,
+      actionType: "UPDATE",
+      targetTable: "buildings",
+      newValue: validatedPayload,
+      ipAddress: getClientIp(req)
+    });
+
     return res.status(200).json({
       status: 'success',
       data: building,

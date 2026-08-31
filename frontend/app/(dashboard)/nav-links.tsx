@@ -10,7 +10,11 @@ const navigation = [
     { label: "Forecast", href: "/forecast" },
     { label: "Insights", href: "/insights" },
     { label: "Admin", href: "/admin", roles: ["ADMIN"] },
+    { label: "Billing", href: "/billing", roles: ["ADMIN"] },
+    { label: "Audit", href: "/audit", roles: ["ADMIN", "BUILDING_MANAGER"] },
     { label: "Manage", href: "/manager", roles: ["BUILDING_MANAGER"] },
+    { label: "Anomaly", href: "/anomaly", roles:["BUILDING_MANAGER"]},
+    { label: "Anomaly", href: "/useranomaly", roles:["VIEWER"]},
     { label: "Settings", href:"/settings"},
    
     

@@ -8,47 +8,53 @@ export interface UpdateTariffPayload {
   season_name:string;
 }
 
-export const applyRecommendation = async (userId: string, buildingId: string, recommendationId: string) => {
-  const access = await prisma.userBuildingAccess.findFirst({
-    where: { 
-      user_id: userId, 
-      building_id: buildingId 
+const helper = async(userId: string, buildingId:string, recommendationId: string) => {
+  const access = await prisma?.userBuildingAccess.findFirst({
+    where: {
+      user_id: userId,
+      building_id: buildingId
     },
   });
-  if (!access) throw new Error("Access Denied");
+  if(!access) throw new Error("Access Denied");
 
-  const recommendation = await prisma.optimisationRecommendation.findUnique({
-    where: { 
-      recommendation_id: recommendationId 
+  const rec = await prisma?.optimisationRecommendation.findUnique({
+    where: {
+      recommendation_id: recommendationId
     },
   });
-  if (!recommendation || recommendation.building_id !== buildingId) throw new Error("Recommendation not found");
+  if(!rec || rec.building_id !== buildingId) throw new Error("Recommendation not found");
 
-  if (recommendation.expires_at && new Date(recommendation.expires_at) < new Date()) {
-    await prisma.optimisationRecommendation.update({
-      where: { 
-        recommendation_id: recommendationId 
+  if(rec.expires_at && new Date(rec.expires_at) < new Date()) {
+    await prisma?.optimisationRecommendation.update({
+      where: {
+        recommendation_id: recommendationId
       },
-      data: { 
-        status: "Expired" 
-      },
+      data: {
+        status: "Expired"
+      }
     });
-    throw new Error("Expired");
+    throw new Error("Expired")
   }
+  return rec;
+};
+
+
+export const applyRecommendation = async (userId: string, buildingId: string, recommendationId: string) => {
+  const rec = await helper(userId, buildingId, recommendationId);
   await prisma.optimisationRecommendation.update({
-    where: { 
-      recommendation_id: recommendationId 
+    where: {
+      recommendation_id: recommendationId
     },
-    data: { 
+    data: {
       status: "Pending_Execution"
-    },
+    }
   });
 
   await analyticsQueue.add("apply_recommendation", {
     building_id: buildingId,
     recommendation_id: recommendationId,
-    strategy_description: recommendation.strategy_description,
-    applicable_range: recommendation.applicable_range,
+    strategy_description: rec.strategy_description,
+    applicable_range: rec.applicable_range
   });
   return true;
 };
@@ -127,3 +133,16 @@ export const updateTariffService = async(userId:string, buildingId: string, payl
   }
   return true;
 }
+
+export const dismissRecommendationService = async (userId: string, buildingId: string, recommendationId: string) => {
+  await helper(userId, buildingId, recommendationId);
+  await prisma.optimisationRecommendation.update({
+    where: {
+      recommendation_id: recommendationId
+    },
+    data: {
+      status: "Dismissed"
+    }
+  });
+  return true;
+};

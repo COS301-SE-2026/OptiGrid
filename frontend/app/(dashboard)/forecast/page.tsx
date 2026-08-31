@@ -4,6 +4,7 @@ import { AccessibleChart } from "../../../components/AccessibleChart";
 import { useMutation } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import { useBuildings } from "@/lib/useBuildings";
+import { PageHeading } from "@/components/PageHeading";
 import {
     Area,
     CartesianGrid,
@@ -595,18 +596,10 @@ export default function ForecastPage() {
 
     return (
         <div>
-            <div
-                className="dashboard-section"
-                style={{
-                    borderBottom: "1px solid var(--brand-border)",
-                    paddingBottom: "var(--space-4)",
-                }}
-            >
-                <h1 className="dashboard-title">Demand Forecast</h1>
-                <p className="dashboard-subtitle">
-                    Select a building and horizon to view its upcoming energy demand forecast.
-                </p>
-            </div>
+            <PageHeading
+                title="Demand Forecast"
+                subtitle="Select a building and horizon to view its upcoming energy demand forecast."
+            />
 
             <section className="card dashboard-section" aria-label="Forecast controls">
                 <div

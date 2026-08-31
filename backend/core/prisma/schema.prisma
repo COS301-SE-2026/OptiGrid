@@ -99,6 +99,14 @@ enum RecommendationStatus {
   @@schema("public")
 }
 
+enum RecommendationCategory {
+  DATA_DRIVEN     @map("data")
+  NON_DATA_DRIVEN @map("non_data")
+
+  @@map("recommendation_category")
+  @@schema("public")
+}
+
 enum NotificationChannel {
   Email
   SMS
@@ -194,7 +202,7 @@ model Building {
   maintenance_windows MaintenanceWindow[]
   recommendations     OptimisationRecommendation[]
   utility_tariffs     UtilityTariff[]
-  audit_logs          AuditLog[]
+  auditLogs           AuditLog[]
 
   @@index([tenant_id])
   @@map("buildings")
@@ -306,7 +314,10 @@ model AuditLog {
   user     User?     @relation(fields: [user_id], references: [userId], onDelete: SetNull)
   building Building? @relation(fields: [building_id], references: [building_id], onDelete: SetNull)
 
+  @@index([user_id])
+  @@index([action_type])
   @@index([timestamp])
+  @@index([building_id])
   @@index([user_id, timestamp])
   @@index([building_id, timestamp])
   @@index([service, timestamp])
@@ -353,6 +364,7 @@ model OptimisationRecommendation {
   strategy_description      String                @map("strategy_description")
   estimated_monthly_savings Decimal?              @map("estimated_monthly_savings") @db.Decimal
   status                    RecommendationStatus? @default(Pending)
+  recommendation_category   RecommendationCategory?    @default(DATA_DRIVEN) @map("recommendation_category")
   applicable_range          Json?                 @map("applicable_range")
   expires_at                DateTime?             @map("expires_at") @db.Timestamptz
   generated_date            DateTime?             @default(now()) @map("generated_date") @db.Timestamptz

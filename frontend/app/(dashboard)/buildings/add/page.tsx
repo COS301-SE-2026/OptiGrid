@@ -4,6 +4,7 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getTabSessionPath } from "../../../../lib/tab-session";
+import { FormAlert } from "@/components/FormAlert";
 
 const BUILDING_TYPES = [
     "Residential",
@@ -373,21 +374,7 @@ export default function AddBuildingPage() {
                     </div>
                 </div>
 
-                {apiError && (
-                    <div
-                        role="alert"
-                        style={{
-                            border: "1px solid var(--brand-danger)",
-                            background: "color-mix(in srgb, var(--brand-danger) 12%, transparent)",
-                            color: "var(--brand-danger)",
-                            padding: "var(--space-3) var(--space-4)",
-                            borderRadius: "var(--radius-md)",
-                            fontSize: "var(--fs-small)",
-                        }}
-                    >
-                        {apiError}
-                    </div>
-                )}
+                {apiError && <FormAlert message={apiError} />}
 
                 <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "auto" }}>
                     <button
