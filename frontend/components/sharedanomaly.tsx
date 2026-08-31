@@ -2,15 +2,15 @@
 
 import { ReactNode, useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  Scatter,
   ComposedChart,
+  Area,
+  Line,
 } from "recharts";
 
 export type AnomalyStatus = "Open" | "Resolved" | "In_Progress" | "Ignored";
@@ -32,9 +32,7 @@ export interface Anomaly {
   z_score_value?: number | null;
   threshold_details?: {
     threshold_id?: string;
-    upper_limit: number | null;
-    lower_limit: number | null;
-    allowed_spike_percentage: number | null;
+    z_score_threshold: number | null;
     metric_type: string;
     unit: string;
     is_active: boolean;
@@ -47,9 +45,7 @@ export interface AlertThreshold {
   building_name: string;
   metric_type: string;
   unit: string;
-  upper_limit: number | null;
-  lower_limit: number | null;
-  allowed_spike_percentage: number | null;
+  z_score_threshold: number | null;
   is_active: boolean;
 }
 
@@ -58,32 +54,8 @@ export interface Building {
   name: string;
 }
 
-export const mockConsumptionData = [
-  { timestamp: "2026-08-16T00:00:00Z", actual: 45, expected: 48, cost: 67.50, isAnomaly: false },
-  { timestamp: "2026-08-16T01:00:00Z", actual: 42, expected: 44, cost: 63.00, isAnomaly: false },
-  { timestamp: "2026-08-16T02:00:00Z", actual: 38, expected: 40, cost: 57.00, isAnomaly: false },
-  { timestamp: "2026-08-16T03:00:00Z", actual: 35, expected: 37, cost: 52.50, isAnomaly: false },
-  { timestamp: "2026-08-16T04:00:00Z", actual: 33, expected: 35, cost: 49.50, isAnomaly: false },
-  { timestamp: "2026-08-16T05:00:00Z", actual: 40, expected: 42, cost: 60.00, isAnomaly: false },
-  { timestamp: "2026-08-16T06:00:00Z", actual: 55, expected: 52, cost: 82.50, isAnomaly: false },
-  { timestamp: "2026-08-16T07:00:00Z", actual: 78, expected: 75, cost: 117.00, isAnomaly: false },
-  { timestamp: "2026-08-16T08:00:00Z", actual: 95, expected: 90, cost: 142.50, isAnomaly: false },
-  { timestamp: "2026-08-16T09:00:00Z", actual: 110, expected: 105, cost: 165.00, isAnomaly: false },
-  { timestamp: "2026-08-16T10:00:00Z", actual: 125, expected: 120, cost: 187.50, isAnomaly: false },
-  { timestamp: "2026-08-16T11:00:00Z", actual: 130, expected: 128, cost: 195.00, isAnomaly: false },
-  { timestamp: "2026-08-16T12:00:00Z", actual: 145, expected: 140, cost: 217.50, isAnomaly: false },
-  { timestamp: "2026-08-16T13:00:00Z", actual: 150, expected: 145, cost: 225.00, isAnomaly: false },
-  { timestamp: "2026-08-16T14:00:00Z", actual: 220, expected: 148, cost: 330.00, isAnomaly: true, anomaly_id: "anm-001" },
-  { timestamp: "2026-08-16T15:00:00Z", actual: 190, expected: 150, cost: 285.00, isAnomaly: false },
-  { timestamp: "2026-08-16T16:00:00Z", actual: 160, expected: 155, cost: 240.00, isAnomaly: false },
-  { timestamp: "2026-08-16T17:00:00Z", actual: 130, expected: 135, cost: 195.00, isAnomaly: false },
-  { timestamp: "2026-08-16T18:00:00Z", actual: 100, expected: 105, cost: 150.00, isAnomaly: false },
-  { timestamp: "2026-08-16T19:00:00Z", actual: 80, expected: 85, cost: 120.00, isAnomaly: false },
-  { timestamp: "2026-08-16T20:00:00Z", actual: 65, expected: 70, cost: 97.50, isAnomaly: false },
-  { timestamp: "2026-08-16T21:00:00Z", actual: 55, expected: 60, cost: 82.50, isAnomaly: false },
-  { timestamp: "2026-08-16T22:00:00Z", actual: 48, expected: 52, cost: 72.00, isAnomaly: false },
-  { timestamp: "2026-08-16T23:00:00Z", actual: 42, expected: 45, cost: 63.00, isAnomaly: false },
-];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const mockConsumptionData: any[] = [];
 
 export const STATUS_LABELS: Record<AnomalyStatus, string> = {
   Open: "Open",
@@ -126,7 +98,7 @@ export function StatusBadge({ status }: Readonly<{ status: AnomalyStatus }>) {
 }
 
 export function SeverityBadge({ severity }: Readonly<{ severity: SeverityLevel }>) {
-  const style = SEVERITY_COLORS[severity];
+  const style = SEVERITY_COLORS[String(severity).toLowerCase() as SeverityLevel] || SEVERITY_COLORS.low;
   return (
     <span
       className="badge"
@@ -326,13 +298,11 @@ interface AnomaliesTableProps {
   anomalies: Anomaly[];
   onRowClick: (anomaly: Anomaly) => void;
   formatDate: (date: string) => string;
-  actions?: (anomaly: Anomaly) => ReactNode;
 }
 
 export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
-  const { anomalies, onRowClick, formatDate: formatDateProp, actions } = props;
-  const hasActions = anomalies.some(a => a.status !== "Resolved" && a.status !== "Ignored");
-  const colSpan = hasActions ? 8 : 7;
+  const { anomalies, onRowClick, formatDate: formatDateProp } = props;
+  const colSpan = 7;
 
   const handleRowClick = (e: MouseEvent<HTMLTableRowElement>, anomaly: Anomaly) => {
     if ((e.target as HTMLElement).closest("button")) {
@@ -351,10 +321,9 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
               <th scope="col">Type</th>
               <th scope="col">Severity</th>
               <th scope="col">Status</th>
-              <th scope="col">Threshold</th>
+              <th scope="col">Deviation</th>
               <th scope="col">Description</th>
               <th scope="col">Detected</th>
-              {hasActions && <th scope="col">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -397,28 +366,16 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
                     <StatusBadge status={anomaly.status} />
                   </td>
                   <td>
-                    {anomaly.threshold_details ? (
-                      <div style={{ fontSize: "var(--fs-small)" }}>
-                        <span className="text-muted">
-                          {anomaly.threshold_details.metric_type}: 
-                          {anomaly.threshold_details.upper_limit != null && ` ${anomaly.threshold_details.upper_limit}`}
-                          {anomaly.threshold_details.lower_limit != null && ` - ${anomaly.threshold_details.lower_limit}`}
-                          {anomaly.threshold_details.unit && ` ${anomaly.threshold_details.unit}`}
-                          {anomaly.threshold_details.allowed_spike_percentage != null && ` (${anomaly.threshold_details.allowed_spike_percentage}%)`}
+                    {anomaly.z_score_value != null ? (
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontWeight: "var(--fw-semibold)", color: "var(--text-main)" }}>
+                          {anomaly.z_score_value >= 4.0 ? "Extreme Spike" 
+                            : anomaly.z_score_value >= 3.0 ? "High Spike"
+                            : anomaly.z_score_value >= 2.0 ? "Moderate Spike"
+                            : "Slight Variance"}
                         </span>
-                        <span
-                          className="badge"
-                          style={{
-                            backgroundColor: anomaly.threshold_details.is_active ? "#2F7D5D" : "#7A7A7A",
-                            color: "#FFFFFF",
-                            padding: "var(--space-1) var(--space-2)",
-                            borderRadius: "var(--radius-pill)",
-                            fontSize: "var(--fs-small)",
-                            fontWeight: "var(--fw-medium)",
-                            marginLeft: "var(--space-2)",
-                          }}
-                        >
-                          {anomaly.threshold_details.is_active ? "Active" : "Inactive"}
+                        <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                          +{anomaly.z_score_value.toFixed(1)}σ from baseline
                         </span>
                       </div>
                     ) : (
@@ -429,13 +386,6 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
                   <td className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
                     {formatDateProp(anomaly.detected_timestamp)}
                   </td>
-                  {hasActions && (
-                    <td>
-                      <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-                        {actions?.(anomaly)}
-                      </div>
-                    </td>
-                  )}
                 </tr>
               ))
             )}
@@ -448,13 +398,14 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
 
 interface EnergyChartProps {
   chartData: typeof mockConsumptionData;
-  anomalyPoints: { x: string; y: number }[];
+  anomalyPoints: { timestamp: string; y: number }[];
   buildings: Building[];
   selectedBuilding: string;
   chartMetric: MetricType;
   onBuildingChange: (value: string) => void;
   onMetricChange: (value: MetricType) => void;
   formatChartTime: (timestamp: string) => string;
+  loading?: boolean;
 }
 
 export function EnergyChart(props: Readonly<EnergyChartProps>) {
@@ -467,10 +418,11 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
     onBuildingChange,
     onMetricChange,
     formatChartTime: formatChartTimeProp,
+    loading,
   } = props;
 
   const getDataKey = () => chartMetric === "power" ? "actual" : "cost";
-  const getExpectedKey = () => chartMetric === "power" ? "expected" : "cost";
+  const getExpectedKey = () => chartMetric === "power" ? "expected" : "expectedCost";
 
   return (
     <div className="card" style={{ marginBottom: "var(--space-5)" }}>
@@ -509,91 +461,114 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
       </div>
 
       <div style={{ height: "300px", width: "100%" }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart
-            data={chartData}
-            margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--brand-border)" />
-            <XAxis
-              dataKey="timestamp"
-              tickFormatter={formatChartTimeProp}
-              tick={{ fill: "var(--brand-ink-muted)", fontSize: 10 }}
-              axisLine={false}
-              tickLine={false}
-              interval={2}
-            />
-            <YAxis
-              tick={{ fill: "var(--brand-ink-muted)", fontSize: 10 }}
-              axisLine={false}
-              tickLine={false}
-              label={{
-                value: chartMetric === "power" ? "kWh" : "R",
-                angle: -90,
-                position: "insideLeft",
-                style: { fill: "var(--brand-ink-muted)", fontSize: 10 }
-              }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "var(--brand-surface)",
-                border: "1px solid var(--brand-border)",
-                borderRadius: "var(--radius-md)",
-                color: "var(--brand-ink)",
-                fontSize: "var(--fs-small)",
-              }}
-              labelFormatter={(label) => new Date(label).toLocaleString()}
-              formatter={(value: number, name: string) => {
-                const unit = chartMetric === "power" ? "kWh" : "R";
-                if (name === "Anomaly") return [`${value} ${unit}`, "Anomaly Detected"];
-                if (name === "actual") return [`${value} ${unit}`, "Actual"];
-                if (name === "expected") return [`${value} ${unit}`, "Expected"];
-                return [value, name];
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey={getDataKey()}
-              stroke="#4D869C"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 5 }}
-              name="actual"
-            />
-            <Line
-              type="monotone"
-              dataKey={getExpectedKey()}
-              stroke="#7AB2B2"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
-              name="expected"
-            />
-            <Scatter
-              data={anomalyPoints}
-              dataKey="y"
-              fill="#8B1E3F"
-              shape="circle"
-              r={8}
-              name="Anomaly"
-            />
-            {anomalyPoints.map((point, index) => (
-              <ReferenceLine
-                key={`ref-${point.x}-${index}`}
-                x={point.x}
-                stroke="#8B1E3F"
-                strokeDasharray="3 3"
-                strokeWidth={1}
+        {loading ? (
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Loading chart data...</span>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={chartData}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--brand-border)" />
+              <XAxis
+                dataKey="timestamp"
+                tickFormatter={formatChartTimeProp}
+                tick={{ fill: "var(--brand-ink-muted)", fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                minTickGap={30}
+              />
+              <YAxis
+                tick={{ fill: "var(--brand-ink-muted)", fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
                 label={{
-                  
-                  position: "top",
-                  fill: "#8B1E3F",
-                  fontSize: 14,
+                  value: chartMetric === "power" ? "kWh" : "R",
+                  angle: -90,
+                  position: "insideLeft",
+                  style: { fill: "var(--brand-ink-muted)", fontSize: 10 }
                 }}
               />
-            ))}
-          </ComposedChart>
-        </ResponsiveContainer>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "var(--brand-surface)",
+                  border: "1px solid var(--brand-border)",
+                  borderRadius: "var(--radius-md)",
+                  color: "var(--brand-ink)",
+                  fontSize: "var(--fs-small)",
+                }}
+                labelFormatter={(label) => new Date(label).toLocaleString()}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={(value: number, name: string, item: any) => {
+                  const unit = chartMetric === "power" ? "kWh" : "R";
+                  const isAnomaly = item?.payload?.isAnomaly;
+                  if (name === "actual") {
+                    return [
+                      isAnomaly ? `${value} ${unit} (Anomaly Detected ⚠️)` : `${value} ${unit}`,
+                      "Actual",
+                    ];
+                  }
+                  if (name === "expected") {
+                    return [`${value} ${unit}`, "Expected"];
+                  }
+                  return [`${value} ${unit}`, name];
+                }}
+              />
+              <defs>
+                <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#4D869C" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#4D869C" stopOpacity={0.0} />
+                </linearGradient>
+              </defs>
+              <Area
+                type="monotone"
+                dataKey={getDataKey()}
+                stroke="#4D869C"
+                strokeWidth={2.5}
+                fill="url(#colorActual)"
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                dot={(dotProps: any) => {
+                  const { cx, cy, payload } = dotProps;
+                  if (payload?.isAnomaly && cx != null && cy != null) {
+                    return (
+                      <circle
+                        key={`anomaly-dot-${payload.timestamp}`}
+                        cx={cx}
+                        cy={cy}
+                        r={6}
+                        fill="#8B1E3F"
+                        stroke="#FFFFFF"
+                        strokeWidth={2}
+                      />
+                    );
+                  }
+                  return <g key={`dot-empty-${payload?.timestamp ?? Math.random()}`} />;
+                }}
+                activeDot={{ r: 6, fill: "#4D869C" }}
+                name="actual"
+              />
+              <Line
+                type="monotone"
+                dataKey={getExpectedKey()}
+                stroke="#7AB2B2"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+                name="expected"
+              />
+              {anomalyPoints.map((point, index) => (
+                <ReferenceLine
+                  key={`ref-${point.timestamp}-${index}`}
+                  x={point.timestamp}
+                  stroke="#8B1E3F"
+                  strokeWidth={1}
+                />
+              ))}
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       <div
@@ -606,375 +581,34 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <span style={{ width: "20px", height: "2px", backgroundColor: "#4D869C", display: "inline-block" }} />
+          <span style={{ width: "20px", height: "3px", backgroundColor: "#4D869C", display: "inline-block", borderRadius: "2px" }} />
           <span className="text-muted">Actual</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <span style={{ width: "20px", height: "2px", backgroundColor: "#7AB2B2", borderTop: "2px dashed #7AB2B2", display: "inline-block" }} />
+          <span style={{ width: "20px", height: "2px", borderTop: "2px dashed #7AB2B2", display: "inline-block" }} />
           <span className="text-muted">Expected</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <span style={{ width: "12px", height: "12px", backgroundColor: "#8B1E3F", borderRadius: "50%", display: "inline-block" }} />
+          <span style={{ width: "10px", height: "10px", backgroundColor: "#8B1E3F", borderRadius: "50%", display: "inline-block" }} />
           <span className="text-muted">Anomaly Detected</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <span style={{ width: "20px", height: "2px", backgroundColor: "#8B1E3F", borderTop: "2px dashed #8B1E3F", display: "inline-block" }} />
+          <span style={{ width: "20px", height: "2px", backgroundColor: "#8B1E3F", display: "inline-block" }} />
           <span className="text-muted">Anomaly Reference</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <span style={{ width: "20px", height: "2px", backgroundColor: "#B26B00", display: "inline-block" }} />
-          <span className="text-muted">Metric: {chartMetric === "power" ? "Power" : "Cost"}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function createMockAnomalies(role: "VIEWER" | "BUILDING_MANAGER"): { anomalies: Anomaly[]; historic: Anomaly[]; buildings: Building[] } {
-  const baseAnomalies: Anomaly[] = [
-    {
-      anomaly_id: "anm-1",
-      building_id: "b1",
-      building_name: "Sandton HQ",
-      anomaly_type: "Power_Spike",
-      severity_level: "critical",
-      description: "Critical power spike detected exceeding threshold",
-      status: "In_Progress",
-      detected_timestamp: "2026-08-16T14:30:00Z",
-      resolved_timestamp: null,
-      resolved_by: null,
-      threshold_details: {
-        upper_limit: 150,
-        lower_limit: 20,
-        allowed_spike_percentage: 25,
-        metric_type: "power",
-        unit: "kW",
-        is_active: true,
-      },
-    },
-  ];
+function createMockAnomalies() { return { anomalies: [], buildings: [], historic: [] }; }
 
-  const baseHistoric: Anomaly[] = [
-    {
-      anomaly_id: "anm-3",
-      building_id: "b1",
-      building_name: "Sandton HQ",
-      anomaly_type: "Voltage_Drop",
-      severity_level: "low",
-      description: "Minor voltage fluctuation detected",
-      status: "Resolved",
-      detected_timestamp: "2026-08-14T16:20:00Z",
-      resolved_timestamp: "2026-08-15T08:00:00Z",
-      resolved_by: "Talifhani Seaba",
-      threshold_details: {
-        upper_limit: null,
-        lower_limit: null,
-        allowed_spike_percentage: null,
-        metric_type: "voltage",
-        unit: "V",
-        is_active: true,
-      },
-    },
-  ];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const mockViewerData: any = { anomalies: [], buildings: [], historic: [] };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const mockManagerData: any = { anomalies: [], buildings: [], historic: [] };
 
-  const baseBuildings: Building[] = [
-    { id: "b1", name: "Sandton HQ" },
-  ];
-
-  if (role === "VIEWER") {
-    return {
-      anomalies: [
-        ...baseAnomalies,
-        {
-          anomaly_id: "anm-2",
-          building_id: "b3",
-          building_name: "College",
-          anomaly_type: "Power_Spike",
-          severity_level: "high",
-          description: "High power spike detected",
-          status: "Open",
-          detected_timestamp: "2026-08-16T09:45:00Z",
-          resolved_timestamp: null,
-          resolved_by: null,
-          threshold_details: {
-            upper_limit: 500,
-            lower_limit: 50,
-            allowed_spike_percentage: 30,
-            metric_type: "energy",
-            unit: "kWh",
-            is_active: true,
-          },
-        },
-      ],
-      historic: [
-        ...baseHistoric,
-        {
-          anomaly_id: "anm-4",
-          building_id: "b3",
-          building_name: "College",
-          anomaly_type: "Energy_Anomaly",
-          severity_level: "medium",
-          description: "Unusual consumption pattern detected - resolved after investigation",
-          status: "Resolved",
-          detected_timestamp: "2026-08-13T10:00:00Z",
-          resolved_timestamp: "2026-08-13T14:30:00Z",
-          resolved_by: "jane meyer",
-          threshold_details: {
-            upper_limit: 300,
-            lower_limit: 40,
-            allowed_spike_percentage: 25,
-            metric_type: "energy",
-            unit: "kWh",
-            is_active: true,
-          },
-        },
-        {
-          anomaly_id: "anm-5",
-          building_id: "b4",
-          building_name: "Azalea res",
-          anomaly_type: "Current_Anomaly",
-          severity_level: "high",
-          description: "Current reading anomaly",
-          status: "Resolved",
-          detected_timestamp: "2026-08-12T09:00:00Z",
-          resolved_timestamp: "2026-08-12T11:45:00Z",
-          resolved_by: "bathusi",
-          threshold_details: {
-            upper_limit: 100,
-            lower_limit: 10,
-            allowed_spike_percentage: 15,
-            metric_type: "current",
-            unit: "A",
-            is_active: true,
-          },
-        },
-        {
-          anomaly_id: "anm-6",
-          building_id: "b2",
-          building_name: "Hillcrest",
-          anomaly_type: "Power_Spike",
-          severity_level: "critical",
-          description: "Critical power spike",
-          status: "Resolved",
-          detected_timestamp: "2026-08-11T15:30:00Z",
-          resolved_timestamp: "2026-08-12T09:00:00Z",
-          resolved_by: "Talifhani Seaba",
-          threshold_details: {
-            upper_limit: 200,
-            lower_limit: 30,
-            allowed_spike_percentage: 20,
-            metric_type: "power",
-            unit: "kW",
-            is_active: true,
-          },
-        },
-        {
-          anomaly_id: "anm-7",
-          building_id: "b5",
-          building_name: "Centurion",
-          anomaly_type: "Energy_Drop",
-          severity_level: "medium",
-          description: "Unusual energy drop",
-          status: "Resolved",
-          detected_timestamp: "2026-08-10T08:00:00Z",
-          resolved_timestamp: "2026-08-10T12:00:00Z",
-          resolved_by: "jane meyer",
-          threshold_details: {
-            upper_limit: 400,
-            lower_limit: 60,
-            allowed_spike_percentage: 25,
-            metric_type: "energy",
-            unit: "kWh",
-            is_active: true,
-          },
-        },
-      ],
-      buildings: [
-        ...baseBuildings,
-        { id: "b3", name: "College" },
-      ],
-    };
-  }
-
- 
-  return {
-    anomalies: [
-      {
-        anomaly_id: "anm-1",
-        building_id: "b1",
-        building_name: "Sandton HQ",
-        anomaly_type: "Power_Spike",
-        severity_level: "critical",
-        description: "Sudden power spike detected",
-        status: "Open",
-        escalation_level: 2,
-        z_score_value: 3.2,
-        detected_timestamp: "2026-08-16T14:30:00Z",
-        resolved_timestamp: null,
-        resolved_by: null,
-        threshold_details: {
-          threshold_id: "th-1",
-          upper_limit: 150,
-          lower_limit: 20,
-          allowed_spike_percentage: 25,
-          metric_type: "power",
-          unit: "kW",
-          is_active: true,
-        },
-      },
-      {
-        anomaly_id: "anm-2",
-        building_id: "b2",
-        building_name: "Hillcrest",
-        anomaly_type: "Energy_Drop",
-        severity_level: "high",
-        description: "Unusual energy drop",
-        status: "In_Progress",
-        escalation_level: 1,
-        z_score_value: 2.8,
-        detected_timestamp: "2026-08-16T12:15:00Z",
-        resolved_timestamp: null,
-        resolved_by: null,
-        threshold_details: {
-          threshold_id: "th-2",
-          upper_limit: 500,
-          lower_limit: 50,
-          allowed_spike_percentage: 30,
-          metric_type: "energy",
-          unit: "kWh",
-          is_active: true,
-        },
-      },
-    ],
-    historic: [
-      ...baseHistoric,
-      {
-        anomaly_id: "anm-3",
-        building_id: "b3",
-        building_name: "College",
-        anomaly_type: "Voltage_Drop",
-        severity_level: "low",
-        description: "Minor voltage fluctuation detected",
-        status: "Resolved",
-        escalation_level: 0,
-        z_score_value: 1.2,
-        detected_timestamp: "2026-08-14T16:20:00Z",
-        resolved_timestamp: "2026-08-15T08:00:00Z",
-        resolved_by: "Talifhani Seaba",
-        threshold_details: {
-          threshold_id: "th-3",
-          upper_limit: null,
-          lower_limit: null,
-          allowed_spike_percentage: null,
-          metric_type: "voltage",
-          unit: "V",
-          is_active: true,
-        },
-      },
-      {
-        anomaly_id: "anm-4",
-        building_id: "b4",
-        building_name: "Azalea res",
-        anomaly_type: "Power_Spike",
-        severity_level: "critical",
-        description: "Critical power spike",
-        status: "Resolved",
-        escalation_level: 3,
-        z_score_value: 4.1,
-        detected_timestamp: "2026-08-13T10:00:00Z",
-        resolved_timestamp: "2026-08-13T14:30:00Z",
-        resolved_by: "Jane meyer",
-        threshold_details: {
-          threshold_id: "th-4",
-          upper_limit: 200,
-          lower_limit: 30,
-          allowed_spike_percentage: 20,
-          metric_type: "power",
-          unit: "kW",
-          is_active: true,
-        },
-      },
-      {
-        anomaly_id: "anm-5",
-        building_id: "b5",
-        building_name: "Centurion",
-        anomaly_type: "Energy_Anomaly",
-        severity_level: "medium",
-        description: "Unusual consumption pattern",
-        status: "Resolved",
-        escalation_level: 1,
-        z_score_value: 2.1,
-        detected_timestamp: "2026-08-12T09:00:00Z",
-        resolved_timestamp: "2026-08-12T11:45:00Z",
-        resolved_by: "vasco da gama",
-        threshold_details: {
-          threshold_id: "th-5",
-          upper_limit: 300,
-          lower_limit: 40,
-          allowed_spike_percentage: 25,
-          metric_type: "energy",
-          unit: "kWh",
-          is_active: true,
-        },
-      },
-      {
-        anomaly_id: "anm-6",
-        building_id: "b1",
-        building_name: "Sandton HQ",
-        anomaly_type: "Current_Anomaly",
-        severity_level: "high",
-        description: "Current reading anomaly" ,
-        status: "Resolved",
-        escalation_level: 2,
-        z_score_value: 3.5,
-        detected_timestamp: "2026-08-11T15:30:00Z",
-        resolved_timestamp: "2026-08-12T09:00:00Z",
-        resolved_by: "Talifhani Seaba",
-        threshold_details: {
-          threshold_id: "th-6",
-          upper_limit: 100,
-          lower_limit: 10,
-          allowed_spike_percentage: 15,
-          metric_type: "current",
-          unit: "A",
-          is_active: true,
-        },
-      },
-    ],
-    buildings: [
-      { id: "b1", name: "Sandton HQ" },
-      { id: "b2", name: "Hillcrest" },
-    ],
-  };
-}
-
-export const mockViewerData = createMockAnomalies("VIEWER");
-export const mockManagerData = createMockAnomalies("BUILDING_MANAGER");
-
-export const mockInitialThresholds: AlertThreshold[] = [
-  {
-    threshold_id: "th-1",
-    building_id: "b1",
-    building_name: "Sandton HQ",
-    metric_type: "power",
-    unit: "kW",
-    upper_limit: 150,
-    lower_limit: 20,
-    allowed_spike_percentage: 25,
-    is_active: true,
-  },
-  {
-    threshold_id: "th-2",
-    building_id: "b2",
-    building_name: "Hillcrest",
-    metric_type: "energy",
-    unit: "kWh",
-    upper_limit: 500,
-    lower_limit: 50,
-    allowed_spike_percentage: 30,
-    is_active: true,
-  },
-];
+export const mockInitialThresholds: AlertThreshold[] = [];
 
 type ModalProps = {
   open: boolean;
@@ -1069,10 +703,8 @@ export function formatDate(date: string) {
 }
 
 export function formatChartTime(timestamp: string) {
-  return new Date(timestamp).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const d = new Date(timestamp);
+  return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${d.toLocaleTimeString(undefined, { hour: "numeric" })}`;
 }
 
 export function parseNumberOrNull(value: string): number | null {
@@ -1085,31 +717,87 @@ export function useAnomalyChartData(
   anomalies: Anomaly[],
   selectedBuildingForChart: string,
   chartMetric: MetricType,
-  consumptionData: typeof mockConsumptionData = mockConsumptionData
+  buildings: Building[] = []
 ) {
-  const chartData = useMemo(() => {
-    const buildingId = selectedBuildingForChart !== "all" ? selectedBuildingForChart : "b1";
-    const buildingAnomalies = anomalies.filter((a) => a.building_id === buildingId);
-    const anomalyTimestamps = new Set(
-      buildingAnomalies.map(
-        (a) => a.detected_timestamp.split("T")[0] + "T" + a.detected_timestamp.split("T")[1].slice(0, 8)
-      )
-    );
+  const [seriesData, setSeriesData] = useState<{ timestamp: string; kwh: number; cost_zar: number }[]>([]);
 
-    return consumptionData.map((point) => {
-      const isAnomaly = anomalyTimestamps.has(point.timestamp.slice(0, 16) + "Z");
+  useEffect(() => {
+    const fetchSeries = async () => {
+      const buildingId = selectedBuildingForChart !== "all" ? selectedBuildingForChart : (buildings.length > 0 ? buildings[0].id : "");
+      if (!buildingId) return;
+      try {
+        const res = await fetch(`/api/buildings/${buildingId}/series?time_range=7d`);
+        const json = await res.json();
+        if (json.status === 'success' && Array.isArray(json.data)) {
+          const oneWeekAgo = new Date();
+          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+          const recentPoints = json.data.filter((p: { timestamp: string }) => new Date(p.timestamp) >= oneWeekAgo);
+          setSeriesData(recentPoints);
+        }
+      } catch (err) {
+        console.error("Failed to fetch series data", err);
+      }
+    };
+    if (buildings.length > 0 || selectedBuildingForChart !== "all") {
+      fetchSeries();
+    }
+  }, [selectedBuildingForChart, buildings]);
+
+  const chartData = useMemo(() => {
+    const buildingId = selectedBuildingForChart !== "all" ? selectedBuildingForChart : (buildings.length > 0 ? buildings[0].id : "");
+    const buildingAnomalies = anomalies.filter((a) => a.building_id === buildingId);
+    
+    // Create a map to quickly check if an hour has an anomaly
+    const anomalyMap = new Map();
+    buildingAnomalies.forEach((a) => {
+      // Truncate to hour to match influx 1h aggregation
+      const d = new Date(a.detected_timestamp);
+      d.setMinutes(0, 0, 0);
+      anomalyMap.set(d.toISOString(), a);
+    });
+
+    // Compute hourly baselines across the 7 days
+    const hourlyBaselines = new Map<number, { kwhSum: number; costSum: number; count: number }>();
+    seriesData.forEach((point) => {
+      const pDate = new Date(point.timestamp);
+      pDate.setMinutes(0, 0, 0);
+      if (!anomalyMap.has(pDate.toISOString())) {
+        const hour = pDate.getHours();
+        const current = hourlyBaselines.get(hour) || { kwhSum: 0, costSum: 0, count: 0 };
+        hourlyBaselines.set(hour, {
+          kwhSum: current.kwhSum + point.kwh,
+          costSum: current.costSum + point.cost_zar,
+          count: current.count + 1,
+        });
+      }
+    });
+
+    return seriesData.map((point) => {
+      const pDate = new Date(point.timestamp);
+      pDate.setMinutes(0, 0, 0);
+      const isAnomaly = anomalyMap.has(pDate.toISOString());
+      const hour = pDate.getHours();
+      
+      const baseline = hourlyBaselines.get(hour);
+      const expectedKwh = baseline && baseline.count > 0 ? baseline.kwhSum / baseline.count : point.kwh * 0.85;
+      const expectedCost = baseline && baseline.count > 0 ? baseline.costSum / baseline.count : point.cost_zar * 0.85;
+      
       return {
-        ...point,
-        isAnomaly: isAnomaly || point.isAnomaly,
+        timestamp: point.timestamp,
+        actual: point.kwh,
+        expected: expectedKwh, 
+        cost: point.cost_zar,
+        expectedCost: expectedCost,
+        isAnomaly,
       };
     });
-  }, [consumptionData, selectedBuildingForChart, anomalies]);
+  }, [seriesData, selectedBuildingForChart, anomalies]);
 
   const anomalyPoints = useMemo(() => {
     return chartData
       .filter((point) => point.isAnomaly)
       .map((point) => ({
-        x: point.timestamp,
+        timestamp: point.timestamp,
         y: chartMetric === "power" ? point.actual : point.cost,
       }));
   }, [chartData, chartMetric]);
@@ -1176,11 +864,15 @@ interface AnomalyDetailsModalProps {
   anomaly: Anomaly | null;
   open: boolean;
   onClose: () => void;
+  onResolve?: (anomaly: Anomaly) => void;
+  onIgnore?: (anomaly: Anomaly) => void;
 }
 
 
-export function AnomalyDetailsModal({ anomaly, open, onClose }: Readonly<AnomalyDetailsModalProps>) {
+export function AnomalyDetailsModal({ anomaly, open, onClose, onResolve, onIgnore }: Readonly<AnomalyDetailsModalProps>) {
   if (!open || !anomaly) return null;
+
+  const canTakeAction = anomaly.status === "Open" || anomaly.status === "In_Progress";
 
   return (
     <Modal open={open} onClose={onClose} maxWidth="600px">
@@ -1220,20 +912,10 @@ export function AnomalyDetailsModal({ anomaly, open, onClose }: Readonly<Anomaly
             <div style={{ fontSize: "var(--fs-small)" }}>
               <p><strong>Metric:</strong> {anomaly.threshold_details.metric_type}</p>
               <p><strong>Unit:</strong> {anomaly.threshold_details.unit}</p>
-              {anomaly.threshold_details.upper_limit !== null && (
+              {anomaly.threshold_details.z_score_threshold !== null && (
                 <p>
-                  <strong>Upper Limit:</strong> {anomaly.threshold_details.upper_limit}{" "}
-                  {anomaly.threshold_details.unit}
+                  <strong>Z-Score Threshold:</strong> {anomaly.threshold_details.z_score_threshold} Z
                 </p>
-              )}
-              {anomaly.threshold_details.lower_limit !== null && (
-                <p>
-                  <strong>Lower Limit:</strong> {anomaly.threshold_details.lower_limit}{" "}
-                  {anomaly.threshold_details.unit}
-                </p>
-              )}
-              {anomaly.threshold_details.allowed_spike_percentage !== null && (
-                <p><strong>Allowed Spike:</strong> {anomaly.threshold_details.allowed_spike_percentage}%</p>
               )}
               <p>
                 <strong>Status:</strong>{" "}
@@ -1273,6 +955,26 @@ export function AnomalyDetailsModal({ anomaly, open, onClose }: Readonly<Anomaly
       </div>
 
       <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
+        {canTakeAction && onResolve && (
+          <button
+            type="button"
+            onClick={() => onResolve(anomaly)}
+            className="btn"
+            style={{ backgroundColor: "#2F7D5D", color: "#FFFFFF" }}
+          >
+            Resolve
+          </button>
+        )}
+        {canTakeAction && onIgnore && (
+          <button
+            type="button"
+            onClick={() => onIgnore(anomaly)}
+            className="btn"
+            style={{ backgroundColor: "#7A7A7A", color: "#FFFFFF" }}
+          >
+            Ignore
+          </button>
+        )}
         <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>
           Close
         </button>
@@ -1318,7 +1020,7 @@ export function HistoricAlertsModal({
   });
 
   return (
-    <Modal open={open} onClose={onClose} maxWidth="800px">
+    <Modal open={open} onClose={onClose} maxWidth="1200px">
       <h2 style={{ marginBottom: "var(--space-3)" }}>Historic Alerts</h2>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -1331,6 +1033,8 @@ export function HistoricAlertsModal({
             style={{ minWidth: "120px" }}
           >
             <option value="all">All</option>
+            <option value="Open">Open</option>
+            <option value="In_Progress">In Progress</option>
             <option value="Resolved">Resolved</option>
             <option value="Ignored">Ignored</option>
           </select>

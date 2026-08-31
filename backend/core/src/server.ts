@@ -1,3 +1,6 @@
+import * as dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
+
 import type { Server } from 'http';
 import { createApp } from './app';
 import { initWebSocketServer } from './services/websocket';

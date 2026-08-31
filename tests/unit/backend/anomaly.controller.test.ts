@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import {
 	getAnomalies,
 	updateAnomalyStatus,
+	getPortfolioAnomalies,
+	getAnomalyContext,
 } from '../../../backend/core/src/controllers/anomaly.controller';
 import prisma from '../../../backend/core/src/lib/prisma';
 
@@ -10,6 +12,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	default: {
 		userBuildingAccess: {
 			findUnique: jest.fn(),
+			findMany: jest.fn(),
 		},
 		anomaly: {
 			findMany: jest.fn(),
@@ -58,7 +61,7 @@ describe('Anomaly Controller', () => {
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(res.json).toHaveBeenCalledWith({
 				status: 'success',
-				data: [{ anomaly_id: 'a-1' }],
+				data: [{ anomaly_id: 'a-1', building_name: 'Unknown Building' }],
 				meta: {
 					total: 1,
 					skip: 0,
@@ -92,6 +95,34 @@ describe('Anomaly Controller', () => {
 
 			expect(res.status).toHaveBeenCalledWith(403);
 			expect(prisma.anomaly.findMany).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('getPortfolioAnomalies', () => {
+		it('should return anomalies for allowed buildings', async () => {
+			req.user = { id: mockUserId, roleType: 'MANAGER' };
+			(prisma.userBuildingAccess.findMany as jest.Mock).mockResolvedValue([{ building_id: mockBuildingId }]);
+			(prisma.anomaly.findMany as jest.Mock).mockResolvedValue([{ anomaly_id: 'a-2' }]);
+			
+			await getPortfolioAnomalies(req, res);
+
+			expect(prisma.anomaly.findMany).toHaveBeenCalledWith(expect.objectContaining({
+				where: { building_id: { in: [mockBuildingId] } },
+				orderBy: { detected_timestamp: 'desc' }
+			}));
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'success',
+				data: [{ anomaly_id: 'a-2', building_name: 'Unknown Building' }],
+				meta: { skip: 0, take: 50, total: 0 }
+			});
+		});
+
+		it('should return 500 if an error occurs', async () => {
+			req.user = { id: mockUserId, roleType: 'MANAGER' };
+			(prisma.userBuildingAccess.findMany as jest.Mock).mockRejectedValue(new Error('DB Error'));
+			await getPortfolioAnomalies(req, res);
+			expect(res.status).toHaveBeenCalledWith(500);
 		});
 	});
 
@@ -149,5 +180,34 @@ describe('Anomaly Controller', () => {
 
 			expect(res.status).toHaveBeenCalledWith(404);
 		});
-	});
+	describe('getAnomalyContext', () => {
+		it('should return anomaly with context if user has access', async () => {
+			req.params = { id: 'a-context-1' };
+			(prisma.anomaly.findUnique as jest.Mock).mockResolvedValue({ anomaly_id: 'a-context-1', building_id: mockBuildingId });
+			(prisma.userBuildingAccess.findUnique as jest.Mock).mockResolvedValue({ id: 'access-1' });
+
+			await getAnomalyContext(req, res);
+
+			expect(prisma.anomaly.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+				where: { anomaly_id: 'a-context-1' },
+				include: { sensor: true, threshold: true }
+			}));
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(res.json).toHaveBeenCalledWith({ status: 'success', data: { anomaly_id: 'a-context-1', building_id: mockBuildingId } });
+		});
+
+		it('should return 404 if not found', async () => {
+			req.params = { id: 'a-missing' };
+			(prisma.anomaly.findUnique as jest.Mock).mockResolvedValue(null);
+			await getAnomalyContext(req, res);
+			expect(res.status).toHaveBeenCalledWith(404);
+		});
+
+		it('should return 403 if no access', async () => {
+			req.params = { id: 'a-context-1' };
+			(prisma.anomaly.findUnique as jest.Mock).mockResolvedValue({ anomaly_id: 'a-context-1', building_id: mockBuildingId });
+			(prisma.userBuildingAccess.findUnique as jest.Mock).mockResolvedValue(null);
+			await getAnomalyContext(req, res);
+			expect(res.status).toHaveBeenCalledWith(403);
+		});
 });

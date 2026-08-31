@@ -66,7 +66,7 @@ function seriesWindowFor(timeRange: string): string {
     const windows: Record<string, string> = {
         'today': '1h',
         '1d': '1h',
-        '7d': '1d',
+        '7d': '1h',
         '30d': '1d',
         '90d': '3d',
         '1y': '1w',

@@ -1,5 +1,6 @@
 "use client";
 
+import { useBuildings } from "@/lib/useBuildings";
 import { useState, useMemo, useEffect } from "react";
 import {
   Anomaly,
@@ -37,12 +38,40 @@ function isNotificationStillActive(notification: NotificationPopup, anomalies: A
   return anomaly?.severity_level !== "critical" || anomaly?.status !== "Open";
 }
 
+import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
+
 export default function ManagerAnomalyPage() {
-  const [anomalies, setAnomalies] = useState<Anomaly[]>(mockManagerData.anomalies);
-  
-  const [thresholds, setThresholds] = useState<AlertThreshold[]>(mockInitialThresholds);
-  const [buildings] = useState(mockManagerData.buildings);
-  const [historicAnomalies] = useState<Anomaly[]>(mockManagerData.historic);
+  const { toastMessage, setToastMessage } = useAnomalyWebSocket();
+  const { data: buildings = [] } = useBuildings();
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const [thresholds, setThresholds] = useState<AlertThreshold[]>([]);
+  const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [anomaliesRes, thresholdsRes] = await Promise.all([
+          fetch("/api/anomalies/portfolio"),
+          fetch("/api/thresholds/portfolio")
+        ]);
+        
+        if (anomaliesRes.ok) {
+          const payload = await anomaliesRes.json();
+          const allAnomalies: Anomaly[] = payload.data || [];
+          setAnomalies(allAnomalies.filter(a => a.status === "Open" || a.status === "In_Progress"));
+          setHistoricAnomalies(allAnomalies.filter(a => a.status === "Resolved" || a.status === "Ignored"));
+        }
+        
+        if (thresholdsRes.ok) {
+          const payload = await thresholdsRes.json();
+          setThresholds(payload.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch live dashboard data", err);
+      }
+    }
+    fetchData();
+  }, []);
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showResolveModal, setShowResolveModal] = useState<boolean>(false);
@@ -225,6 +254,33 @@ export default function ManagerAnomalyPage() {
 
   return (
     <div className="dashboard-page">
+      {toastMessage && (
+        <div style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          backgroundColor: "var(--brand-danger)",
+          color: "white",
+          padding: "16px 20px",
+          borderRadius: "8px",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          fontWeight: 500,
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>⚠️</span>
+          {toastMessage}
+          <button 
+            type="button" 
+            onClick={() => setToastMessage(null)}
+            style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "16px", marginLeft: "8px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <div className="dashboard-shell">
         <main className="dashboard-main" role="main" aria-label="Anomaly alert main content">
           <div className="dashboard-header">
@@ -282,7 +338,7 @@ export default function ManagerAnomalyPage() {
             <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
               Current Anomalies
             </h2>
-            <AnomaliesTable anomalies={filteredAnomalies} onRowClick={handleViewDetails} formatDate={formatDate} actions={renderActions} />
+            <AnomaliesTable anomalies={filteredAnomalies} onRowClick={handleViewDetails} formatDate={formatDate} />
           </section>
         </main>
       </div>
@@ -355,6 +411,16 @@ export default function ManagerAnomalyPage() {
         onClose={() => {
           setShowDetailsModal(false);
           setSelectedAnomaly(null);
+        }}
+        onResolve={(anomaly) => {
+          setShowDetailsModal(false);
+          setSelectedAnomaly(anomaly);
+          setShowResolveModal(true);
+        }}
+        onIgnore={(anomaly) => {
+          setShowDetailsModal(false);
+          setSelectedAnomaly(anomaly);
+          setShowIgnoreModal(true);
         }}
       />
 
