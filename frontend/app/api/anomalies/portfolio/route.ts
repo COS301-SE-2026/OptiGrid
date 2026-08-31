@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getForwardHeaders, getCoreUrl } from "@/lib/coreProxy";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export async function GET(
 	request: Request
 ) {

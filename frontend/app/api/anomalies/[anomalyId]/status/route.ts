@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { getForwardHeaders, getCoreUrl } from "@/lib/coreProxy";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function PATCH(
 	request: Request,
-	{ params }: any
+	{ params }: { params: Promise<{ anomalyId: string }> }
 ) {
+	const { anomalyId } = await params;
 	const headers = getForwardHeaders(request);
 	if (headers) { headers.set("Content-Type", "application/json"); }
 	if (!headers) {
@@ -15,7 +15,7 @@ export async function PATCH(
     const body = await request.text();
 
 	try {
-		const coreResponse = await fetch(`${getCoreUrl()}/api/anomalies/${params.anomalyId}/status`, {
+		const coreResponse = await fetch(`${getCoreUrl()}/api/anomalies/${anomalyId}/status`, {
 			method: "PATCH",
 			headers,
 			cache: "no-store",

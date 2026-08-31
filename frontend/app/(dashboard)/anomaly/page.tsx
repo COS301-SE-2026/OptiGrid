@@ -19,8 +19,6 @@ import {
   useAnomalyFilters,
   useHistoricFilterState,
   parseNumberOrNull,
-  mockManagerData,
-  mockInitialThresholds,
 } from "../../../components/sharedanomaly";
 
 type MetricType = "power" | "cost";
@@ -61,7 +59,7 @@ export default function ManagerAnomalyPage() {
           setAnomalies(allAnomalies.filter(a => a.status === "Open" || a.status === "In_Progress"));
           setHistoricAnomalies(allAnomalies.filter(a => a.status === "Resolved" || a.status === "Ignored"));
         }
-        
+
         if (thresholdsRes.ok) {
           const payload = await thresholdsRes.json();
           setThresholds(payload.data || []);
@@ -140,11 +138,13 @@ export default function ManagerAnomalyPage() {
   };
 
   const handleResolve = (anomaly: Anomaly) => {
+    setShowDetailsModal(false);
     setSelectedAnomaly(anomaly);
     setShowResolveModal(true);
   };
 
   const handleIgnore = (anomaly: Anomaly) => {
+    setShowDetailsModal(false);
     setSelectedAnomaly(anomaly);
     setShowIgnoreModal(true);
   };
@@ -221,36 +221,7 @@ export default function ManagerAnomalyPage() {
     chartMetric
   );
 
-  const renderActions = (anomaly: Anomaly) => {
-    if (anomaly.status === "Resolved" || anomaly.status === "Ignored") {
-      return (
-        <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-          {anomaly.status === "Resolved" ? `Resolved by ${anomaly.resolved_by || "Unknown"}` : `Ignored by ${anomaly.resolved_by || "Unknown"}`}
-        </span>
-      );
-    }
 
-    return (
-      <>
-        <button
-          type="button"
-          onClick={() => handleResolve(anomaly)}
-          className="btn"
-          style={{ fontSize: "var(--fs-small)", padding: "var(--space-1) var(--space-3)", backgroundColor: "#2F7D5D", color: "#FFFFFF" }}
-        >
-          Resolve
-        </button>
-        <button
-          type="button"
-          onClick={() => handleIgnore(anomaly)}
-          className="btn"
-          style={{ fontSize: "var(--fs-small)", padding: "var(--space-1) var(--space-3)", backgroundColor: "#7A7A7A", color: "#FFFFFF" }}
-        >
-          Ignore
-        </button>
-      </>
-    );
-  };
 
   return (
     <div className="dashboard-page">
@@ -299,7 +270,7 @@ export default function ManagerAnomalyPage() {
                 className="btn btn-primary"
                 style={{ backgroundColor: "#3A6B7C", color: "#FFFFFF" }}
               >
-                Configure Threshold
+                Configure Threshold {thresholds.length > 0 ? `(${thresholds.length})` : ""}
               </button>
               <button type="button" onClick={() => setShowHistoricModal(true)} className="btn btn-secondary">
                 View Historic Alerts
@@ -412,16 +383,8 @@ export default function ManagerAnomalyPage() {
           setShowDetailsModal(false);
           setSelectedAnomaly(null);
         }}
-        onResolve={(anomaly) => {
-          setShowDetailsModal(false);
-          setSelectedAnomaly(anomaly);
-          setShowResolveModal(true);
-        }}
-        onIgnore={(anomaly) => {
-          setShowDetailsModal(false);
-          setSelectedAnomaly(anomaly);
-          setShowIgnoreModal(true);
-        }}
+        onResolve={handleResolve}
+        onIgnore={handleIgnore}
       />
 
       <HistoricAlertsModal

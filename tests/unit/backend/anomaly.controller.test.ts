@@ -180,6 +180,8 @@ describe('Anomaly Controller', () => {
 
 			expect(res.status).toHaveBeenCalledWith(404);
 		});
+	});
+
 	describe('getAnomalyContext', () => {
 		it('should return anomaly with context if user has access', async () => {
 			req.params = { id: 'a-context-1' };
@@ -210,4 +212,5 @@ describe('Anomaly Controller', () => {
 			await getAnomalyContext(req, res);
 			expect(res.status).toHaveBeenCalledWith(403);
 		});
+	});
 });

@@ -49,6 +49,39 @@ export interface AlertThreshold {
   is_active: boolean;
 }
 
+function getZScoreLabel(zScore: number): string {
+  if (zScore >= 4.0) return "Extreme Spike";
+  if (zScore >= 3.0) return "High Spike";
+  if (zScore >= 2.0) return "Moderate Spike";
+  return "Slight Variance";
+}
+
+function resolveBuildingId(selectedBuilding: string, buildingsList: Building[] = []): string {
+  if (selectedBuilding !== "all") {
+    return selectedBuilding;
+  }
+  return buildingsList.length > 0 ? buildingsList[0].id : "";
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderAnomalyDot(dotProps: any) {
+  const { cx, cy, payload, index } = dotProps;
+  if (payload?.isAnomaly && cx != null && cy != null) {
+    return (
+      <circle
+        key={`anomaly-dot-${payload.timestamp ?? index}`}
+        cx={cx}
+        cy={cy}
+        r={6}
+        fill="#8B1E3F"
+        stroke="#FFFFFF"
+        strokeWidth={2}
+      />
+    );
+  }
+  return <g key={`dot-empty-${payload?.timestamp ?? index ?? 0}`} />;
+}
+
 export interface Building {
   id: string;
   name: string;
@@ -369,10 +402,7 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
                     {anomaly.z_score_value != null ? (
                       <div style={{ display: "flex", flexDirection: "column" }}>
                         <span style={{ fontWeight: "var(--fw-semibold)", color: "var(--text-main)" }}>
-                          {anomaly.z_score_value >= 4.0 ? "Extreme Spike" 
-                            : anomaly.z_score_value >= 3.0 ? "High Spike"
-                            : anomaly.z_score_value >= 2.0 ? "Moderate Spike"
-                            : "Slight Variance"}
+                          {getZScoreLabel(anomaly.z_score_value)}
                         </span>
                         <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
                           +{anomaly.z_score_value.toFixed(1)}σ from baseline
@@ -528,24 +558,7 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
                 stroke="#4D869C"
                 strokeWidth={2.5}
                 fill="url(#colorActual)"
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                dot={(dotProps: any) => {
-                  const { cx, cy, payload } = dotProps;
-                  if (payload?.isAnomaly && cx != null && cy != null) {
-                    return (
-                      <circle
-                        key={`anomaly-dot-${payload.timestamp}`}
-                        cx={cx}
-                        cy={cy}
-                        r={6}
-                        fill="#8B1E3F"
-                        stroke="#FFFFFF"
-                        strokeWidth={2}
-                      />
-                    );
-                  }
-                  return <g key={`dot-empty-${payload?.timestamp ?? Math.random()}`} />;
-                }}
+                dot={renderAnomalyDot}
                 activeDot={{ r: 6, fill: "#4D869C" }}
                 name="actual"
               />
@@ -723,7 +736,7 @@ export function useAnomalyChartData(
 
   useEffect(() => {
     const fetchSeries = async () => {
-      const buildingId = selectedBuildingForChart !== "all" ? selectedBuildingForChart : (buildings.length > 0 ? buildings[0].id : "");
+      const buildingId = resolveBuildingId(selectedBuildingForChart, buildings);
       if (!buildingId) return;
       try {
         const res = await fetch(`/api/buildings/${buildingId}/series?time_range=7d`);
@@ -744,7 +757,7 @@ export function useAnomalyChartData(
   }, [selectedBuildingForChart, buildings]);
 
   const chartData = useMemo(() => {
-    const buildingId = selectedBuildingForChart !== "all" ? selectedBuildingForChart : (buildings.length > 0 ? buildings[0].id : "");
+    const buildingId = resolveBuildingId(selectedBuildingForChart, buildings);
     const buildingAnomalies = anomalies.filter((a) => a.building_id === buildingId);
     
     // Create a map to quickly check if an hour has an anomaly

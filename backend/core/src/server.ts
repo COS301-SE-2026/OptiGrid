@@ -1,4 +1,4 @@
-import * as dns from 'dns';
+import * as dns from 'node:dns';
 dns.setDefaultResultOrder('ipv4first');
 
 import type { Server } from 'http';

@@ -1,11 +1,8 @@
-
 import { NextResponse } from "next/server";
 import { getForwardHeaders, getCoreUrl } from "@/lib/coreProxy";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(
-	request: Request,
-	{ params }: any
+	request: Request
 ) {
 	const headers = getForwardHeaders(request);
 	if (headers) { headers.set("Content-Type", "application/json"); }
