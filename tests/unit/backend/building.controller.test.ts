@@ -8,6 +8,7 @@ import { adminBuildingsSchema, buildingDetailsParamsSchema } from '../../../back
 import * as buildingControllerModule from '../../../backend/core/src/controllers/building.controller';
 import * as buildingServicesModule from '../../../backend/core/src/services/building.services';
 import * as buildingValidationModule from '../../../backend/core/src/validation/building.validation';
+import { recordAuditLog } from '../../../backend/core/src/services/auditLog.service';
 
 // Mock Prisma before importing
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
@@ -29,6 +30,10 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 jest.mock('../../../backend/core/src/services/building.services');
 jest.mock('../../../backend/core/src/services/idempotency.services');
 jest.mock('../../../backend/core/src/validation/building.validation');
+jest.mock('../../../backend/core/src/services/auditLog.service', () => ({
+	recordAuditLog: jest.fn(),
+	getClientIp: jest.fn().mockReturnValue('196.25.1.4'),
+}));
 
 const mockedCreateBuilding = createBuilding as jest.MockedFunction<typeof createBuilding>;
 const mockedGetBuildingDetails = getBuildingDetails as jest.MockedFunction<typeof getBuildingDetails>;
@@ -43,6 +48,7 @@ const mockedCompareBuildingsService = (buildingServicesModule as any).compareBui
 const mockedDeleteBuildingService = deleteBuildingService as jest.MockedFunction<typeof deleteBuildingService>;
 const mockedDeleteBuildingSchema = deleteBuildingSchema as any;
 const mockedManagerBuildings = (buildingServicesModule as any).getManagerBuildings as jest.Mock;
+const mockedRecordAuditLog = recordAuditLog as jest.MockedFunction<typeof recordAuditLog>;
 
 const mockedCompareBuildingsSchema = (buildingValidationModule as any).compareBuildingsSchema as {
 	parse: jest.Mock;
@@ -130,6 +136,11 @@ describe('Building Controller', () => {
 				...payload,
 				tenant_id: mockTenantId,
 			});
+			expect(mockedRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+				userId: mockUserId,
+				buildingId: mockBuildingId,
+				actionType: 'CREATE',
+			}));
 			expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(
 				mockUserId,
 				mockIdempotencyKey,
@@ -819,6 +830,12 @@ describe('Building Controller', () => {
 				message: 'Building successfully deleted',
 			});
 			expect(mockedSaveIdempotencyKey).toHaveBeenCalledWith(mockUserId, mockIdempotencyKey, expect.any(Object));
+			expect(mockedRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+				userId: mockUserId,
+				actionType: 'DELETE',
+				oldValue: { building_id: 'building-003' },
+			}));
+			expect(mockedRecordAuditLog.mock.calls[0][0]).not.toHaveProperty('buildingId');
 		});
 
 		it('should return 403 if the service layer throws an Access Denied violation error', async () => {

@@ -19,6 +19,9 @@ importers:
       multer:
         specifier: ^2.2.0
         version: 2.2.0
+      node-cron:
+        specifier: ^3.0.3
+        version: 3.0.3
       requirements.txt:
         specifier: link:backend/analytics/src/requirements.txt
         version: link:backend/analytics/src/requirements.txt
@@ -44,6 +47,9 @@ importers:
       '@types/multer':
         specifier: ^2.1.0
         version: 2.1.0
+      '@types/node-cron':
+        specifier: ^3.0.11
+        version: 3.0.11
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.15

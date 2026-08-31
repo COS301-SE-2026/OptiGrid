@@ -43,6 +43,14 @@ export const login = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Email and password are required fields." });
         }
         const loginResult = await authService.login(email, password);
+
+        await recordAuditLog({
+            userId: loginResult.user.userId,
+            actionType: "LOGIN",
+            targetTable: "users",
+            ipAddress: getClientIp(req)
+        });
+
         return res.status(200).json({
             message: 'Login successful',
             user: loginResult.user,
