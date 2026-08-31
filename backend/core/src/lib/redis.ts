@@ -8,6 +8,26 @@ const createRedisClient = () => ({
         testRedisStore.set(key, value);
         return 'OK';
     },
+    keys: async (pattern: string) => {
+        const keys = Array.from(testRedisStore.keys());
+        return keys; // Simplified mock
+    },
+    del: async (...keys: string[]) => {
+        let deleted = 0;
+        for (const key of keys) {
+            if (testRedisStore.delete(key)) deleted++;
+        }
+        return deleted;
+    },
+    pipeline: () => ({
+        del: (...keys: string[]) => {
+            for (const key of keys) {
+                testRedisStore.delete(key);
+            }
+            return { exec: async () => [] };
+        },
+        exec: async () => []
+    }),
     on: () => undefined,
     quit: async () => {
         testRedisStore.clear();

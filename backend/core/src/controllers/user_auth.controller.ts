@@ -6,6 +6,7 @@ import {
 } from '../errors/account.errors';
 import prisma from '../lib/prisma';
 import * as authService from '../services/user_auth.services';
+import { getClientIp, recordAuditLog } from '../services/auditLog.service';
 
 export const signup = async (req: Request, res: Response) => {
     try {
