@@ -4,7 +4,17 @@ import ViewerAnomalyPage from "./page";
 import "@testing-library/jest-dom";
 
 
-import { MOCK_ANOMALIES_VIEWER as MOCK_ANOMALIES, MOCK_BUILDINGS, rechartsMockFactory } from "../anomaly/testMocks";
+import { 
+  MOCK_ANOMALIES_VIEWER as MOCK_ANOMALIES, 
+  MOCK_BUILDINGS, 
+  rechartsMockFactory,
+  getAnomaliesSection,
+  getTableCell,
+  getTableRow,
+  getHistoricModal,
+  getSeverityFilter,
+  getSearchInput
+} from "../anomaly/testMocks";
 
 jest.mock("recharts", () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -41,43 +51,7 @@ async function renderPage() {
   });
 }
 
-const getAnomaliesSection = () =>
-  screen.getByRole("region", { name: /anomalies list/i });
 
-const getTableCell = (text: string) => {
-  const section = getAnomaliesSection();
-  const cells = within(section).getAllByRole("cell");
-  return cells.find((cell) => cell.textContent?.trim() === text);
-};
-
-const getTableRow = (buildingName: string) => {
-  const section = getAnomaliesSection();
-  const cells = within(section).getAllByRole("cell");
-  const cell = cells.find((c) => c.textContent?.trim() === buildingName);
-  if (!cell) {
-    throw new Error(`Could not find table cell for building: ${buildingName}`);
-  }
-  const row = cell.closest("tr");
-  if (!row) {
-    throw new Error(`Could not find table row for building: ${buildingName}`);
-  }
-  return row;
-};
-
-const getHistoricModal = () => {
-  const heading = screen.getByRole("heading", { name: /historic alerts/i });
-  return heading.closest(".modal") || heading.closest("[class*='modal']") || heading.parentElement!;
-};
-
-const getSeverityFilter = () => {
-  const selects = screen.getAllByRole("combobox");
-  return selects.find((select) => {
-    const options = Array.from((select as HTMLSelectElement).options);
-    return options.some((option) => option.value === "critical" || option.value === "high");
-  }) as HTMLSelectElement;
-};
-
-const getSearchInput = () => screen.getByRole("textbox") as HTMLInputElement;
 
 const findKpiLabel = (labelText: string) => {
   const cards = document.querySelectorAll(".dashboard-card-tight");

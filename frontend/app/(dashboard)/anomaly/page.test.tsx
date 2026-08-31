@@ -4,7 +4,16 @@ import ManagerAnomalyPage from "./page";
 import "@testing-library/jest-dom";
 
 
-import { MOCK_ANOMALIES_MANAGER as MOCK_ANOMALIES, MOCK_BUILDINGS, MOCK_THRESHOLDS, rechartsMockFactory } from "./testMocks";
+import { 
+  MOCK_ANOMALIES_MANAGER as MOCK_ANOMALIES, 
+  MOCK_BUILDINGS, 
+  MOCK_THRESHOLDS, 
+  rechartsMockFactory,
+  getAnomaliesSection,
+  getTableCell,
+  getTableRow,
+  findKpiLabel
+} from "./testMocks";
 
 jest.mock("recharts", () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -51,40 +60,7 @@ async function renderPage() {
   });
 }
 
-const getAnomaliesSection = () =>
-  screen.getByRole("region", { name: /anomalies list/i });
 
-const getTableCell = (text: string) => {
-  const section = getAnomaliesSection();
-  return within(section)
-    .getAllByRole("cell")
-    .find((cell) => cell.textContent?.trim() === text);
-};
-
-const getTableRow = (buildingName: string): HTMLElement => {
-  const section = getAnomaliesSection();
-  const cells = within(section).getAllByRole("cell");
-  const cell = cells.find((c) => c.textContent?.trim() === buildingName);
-  if (!cell) {
-    throw new Error(`No table cell found with text "${buildingName}"`);
-  }
-  const row = cell.closest("tr");
-  if (!row) {
-    throw new Error(`Cell "${buildingName}" is not inside a <tr>`);
-  }
-  return row as HTMLElement;
-};
-
-const findKpiLabel = (labelText: string) => {
-  const cards = document.querySelectorAll(".dashboard-card-tight");
-  for (const card of cards) {
-    const label = card.querySelector(".dashboard-kpi-label");
-    if (label && label.textContent?.trim() === labelText) {
-      return label;
-    }
-  }
-  return null;
-};
 
 const getBuildingFilter = () =>
   document.getElementById("building-filter") as HTMLSelectElement;
