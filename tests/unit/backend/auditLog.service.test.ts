@@ -15,6 +15,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 const mockedLog = {
     log_id: "log-1",
     user_id: "user-1",
+    building_id: "building-1",
     action_type: "LOGIN",
     target_table: "users",
     ip_address: "196.25.1.4",
@@ -56,6 +57,24 @@ describe("Audit Log Service", () => {
         expect(args.where.user_id).toBe("user-1");
     });
 
+    it("scopes a manager to themselves and actions for an authorized building", async () => {
+        await listAuditLogs({ manager_id: "manager-1", limit: 50 });
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+
+        expect(args.where.OR).toEqual([
+            { user_id: "manager-1" },
+            {
+                building: {
+                    is: {
+                        authorized_users: {
+                            some: { user_id: "manager-1" }
+                        }
+                    }
+                }
+            }
+        ]);
+    });
+
     it("cover the whole of the last day in a range", async () => {
         await listAuditLogs({
             from: new Date("2026-08-01T00:00:00Z"),
@@ -70,6 +89,7 @@ describe("Audit Log Service", () => {
     it("writes an audit entry", async () => {
         await recordAuditLog({
             userId: "user-1",
+            buildingId: "building-1",
             actionType: "UPDATE",
             targetTable: "buildings",
             newValue: { building_name: "Sandton HQ" },
@@ -79,6 +99,7 @@ describe("Audit Log Service", () => {
         expect(prisma.auditLog.create).toHaveBeenCalledWith({
             data: {
                 user_id: "user-1",
+                building_id: "building-1",
                 action_type: "UPDATE",
                 target_table: "buildings",
                 old_value: undefined,

@@ -192,6 +192,7 @@ model Building {
   maintenance_windows MaintenanceWindow[]
   recommendations     OptimisationRecommendation[]
   utility_tariffs     UtilityTariff[]
+  auditLogs           AuditLog[]
 
   @@index([tenant_id])
   @@map("buildings")
@@ -285,6 +286,7 @@ model Anomaly {
 model AuditLog {
   log_id       String    @id @default(dbgenerated("gen_random_uuid()")) @map("log_id") @db.Uuid
   user_id      String?   @map("user_id") @db.Uuid
+  building_id  String?   @map("building_id") @db.Uuid
   action_type  String    @map("action_type") @db.VarChar
   target_table String    @map("target_table") @db.VarChar
   old_value    Json?     @map("old_value")
@@ -293,8 +295,10 @@ model AuditLog {
   timestamp    DateTime? @default(now()) @db.Timestamptz
 
   // Relations
-  user User? @relation(fields: [user_id], references: [userId], onDelete: SetNull)
+  user     User?     @relation(fields: [user_id], references: [userId], onDelete: SetNull)
+  building Building? @relation(fields: [building_id], references: [building_id], onDelete: SetNull)
 
+  @@index([building_id])
   @@map("audit_logs")
   @@schema("public")
 }

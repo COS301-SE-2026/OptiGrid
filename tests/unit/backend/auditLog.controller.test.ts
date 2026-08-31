@@ -56,24 +56,26 @@ describe("Audit Log Controller", () => {
         }));
     });
 
-    it("scopes building managers to their own audit entries", async () => {
+    it("passes the building manager scope to the service", async () => {
         req.user = { id: "manager-1", roleType: "BUILDING_MANAGER" };
 
         await listAuditLogsController(req as Request, resp as Response);
 
         expect(listAuditLogs).toHaveBeenCalledWith(expect.objectContaining({
-            user_id: "manager-1"
+            manager_id: "manager-1"
         }));
     });
 
-    it("rejects a building manager filtering for another user", async () => {
+    it("keeps a manager user filter inside the manager scope", async () => {
         req.user = { id: "8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2", roleType: "BUILDING_MANAGER" };
         req.query = { user_id: "72339cd8-7168-4ba9-a56b-2b00e84b3436" };
 
         await listAuditLogsController(req as Request, resp as Response);
 
-        expect(statusMock).toHaveBeenCalledWith(403);
-        expect(listAuditLogs).not.toHaveBeenCalled();
+        expect(listAuditLogs).toHaveBeenCalledWith(expect.objectContaining({
+            manager_id: "8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2",
+            user_id: "72339cd8-7168-4ba9-a56b-2b00e84b3436"
+        }));
     });
 
 

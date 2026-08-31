@@ -27,6 +27,7 @@ jest.mock('../../../backend/core/src/middleware/rbac.middleware', () => ({
 const mockedLog = {
     log_id: "log-1",
     user_id: "user-1",
+    building_id: null,
     action_type: "LOGIN",
     target_table: "users",
     ip_address: "196.25.1.4",
@@ -67,7 +68,9 @@ describe("Audit Log Routes", () => {
 
         expect(response.status).toBe(200);
         const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
-        expect(args.where.user_id).toBe("admin-1");
+        expect(args.where.OR).toEqual(expect.arrayContaining([
+            expect.objectContaining({ user_id: "admin-1" })
+        ]));
     });
 
     it("returns the logs in the shape which the view expects", async () => {
@@ -83,6 +86,7 @@ describe("Audit Log Routes", () => {
             operation: null,
             severity: null,
             user_id: "user-1",
+            building_id: null,
             user_email: "amina@optigrid.test",
             ip_address: "196.25.1.4"
         });

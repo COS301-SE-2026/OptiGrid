@@ -63,6 +63,7 @@ export const createBuildingController = async (req: Request, res: Response) => {
 
     await recordAuditLog({
       userId,
+      buildingId: building.building_id,
       actionType: "CREATE",
       targetTable: "buildings",
       newValue: building,
@@ -358,6 +359,7 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     const building = await updateBuildingService(req.user.id, building_id, validatedPayload, role);
     await recordAuditLog({
       userId: req.user.id,
+      buildingId: building_id,
       actionType: "UPDATE",
       targetTable: "buildings",
       newValue: validatedPayload,

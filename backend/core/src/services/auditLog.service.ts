@@ -5,12 +5,14 @@ import prisma from '../lib/prisma';
 export interface AuditLogFilters {
   action_type?: string;
   user_id?: string;
+  manager_id?: string;
   from?: Date;
   to?: Date;
   limit: number;
 }
 export interface AuditEntry {
   userId?: string | null;
+  buildingId?: string | null;
   actionType: string;
   targetTable: string;
   oldValue?: unknown;
@@ -40,11 +42,29 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
     timestamp.lte = endOfDay;
   }
 
+  const managerScope: Prisma.AuditLogWhereInput = filters.manager_id
+    ? {
+        OR: [
+          { user_id: filters.manager_id },
+          {
+            building: {
+              is: {
+                authorized_users: {
+                  some: { user_id: filters.manager_id },
+                },
+              },
+            },
+          },
+        ],
+      }
+    : {};
+
   const logs = await prisma.auditLog.findMany({
     where: {
       ...(filters.action_type && { action_type: filters.action_type }),
       ...(filters.user_id && { user_id: filters.user_id }),
       ...(Object.keys(timestamp).length > 0 && { timestamp }),
+      ...managerScope,
     },
     orderBy: {
       timestamp: "desc"
@@ -53,6 +73,7 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
     select: {
       log_id: true,
       user_id: true,
+      building_id: true,
       action_type: true,
       target_table: true,
       ip_address: true,
@@ -76,6 +97,7 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
     operation: null,
     severity: null,
     user_id: log.user_id,
+    building_id: log.building_id,
     user_email: log.user?.email ?? null,
     ip_address: log.ip_address
   }));
@@ -96,6 +118,7 @@ export const recordAuditLog = async (entry: AuditEntry) => {
     await prisma.auditLog.create({
       data: {
         user_id: entry.userId ?? null,
+        building_id: entry.buildingId ?? null,
         action_type: entry.actionType,
         target_table: entry.targetTable,
         old_value: toJSON(entry.oldValue),
