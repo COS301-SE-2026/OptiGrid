@@ -36,7 +36,7 @@ describe("building tariffs route", () => {
 		expect(response.status).toBe(200);
 
 		const [url, options] = (global.fetch as jest.Mock).mock.calls[0];
-		expect(url).toBe("https://core.test/api/buildings/building-123/tariffs");
+		expect(url).toBe("https://core.test/api/buildings/building-123/recommendations/tariffs");
 		expect(options.method).toBe("PUT");
 		expect(JSON.parse(options.body)).toEqual(validRates);
 

@@ -99,6 +99,14 @@ enum RecommendationStatus {
   @@schema("public")
 }
 
+enum RecommendationCategory {
+  DATA_DRIVEN     @map("data")
+  NON_DATA_DRIVEN @map("non_data")
+
+  @@map("recommendation_category")
+  @@schema("public")
+}
+
 enum NotificationChannel {
   Email
   SMS
@@ -329,6 +337,7 @@ model OptimisationRecommendation {
   strategy_description      String                @map("strategy_description")
   estimated_monthly_savings Decimal?              @map("estimated_monthly_savings") @db.Decimal
   status                    RecommendationStatus? @default(Pending)
+  recommendation_category   RecommendationCategory?    @default(DATA_DRIVEN) @map("recommendation_category")
   applicable_range          Json?                 @map("applicable_range")
   expires_at                DateTime?             @map("expires_at") @db.Timestamptz
   generated_date            DateTime?             @default(now()) @map("generated_date") @db.Timestamptz
