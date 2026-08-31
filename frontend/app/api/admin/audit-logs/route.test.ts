@@ -36,9 +36,9 @@ describe("admin audit logs route", () => {
 	});
 
 	it("passes the supported filters through to Core", async () => {
-		await GET(buildRequest("?action_type=LOGIN&severity=error&from=2026-08-01&to=2026-08-24&limit=25"));
+		await GET(buildRequest("?page=LIVE&severity=error&from=2026-08-01&to=2026-08-24&cursor=7f263a8e-977c-44c4-b06d-52805c9b5fc7&limit=25"));
 		const [url] = (global.fetch as jest.Mock).mock.calls[0];
-		expect(url).toBe("https://core.test/api/admin/audit-logs?action_type=LOGIN&severity=error&from=2026-08-01&to=2026-08-24&limit=25");
+		expect(url).toBe("https://core.test/api/admin/audit-logs?page=LIVE&severity=error&from=2026-08-01&to=2026-08-24&cursor=7f263a8e-977c-44c4-b06d-52805c9b5fc7&limit=25");
 	});
 
 	it("mirrors a forbidden response from Core", async () => {

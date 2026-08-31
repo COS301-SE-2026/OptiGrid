@@ -4,10 +4,12 @@ import prisma from '../lib/prisma';
 
 export interface AuditLogFilters {
   action_type?: string;
+  page?: "DASHBOARD" | "LIVE" | "COMPARE";
   user_id?: string;
   manager_id?: string;
   from?: Date;
   to?: Date;
+  cursor?: string;
   limit: number;
 }
 export interface AuditEntry {
@@ -27,6 +29,12 @@ const toJSON = (val: unknown): Prisma.InputJsonValue | undefined => {
 
   return val as Prisma.InputJsonValue;
 };
+
+const PAGE_VIEW_ACTIONS = {
+  DASHBOARD: "VIEW_DASHBOARD",
+  LIVE: "VIEW_LIVE",
+  COMPARE: "VIEW_COMPARE",
+} as const;
 
 export const listAuditLogs = async (filters: AuditLogFilters) => {
   const timestamp: Prisma.DateTimeNullableFilter = {};
@@ -58,18 +66,24 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
         ],
       }
     : {};
+  const actionType = filters.page ? PAGE_VIEW_ACTIONS[filters.page] : filters.action_type;
 
   const logs = await prisma.auditLog.findMany({
     where: {
-      ...(filters.action_type && { action_type: filters.action_type }),
+      ...(actionType && { action_type: actionType }),
       ...(filters.user_id && { user_id: filters.user_id }),
       ...(Object.keys(timestamp).length > 0 && { timestamp }),
       ...managerScope,
     },
-    orderBy: {
-      timestamp: "desc"
-    },
-    take: filters.limit,
+    orderBy: [
+      { timestamp: "desc" },
+      { log_id: "desc" },
+    ],
+    ...(filters.cursor && {
+      cursor: { log_id: filters.cursor },
+      skip: 1,
+    }),
+    take: filters.limit + 1,
     select: {
       log_id: true,
       user_id: true,
@@ -86,7 +100,9 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
     },
   });
 
-  return logs.map((log) => ({
+  const hasMore = logs.length > filters.limit;
+  const visibleLogs = hasMore ? logs.slice(0, filters.limit) : logs;
+  const items = visibleLogs.map((log) => ({
     log_id: log.log_id,
     timestamp: log.timestamp,
     action_type: log.action_type,
@@ -101,6 +117,11 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
     user_email: log.user?.email ?? null,
     ip_address: log.ip_address
   }));
+
+  return {
+    items,
+    nextCursor: hasMore ? items.at(-1)?.log_id ?? null : null,
+  };
 };
 
 export const getClientIp = (req: Request): string | null => {

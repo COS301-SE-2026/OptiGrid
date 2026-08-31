@@ -33,14 +33,15 @@ describe("Audit Log Service", () => {
         await listAuditLogs({ limit: 50 });
         const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
 
-        expect(args.orderBy).toEqual({ timestamp: "desc" });
-        expect(args.take).toBe(50);
+        expect(args.orderBy).toEqual([{ timestamp: "desc" }, { log_id: "desc" }]);
+        expect(args.take).toBe(51);
     });
 
     it("maps the user email directly to the entry", async () => {
-        const logs = await listAuditLogs({ limit: 50 });
-        expect(logs[0].user_email).toBe("amina@optigrid.test");
-        expect(logs[0].log_id).toBe("log-1");
+        const result = await listAuditLogs({ limit: 50 });
+        expect(result.items[0].user_email).toBe("amina@optigrid.test");
+        expect(result.items[0].log_id).toBe("log-1");
+        expect(result.nextCursor).toBeNull();
     });
 
     it("doesn't filter when no filters are given", async () => {
@@ -55,6 +56,30 @@ describe("Audit Log Service", () => {
 
         expect(args.where.action_type).toBe("LOGIN");
         expect(args.where.user_id).toBe("user-1");
+    });
+
+    it("maps a page filter to its recorded action", async () => {
+        await listAuditLogs({ page: "LIVE", limit: 10 });
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+
+        expect(args.where.action_type).toBe("VIEW_LIVE");
+    });
+
+    it("returns a cursor when another page is available", async () => {
+        const secondLog = { ...mockedLog, log_id: "log-2" };
+        (prisma.auditLog.findMany as jest.Mock).mockResolvedValue([mockedLog, secondLog]);
+
+        const result = await listAuditLogs({
+            cursor: "7f263a8e-977c-44c4-b06d-52805c9b5fc7",
+            limit: 1
+        });
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+
+        expect(args.cursor).toEqual({ log_id: "7f263a8e-977c-44c4-b06d-52805c9b5fc7" });
+        expect(args.skip).toBe(1);
+        expect(args.take).toBe(2);
+        expect(result.items).toHaveLength(1);
+        expect(result.nextCursor).toBe("log-1");
     });
 
     it("scopes a manager to themselves and actions for an authorized building", async () => {

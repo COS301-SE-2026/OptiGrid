@@ -64,18 +64,21 @@ export const listAuditLogsController = async (req: Request, resp: Response) => {
     const query = auditLogQuerySchema.parse(req.query);
     const isBuildingManager = req.user.roleType === UserRole.BUILDING_MANAGER;
 
-    const data = await listAuditLogs({
+    const result = await listAuditLogs({
       action_type: query.action_type,
+      page: query.page,
       user_id: query.user_id,
       manager_id: isBuildingManager ? req.user.id : undefined,
       from: query.from,
       to: query.to,
+      cursor: query.cursor,
       limit: query.limit
     });
 
     return resp.status(200).json({
       status: "success",
-      data
+      data: result.items,
+      next_cursor: result.nextCursor
     });
   }
   catch (error: any) {

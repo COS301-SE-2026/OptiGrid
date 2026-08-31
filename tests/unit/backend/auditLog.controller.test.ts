@@ -22,7 +22,7 @@ describe("Audit Log Controller", () => {
             user: { id: "admin-1", roleType: "ADMIN" },
             query: {},
         } as unknown as Partial<Request>;
-        (listAuditLogs as jest.Mock).mockResolvedValue([]);
+        (listAuditLogs as jest.Mock).mockResolvedValue({ items: [], nextCursor: null });
         (recordAuditLog as jest.Mock).mockResolvedValue(true);
     });
 
@@ -34,13 +34,17 @@ describe("Audit Log Controller", () => {
     });
 
     it("returns the entries on success", async () => {
-        (listAuditLogs as jest.Mock).mockResolvedValue([{ log_id: "log-1" }]);
+        (listAuditLogs as jest.Mock).mockResolvedValue({
+            items: [{ log_id: "log-1" }],
+            nextCursor: "7f263a8e-977c-44c4-b06d-52805c9b5fc7"
+        });
 
         await listAuditLogsController(req as Request, resp as Response);
         expect(statusMock).toHaveBeenCalledWith(200);
         expect(jsonMock).toHaveBeenCalledWith({
             status: "success",
-            data: [{ log_id: "log-1" }]
+            data: [{ log_id: "log-1" }],
+            next_cursor: "7f263a8e-977c-44c4-b06d-52805c9b5fc7"
         });
     });
 
@@ -57,6 +61,29 @@ describe("Audit Log Controller", () => {
             user_id: "8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2",
             limit: 25
         }));
+    });
+
+    it("passes page and cursor filters through", async () => {
+        req.query = {
+            page: "COMPARE",
+            cursor: "7f263a8e-977c-44c4-b06d-52805c9b5fc7"
+        };
+
+        await listAuditLogsController(req as Request, resp as Response);
+
+        expect(listAuditLogs).toHaveBeenCalledWith(expect.objectContaining({
+            page: "COMPARE",
+            cursor: "7f263a8e-977c-44c4-b06d-52805c9b5fc7"
+        }));
+    });
+
+    it("rejects action and page filters used together", async () => {
+        req.query = { action_type: "LOGIN", page: "DASHBOARD" };
+
+        await listAuditLogsController(req as Request, resp as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(listAuditLogs).not.toHaveBeenCalled();
     });
 
     it("passes the building manager scope to the service", async () => {

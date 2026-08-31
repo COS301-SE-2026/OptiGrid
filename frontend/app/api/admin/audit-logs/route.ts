@@ -1,6 +1,6 @@
 import { proxyCore } from "@/lib/coreProxy";
 
-const FILTERS = ["action_type", "severity", "user_id", "from", "to", "limit"];
+const FILTERS = ["action_type", "page", "severity", "user_id", "from", "to", "cursor", "limit"];
 
 export async function GET(request: Request) {
 	const requestUrl = new URL(request.url);

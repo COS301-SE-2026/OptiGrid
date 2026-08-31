@@ -77,6 +77,7 @@ describe("Audit Log Routes", () => {
         const response = await request(createAuditApp()).get('/api/admin/audit-logs');
         expect(response.status).toBe(200);
         expect(response.body.status).toBe("success");
+        expect(response.body.next_cursor).toBeNull();
         expect(response.body.data[0]).toEqual({
             log_id: "log-1",
             timestamp: "2026-08-24T09:15:00.000Z",
@@ -96,18 +97,21 @@ describe("Audit Log Routes", () => {
         const response = await request(createAuditApp())
             .get('/api/admin/audit-logs')
             .query({
-                action_type: "LOGIN",
                 user_id: "8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2",
                 from: "2026-08-01",
                 to: "2026-08-24",
+                page: "DASHBOARD",
+                cursor: "7f263a8e-977c-44c4-b06d-52805c9b5fc7",
                 limit: "25",
             });
 
         expect(response.status).toBe(200);
         const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
-        expect(args.where.action_type).toBe("LOGIN");
+        expect(args.where.action_type).toBe("VIEW_DASHBOARD");
         expect(args.where.user_id).toBe("8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2");
-        expect(args.take).toBe(25);
+        expect(args.cursor).toEqual({ log_id: "7f263a8e-977c-44c4-b06d-52805c9b5fc7" });
+        expect(args.skip).toBe(1);
+        expect(args.take).toBe(26);
     });
 
     it("rejects an invalid filter", async () => {

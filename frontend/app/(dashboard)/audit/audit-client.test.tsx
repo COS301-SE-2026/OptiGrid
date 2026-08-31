@@ -2,9 +2,10 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AuditClient from "./audit-client";
 
-const mockUseQuery = jest.fn();
+const mockUseInfiniteQuery = jest.fn();
+const mockFetchNextPage = jest.fn();
 jest.mock("@tanstack/react-query", () => ({
-    useQuery: (options: unknown) => mockUseQuery(options),
+    useInfiniteQuery: (options: unknown) => mockUseInfiniteQuery(options),
 }));
 
 const logsData = [
@@ -34,16 +35,26 @@ const logsData = [
     }
 ];
 
-function prepareQuery(state: unknown = { data: logsData }) {
-    mockUseQuery.mockReturnValue(state);
+function prepareQuery(overrides: Record<string, unknown> = {}) {
+    mockUseInfiniteQuery.mockReturnValue({
+        data: { pages: [{ items: logsData, nextCursor: null }] },
+        isLoading: false,
+        isError: false,
+        error: null,
+        fetchNextPage: mockFetchNextPage,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        ...overrides,
+    });
 }
 function lastQueryKey() {
-    return mockUseQuery.mock.calls.at(-1)?.[0]?.queryKey;
+    return mockUseInfiniteQuery.mock.calls.at(-1)?.[0]?.queryKey;
 }
 
 describe("AuditClient", () => {
     beforeEach(() => {
-        mockUseQuery.mockReset();
+        mockUseInfiniteQuery.mockReset();
+        mockFetchNextPage.mockReset();
         prepareQuery();
     });
 
@@ -51,6 +62,7 @@ describe("AuditClient", () => {
         render(<AuditClient />);
         expect(screen.getByRole("heading", { name: /security and audit/i })).toBeInTheDocument();
         expect(screen.getByLabelText("Action")).toBeInTheDocument();
+        expect(screen.getByLabelText("Page")).toBeInTheDocument();
         expect(screen.getByLabelText("Severity")).toBeInTheDocument();
         expect(screen.getByLabelText("From")).toBeInTheDocument();
         expect(screen.getByLabelText("To")).toBeInTheDocument();
@@ -92,7 +104,16 @@ describe("AuditClient", () => {
         render(<AuditClient />);
         const user = userEvent.setup();
         await user.selectOptions(screen.getByLabelText("Action"), "LOGIN");
-        expect(lastQueryKey()).toEqual(["audit-logs", "LOGIN", "all", "", ""]);
+        expect(lastQueryKey()).toEqual(["audit-logs", "LOGIN", "all", "all", "", ""]);
+    });
+
+    it("refetches when the page filter changes", async () => {
+        render(<AuditClient />);
+        const user = userEvent.setup();
+
+        await user.selectOptions(screen.getByLabelText("Page"), "LIVE");
+
+        expect(lastQueryKey()).toEqual(["audit-logs", "all", "LIVE", "all", "", ""]);
     });
 
     it("refetches when the severity and the dates change", async () => {
@@ -102,7 +123,7 @@ describe("AuditClient", () => {
         await user.selectOptions(screen.getByLabelText("Severity"), "error");
         await user.type(screen.getByLabelText("From"), "2026-08-01");
 
-        expect(lastQueryKey()).toEqual(["audit-logs", "all", "error", "2026-08-01", ""]);
+        expect(lastQueryKey()).toEqual(["audit-logs", "all", "all", "error", "2026-08-01", ""]);
     });
 
     it("clears every filter when reset is used", async () => {
@@ -110,24 +131,35 @@ describe("AuditClient", () => {
         const user = userEvent.setup();
 
         await user.selectOptions(screen.getByLabelText("Action"), "DELETE");
+        await user.selectOptions(screen.getByLabelText("Page"), "COMPARE");
         await user.click(screen.getByRole("button", { name: "Reset" }));
-        expect(lastQueryKey()).toEqual(["audit-logs", "all", "all", "", ""]);
+        expect(lastQueryKey()).toEqual(["audit-logs", "all", "all", "all", "", ""]);
+    });
+
+    it("loads the next page when requested", async () => {
+        prepareQuery({ hasNextPage: true });
+        render(<AuditClient />);
+        const user = userEvent.setup();
+
+        await user.click(screen.getByRole("button", { name: "Load more" }));
+
+        expect(mockFetchNextPage).toHaveBeenCalledTimes(1);
     });
 
     it("shows an empty state when nothing matches", () => {
-        prepareQuery({ data: [] });
+        prepareQuery({ data: { pages: [{ items: [], nextCursor: null }] } });
         render(<AuditClient />);
         expect(screen.getByText(/no activity matches these filters/i)).toBeInTheDocument();
     });
 
     it("hides the table while the logs are loading", () => {
-        prepareQuery({ isLoading: true });
+        prepareQuery({ data: undefined, isLoading: true });
         render(<AuditClient />);
         expect(screen.queryByRole("table")).not.toBeInTheDocument();
     });
 
     it("shows a load failure", () => {
-        prepareQuery({ isError: true, error: new Error("Admin access required") });
+        prepareQuery({ data: undefined, isError: true, error: new Error("Admin access required") });
         render(<AuditClient />);
         expect(screen.getByRole("alert")).toHaveTextContent("Admin access required");
     });
