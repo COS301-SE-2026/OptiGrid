@@ -1,5 +1,5 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import { formatDateTime } from "@/lib/formatDate";
 import { PageHeading } from "@/components/PageHeading";
@@ -17,6 +17,11 @@ type AuditLog = {
     ip_address: string | null;
 };
 
+type AuditPageResponse = {
+    items: AuditLog[];
+    nextCursor: string | null;
+};
+
 const ACTION_FILTERS = [
     { value: "all", label: "All actions" },
     { value: "LOGIN", label: "Login" },
@@ -25,6 +30,13 @@ const ACTION_FILTERS = [
     { value: "UPDATE", label: "Updated" },
     { value: "DELETE", label: "Deleted" },
     { value: "SYSTEM_FAILURE", label: "System failure" }
+];
+
+const PAGE_FILTERS = [
+    { value: "all", label: "All pages" },
+    { value: "DASHBOARD", label: "Dashboard" },
+    { value: "LIVE", label: "Live" },
+    { value: "COMPARE", label: "Compare" },
 ];
 
 const SEVERITY_FILTERS = [
@@ -74,21 +86,30 @@ function Skeleton({ style }: Readonly<{ style?: CSSProperties }>) {
 
 export default function AuditClient() {
     const [actionFilter, setActionFilter] = useState("all");
+    const [pageFilter, setPageFilter] = useState("all");
     const [severityFilter, setSeverityFilter] = useState("all");
     const [from, setFrom] = useState("");
     const [to, setTo] = useState("");
 
     const {
-        data: logs = [],
+        data,
         isLoading,
         isError,
         error,
-    } = useQuery<AuditLog[]>({
-        queryKey: ["audit-logs", actionFilter, severityFilter, from, to],
-        queryFn: async () => {
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useInfiniteQuery<AuditPageResponse>({
+        queryKey: ["audit-logs", actionFilter, pageFilter, severityFilter, from, to],
+        initialPageParam: null,
+        queryFn: async ({ pageParam }) => {
             const query = new URLSearchParams();
             if (actionFilter !== "all"){
                 query.set("action_type", actionFilter);
+            }
+
+            if (pageFilter !== "all") {
+                query.set("page", pageFilter);
             }
 
             if (severityFilter !== "all"){ 
@@ -100,6 +121,9 @@ export default function AuditClient() {
             }
             if (to){ 
                 query.set("to", to);
+            }
+            if (typeof pageParam === "string") {
+                query.set("cursor", pageParam);
             }
 
             const search = query.toString() ? `?${query.toString()}` : "";
@@ -114,12 +138,19 @@ export default function AuditClient() {
             if (!response.ok) {
                 throw new Error(payload.message || "Unable to load audit logs.");
             }
-            return Array.isArray(payload?.data) ? payload.data : [];
+            return {
+                items: Array.isArray(payload?.data) ? payload.data : [],
+                nextCursor: typeof payload?.next_cursor === "string" ? payload.next_cursor : null,
+            };
         },
+        getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     });
+
+    const logs = data?.pages.flatMap((page) => page.items) ?? [];
 
     const resetFilters = () => {
         setActionFilter("all");
+        setPageFilter("all");
         setSeverityFilter("all");
         setFrom("");
         setTo("");
@@ -186,6 +217,18 @@ export default function AuditClient() {
                         <tbody>{renderRows()}</tbody>
                     </table>
                 </div>
+                {hasNextPage && (
+                    <div style={{ display: "flex", justifyContent: "center", padding: "var(--space-4)" }}>
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            disabled={isFetchingNextPage}
+                            onClick={() => void fetchNextPage()}
+                        >
+                            {isFetchingNextPage ? "Loading..." : "Load more"}
+                        </button>
+                    </div>
+                )}
             </div>
         );
     };
@@ -207,8 +250,34 @@ export default function AuditClient() {
                         gap: "var(--space-2)" 
                     }}>
                         <label className="label" htmlFor="audit-action">Action</label>
-                        <select id="audit-action" className="select" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+                        <select
+                            id="audit-action"
+                            className="select"
+                            value={actionFilter}
+                            onChange={(e) => {
+                                setActionFilter(e.target.value);
+                                if (e.target.value !== "all") setPageFilter("all");
+                            }}
+                        >
                             {ACTION_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
+                        </select>
+                    </div>
+
+                    <div style={{
+                        display: "grid",
+                        gap: "var(--space-2)"
+                    }}>
+                        <label className="label" htmlFor="audit-page">Page</label>
+                        <select
+                            id="audit-page"
+                            className="select"
+                            value={pageFilter}
+                            onChange={(e) => {
+                                setPageFilter(e.target.value);
+                                if (e.target.value !== "all") setActionFilter("all");
+                            }}
+                        >
+                            {PAGE_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
                         </select>
                     </div>
 

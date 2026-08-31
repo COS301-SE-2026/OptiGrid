@@ -15,6 +15,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 const mockedLog = {
     log_id: "log-1",
     user_id: "user-1",
+    building_id: "building-1",
     action_type: "LOGIN",
     target_table: "users",
     ip_address: "196.25.1.4",
@@ -32,14 +33,15 @@ describe("Audit Log Service", () => {
         await listAuditLogs({ limit: 50 });
         const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
 
-        expect(args.orderBy).toEqual({ timestamp: "desc" });
-        expect(args.take).toBe(50);
+        expect(args.orderBy).toEqual([{ timestamp: "desc" }, { log_id: "desc" }]);
+        expect(args.take).toBe(51);
     });
 
     it("maps the user email directly to the entry", async () => {
-        const logs = await listAuditLogs({ limit: 50 });
-        expect(logs[0].user_email).toBe("amina@optigrid.test");
-        expect(logs[0].log_id).toBe("log-1");
+        const result = await listAuditLogs({ limit: 50 });
+        expect(result.items[0].user_email).toBe("amina@optigrid.test");
+        expect(result.items[0].log_id).toBe("log-1");
+        expect(result.nextCursor).toBeNull();
     });
 
     it("doesn't filter when no filters are given", async () => {
@@ -56,6 +58,78 @@ describe("Audit Log Service", () => {
         expect(args.where.user_id).toBe("user-1");
     });
 
+    it("maps a page filter to its recorded action", async () => {
+        await listAuditLogs({ page: "LIVE", limit: 10 });
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+
+        expect(args.where.action_type).toBe("VIEW_LIVE");
+    });
+
+    it("returns a cursor when another page is available", async () => {
+        const secondLog = { ...mockedLog, log_id: "log-2" };
+        (prisma.auditLog.findMany as jest.Mock).mockResolvedValue([mockedLog, secondLog]);
+
+        const result = await listAuditLogs({
+            cursor: "7f263a8e-977c-44c4-b06d-52805c9b5fc7",
+            limit: 1
+        });
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+
+        expect(args.cursor).toEqual({ log_id: "7f263a8e-977c-44c4-b06d-52805c9b5fc7" });
+        expect(args.skip).toBe(1);
+        expect(args.take).toBe(2);
+        expect(result.items).toHaveLength(1);
+        expect(result.nextCursor).toBe("log-1");
+    });
+
+    it("scopes a manager to themselves and actions for an authorized building", async () => {
+        await listAuditLogs({ manager_id: "manager-1", limit: 50 });
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+
+        expect(args.where.OR).toEqual([
+            { user_id: "manager-1" },
+            {
+                building: {
+                    is: {
+                        authorized_users: {
+                            some: { user_id: "manager-1" }
+                        }
+                    }
+                }
+            }
+        ]);
+    });
+
+    it("keeps a cross-user filter inside the manager's authorized-building scope", async () => {
+        await listAuditLogs({
+            manager_id: "manager-1",
+            user_id: "other-user",
+            limit: 50,
+        });
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+
+        expect(args.where.user_id).toBe("other-user");
+        expect(args.where.OR).toEqual([
+            { user_id: "manager-1" },
+            {
+                building: {
+                    is: {
+                        authorized_users: {
+                            some: { user_id: "manager-1" }
+                        }
+                    }
+                }
+            }
+        ]);
+    });
+
+    it("does not return a cursor when the current page is the final page", async () => {
+        const result = await listAuditLogs({ limit: 1 });
+
+        expect(result.items).toHaveLength(1);
+        expect(result.nextCursor).toBeNull();
+    });
+
     it("cover the whole of the last day in a range", async () => {
         await listAuditLogs({
             from: new Date("2026-08-01T00:00:00Z"),
@@ -68,8 +142,9 @@ describe("Audit Log Service", () => {
     });
 
     it("writes an audit entry", async () => {
-        await recordAuditLog({
+        const recorded = await recordAuditLog({
             userId: "user-1",
+            buildingId: "building-1",
             actionType: "UPDATE",
             targetTable: "buildings",
             newValue: { building_name: "Sandton HQ" },
@@ -79,6 +154,7 @@ describe("Audit Log Service", () => {
         expect(prisma.auditLog.create).toHaveBeenCalledWith({
             data: {
                 user_id: "user-1",
+                building_id: "building-1",
                 action_type: "UPDATE",
                 target_table: "buildings",
                 old_value: undefined,
@@ -86,12 +162,13 @@ describe("Audit Log Service", () => {
                 ip_address: "196.25.1.4"
             },
         });
+        expect(recorded).toBe(true);
     });
     it("handles a write failure so the request still succeeds", async () => {
         (prisma.auditLog.create as jest.Mock).mockRejectedValue(new Error("db down"));
         jest.spyOn(console, "error").mockImplementation(() => {});
 
-        await expect(recordAuditLog({ actionType: "LOGIN", targetTable: "users" })).resolves.toBeUndefined();
+        await expect(recordAuditLog({ actionType: "LOGIN", targetTable: "users" })).resolves.toBe(false);
     });
 
     it("takes the first address from a forwarded chain", () => {
