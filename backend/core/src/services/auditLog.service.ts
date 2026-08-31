@@ -1,4 +1,4 @@
-import { AuditSeverity, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import prisma from '../lib/prisma';
 
@@ -38,10 +38,10 @@ const PAGE_VIEW_ACTIONS = {
 } as const;
 
 const AUDIT_SEVERITIES = {
-  info: AuditSeverity.INFO,
-  warning: AuditSeverity.WARNING,
-  error: AuditSeverity.ERROR,
-  critical: AuditSeverity.CRITICAL,
+  info: "INFO",
+  warning: "WARNING",
+  error: "ERROR",
+  critical: "CRITICAL",
 } as const;
 
 export const listAuditLogs = async (filters: AuditLogFilters) => {
