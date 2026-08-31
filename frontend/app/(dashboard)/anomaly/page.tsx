@@ -13,6 +13,7 @@ import {
   AnomalyDetailsModal,
   HistoricAlertsModal,
   ConfirmAnomalyActionModal,
+  AnomalyToast,
   formatDate,
   formatChartTime,
   useAnomalyChartData,
@@ -225,33 +226,7 @@ export default function ManagerAnomalyPage() {
 
   return (
     <div className="dashboard-page">
-      {toastMessage && (
-        <div style={{
-          position: "fixed",
-          bottom: "20px",
-          right: "20px",
-          backgroundColor: "var(--brand-danger)",
-          color: "white",
-          padding: "16px 20px",
-          borderRadius: "8px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-          zIndex: 9999,
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          fontWeight: 500,
-        }}>
-          <span style={{ fontSize: "1.2rem" }}>⚠️</span>
-          {toastMessage}
-          <button 
-            type="button" 
-            onClick={() => setToastMessage(null)}
-            style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "16px", marginLeft: "8px" }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      <AnomalyToast message={toastMessage} onClose={() => setToastMessage(null)} />
       <div className="dashboard-shell">
         <main className="dashboard-main" role="main" aria-label="Anomaly alert main content">
           <div className="dashboard-header">

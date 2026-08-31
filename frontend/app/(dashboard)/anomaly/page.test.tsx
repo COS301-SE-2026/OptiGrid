@@ -4,80 +4,13 @@ import ManagerAnomalyPage from "./page";
 import "@testing-library/jest-dom";
 
 
-const MOCK_ANOMALIES = [
-  {
-    anomaly_id: "a1",
-    building_id: "b1",
-    building_name: "Sandton HQ",
-    anomaly_type: "POWER_USAGE",
-    severity_level: "critical",
-    description: "Sudden power spike detected",
-    status: "Open",
-    detected_timestamp: new Date().toISOString(),
-    resolved_timestamp: null,
-    resolved_by: null,
-    z_score_value: 4.2,
-    threshold_details: {
-      threshold_id: "t1",
-      z_score_threshold: 3.0,
-      metric_type: "power",
-      unit: "kW",
-      is_active: true,
-    },
-  },
-  {
-    anomaly_id: "a2",
-    building_id: "b2",
-    building_name: "Hillcrest",
-    anomaly_type: "CURRENT_SPIKE",
-    severity_level: "high",
-    description: "Energy over-consumption anomaly",
-    status: "In_Progress",
-    detected_timestamp: new Date().toISOString(),
-    resolved_timestamp: null,
-    resolved_by: null,
-    z_score_value: 3.1,
-    threshold_details: {
-      threshold_id: "t2",
-      z_score_threshold: 2.5,
-      metric_type: "power",
-      unit: "kW",
-      is_active: true,
-    },
-  },
-];
+import { MOCK_ANOMALIES_MANAGER as MOCK_ANOMALIES, MOCK_BUILDINGS, MOCK_THRESHOLDS, rechartsMockFactory } from "./testMocks";
 
-const MOCK_THRESHOLDS = [
-  {
-    threshold_id: "t1",
-    building_id: "b1",
-    building_name: "Sandton HQ",
-    metric_type: "power",
-    unit: "kW",
-    z_score_threshold: 3.0,
-    is_active: true,
-  },
-];
-
-const MOCK_BUILDINGS = [
-  { id: "b1", name: "Sandton HQ" },
-  { id: "b2", name: "Hillcrest" },
-];
-
-
-jest.mock("recharts", () => ({
-  ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  ComposedChart: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  LineChart: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  Line: () => null,
-  Area: () => null,
-  XAxis: () => null,
-  YAxis: () => null,
-  CartesianGrid: () => null,
-  Tooltip: () => null,
-  ReferenceLine: () => null,
-  Scatter: () => null,
-}));
+jest.mock("recharts", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { rechartsMockFactory } = require("./testMocks");
+  return rechartsMockFactory();
+});
 
 jest.mock("@/lib/useBuildings", () => ({
   useBuildings: () => ({ data: MOCK_BUILDINGS, isLoading: false, error: null }),
@@ -355,7 +288,7 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       fireEvent.click(getTableRow("Sandton HQ"));
       const modal = screen.getByRole("heading", { name: /anomaly details/i }).closest(".modal")!;
-      expect(within(modal as HTMLElement).getByText(/sudden power spike detected/i)).toBeInTheDocument();
+      expect(within(modal as HTMLElement).getByText(/power spike detected/i)).toBeInTheDocument();
     });
 
     it("modal has a Close button", async () => {

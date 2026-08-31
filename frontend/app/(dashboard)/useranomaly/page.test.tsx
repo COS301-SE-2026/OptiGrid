@@ -4,110 +4,13 @@ import ViewerAnomalyPage from "./page";
 import "@testing-library/jest-dom";
 
 
-const MOCK_ANOMALIES = [
-  {
-    anomaly_id: "a1",
-    building_id: "b1",
-    building_name: "Sandton HQ",
-    anomaly_type: "POWER_USAGE",
-    severity_level: "critical",
-    description: "Critical power spike detected",
-    status: "Open",
-    detected_timestamp: new Date().toISOString(),
-    resolved_timestamp: null,
-    resolved_by: null,
-    z_score_value: 4.2,
-    threshold_details: {
-      threshold_id: "t1",
-      z_score_threshold: 3.0,
-      metric_type: "power",
-      unit: "kW",
-      is_active: true,
-    },
-  },
-  {
-    anomaly_id: "a2",
-    building_id: "b2",
-    building_name: "College",
-    anomaly_type: "CURRENT_SPIKE",
-    severity_level: "high",
-    description: "High power spike over-consumption",
-    status: "Open",
-    detected_timestamp: new Date().toISOString(),
-    resolved_timestamp: null,
-    resolved_by: null,
-    z_score_value: 3.1,
-    threshold_details: {
-      threshold_id: "t2",
-      z_score_threshold: 2.5,
-      metric_type: "power",
-      unit: "kW",
-      is_active: true,
-    },
-  },
+import { MOCK_ANOMALIES_VIEWER as MOCK_ANOMALIES, MOCK_BUILDINGS, rechartsMockFactory } from "../anomaly/testMocks";
 
-  {
-    anomaly_id: "a3",
-    building_id: "b3",
-    building_name: "Azalea res",
-    anomaly_type: "VOLTAGE_DROP",
-    severity_level: "low",
-    description: "Voltage drop detected",
-    status: "Resolved",
-    detected_timestamp: "2026-06-01T08:00:00Z",
-    resolved_timestamp: "2026-06-02T10:00:00Z",
-    resolved_by: "Admin",
-    z_score_value: 2.1,
-  },
-  {
-    anomaly_id: "a4",
-    building_id: "b4",
-    building_name: "Hillcrest",
-    anomaly_type: "PHASE_IMBALANCE",
-    severity_level: "medium",
-    description: "Phase imbalance detected",
-    status: "Resolved",
-    detected_timestamp: "2026-05-20T14:00:00Z",
-    resolved_timestamp: "2026-05-21T09:00:00Z",
-    resolved_by: "Admin",
-    z_score_value: 2.5,
-  },
-  {
-    anomaly_id: "a5",
-    building_id: "b2",
-    building_name: "College",
-    anomaly_type: "POWER_USAGE",
-    severity_level: "low",
-    description: "Minor power fluctuation",
-    status: "Ignored",
-    detected_timestamp: "2026-05-10T11:00:00Z",
-    resolved_timestamp: "2026-05-10T12:00:00Z",
-    resolved_by: "Admin",
-    z_score_value: 2.0,
-  },
-];
-
-const MOCK_BUILDINGS = [
-  { id: "b1", name: "Sandton HQ" },
-  { id: "b2", name: "College" },
-  { id: "b3", name: "Azalea res" },
-  { id: "b4", name: "Hillcrest" },
-];
-
-
-jest.mock("recharts", () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  ComposedChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  LineChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Line: () => null,
-  Area: () => null,
-  XAxis: () => null,
-  YAxis: () => null,
-  CartesianGrid: () => null,
-  Tooltip: () => null,
-  ReferenceLine: () => null,
-  Scatter: () => null,
-}));
+jest.mock("recharts", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { rechartsMockFactory } = require("../anomaly/testMocks");
+  return rechartsMockFactory();
+});
 
 jest.mock("@/lib/useBuildings", () => ({
   useBuildings: () => ({ data: MOCK_BUILDINGS, isLoading: false, error: null }),
@@ -314,7 +217,7 @@ describe("ViewerAnomalyPage", () => {
         await renderPage();
         fireEvent.click(getTableRow("Sandton HQ"));
         const modal = screen.getByRole("heading", { name: /anomaly details/i }).closest(".modal")!;
-        expect(within(modal as HTMLElement).getByText(/critical power spike detected/i)).toBeInTheDocument();
+        expect(within(modal as HTMLElement).getByText(/power spike detected/i)).toBeInTheDocument();
       });
 
       it("modal shows threshold details", async () => {

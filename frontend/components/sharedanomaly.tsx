@@ -17,6 +17,52 @@ export type AnomalyStatus = "Open" | "Resolved" | "In_Progress" | "Ignored";
 export type SeverityLevel = "low" | "medium" | "high" | "critical";
 export type MetricType = "power" | "cost";
 
+export function AnomalyToast({
+  message,
+  onClose,
+}: Readonly<{
+  message: string | null;
+  onClose: () => void;
+}>) {
+  if (!message) return null;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: "20px",
+        right: "20px",
+        backgroundColor: "var(--brand-danger)",
+        color: "white",
+        padding: "16px 20px",
+        borderRadius: "8px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        fontWeight: 500,
+      }}
+    >
+      <span style={{ fontSize: "1.2rem" }}>⚠️</span>
+      {message}
+      <button
+        type="button"
+        onClick={onClose}
+        style={{
+          background: "none",
+          border: "none",
+          color: "white",
+          cursor: "pointer",
+          fontSize: "16px",
+          marginLeft: "8px",
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 export interface Anomaly {
   anomaly_id: string;
   building_id: string;

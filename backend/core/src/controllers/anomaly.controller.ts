@@ -3,52 +3,56 @@ import { AnomalyStatus } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { checkBuildingAccess, getAllowedBuildingIds } from '../utils/auth.utils';
 
+async function fetchAndRespondAnomalies(buildingFilter: any, query: any, res: Response): Promise<void> {
+	const { skip = '0', take = '50', severity, status, startDate, endDate } = query;
+	const where: any = { ...buildingFilter };
+	if (severity) where.severity_level = severity as string;
+	if (status) where.status = status as AnomalyStatus;
+	if (startDate || endDate) {
+		where.detected_timestamp = {};
+		if (startDate) where.detected_timestamp.gte = new Date(startDate as string);
+		if (endDate) where.detected_timestamp.lte = new Date(endDate as string);
+	}
+
+	const skipNum = Number.parseInt(skip as string, 10);
+	const takeNum = Number.parseInt(take as string, 10);
+
+	const [anomalies, totalCount] = await Promise.all([
+		prisma.anomaly.findMany({
+			where,
+			skip: skipNum,
+			take: takeNum,
+			orderBy: { detected_timestamp: 'desc' },
+			include: { building: true },
+		}),
+		prisma.anomaly.count({ where }),
+	]);
+
+	const mappedAnomalies = anomalies.map((a) => ({
+		...a,
+		building_name: a.building?.building_name || 'Unknown Building',
+	}));
+
+	res.status(200).json({
+		status: 'success',
+		data: mappedAnomalies,
+		meta: {
+			total: totalCount,
+			skip: skipNum,
+			take: takeNum,
+		},
+	});
+}
+
 // get all anomalies for a building
 export const getAnomalies = async (req: Request, res: Response): Promise<void> => {
 	try {
 		const { buildingId } = req.params;
-		const { skip = '0', take = '50', severity, status, startDate, endDate } = req.query;
-
 		if (!(await checkBuildingAccess(req, buildingId))) {
 			res.status(403).json({ status: 'error', message: 'Forbidden' });
 			return;
 		}
-
-		const where: any = { building_id: buildingId };
-		if (severity) where.severity_level = severity as string;
-		if (status) where.status = status as AnomalyStatus;
-		if (startDate || endDate) {
-			where.detected_timestamp = {};
-			if (startDate) where.detected_timestamp.gte = new Date(startDate as string);
-			if (endDate) where.detected_timestamp.lte = new Date(endDate as string);
-		}
-
-		const anomalies = await prisma.anomaly.findMany({
-			where: where,
-			skip: Number.parseInt(skip as string, 10),
-			take: Number.parseInt(take as string, 10),
-			orderBy: { detected_timestamp: 'desc' },
-			include: { building: true }
-		});
-		
-		const mappedAnomalies = anomalies.map(a => ({
-			...a,
-			building_name: a.building?.building_name || 'Unknown Building'
-		}));
-
-		const totalCount = await prisma.anomaly.count({
-			where: where,
-		});
-
-		res.status(200).json({
-			status: 'success',
-			data: mappedAnomalies,
-			meta: {
-				total: totalCount,
-				skip: Number.parseInt(skip as string, 10),
-				take: Number.parseInt(take as string, 10),
-			},
-		});
+		await fetchAndRespondAnomalies({ building_id: buildingId }, req.query, res);
 	} catch (error: any) {
 		console.error('[AnomalyController] Error fetching anomalies:', error);
 		res.status(500).json({ status: 'error', message: 'Failed to fetch anomalies' });
@@ -75,11 +79,9 @@ export const updateAnomalyStatus = async (req: Request, res: Response): Promise<
 			return;
 		}
 
-		if (anomaly.building_id) {
-			if (!(await checkBuildingAccess(req, anomaly.building_id))) {
-				res.status(403).json({ status: 'error', message: 'Forbidden' });
-				return;
-			}
+		if (anomaly.building_id && !(await checkBuildingAccess(req, anomaly.building_id))) {
+			res.status(403).json({ status: 'error', message: 'Forbidden' });
+			return;
 		}
 
 		const updatedAnomaly = await prisma.anomaly.update({
@@ -96,6 +98,7 @@ export const updateAnomalyStatus = async (req: Request, res: Response): Promise<
 		res.status(500).json({ status: 'error', message: 'Failed to update anomaly status' });
 	}
 };
+
 // get anomaly context
 export const getAnomalyContext = async (req: Request, res: Response): Promise<void> => {
 	try {
@@ -106,7 +109,7 @@ export const getAnomalyContext = async (req: Request, res: Response): Promise<vo
 			include: {
 				sensor: true,
 				threshold: true,
-			}
+			},
 		});
 
 		if (!anomaly) {
@@ -114,11 +117,9 @@ export const getAnomalyContext = async (req: Request, res: Response): Promise<vo
 			return;
 		}
 
-		if (anomaly.building_id) {
-			if (!(await checkBuildingAccess(req, anomaly.building_id))) {
-				res.status(403).json({ status: 'error', message: 'Forbidden' });
-				return;
-			}
+		if (anomaly.building_id && !(await checkBuildingAccess(req, anomaly.building_id))) {
+			res.status(403).json({ status: 'error', message: 'Forbidden' });
+			return;
 		}
 
 		res.status(200).json({ status: 'success', data: anomaly });
@@ -131,8 +132,6 @@ export const getAnomalyContext = async (req: Request, res: Response): Promise<vo
 // get all anomalies across a user's portfolio
 export const getPortfolioAnomalies = async (req: Request, res: Response): Promise<void> => {
 	try {
-		const { skip = '0', take = '50', severity, status, startDate, endDate } = req.query;
-
 		const allowedBuildingIds = await getAllowedBuildingIds(req);
 
 		if (allowedBuildingIds.length === 0) {
@@ -140,44 +139,9 @@ export const getPortfolioAnomalies = async (req: Request, res: Response): Promis
 			return;
 		}
 
-		const where: any = { building_id: { in: allowedBuildingIds } };
-		if (severity) where.severity_level = severity as string;
-		if (status) where.status = status as AnomalyStatus;
-		if (startDate || endDate) {
-			where.detected_timestamp = {};
-			if (startDate) where.detected_timestamp.gte = new Date(startDate as string);
-			if (endDate) where.detected_timestamp.lte = new Date(endDate as string);
-		}
-
-		const anomalies = await prisma.anomaly.findMany({
-			where: where,
-			skip: Number.parseInt(skip as string, 10),
-			take: Number.parseInt(take as string, 10),
-			orderBy: { detected_timestamp: 'desc' },
-			include: { building: true }
-		});
-		
-		const mappedAnomalies = anomalies.map(a => ({
-			...a,
-			building_name: a.building?.building_name || 'Unknown Building'
-		}));
-
-		const totalCount = await prisma.anomaly.count({
-			where: where,
-		});
-
-		res.status(200).json({
-			status: 'success',
-			data: mappedAnomalies,
-			meta: {
-				total: totalCount,
-				skip: Number.parseInt(skip as string, 10),
-				take: Number.parseInt(take as string, 10),
-			},
-		});
+		await fetchAndRespondAnomalies({ building_id: { in: allowedBuildingIds } }, req.query, res);
 	} catch (error: any) {
 		console.error('[AnomalyController] Error fetching portfolio anomalies:', error);
 		res.status(500).json({ status: 'error', message: 'Failed to fetch portfolio anomalies' });
 	}
 };
-
