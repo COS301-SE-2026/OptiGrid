@@ -87,7 +87,7 @@ describe("Audit Log Service", () => {
     });
 
     it("writes an audit entry", async () => {
-        await recordAuditLog({
+        const recorded = await recordAuditLog({
             userId: "user-1",
             buildingId: "building-1",
             actionType: "UPDATE",
@@ -107,12 +107,13 @@ describe("Audit Log Service", () => {
                 ip_address: "196.25.1.4"
             },
         });
+        expect(recorded).toBe(true);
     });
     it("handles a write failure so the request still succeeds", async () => {
         (prisma.auditLog.create as jest.Mock).mockRejectedValue(new Error("db down"));
         jest.spyOn(console, "error").mockImplementation(() => {});
 
-        await expect(recordAuditLog({ actionType: "LOGIN", targetTable: "users" })).resolves.toBeUndefined();
+        await expect(recordAuditLog({ actionType: "LOGIN", targetTable: "users" })).resolves.toBe(false);
     });
 
     it("takes the first address from a forwarded chain", () => {

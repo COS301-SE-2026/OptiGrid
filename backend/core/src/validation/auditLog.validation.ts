@@ -10,3 +10,7 @@ export const auditLogQuerySchema = z.object({
     to: z.coerce.date().optional(),
     limit: z.coerce.number().int().positive().max(200).default(50)
 });
+
+export const auditPageViewSchema = z.object({
+    page: z.enum(["DASHBOARD", "LIVE", "COMPARE"])
+});

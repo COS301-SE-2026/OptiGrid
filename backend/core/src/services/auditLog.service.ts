@@ -126,8 +126,10 @@ export const recordAuditLog = async (entry: AuditEntry) => {
         ip_address: entry.ipAddress ?? null,
       },
     });
+    return true;
   }
   catch (error) {
     console.error("Failed to record audit log:", error);
+    return false;
   }
 };

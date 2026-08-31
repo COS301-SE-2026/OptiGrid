@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
-import { listAuditLogs } from '../../../backend/core/src/services/auditLog.service';
-import { listAuditLogsController } from '../../../backend/core/src/controllers/auditLog.controller';
+import { listAuditLogs, recordAuditLog } from '../../../backend/core/src/services/auditLog.service';
+import { listAuditLogsController, recordAuditPageViewController } from '../../../backend/core/src/controllers/auditLog.controller';
 
 jest.mock('../../../backend/core/src/services/auditLog.service', () => ({
     listAuditLogs: jest.fn(),
+    recordAuditLog: jest.fn(),
+    getClientIp: jest.fn().mockReturnValue("196.25.1.4"),
 }));
 
 describe("Audit Log Controller", () => {
@@ -21,6 +23,7 @@ describe("Audit Log Controller", () => {
             query: {},
         } as unknown as Partial<Request>;
         (listAuditLogs as jest.Mock).mockResolvedValue([]);
+        (recordAuditLog as jest.Mock).mockResolvedValue(true);
     });
 
     it("returns 401 when unauthenticated user submits a request", async () => {
@@ -104,5 +107,48 @@ describe("Audit Log Controller", () => {
         jest.spyOn(console, "error").mockImplementation(() => { });
         await listAuditLogsController(req as Request, resp as Response);
         expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("records a validated page view for the authenticated user", async () => {
+        req.body = { page: "LIVE" };
+
+        await recordAuditPageViewController(req as Request, resp as Response);
+
+        expect(recordAuditLog).toHaveBeenCalledWith({
+            userId: "admin-1",
+            actionType: "VIEW_LIVE",
+            targetTable: "pages",
+            newValue: { page: "LIVE" },
+            ipAddress: "196.25.1.4",
+        });
+        expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("rejects an unsupported page view", async () => {
+        req.body = { page: "ADMIN" };
+
+        await recordAuditPageViewController(req as Request, resp as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(recordAuditLog).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unauthenticated page view", async () => {
+        req.user = undefined;
+        req.body = { page: "DASHBOARD" };
+
+        await recordAuditPageViewController(req as Request, resp as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(401);
+        expect(recordAuditLog).not.toHaveBeenCalled();
+    });
+
+    it("reports when page activity cannot be stored", async () => {
+        req.body = { page: "COMPARE" };
+        (recordAuditLog as jest.Mock).mockResolvedValue(false);
+
+        await recordAuditPageViewController(req as Request, resp as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(503);
     });
 });
