@@ -159,10 +159,10 @@ class RecommendationSynthesizer:
         equipment = self.get_probable_equipment(building_type, sample_size=3)
         desc = anomaly.get("description", "Unusual aggregate consumption detected")
 
-        startegy = {
+        startegy = (
             f"Anomaly detected: {desc}. Because we track overall consumption, this could be caused by"
             f" systems left running overnight or malfunctioning equipment (likely {equipment}).Investigate affected zones to reduce the baseload."
-        }
+        )
 
         return {
             "building_id": building_id,
@@ -183,7 +183,7 @@ class RecommendationSynthesizer:
             return None
 
         equipment = self.get_probable_equipment(building_type)
-        if context == "Winter Optimization":
+        if context == "Winter Optimisation":
             strategy = f"Winter tariffs are active. Shift non-essential heavy loads (like {equipment}) to off-peak hours to avoid seasonal peak surcharges."
             savings = 500.0
         elif context == "Summer Lighting":
@@ -213,7 +213,7 @@ class RecommendationSynthesizer:
         try:
             #variable to keep track of seven day limit
             seven = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-            resp = self.supabase.table("optimisation_recommendation").select("applicable_range") \
+            resp = self.supabase.table("optimisation_recommendations").select("applicable_range") \
             .eq("building_id", building_id) \
             .in_("status", ["Pending", "Implemented"]) \
             .gte("generated_date", seven) \
