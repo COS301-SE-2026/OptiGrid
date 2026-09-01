@@ -63,6 +63,7 @@ build/
 # Environment files
 .env
 .env.local
+**/.env.local
 .env.*.local
 
 # Documentation

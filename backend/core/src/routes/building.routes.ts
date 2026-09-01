@@ -8,7 +8,7 @@ import {
   getBuildingEnergyConsumptionController,
   getPortfolioConsumptionController,
   listBuildingsController,
-  updateBuildingController, getManagerBuildingsController,
+  updateBuildingController, getManagerBuildingsController, getBuildingSeriesController,
 } from '../controllers/building.controller';
 
 const router = Router();
@@ -482,6 +482,7 @@ router.get('/:building_id', getBuildingDetailsController);
  *         description: Internal server error
  */
 router.get('/:building_id/energy-consumption', getBuildingEnergyConsumptionController);
+router.get('/:building_id/series', getBuildingSeriesController);
 
 /**
  * @swagger
