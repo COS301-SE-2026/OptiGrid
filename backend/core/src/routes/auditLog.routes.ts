@@ -35,7 +35,7 @@ const router = Router();
  *         schema:
  *           type: string
  *           enum: [info, warning, error, critical]
- *         description: Reserved for the severity column added by the system health work
+ *         description: Restrict results to the recorded system-health severity
  *       - in: query
  *         name: user_id
  *         required: false

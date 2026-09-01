@@ -101,6 +101,7 @@ describe("Audit Log Routes", () => {
                 from: "2026-08-01",
                 to: "2026-08-24",
                 page: "DASHBOARD",
+                severity: "error",
                 cursor: "7f263a8e-977c-44c4-b06d-52805c9b5fc7",
                 limit: "25",
             });
@@ -108,6 +109,7 @@ describe("Audit Log Routes", () => {
         expect(response.status).toBe(200);
         const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
         expect(args.where.action_type).toBe("VIEW_DASHBOARD");
+        expect(args.where.severity).toBe("ERROR");
         expect(args.where.user_id).toBe("8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2");
         expect(args.cursor).toEqual({ log_id: "7f263a8e-977c-44c4-b06d-52805c9b5fc7" });
         expect(args.skip).toBe(1);

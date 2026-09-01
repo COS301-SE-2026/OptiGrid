@@ -5,6 +5,7 @@ import prisma from '../lib/prisma';
 export interface AuditLogFilters {
   action_type?: string;
   page?: "DASHBOARD" | "LIVE" | "COMPARE";
+  severity?: "info" | "warning" | "error" | "critical";
   user_id?: string;
   manager_id?: string;
   from?: Date;
@@ -34,6 +35,13 @@ const PAGE_VIEW_ACTIONS = {
   DASHBOARD: "VIEW_DASHBOARD",
   LIVE: "VIEW_LIVE",
   COMPARE: "VIEW_COMPARE",
+} as const;
+
+const AUDIT_SEVERITIES = {
+  info: "INFO",
+  warning: "WARNING",
+  error: "ERROR",
+  critical: "CRITICAL",
 } as const;
 
 export const listAuditLogs = async (filters: AuditLogFilters) => {
@@ -71,6 +79,7 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
   const logs = await prisma.auditLog.findMany({
     where: {
       ...(actionType && { action_type: actionType }),
+      ...(filters.severity && { severity: AUDIT_SEVERITIES[filters.severity] }),
       ...(filters.user_id && { user_id: filters.user_id }),
       ...(Object.keys(timestamp).length > 0 && { timestamp }),
       ...managerScope,
@@ -90,6 +99,9 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
       building_id: true,
       action_type: true,
       target_table: true,
+      service: true,
+      operation: true,
+      severity: true,
       ip_address: true,
       timestamp: true,
       user: {
@@ -108,10 +120,9 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
     action_type: log.action_type,
     target_table: log.target_table,
 
-    //the service and operation and severity arrive with the system health branch and the view treats them as optional
-    service: null,
-    operation: null,
-    severity: null,
+    service: log.service ?? null,
+    operation: log.operation ?? null,
+    severity: log.severity?.toLowerCase() ?? null,
     user_id: log.user_id,
     building_id: log.building_id,
     user_email: log.user?.email ?? null,

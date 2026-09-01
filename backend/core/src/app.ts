@@ -15,6 +15,7 @@ import thresholdRoutes from './routes/threshold.routes';
 import anomalyRoutes from './routes/anomaly.routes';
 import accountRoutes from "./routes/account.routes";
 import adminUserRoutes from "./routes/admin_user.routes";
+import systemHealthRoutes from "./routes/systemHealth.routes";
 import auditLogRoutes from "./routes/auditLog.routes";
 import auditEventRoutes from "./routes/auditEvent.routes";
 import cors from 'cors';
@@ -172,6 +173,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use("/auth", authRate, userAuthRoutes);
 	app.use("/api/accounts", authenticateRequest, normalRate, accountRoutes);
 	app.use("/api/admin/users", authenticateRequest, strictRate, adminUserRoutes);
+	app.use("/api/admin/health", authenticateRequest, normalRate, systemHealthRoutes);
 	app.use("/api/admin/audit-logs", authenticateRequest, normalRate, auditLogRoutes);
 	app.use("/api/audit-events", authenticateRequest, normalRate, auditEventRoutes);
 	app.use("/api/sensors", sensorRoutes);

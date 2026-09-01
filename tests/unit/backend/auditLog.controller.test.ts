@@ -51,6 +51,7 @@ describe("Audit Log Controller", () => {
     it("passes the filters through", async () => {
         req.query = {
             action_type: "LOGIN",
+            severity: "error",
             user_id: "8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2",
             limit: "25"
         };
@@ -58,6 +59,7 @@ describe("Audit Log Controller", () => {
         await listAuditLogsController(req as Request, resp as Response);
         expect(listAuditLogs).toHaveBeenCalledWith(expect.objectContaining({
             action_type: "LOGIN",
+            severity: "error",
             user_id: "8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2",
             limit: 25
         }));

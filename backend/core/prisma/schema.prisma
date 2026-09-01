@@ -14,7 +14,7 @@ datasource db {
 enum TelemetrySource {
   PHYSICAL
   EMULATOR
-  
+
   @@schema("public")
 }
 
@@ -114,6 +114,16 @@ enum NotificationChannel {
   Push
 
   @@map("notification_channel")
+  @@schema("public")
+}
+
+enum AuditSeverity {
+  INFO     @map("info")
+  WARNING  @map("warning")
+  ERROR    @map("error")
+  CRITICAL @map("critical")
+
+  @@map("audit_severity")
   @@schema("public")
 }
 
@@ -284,15 +294,21 @@ model Anomaly {
 }
 
 model AuditLog {
-  log_id       String    @id @default(dbgenerated("gen_random_uuid()")) @map("log_id") @db.Uuid
-  user_id      String?   @map("user_id") @db.Uuid
-  building_id  String?   @map("building_id") @db.Uuid
-  action_type  String    @map("action_type") @db.VarChar
-  target_table String    @map("target_table") @db.VarChar
-  old_value    Json?     @map("old_value")
-  new_value    Json?     @map("new_value")
-  ip_address   String?   @map("ip_address")
-  timestamp    DateTime? @default(now()) @db.Timestamptz
+  log_id       String         @id @default(dbgenerated("gen_random_uuid()")) @map("log_id") @db.Uuid
+  user_id      String?        @map("user_id") @db.Uuid
+  building_id  String?        @map("building_id") @db.Uuid
+  action_type  String         @map("action_type") @db.VarChar
+  target_table String         @map("target_table") @db.VarChar
+  service      String?        @db.VarChar(100)
+  operation    String?        @db.VarChar(100)
+  severity     AuditSeverity?
+  error_code   String?        @map("error_code") @db.VarChar(100)
+  request_id   String?        @map("request_id") @db.VarChar(128)
+  old_value    Json?          @map("old_value")
+  new_value    Json?          @map("new_value")
+  metadata     Json?
+  ip_address   String?        @map("ip_address")
+  timestamp    DateTime?      @default(now()) @db.Timestamptz
 
   // Relations
   user     User?     @relation(fields: [user_id], references: [userId], onDelete: SetNull)
@@ -302,6 +318,10 @@ model AuditLog {
   @@index([action_type])
   @@index([timestamp])
   @@index([building_id])
+  @@index([user_id, timestamp])
+  @@index([building_id, timestamp])
+  @@index([service, timestamp])
+  @@index([severity, timestamp])
   @@map("audit_logs")
   @@schema("public")
 }

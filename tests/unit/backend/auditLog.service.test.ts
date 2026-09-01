@@ -1,6 +1,7 @@
 import { listAuditLogs, recordAuditLog, getClientIp } from '../../../backend/core/src/services/auditLog.service';
 import prisma from '../../../backend/core/src/lib/prisma';
 import type { Request } from 'express';
+import { AuditSeverity } from '@prisma/client';
 
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
     __esModule: true,
@@ -63,6 +64,26 @@ describe("Audit Log Service", () => {
         const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
 
         expect(args.where.action_type).toBe("VIEW_LIVE");
+    });
+
+    it("filters and returns structured system-health fields", async () => {
+        (prisma.auditLog.findMany as jest.Mock).mockResolvedValue([{
+            ...mockedLog,
+            action_type: "SYSTEM_FAILURE",
+            service: "ingestion",
+            operation: "write telemetry",
+            severity: AuditSeverity.ERROR,
+        }]);
+
+        const result = await listAuditLogs({ severity: "error", limit: 10 });
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+
+        expect(args.where.severity).toBe(AuditSeverity.ERROR);
+        expect(result.items[0]).toEqual(expect.objectContaining({
+            service: "ingestion",
+            operation: "write telemetry",
+            severity: "error",
+        }));
     });
 
     it("returns a cursor when another page is available", async () => {

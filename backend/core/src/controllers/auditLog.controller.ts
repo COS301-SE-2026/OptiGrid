@@ -67,6 +67,7 @@ export const listAuditLogsController = async (req: Request, resp: Response) => {
     const result = await listAuditLogs({
       action_type: query.action_type,
       page: query.page,
+      severity: query.severity,
       user_id: query.user_id,
       manager_id: isBuildingManager ? req.user.id : undefined,
       from: query.from,

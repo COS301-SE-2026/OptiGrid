@@ -15,8 +15,9 @@ class Observer(ABC):
 
 # Oberserver Subject/Concrete Subject
 class TelemetrySubject:
-    def __init__(self):
+    def __init__(self, failure_handler=None):
         self._observers = []
+        self._failure_handler = failure_handler
 
     def attach(self, observer: Observer):
         if observer not in self._observers:
@@ -32,8 +33,20 @@ class TelemetrySubject:
         for observer in self._observers:
             try:
                 observer.update(payload)
-            except Exception as e:
-                logger.exception(f"Observer {observer.__class__.__name__} failed: {e}")
+            except Exception as error:
+                logger.exception(
+                    "Observer %s failed: %s",
+                    observer.__class__.__name__,
+                    error,
+                )
+                if self._failure_handler:
+                    try:
+                        self._failure_handler(observer, payload, error)
+                    except Exception:
+                        logger.exception(
+                            "Failure handler could not report observer %s",
+                            observer.__class__.__name__,
+                        )
 
 # Concrete Observer
 class InfluxStorageObserver(Observer):
