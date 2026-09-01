@@ -15,10 +15,6 @@ export async function queueBuildingProvisioning(
   metadata?: Record<string, unknown>
 ): Promise<void> {
   console.log(`PROVISIONING: gonna provision building- ${buildingId} ${buildingName}`);
-  if (process.env.NODE_ENV === 'test') {
-    console.log(`[TEST MOCK] Bypassing external service provisioning for ${buildingId}`);
-    return;
-  }
   const bucketName = await provisionInfluxDBBucket(buildingId, buildingName, nominalVoltage, maxCurrentThreshold);
   await initializeIngestionService(buildingId, hardwareAuthToken, nominalVoltage, maxCurrentThreshold, bucketName, metadata);
   await initializeAnalyticsService(buildingId, buildingName);
@@ -147,10 +143,6 @@ export async function getHardwareAuthToken(buildingId: string): Promise<string |
 //in frontend or supabase its deleted from influx as well
 export async function deleteInfluxBucket(buildingId: string): Promise<void> {
   const bucket = `building-${buildingId}`;
-  if (process.env.NODE_ENV === 'test') {
-    console.log(`[TEST MOCK] Bypassing InfluxDB bucket deletion for ${buildingId}`);
-    return;
-  }
   try {
     const influxClient = new InfluxDB({ url: INFLUX_URL, token: INFLUX_TOKEN });
     const bucketsAPI = new BucketsAPI(influxClient);

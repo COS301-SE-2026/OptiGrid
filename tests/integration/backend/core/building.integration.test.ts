@@ -2,8 +2,6 @@ const { Client } = require('pg');
 const request = require('supertest');
 import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
 import { randomUUID as uuidv4 } from 'crypto';
-
-
 import { startInfluxHarness, stopInfluxHarness, type StartedInfluxHarness } from './harness/influx-container';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
 
@@ -14,13 +12,20 @@ describe('Building integration - Create Building', () => {
 	const tenantId = '8680c655-bfa3-433b-81aa-084fc76882d9';
 	const userId = 'bbe48b78-438f-4ed7-9fe7-a8fc9addc187';
 	let authHeaders: { Cookie: string };
-	
+	let originalFetch: typeof fetch;
+
 	beforeAll(async () => {
 		influxHarness = await startInfluxHarness();
 		process.env.INFLUX_URL = influxHarness.url;
 		process.env.INFLUXDB_TOKEN = influxHarness.token;
 		process.env.INFLUXDB_ORG = influxHarness.org;
 		process.env.INFLUXDB_BUCKET = influxHarness.bucket;
+
+		originalFetch = global.fetch;
+		global.fetch = jest.fn().mockResolvedValue({
+			ok: true,
+			json: async () => ({ status: 'success' })
+		}) as any;
 
 		harness = await createCoreApiHarness();
 		authHeaders = await getAuthHeaders(userId);
@@ -52,6 +57,7 @@ describe('Building integration - Create Building', () => {
 	afterAll(async () => {
 		if (harness) await harness.stop();
 		if (influxHarness) await stopInfluxHarness(influxHarness);
+		global.fetch = originalFetch;
 	});
 	afterEach(async () => {
 		injectAuthenticatedUser = true;

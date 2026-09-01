@@ -7,14 +7,14 @@ const connection = {
 };
 const QUEUE_NAME = 'analytics-refresh';
 
-export const analyticsQueue = (process.env.NODE_ENV === "test" ? { add: async () => {}, getJob: async () => null }
-    : new Queue(QUEUE_NAME, { connection })) as unknown as Queue;
+export const analyticsQueue = new Queue(QUEUE_NAME, { connection }) as unknown as Queue;
+
+export let analyticsEvents: QueueEvents | undefined;
 
 export function bullMQsetUp() {
-    if (process.env.NODE_ENV === 'test') return;
     
-    const events = new QueueEvents(QUEUE_NAME, { connection });
-    events.on('completed', ({ jobId, returnvalue }) => {
+    analyticsEvents = new QueueEvents(QUEUE_NAME, { connection });
+    analyticsEvents.on('completed', ({ jobId, returnvalue }) => {
         analyticsQueue.getJob(jobId).then(job => {
             if (job && job.data && job.data.building_id) {
                 broadcastEvent("FORECAST_READY", { 
@@ -28,7 +28,7 @@ export function bullMQsetUp() {
         }).catch(err => console.error("Error fetching job data:", err));
     });
     
-    events.on('failed', ({ jobId, failedReason }) => {
+    analyticsEvents.on('failed', ({ jobId, failedReason }) => {
         console.error(`Job ${jobId} failed : ${failedReason}`);
     });
 }

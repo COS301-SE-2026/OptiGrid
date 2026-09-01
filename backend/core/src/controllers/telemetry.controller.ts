@@ -168,4 +168,9 @@ export const shutdownTelemetry = async () => {
     } catch (error) {
         console.error('Error closing telemetry writeApi:', error);
     }
+    try {
+        await prisma.$disconnect();
+    } catch (error) {
+        console.error('Error disconnecting telemetry prisma client:', error);
+    }
 };
