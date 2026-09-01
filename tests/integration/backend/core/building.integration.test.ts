@@ -3,33 +3,28 @@ const request = require('supertest');
 import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
 import { randomUUID as uuidv4 } from 'crypto';
 
-jest.mock('../../../../backend/core/src/lib/influx', () => ({
-	queryTotalKwh: jest.fn(),
-	queryUsageDetails: jest.fn(),
-}));
 
-const { queryUsageDetails } = require('../../../../backend/core/src/lib/influx') as {
-	queryUsageDetails: jest.Mock;
-};
+import { startInfluxHarness, stopInfluxHarness, type StartedInfluxHarness } from './harness/influx-container';
+import { InfluxDB, Point } from '@influxdata/influxdb-client';
 
 describe('Building integration - Create Building', () => {
 	let harness: CoreApiHarness;
+	let influxHarness: StartedInfluxHarness;
 	let injectAuthenticatedUser = true;
 	const tenantId = '8680c655-bfa3-433b-81aa-084fc76882d9';
 	const userId = 'bbe48b78-438f-4ed7-9fe7-a8fc9addc187';
 	let authHeaders: { Cookie: string };
-	// const authMiddleware = (req: any, res: any, next: any) => {
-	// 	if (!injectAuthenticatedUser) {
-	// 		return res.status(401).json({ message: 'Unauthorized' });
-	// 	}
-	// 	req.user = { id: userId, tenant_id: tenantId }; 
-	// 	next();
-	// };
-	//
+	
 	beforeAll(async () => {
+		influxHarness = await startInfluxHarness();
+		process.env.INFLUX_URL = influxHarness.url;
+		process.env.INFLUXDB_TOKEN = influxHarness.token;
+		process.env.INFLUXDB_ORG = influxHarness.org;
+		process.env.INFLUXDB_BUCKET = influxHarness.bucket;
+
 		harness = await createCoreApiHarness();
 		authHeaders = await getAuthHeaders(userId);
-	});
+	}, 120000);
 
 	beforeEach(async () => {
 		injectAuthenticatedUser = true;
@@ -56,6 +51,7 @@ describe('Building integration - Create Building', () => {
 
 	afterAll(async () => {
 		if (harness) await harness.stop();
+		if (influxHarness) await stopInfluxHarness(influxHarness);
 	});
 	afterEach(async () => {
 		injectAuthenticatedUser = true;
@@ -126,31 +122,33 @@ describe('Building integration - Create Building', () => {
 			});
 
 		const buildingId = createResponse.body.data.building_id;
-		queryUsageDetails.mockResolvedValue({
-			total_kwh: 900,
-			total_cost_usd: 45,
-			total_cost_zar: 1800,
-			peak_usage_times: [{ timestamp: '2026-07-10T08:00:00Z', kwh: 120 }],
-		});
+
+		const client = new InfluxDB({ url: influxHarness.url, token: influxHarness.token });
+		const writeApi = client.getWriteApi(influxHarness.org, influxHarness.bucket, 'ms');
+		const testTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+		testTime.setMinutes(0, 0, 0); // truncate to hour for peak usage aggregation predictability
+
+		const p1 = new Point('energy_consumption')
+			.tag('building_id', buildingId)
+			.floatField('usage', 120)
+			.floatField('cost_zar', 300)
+			.floatField('cost_usd', 15)
+			.timestamp(testTime);
+			
+		writeApi.writePoint(p1);
+		await writeApi.close();
 
 		const response = await request(harness.app)
 			.get(`/api/buildings/${buildingId}/energy-consumption?time_range=7d`)
 			.set(authHeaders);
 
 		expect(response.status).toBe(200);
-		expect(response.body).toMatchObject({
-			status: 'success',
-			data: {
-				building_id: buildingId,
-				building_name: 'Energy Consumption Building',
-				time_range: '7d',
-				total_kwh: 900,
-				average_daily_kwh: 128.57,
-				total_cost_zar: 1800,
-				peak_usage_times: [{ timestamp: '2026-07-10T08:00:00Z', kwh: 120 }],
-			},
-		});
-		expect(queryUsageDetails).toHaveBeenCalledWith(buildingId, '7d');
+		expect(response.body.status).toBe('success');
+		expect(response.body.data.total_kwh).toBe(120);
+		expect(response.body.data.total_cost_zar).toBe(300);
+		expect(response.body.data.average_daily_kwh).toBe(Number((120 / 7).toFixed(2)));
+		expect(response.body.data.peak_usage_times).toHaveLength(1);
+		expect(response.body.data.peak_usage_times[0].kwh).toBe(120);
 	});
 
 	it('returns cached response when reusing Idempotency-Key', async () => {
