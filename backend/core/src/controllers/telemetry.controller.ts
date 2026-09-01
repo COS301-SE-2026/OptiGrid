@@ -161,3 +161,11 @@ export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
         }
     }
 };
+
+export const shutdownTelemetry = async () => {
+    try {
+        await writeApi.close();
+    } catch (error) {
+        console.error('Error closing telemetry writeApi:', error);
+    }
+};
