@@ -52,7 +52,7 @@ export async function GET(request: Request) {
                     "Content-Type": "application/json" 
                 },
                 body: JSON.stringify({
-                    accessToken: data.session.access_token,
+                    access: data.session.access_token,
                     email,
                     firstName,
                     lastName,
