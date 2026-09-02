@@ -800,5 +800,5 @@ class AnalyticsEngine:
             try:
                 self.supabase.table("optimisation_recommendations").upsert(recs_all).execute()
             except Exception as e:
-                logger.exception("Failed to insert recommendations for: ", building_id)
+                logger.exception("Failed to insert recommendations for: %s", building_id)
     
