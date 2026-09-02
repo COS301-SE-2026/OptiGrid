@@ -3,7 +3,7 @@ import prisma from '../lib/prisma';
 import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
   getPortfolioConsumption, listBuildingsForUser, getBuildingDetails, updateBuildingService, getManagerBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
-import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, buildingSeriesParamsSchema, buildingSeriesQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 import { getClientIp, recordAuditLog } from '../services/auditLog.service';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -228,8 +228,8 @@ export const getBuildingSeriesController = async (req: Request, res: Response) =
   try {
     if (!req.user?.id) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
 
-    const building_id = req.params.building_id;
-    const time_range = req.query.time_range as string || '7d';
+    const { building_id } = buildingSeriesParamsSchema.parse(req.params);
+    const { time_range } = buildingSeriesQuerySchema.parse(req.query);
 
     // verify access
     if (req.user.roleType !== "ADMIN") {
@@ -244,6 +244,14 @@ export const getBuildingSeriesController = async (req: Request, res: Response) =
     
     return res.status(200).json({ status: 'success', data: series });
   } catch (error: any) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid request parameters',
+        details: error.errors,
+      });
+    }
+
     console.error('getBuildingSeriesController Error:', error);
     return res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
