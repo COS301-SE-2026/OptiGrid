@@ -96,13 +96,13 @@ describe('Escalation Worker', () => {
         // verify update for anomaly 1
         expect(prisma.anomaly.update).toHaveBeenNthCalledWith(1, {
             where: { anomaly_id: 'anomaly-1' },
-            data: { escalation_level: 1, severity_level: 'Critical' },
+            data: { escalation_level: 1, severity_level: 'critical' },
         });
 
         // verify update for anomaly 2
         expect(prisma.anomaly.update).toHaveBeenNthCalledWith(2, {
             where: { anomaly_id: 'anomaly-2' },
-            data: { escalation_level: 1, severity_level: 'Critical' },
+            data: { escalation_level: 1, severity_level: 'critical' },
         });
 
         expect(dispatchAnomalyNotification).toHaveBeenCalledTimes(2);
@@ -115,7 +115,7 @@ describe('Escalation Worker', () => {
             'POWER_USAGE',
             2.5,
             0,
-            'Critical'
+            'critical'
         );
 
         // verify notification for anomaly 2 (with fallback z score = 0)
@@ -126,7 +126,7 @@ describe('Escalation Worker', () => {
             'CURRENT_USAGE',
             0,
             0,
-            'Critical'
+            'critical'
         );
     });
 

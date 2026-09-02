@@ -26,7 +26,7 @@ export const sweepProlongedAnomalies = async () => {
                 where: { anomaly_id: anomaly.anomaly_id },
                 data: {
                     escalation_level: 1,
-                    severity_level: 'Critical', // escalate to critical
+                    severity_level: 'critical', // escalate to critical
                 }
             });
 
@@ -39,7 +39,7 @@ export const sweepProlongedAnomalies = async () => {
                 anomaly.anomaly_type,
                 anomaly.z_score_value || 0, // fallback if no specific value is easily accessible
                 0, // expected
-                'Critical'
+                'critical'
             );
         }
     } catch (error) {

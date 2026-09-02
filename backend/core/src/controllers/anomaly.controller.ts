@@ -6,7 +6,12 @@ import { checkBuildingAccess, getAllowedBuildingIds } from '../utils/auth.utils'
 async function fetchAndRespondAnomalies(buildingFilter: any, query: any, res: Response): Promise<void> {
 	const { skip = '0', take = '50', severity, status, startDate, endDate } = query;
 	const where: any = { ...buildingFilter };
-	if (severity) where.severity_level = severity as string;
+	if (severity) {
+		where.severity_level = {
+			equals: String(severity).toLowerCase(),
+			mode: 'insensitive',
+		};
+	}
 	if (status) where.status = status as AnomalyStatus;
 	if (startDate || endDate) {
 		where.detected_timestamp = {};
@@ -30,6 +35,7 @@ async function fetchAndRespondAnomalies(buildingFilter: any, query: any, res: Re
 
 	const mappedAnomalies = anomalies.map((a) => ({
 		...a,
+		severity_level: a.severity_level.toLowerCase(),
 		building_name: a.building?.building_name || 'Unknown Building',
 	}));
 
