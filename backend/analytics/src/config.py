@@ -10,8 +10,8 @@ INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "optigrid-org")
 INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "EnergyData")
 INFLUXDB_HOST = "influxdb"
 # supabase Configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip() or None
+SUPABASE_KEY = (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or "").strip() or None
 
 # MLOps Configuration
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
