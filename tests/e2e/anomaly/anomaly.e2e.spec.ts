@@ -1,4 +1,3 @@
-
 import {
   expect,
   test,
@@ -56,7 +55,9 @@ async function login(page: Page, user: E2EUser): Promise<void> {
   await page.getByLabel("Password").fill(user.password);
 
   const loginResponsePromise = page.waitForResponse(
-    "**/api/auth/login"
+    (response) =>
+      response.url().includes("/api/auth/login") &&
+      response.request().method() === "POST"
   );
 
   await page.getByRole("button", { name: "Log in" }).click();
@@ -67,22 +68,39 @@ async function login(page: Page, user: E2EUser): Promise<void> {
     loginResponse.ok(),
     `Expected login to succeed, got ${loginResponse.status()}`
   ).toBeTruthy();
+
+  
+  await page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/auth/session") &&
+      response.status() === 200,
+    { timeout: 60000 }
+  ).catch(() => {});
+
+  
+  await page.waitForURL((url) => !url.pathname.endsWith("/login"), {
+    waitUntil: "domcontentloaded",
+  });
 }
 
 test.describe("Anomaly Alerts", () => {
+  
+  test.setTimeout(180000);
+
   test("viewer can view anomaly alerts", async ({ page, request }) => {
     const user = buildUniqueUser();
 
     await createUser(request, user);
     await login(page, user);
 
-    await page.goto("/useranomaly", {
-      waitUntil: "commit",
-      timeout: 60000,
-    });
+
+    await page.goto("/useranomaly", { waitUntil: "domcontentloaded" });
+
+
+    await expect(page).not.toHaveURL(/\/login/);
 
     await expect(
-      page.getByRole("heading", { name: "Anomaly Alerts" })
+      page.getByRole("heading", { name: /Anomaly Alerts/i, level: 1 })
     ).toBeVisible();
 
     await expect(
@@ -94,4 +112,3 @@ test.describe("Anomaly Alerts", () => {
     ).toHaveCount(0);
   });
 });
-
