@@ -13,7 +13,22 @@ jest.mock("../../../../lib/authCookies", () => ({
 
 describe("Google Authentication route integrations", () => {
     let mockCode: jest.Mock;
+    let mockFetch: jest.Mock;
     beforeEach(() => {
+        mockFetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: jest.fn().mockResolvedValue({
+                user: {
+                    userId: "user123",
+                    email: "test@gmail.com",
+                    firstName: "Test",
+                    lastName: "User",
+                    roleType: "ADMIN"
+                }
+            })
+        });
+        global.fetch = mockFetch;
+        
         mockCode = jest.fn().mockResolvedValue({
             data: {
                 session: {
@@ -38,7 +53,13 @@ describe("Google Authentication route integrations", () => {
             remove: jest.fn(),
         });
     });
-    afterEach(() => { jest.clearAllMocks(); });
+    afterEach(() => { 
+        jest.clearAllMocks(); 
+        if (global.fetch === mockFetch) {
+            // @ts-ignore
+            delete global.fetch;
+        }
+    });
 
     it("should_redirect_to_next", async () => {
         const req = new Request("http://localhost/api/auth/callback?code=mock-code-123&next=/dashboard", {
