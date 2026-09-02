@@ -91,7 +91,7 @@ export default function ViewerAnomalyPage() {
     return uniqueBuildings.size;
   }, [anomalies]);
 
-  const { chartData, anomalyPoints } = useAnomalyChartData(
+  const { chartData, anomalyPoints, chartError, chartLoading } = useAnomalyChartData(
     historicAnomalies.length > 0 ? historicAnomalies : anomalies,
     selectedBuildingForChart,
     chartMetric,
@@ -119,7 +119,8 @@ export default function ViewerAnomalyPage() {
           <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} />
 
           <EnergyChart
-            loading={loading}
+            loading={loading || chartLoading}
+            error={chartError}
             chartData={chartData}
             anomalyPoints={anomalyPoints}
             buildings={buildings}
