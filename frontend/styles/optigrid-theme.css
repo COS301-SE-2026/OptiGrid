@@ -999,6 +999,8 @@ h3 {
     width: 100%;
     aspect-ratio: 16 / 9;
     background: var(--brand-surface-alt);
+    object-fit: cover;
+    object-position: center;
 }
 
 .tutorial-video-placeholder-content {

@@ -7,6 +7,7 @@ type Tutorial = {
     title: string;
     description: string;
     sourceUrl?: string;
+    posterUrl?: string;
     // set only when a clip carries spoken narration and otherwise default to silent
     hasAudio?: boolean;
     // defaults to SILENT_CAPTIONS_URL
@@ -24,6 +25,7 @@ const tutorials: Tutorial[] = [
         title: "Sign up for an OptiGrid account",
         description: "Walk through the first-time registration flow and learn what details are required before you can access the platform.",
         sourceUrl: "/help/tutorials/signup.mp4",
+        posterUrl: "/help/tutorials/signup-poster.jpg",
         steps: `
             Open the OptiGrid landing page and choose "Get started free".
             Enter your first name, last name and work email address.
@@ -36,6 +38,7 @@ const tutorials: Tutorial[] = [
         title: "Log in",
         description: "See the standard login flow.",
         sourceUrl: "/help/tutorials/login.mp4",
+        posterUrl: "/help/tutorials/login-poster.jpg",
         steps: `
             Open the login page from the landing page or the "Log in" link.
             Enter the work email and password used at registration.
@@ -48,6 +51,7 @@ const tutorials: Tutorial[] = [
         title: "Add a building",
         description: "Create a new building record so it can be tracked, compared, and included in forecasts.",
         sourceUrl: "/help/tutorials/add_building.mp4",
+        posterUrl: "/help/tutorials/add_building-poster.jpg",
         steps: `
             From the dashboard, select "+ Add building".
             Enter the building name (required) and pick a building type from the dropdown.
@@ -61,6 +65,7 @@ const tutorials: Tutorial[] = [
         title: "Compare two buildings",
         description: "Compare building performance side by side to identify which sites are using more energy than expected.",
         sourceUrl: "/help/tutorials/compare_buildings.mp4",
+        posterUrl: "/help/tutorials/compare_buildings-poster.jpg",
         steps: `
             Open "Compare" from the main navigation.
             Choose the first building from the left dropdown and the second from the right dropdown.
@@ -73,6 +78,7 @@ const tutorials: Tutorial[] = [
         title: "Review demand forecasts",
         description: "Check the forecast view to see how OptiGrid projects near-term demand for your selected building.",
         sourceUrl: "/help/tutorials/run_forecast.mp4",
+        posterUrl: "/help/tutorials/run_forecast-poster.jpg",
         steps: `
             Open "Forecast" from the main navigation.
             Select a building and choose either the weekly or monthly horizon.
@@ -107,7 +113,7 @@ function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
                         className="tutorial-video"
                         controls
                         preload="none"
-                        poster="/help/tutorials/tutorial-poster.svg"
+                        poster={tutorial.posterUrl}
                         aria-label={`Tutorial video: ${tutorial.title}`}
                         aria-describedby={stepsId}
                     >
