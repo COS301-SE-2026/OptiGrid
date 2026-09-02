@@ -748,8 +748,7 @@ class AnalyticsEngine:
             df_weekly = pd.DataFrame()
             df_monthly = pd.DataFrame()
 
-        df_weekly = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
-        monthly_seeded = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
+        df_weekly, monthly_seeded = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
         if not monthly_seeded.empty: 
             df_monthly = monthly_seeded
         #process monthly and weekly data

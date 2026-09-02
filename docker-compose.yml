@@ -151,6 +151,60 @@ services:
       ingestion-api:
         condition: service_healthy
 
+  analytics-worker:
+    build: 
+      context: .
+      dockerfile: ./backend/analytics/Dockerfile
+    command: python -m backend.analytics.src.queue_worker
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?INFLUXDB_TOKEN has to be set}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+
+  analytics-batch:
+    build: 
+      context: .
+      dockerfile: ./backend/analytics/Dockerfile
+    command: python -m backend.analytics.src.batch_worker
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?INFLUXDB_TOKEN has to be set}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+
 volumes:
   influxdb_data:
   influxdb_config:

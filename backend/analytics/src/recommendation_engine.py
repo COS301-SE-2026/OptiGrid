@@ -56,6 +56,8 @@ class RecommendationSynthesizer:
 
         is_summer = curr_month in [12, 1, 2]
         is_winter = curr_month in [6, 7, 8]
+        is_spring = curr_month in [9, 10, 11]
+        is_autumn = curr_month in [3, 4, 5]
 
         if curr_month in [5, 6, 7]:
             rec = self._calculate_season_optimisation(building_id, building_type, "Winter Optimisation")
@@ -68,6 +70,14 @@ class RecommendationSynthesizer:
                 recs.append(rec)
         elif is_winter:
             rec = self._calculate_season_optimisation(building_id, building_type, "Winter Heating")
+            if rec: 
+                recs.append(rec)
+        elif is_spring:
+            rec = self._calculate_season_optimisation(building_id, building_type, "Spring HVAC Optimisation")
+            if rec: 
+                recs.append(rec)
+        elif is_autumn:
+            rec = self._calculate_season_optimisation(building_id, building_type, "Autumn Lighting")
             if rec: 
                 recs.append(rec)
 
@@ -159,10 +169,10 @@ class RecommendationSynthesizer:
         equipment = self.get_probable_equipment(building_type, sample_size=3)
         desc = anomaly.get("description", "Unusual aggregate consumption detected")
 
-        startegy = {
+        startegy = (
             f"Anomaly detected: {desc}. Because we track overall consumption, this could be caused by"
             f" systems left running overnight or malfunctioning equipment (likely {equipment}).Investigate affected zones to reduce the baseload."
-        }
+        )
 
         return {
             "building_id": building_id,
@@ -183,15 +193,24 @@ class RecommendationSynthesizer:
             return None
 
         equipment = self.get_probable_equipment(building_type)
-        if context == "Winter Optimization":
+        if context == "Winter Optimisation":
             strategy = f"Winter tariffs are active. Shift non-essential heavy loads (like {equipment}) to off-peak hours to avoid seasonal peak surcharges."
             savings = 500.0
         elif context == "Summer Lighting":
             strategy= "Sunset is occurring later. Adjust outdoor lighting and communal area timer schedules to match daylight hours."
             savings =150.0
-        else:
-            strategy=  f"Winter temperatures increase aggregate load. Ensure climate control and heating systems (such as {equipment}) are on strict timers to prevent overnight idling."
+        elif context == "Winter Heating":
+            strategy = f"Winter temperatures increase aggregate load. Ensure climate control and heating systems (such as {equipment}) are on strict timers to prevent overnight idling."
             savings = 300.0
+        elif context == "Spring HVAC Optimisation":
+            strategy = f"Spring weather can be variable. Optimise HVAC systems (such as {equipment}) by relying more on fresh air ventilation to reduce baseload."
+            savings = 250.0
+        elif context == "Autumn Lighting":
+            strategy = f"Days are getting shorter in autumn. Adjust outdoor lighting and communal area timer schedules to match daylight hours efficiently."
+            savings = 150.0
+        else:
+            strategy = f"General seasonal optimisation for {context}. Monitor usage on {equipment}."
+            savings = 100.0
 
         return {
             "building_id": building_id,
@@ -213,7 +232,7 @@ class RecommendationSynthesizer:
         try:
             #variable to keep track of seven day limit
             seven = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-            resp = self.supabase.table("optimisation_recommendation").select("applicable_range") \
+            resp = self.supabase.table("optimisation_recommendations").select("applicable_range") \
             .eq("building_id", building_id) \
             .in_("status", ["Pending", "Implemented"]) \
             .gte("generated_date", seven) \
