@@ -101,11 +101,17 @@ export interface AnomalySummary {
   critical: number;
 }
 
-function getZScoreLabel(zScore: number): string {
-  if (zScore >= 4.0) return "Extreme Spike";
-  if (zScore >= 3.0) return "High Spike";
-  if (zScore >= 2.0) return "Moderate Spike";
+export function getZScoreLabel(zScore: number): string {
+  const magnitude = Math.abs(zScore);
+  if (magnitude >= 4.0) return "Extreme Spike";
+  if (magnitude >= 3.0) return "High Spike";
+  if (magnitude >= 2.0) return "Moderate Spike";
   return "Slight Variance";
+}
+
+export function formatZScoreDeviation(zScore: number): string {
+  const sign = zScore >= 0 ? "+" : "";
+  return `${sign}${zScore.toFixed(1)}σ from baseline`;
 }
 
 function resolveBuildingId(selectedBuilding: string, buildingsList: Building[] = []): string {
@@ -462,7 +468,7 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
                           {getZScoreLabel(anomaly.z_score_value)}
                         </span>
                         <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                          +{anomaly.z_score_value.toFixed(1)}σ from baseline
+                          {formatZScoreDeviation(anomaly.z_score_value)}
                         </span>
                       </div>
                     ) : (
