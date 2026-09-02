@@ -644,16 +644,15 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                     <a 
-                        href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/reports/summary`}
+                        href={getTabSessionPath("/api/reports/summary")}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-secondary"
+                        className="btn btn-primary"
                         style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            backgroundColor: '#F3F4F6',
-                            color: '#1F2937',
-                            border: '1px solid #D1D5DB'
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
                         }}
                     >
                         Download Summary Report

@@ -39,6 +39,7 @@
 		"swagger-ui-express": "^5.0.1",
 		"ws": "^8.16.0",
 		"node-cron": "^3.0.3",
+		"pdfkit": "^0.20.2",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
@@ -64,6 +65,7 @@
 		"ts-jest": "^29.4.9",
 		"tsx": "^4.19.3",
 		"@types/node-cron": "^3.0.11",
+		"@types/pdfkit": "^0.17.6",
 		"typescript": "^5.8.3"
 	}
 }
