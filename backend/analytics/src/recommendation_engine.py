@@ -121,9 +121,8 @@ class RecommendationSynthesizer:
                 peak_end = str(tar["peak_end_time"])[:5]
 
         peak_kwh_saved = kw_reduced * 2.0
-        rate = 1
-        if time_window == "weekly":
-            rate = 4
+        # Assume peak occurs every weekday (approx 20 days a month)
+        rate = 20
         monthly_savings = (peak_rate*peak_kwh_saved) * rate
 
 
