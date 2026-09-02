@@ -7,11 +7,11 @@ export const Categories: FAQCategory[] = [
         items: [
             {
                 question: "How do I create an OptiGrid account?",
-                answer: "Click 'Get started free' on the landing page, fill in your first name, last name, email address, and a password of at least 8 characters, then submit. You will be redirected to the login page once your account is created.",
+                answer: "Click 'Get started free' on the landing page, fill in your first name, last name, email address, and a password of at least 8 characters, then re-enter the password to confirm it. Once the account is created you are signed in and taken straight to your dashboard.",
             },
             {
                 question: "Can I sign up with an email that is already registered?",
-                answer: "No. If the email address is already in use, you will see an error message on the sign up form. Use a different email or log in to your existing account.",
+                answer: "No. If the email address is already in use, the sign up form shows a message telling you to log in instead. Use a different email or log in to your existing account.",
             },
         ],
     },
@@ -26,6 +26,10 @@ export const Categories: FAQCategory[] = [
                 question: "How do I log out?",
                 answer: "Click the 'Logout' button at the bottom of the sidebar in any dashboard page. Your session will be cleared and you will be redirected to the login page.",
             },
+            {
+                question: "Why was I sent back to the login page?",
+                answer: "Your session expired or the browser cookie was cleared. Any dashboard page checks for a valid session and sends you to the login page when it does not find one, so logging in again will get you back.",
+            },
         ],
     },
     {
@@ -33,7 +37,11 @@ export const Categories: FAQCategory[] = [
         items: [
             {
                 question: "Does OptiGrid support dark mode?",
-                answer: "Yes. Use the sun/moon icon button in the dashboard header to toggle between light and dark mode. Your preference is saved to your account and will be restored the next time you log in.",
+                answer: "Yes. Open Settings from the sidebar and use the theme card, which shows the mode you are in and a button to switch to the other one.",
+            },
+            {
+                question: "Is my theme preference saved?",
+                answer: "Your choice is remembered in the browser you set it in, so if you also use OptiGrid on another computer you will need to set it there as well.",
             },
         ],
     },
@@ -42,15 +50,45 @@ export const Categories: FAQCategory[] = [
         items: [
             {
                 question: "How do I add a building?",
-                answer: "Click 'Add building' in the dashboard. Fill in the required details and save. The new building will appear in your portfolio immediately.",
+                answer: "Click '+ Add building' at the top of the dashboard. Only the building name is required, so you can fill in as much of the rest as you have to hand. Saving returns you to the dashboard with the new building in the list.",
             },
             {
-                question: "How do I edit a building's details?",
-                answer: "From the Buildings list, click the edit action for the building you want to update, make your changes, and save.",
+                question: "Why should I fill in the floor area?",
+                answer: "It is what makes the efficiency comparison work. OptiGrid divides a building's energy use by its floor area, so a building with no floor area recorded is left out of the efficiency ratio on the Compare page.",
+            },
+        ],
+    },
+    {
+        category: "Live Readings",
+        items: [
+            {
+                question: "What does the Live page show?",
+                answer: "It lists your buildings with the demand each one is drawing right now in kW, the energy it has used so far today in kWh, and a status badge. The busiest buildings are sorted to the top.",
             },
             {
-                question: "Can I delete a building?",
-                answer: "Yes. From the Buildings list you can delete a building. This action is permanent - all associated data for that building will be removed.",
+                question: "How often does it update?",
+                answer: "Readings stream in as the sensors report them, and the page refreshes the rest of the building details every five seconds. The line under the heading tells you whether the connection is live and when the page last updated.",
+            },
+            {
+                question: "Why is a building showing as Offline?",
+                answer: "No reading has arrived from it in the last five minutes, so the figures shown next to it are stale. Buildings that are reporting normally show a Normal badge instead.",
+            },
+        ],
+    },
+    {
+        category: "Compare Buildings",
+        items: [
+            {
+                question: "How do I compare two buildings?",
+                answer: "Open Compare, pick a building in each of the two selectors, then choose a date range and whether you want to compare cost or energy. The chart redraws to plot both buildings over that period.",
+            },
+            {
+                question: "What does the key insights panel tell me?",
+                answer: "It gives you an efficiency ratio, which weighs the two buildings against each other once their energy use is measured per square metre, and the total difference between them over the period you picked.",
+            },
+            {
+                question: "Why is there no efficiency ratio for my comparison?",
+                answer: "That figure needs the floor area of both buildings. If either one has no floor area recorded, the ratio cannot be worked out and only the total difference is shown.",
             },
         ],
     },
@@ -63,15 +101,57 @@ export const Categories: FAQCategory[] = [
             },
             {
                 question: "How accurate are the forecasts?",
-                answer: "Forecast accuracy is measured by MAPE (Mean Absolute Percentage Error). The summary panel on the forecast page shows the current MAPE for the selected building so you can assess reliability.",
+                answer: "Forecast accuracy is measured by MAPE (Mean Absolute Percentage Error). The model accuracy card in the forecast summary shows the current MAPE for the selected building so you can judge how much to rely on it.",
             },
             {
                 question: "How do I generate a forecast for a different building?",
-                answer: "Use the building selector on the Forecast page to pick any building in your portfolio. The chart and summary metrics will update automatically once you click Run forecast.",
+                answer: "Use the building selector on the Forecast page to pick any building in your portfolio, then click 'Run forecast'. The chart and summary metrics update once it finishes.",
             },
             {
-                question: "What is the peak kWh figure in the forecast summary?",
+                question: "What is the peak demand figure in the forecast summary?",
                 answer: "It is the highest single predicted demand value within the forecast window, along with the timestamp it is expected to occur. Use it to plan ahead for peak tariff periods.",
+            },
+            {
+                question: "What is the difference between the weekly and monthly horizon?",
+                answer: "Weekly projects the next seven days at an hourly resolution, which suits day to day planning. Monthly projects the next twelve weeks and is better for spotting seasonal movement.",
+            },
+            {
+                question: "What is the shaded area around the forecast line?",
+                answer: "That is the confidence range. The prediction itself is the dashed line, and the shading shows the span the actual demand is expected to fall within. A wider band means there is more uncertainty in that part of the forecast.",
+            },
+        ],
+    },
+    {
+        category: "Insights",
+        items: [
+            {
+                question: "What are insights?",
+                answer: "They are load shifting suggestions worked out from your consumption and forecast data. Each one describes the strategy, the load it proposes to move, the window it applies to, and the estimated monthly saving in Rand.",
+            },
+            {
+                question: "What do the statuses on a recommendation mean?",
+                answer: "Pending is waiting on a decision and Applying has been approved and is being put into effect. Implemented has been carried out, Dismissed was reviewed and turned down, and Expired passed its window before anyone acted on it.",
+            },
+            {
+                question: "Can I approve a recommendation myself?",
+                answer: "Approving and dismissing is handled by the team that runs the building, so those buttons only appear for them. You can still read every recommendation and its estimated saving, and raise anything worth acting on with them.",
+            },
+            {
+                question: "What does the confidence score mean?",
+                answer: "It reflects how strongly the underlying forecast supports the suggested shift. Treat a lower confidence score as a reason to sanity check the saving against what you know about the site before relying on it.",
+            },
+        ],
+    },
+    {
+        category: "Anomaly Alerts",
+        items: [
+            {
+                question: "What is an anomaly alert?",
+                answer: "It is raised when a reading moves outside the range expected for that building and measurement. The measurements covered are voltage, current, power, and energy. The alert points at the specific measure that moved.",
+            },
+            {
+                question: "What should I do when I see one?",
+                answer: "The Anomaly page gives you a read-only view of alerts across your buildings. Check whether the reading lines up with something you already know about, such as planned work on site, and pass anything unexpected to the team that manages that building.",
             },
         ],
     },
