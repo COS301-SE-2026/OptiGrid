@@ -5,10 +5,7 @@ const {Client } = require("pg");
 const req = require("supertest");
 import { randomUUID as uuidv4 } from 'crypto';
 
-jest.mock("../../../../backend/core/src/services/provisioning.service", () => {
-    queueBuildingProvisioning: jest.fn().mockResolvedValue(true);
-    provisionInfluxDBBucket: jest.fn().mockResolvedValue(true);
-});
+
 
 describe("Get all buildings and manage state for admin and building manager", () => {
     let harness: CoreApiHarness;

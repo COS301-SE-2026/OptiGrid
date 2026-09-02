@@ -12,3 +12,4 @@ pytest-asyncio==1.4.0
 httpx==0.27.2
 supabase==2.31.0
 aiohttp==3.14.3
+testcontainers==4.8.1

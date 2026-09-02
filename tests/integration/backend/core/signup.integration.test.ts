@@ -1,25 +1,9 @@
 import request from "supertest";
 import { createCoreApiHarness, type CoreApiHarness } from "./harness/core-api-harness";
 
-process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost:54321';
-process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'test-anon-key';
-process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-service-role-key';
-
-jest.mock("@supabase/supabase-js", () => ({
-	createClient: jest.fn(() => ({
-		auth: {
-			admin: {
-				createUser: jest.fn().mockImplementation(() =>
-					Promise.resolve({
-						data: { user: { id: require("crypto").randomUUID() } },
-						error: null,
-					})
-				),
-				deleteUser: jest.fn().mockResolvedValue({ data: {}, error: null }),
-			},
-		},
-	})),
-}));
+process.env.SUPABASE_URL = 'http://127.0.0.1:54321';
+process.env.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 
 function uniqueEmail(prefix: string) {
 	return `${prefix}.${Date.now()}.${Math.random().toString(36).slice(2)}@optigrid.test`;
