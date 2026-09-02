@@ -78,6 +78,43 @@ export const login = async (req: Request, res: Response) => {
     }
 };
 
+export const googleAuthLoginController = async (req: Request, resp: Response) => {
+    try {
+        const { access, email, firstName, lastName } = req.body;
+        if(!access) {
+            return resp.status(400).json({ 
+                message: "Access token required" 
+            });
+        }
+
+        const out = await authService.googleAuthLogin(access, email, firstName, lastName);
+        await recordAuditLog({
+            userId: out.user.userId,
+            actionType: "LOGIN",
+            targetTable: "users",
+            ipAddress: getClientIp(req)
+        });
+
+        return resp.status(200).json({
+            message: 'OAuth Login successful',
+            user: out.user,
+            accessToken: out.accessToken,
+        });
+    } 
+    catch(error: unknown) {
+        if(error instanceof AccountDeactivatedError) {
+            return resp.status(403).json({ 
+                code: error.code, 
+                message: error.message 
+            });
+        }
+        if(error instanceof Error) console.error("OAuth Login error:", error.message);
+        return resp.status(401).json({ 
+            message: "Unauthorized or invalid access token" 
+        });
+    }
+};
+
 // A deactivated user must be able to prove their identity and restore the
 // account without first passing the active-account middleware.
 export const recoverAccount = async (req: Request, res: Response) => {

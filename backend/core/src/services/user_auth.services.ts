@@ -521,3 +521,35 @@ export const removeAssignment = async (
         throw error;
     }
 };
+
+export const googleAuthLogin = async (accessToken: string, email: string, firstName: string, lastName: string) => {
+    const supabase = getSupabaseAuthClient();
+    const { data, error } = await supabase.auth.getUser(accessToken);
+    if (error || !data?.user) throw new Error('Invalid or expired access token');
+
+    const userId = data.user.id;
+    const userExists = await prisma.user.findUnique({
+        where: { 
+            userId 
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            accountStatus: true,
+        },
+    });
+    if (userExists?.accountStatus === AccountStatus.DEACTIVATED) throw new AccountDeactivatedError();
+
+    const role: UserRole = "VIEWER";
+    const user = userExists ?? await createOrUpsertUser({
+        userId,
+        email: email || data.user.email || "",
+        firstName: firstName || "",
+        lastName: lastName || "",
+        roleType: role,
+    });
+    return {user,accessToken};
+};
