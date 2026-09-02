@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { getLoginError, initialLoginFormData, type LoginFormData } from "./validation";
 import { navigateAfterLogin } from "../../../lib/auth-navigation";
 import { getTabSessionId, TAB_SESSION_HEADER } from "../../../lib/tab-session";
-import GoogleAuthButton from "@/components/googleButton";
+import GoogleAuthButton from "@/components/GoogleButton";
 
 export default function LoginPage() {
     const router = useRouter();

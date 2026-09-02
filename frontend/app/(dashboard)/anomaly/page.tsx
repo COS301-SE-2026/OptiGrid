@@ -1,5 +1,6 @@
 "use client";
 
+import { useBuildings } from "@/lib/useBuildings";
 import { useState, useMemo, useEffect } from "react";
 import {
   Anomaly,
@@ -12,14 +13,13 @@ import {
   AnomalyDetailsModal,
   HistoricAlertsModal,
   ConfirmAnomalyActionModal,
+  AnomalyToast,
   formatDate,
   formatChartTime,
   useAnomalyChartData,
   useAnomalyFilters,
   useHistoricFilterState,
   parseNumberOrNull,
-  mockManagerData,
-  mockInitialThresholds,
 } from "../../../components/sharedanomaly";
 
 type MetricType = "power" | "cost";
@@ -37,12 +37,40 @@ function isNotificationStillActive(notification: NotificationPopup, anomalies: A
   return anomaly?.severity_level !== "critical" || anomaly?.status !== "Open";
 }
 
+import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
+
 export default function ManagerAnomalyPage() {
-  const [anomalies, setAnomalies] = useState<Anomaly[]>(mockManagerData.anomalies);
-  
-  const [thresholds, setThresholds] = useState<AlertThreshold[]>(mockInitialThresholds);
-  const [buildings] = useState(mockManagerData.buildings);
-  const [historicAnomalies] = useState<Anomaly[]>(mockManagerData.historic);
+  const { toastMessage, setToastMessage } = useAnomalyWebSocket();
+  const { data: buildings = [] } = useBuildings();
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const [thresholds, setThresholds] = useState<AlertThreshold[]>([]);
+  const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [anomaliesRes, thresholdsRes] = await Promise.all([
+          fetch("/api/anomalies/portfolio"),
+          fetch("/api/thresholds/portfolio")
+        ]);
+        
+        if (anomaliesRes.ok) {
+          const payload = await anomaliesRes.json();
+          const allAnomalies: Anomaly[] = payload.data || [];
+          setAnomalies(allAnomalies.filter(a => a.status === "Open" || a.status === "In_Progress"));
+          setHistoricAnomalies(allAnomalies.filter(a => a.status === "Resolved" || a.status === "Ignored"));
+        }
+
+        if (thresholdsRes.ok) {
+          const payload = await thresholdsRes.json();
+          setThresholds(payload.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch live dashboard data", err);
+      }
+    }
+    fetchData();
+  }, []);
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showResolveModal, setShowResolveModal] = useState<boolean>(false);
@@ -111,11 +139,13 @@ export default function ManagerAnomalyPage() {
   };
 
   const handleResolve = (anomaly: Anomaly) => {
+    setShowDetailsModal(false);
     setSelectedAnomaly(anomaly);
     setShowResolveModal(true);
   };
 
   const handleIgnore = (anomaly: Anomaly) => {
+    setShowDetailsModal(false);
     setSelectedAnomaly(anomaly);
     setShowIgnoreModal(true);
   };
@@ -192,39 +222,11 @@ export default function ManagerAnomalyPage() {
     chartMetric
   );
 
-  const renderActions = (anomaly: Anomaly) => {
-    if (anomaly.status === "Resolved" || anomaly.status === "Ignored") {
-      return (
-        <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-          {anomaly.status === "Resolved" ? `Resolved by ${anomaly.resolved_by || "Unknown"}` : `Ignored by ${anomaly.resolved_by || "Unknown"}`}
-        </span>
-      );
-    }
 
-    return (
-      <>
-        <button
-          type="button"
-          onClick={() => handleResolve(anomaly)}
-          className="btn"
-          style={{ fontSize: "var(--fs-small)", padding: "var(--space-1) var(--space-3)", backgroundColor: "#2F7D5D", color: "#FFFFFF" }}
-        >
-          Resolve
-        </button>
-        <button
-          type="button"
-          onClick={() => handleIgnore(anomaly)}
-          className="btn"
-          style={{ fontSize: "var(--fs-small)", padding: "var(--space-1) var(--space-3)", backgroundColor: "#7A7A7A", color: "#FFFFFF" }}
-        >
-          Ignore
-        </button>
-      </>
-    );
-  };
 
   return (
     <div className="dashboard-page">
+      <AnomalyToast message={toastMessage} onClose={() => setToastMessage(null)} />
       <div className="dashboard-shell">
         <main className="dashboard-main" role="main" aria-label="Anomaly alert main content">
           <div className="dashboard-header">
@@ -243,7 +245,7 @@ export default function ManagerAnomalyPage() {
                 className="btn btn-primary"
                 style={{ backgroundColor: "#3A6B7C", color: "#FFFFFF" }}
               >
-                Configure Threshold
+                Configure Threshold {thresholds.length > 0 ? `(${thresholds.length})` : ""}
               </button>
               <button type="button" onClick={() => setShowHistoricModal(true)} className="btn btn-secondary">
                 View Historic Alerts
@@ -282,7 +284,7 @@ export default function ManagerAnomalyPage() {
             <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
               Current Anomalies
             </h2>
-            <AnomaliesTable anomalies={filteredAnomalies} onRowClick={handleViewDetails} formatDate={formatDate} actions={renderActions} />
+            <AnomaliesTable anomalies={filteredAnomalies} onRowClick={handleViewDetails} formatDate={formatDate} />
           </section>
         </main>
       </div>
@@ -356,6 +358,8 @@ export default function ManagerAnomalyPage() {
           setShowDetailsModal(false);
           setSelectedAnomaly(null);
         }}
+        onResolve={handleResolve}
+        onIgnore={handleIgnore}
       />
 
       <HistoricAlertsModal

@@ -10,7 +10,7 @@ const router = Router();
  * /api/admin/audit-logs:
  *   get:
  *     summary: View Audit Logs
- *     description: Returns a chronological ledger of user logins and configuration changes. Newest entries first. Admin only.
+ *     description: Returns a chronological ledger of user logins and configuration changes. Admins can view all entries; building managers are limited to their own entries and actions tied to their authorized buildings. Newest entries first.
  *     tags:
  *       - Audit
  *     security:
@@ -23,19 +23,26 @@ const router = Router();
  *           type: string
  *         description: Exact match on the recorded action, for example LOGIN or UPDATE
  *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [DASHBOARD, LIVE, COMPARE]
+ *         description: Restrict results to views of one tracked page. Cannot be combined with action_type.
+ *       - in: query
  *         name: severity
  *         required: false
  *         schema:
  *           type: string
  *           enum: [info, warning, error, critical]
- *         description: Reserved for the severity column added by the system health work
+ *         description: Restrict results to the recorded system-health severity
  *       - in: query
  *         name: user_id
  *         required: false
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Restrict the ledger to a single actor
+ *         description: Restrict the ledger to a single actor. Building-manager results remain limited to their own entries and authorized buildings.
  *       - in: query
  *         name: from
  *         required: false
@@ -50,6 +57,13 @@ const router = Router();
  *           type: string
  *           format: date
  *         description: Inclusive upper bound, covering the whole of that day
+ *       - in: query
+ *         name: cursor
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Cursor returned as next_cursor by the preceding response
  *       - in: query
  *         name: limit
  *         required: false
@@ -99,20 +113,29 @@ const router = Router();
  *                         type: string
  *                         format: uuid
  *                         nullable: true
+ *                       building_id:
+ *                         type: string
+ *                         format: uuid
+ *                         nullable: true
  *                       user_email:
  *                         type: string
  *                         nullable: true
  *                       ip_address:
  *                         type: string
  *                         nullable: true
+ *                 next_cursor:
+ *                   type: string
+ *                   format: uuid
+ *                   nullable: true
+ *                   description: Cursor for the next page, or null when no more entries remain
  *       '400':
  *         description: A filter failed validation
  *       '401':
  *         description: Unauthorized
  *       '403':
- *         description: Forbidden, the caller is not an admin
+ *         description: Forbidden, the caller is not an admin or building manager
  *       '500':
  *         description: Internal Server Error
  */
-router.get('/', reqRole([UserRole.ADMIN]), listAuditLogsController);
+router.get('/', reqRole([UserRole.ADMIN, UserRole.BUILDING_MANAGER]), listAuditLogsController);
 export default router;

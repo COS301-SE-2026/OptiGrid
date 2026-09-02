@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import prisma from '../lib/prisma';
 import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
   getPortfolioConsumption, listBuildingsForUser, getBuildingDetails, updateBuildingService, getManagerBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
@@ -63,6 +64,7 @@ export const createBuildingController = async (req: Request, res: Response) => {
 
     await recordAuditLog({
       userId,
+      buildingId: building.building_id,
       actionType: "CREATE",
       targetTable: "buildings",
       newValue: building,
@@ -222,6 +224,31 @@ export const getBuildingEnergyConsumptionController = async (req: Request, res: 
   }
 };
 
+export const getBuildingSeriesController = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+
+    const building_id = req.params.building_id;
+    const time_range = req.query.time_range as string || '7d';
+
+    // verify access
+    if (req.user.roleType !== "ADMIN") {
+      const accessRecord = await prisma.userBuildingAccess.findUnique({
+        where: { user_id_building_id: { user_id: req.user.id, building_id } },
+      });
+      if (!accessRecord) return res.status(403).json({ status: 'error', message: 'Access Denied' });
+    }
+
+    const { queryUsageSeries } = await import('../lib/influx.js');
+    const series = await queryUsageSeries(building_id, time_range);
+    
+    return res.status(200).json({ status: 'success', data: series });
+  } catch (error: any) {
+    console.error('getBuildingSeriesController Error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
 export const compareBuildingsController = async (req: Request, res: Response) => {
   try {
     //create these vars and check if the indeed exist, and then validate query
@@ -358,6 +385,7 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     const building = await updateBuildingService(req.user.id, building_id, validatedPayload, role);
     await recordAuditLog({
       userId: req.user.id,
+      buildingId: building_id,
       actionType: "UPDATE",
       targetTable: "buildings",
       newValue: validatedPayload,

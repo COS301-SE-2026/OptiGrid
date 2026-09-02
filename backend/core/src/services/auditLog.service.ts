@@ -4,13 +4,18 @@ import prisma from '../lib/prisma';
 
 export interface AuditLogFilters {
   action_type?: string;
+  page?: "DASHBOARD" | "LIVE" | "COMPARE";
+  severity?: "info" | "warning" | "error" | "critical";
   user_id?: string;
+  manager_id?: string;
   from?: Date;
   to?: Date;
+  cursor?: string;
   limit: number;
 }
 export interface AuditEntry {
   userId?: string | null;
+  buildingId?: string | null;
   actionType: string;
   targetTable: string;
   oldValue?: unknown;
@@ -26,6 +31,19 @@ const toJSON = (val: unknown): Prisma.InputJsonValue | undefined => {
   return val as Prisma.InputJsonValue;
 };
 
+const PAGE_VIEW_ACTIONS = {
+  DASHBOARD: "VIEW_DASHBOARD",
+  LIVE: "VIEW_LIVE",
+  COMPARE: "VIEW_COMPARE",
+} as const;
+
+const AUDIT_SEVERITIES = {
+  info: "INFO",
+  warning: "WARNING",
+  error: "ERROR",
+  critical: "CRITICAL",
+} as const;
+
 export const listAuditLogs = async (filters: AuditLogFilters) => {
   const timestamp: Prisma.DateTimeNullableFilter = {};
 
@@ -40,21 +58,50 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
     timestamp.lte = endOfDay;
   }
 
+  const managerScope: Prisma.AuditLogWhereInput = filters.manager_id
+    ? {
+        OR: [
+          { user_id: filters.manager_id },
+          {
+            building: {
+              is: {
+                authorized_users: {
+                  some: { user_id: filters.manager_id },
+                },
+              },
+            },
+          },
+        ],
+      }
+    : {};
+  const actionType = filters.page ? PAGE_VIEW_ACTIONS[filters.page] : filters.action_type;
+
   const logs = await prisma.auditLog.findMany({
     where: {
-      ...(filters.action_type && { action_type: filters.action_type }),
+      ...(actionType && { action_type: actionType }),
+      ...(filters.severity && { severity: AUDIT_SEVERITIES[filters.severity] }),
       ...(filters.user_id && { user_id: filters.user_id }),
       ...(Object.keys(timestamp).length > 0 && { timestamp }),
+      ...managerScope,
     },
-    orderBy: {
-      timestamp: "desc"
-    },
-    take: filters.limit,
+    orderBy: [
+      { timestamp: "desc" },
+      { log_id: "desc" },
+    ],
+    ...(filters.cursor && {
+      cursor: { log_id: filters.cursor },
+      skip: 1,
+    }),
+    take: filters.limit + 1,
     select: {
       log_id: true,
       user_id: true,
+      building_id: true,
       action_type: true,
       target_table: true,
+      service: true,
+      operation: true,
+      severity: true,
       ip_address: true,
       timestamp: true,
       user: {
@@ -65,20 +112,27 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
     },
   });
 
-  return logs.map((log) => ({
+  const hasMore = logs.length > filters.limit;
+  const visibleLogs = hasMore ? logs.slice(0, filters.limit) : logs;
+  const items = visibleLogs.map((log) => ({
     log_id: log.log_id,
     timestamp: log.timestamp,
     action_type: log.action_type,
     target_table: log.target_table,
 
-    //the service and operation and severity arrive with the system health branch and the view treats them as optional
-    service: null,
-    operation: null,
-    severity: null,
+    service: log.service ?? null,
+    operation: log.operation ?? null,
+    severity: log.severity?.toLowerCase() ?? null,
     user_id: log.user_id,
+    building_id: log.building_id,
     user_email: log.user?.email ?? null,
     ip_address: log.ip_address
   }));
+
+  return {
+    items,
+    nextCursor: hasMore ? items.at(-1)?.log_id ?? null : null,
+  };
 };
 
 export const getClientIp = (req: Request): string | null => {
@@ -96,6 +150,7 @@ export const recordAuditLog = async (entry: AuditEntry) => {
     await prisma.auditLog.create({
       data: {
         user_id: entry.userId ?? null,
+        building_id: entry.buildingId ?? null,
         action_type: entry.actionType,
         target_table: entry.targetTable,
         old_value: toJSON(entry.oldValue),
@@ -103,8 +158,10 @@ export const recordAuditLog = async (entry: AuditEntry) => {
         ip_address: entry.ipAddress ?? null,
       },
     });
+    return true;
   }
   catch (error) {
     console.error("Failed to record audit log:", error);
+    return false;
   }
 };

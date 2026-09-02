@@ -48,7 +48,7 @@ describe('Threshold Controller', () => {
 			req.body = {
 				building_id: mockBuildingId,
 				metric_type: 'power_kw',
-				upper_limit_kw: 100,
+				z_score_threshold: 2.5,
 			};
 			(prisma.userBuildingAccess.findUnique as jest.Mock).mockResolvedValue({ id: 'access-1' });
 			(prisma.alertThreshold.create as jest.Mock).mockResolvedValue({ threshold_id: 't-1' });
@@ -100,15 +100,15 @@ describe('Threshold Controller', () => {
 	describe('updateThreshold', () => {
 		it('should update threshold if user has access', async () => {
 			req.params = { id: 't-1' };
-			req.body = { upper_limit_kw: 150 };
+			req.body = { z_score_threshold: 3.0 };
 			(prisma.alertThreshold.findUnique as jest.Mock).mockResolvedValue({ threshold_id: 't-1', building_id: mockBuildingId });
 			(prisma.userBuildingAccess.findUnique as jest.Mock).mockResolvedValue({ id: 'access-1' });
-			(prisma.alertThreshold.update as jest.Mock).mockResolvedValue({ threshold_id: 't-1', upper_limit_kw: 150 });
+			(prisma.alertThreshold.update as jest.Mock).mockResolvedValue({ threshold_id: 't-1', z_score_threshold: 3.0 });
 
 			await updateThreshold(req, res);
 
 			expect(res.status).toHaveBeenCalledWith(200);
-			expect(res.json).toHaveBeenCalledWith({ status: 'success', data: { threshold_id: 't-1', upper_limit_kw: 150 } });
+			expect(res.json).toHaveBeenCalledWith({ status: 'success', data: { threshold_id: 't-1', z_score_threshold: 3.0 } });
 		});
 
 		it('should return 404 if threshold not found', async () => {

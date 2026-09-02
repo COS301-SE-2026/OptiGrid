@@ -22,6 +22,10 @@ _default_redis_host = "redis" if isDocker else "localhost"
 REDIS_HOST = os.getenv("REDIS_HOST", _default_redis_host)
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_DB = int(os.getenv("REDIS_DB", 0))
+INGESTION_METRICS_RETENTION_SECONDS = int(
+    os.getenv("INGESTION_METRICS_RETENTION_SECONDS", "86400")
+)
+AUDIT_EVENT_STREAM_MAXLEN = int(os.getenv("AUDIT_EVENT_STREAM_MAXLEN", "10000"))
 
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")

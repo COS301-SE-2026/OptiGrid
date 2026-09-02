@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import prisma from '../lib/prisma';
 import { dispatchAnomalyNotification } from './notification.service';
+import { broadcastEvent } from './websocket';
 
 let isSubscribed = false;
 
@@ -59,6 +60,16 @@ export const startAnomalySubscriber = async () => {
 				});
 
 				console.log(`[AnomalySubscriber] Logged anomaly ${anomaly.anomaly_id} for building ${building_id}`);
+
+				// Fetch building name for frontend UI
+				const building = await prisma.building.findUnique({ where: { building_id } });
+				const anomalyWithBuildingName = {
+					...anomaly,
+					building_name: building?.building_name || "Unknown Building"
+				};
+
+				// broadcast the anomaly via websockets for real-time dashboard updates
+				broadcastEvent('ANOMALY_DETECTED', anomalyWithBuildingName);
 
 				// only notify if there is an active unmuted threshold
 				if (activeThreshold) {

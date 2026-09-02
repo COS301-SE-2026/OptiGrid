@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {getSubmitResult, hasErrors, shouldShowError, type SignupErrors, type SignupTouched } from "./logic";
 import { initialSignupFormData, type SignupFormData } from "./validation";
 import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../../../lib/tab-session";
-import GoogleAuthButton from "@/components/googleButton";
+import GoogleAuthButton from "@/components/GoogleButton";
 
 export default function SignupPage() {
     const router = useRouter();

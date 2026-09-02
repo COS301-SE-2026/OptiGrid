@@ -15,8 +15,9 @@ class Observer(ABC):
 
 # Oberserver Subject/Concrete Subject
 class TelemetrySubject:
-    def __init__(self):
+    def __init__(self, failure_handler=None):
         self._observers = []
+        self._failure_handler = failure_handler
 
     def attach(self, observer: Observer):
         if observer not in self._observers:
@@ -32,8 +33,20 @@ class TelemetrySubject:
         for observer in self._observers:
             try:
                 observer.update(payload)
-            except Exception as e:
-                logger.exception(f"Observer {observer.__class__.__name__} failed: {e}")
+            except Exception as error:
+                logger.exception(
+                    "Observer %s failed: %s",
+                    observer.__class__.__name__,
+                    error,
+                )
+                if self._failure_handler:
+                    try:
+                        self._failure_handler(observer, payload, error)
+                    except Exception:
+                        logger.exception(
+                            "Failure handler could not report observer %s",
+                            observer.__class__.__name__,
+                        )
 
 # Concrete Observer
 class InfluxStorageObserver(Observer):
@@ -84,23 +97,6 @@ class AnomalyDetectorObserver(Observer):
         self.redis = redis.Redis.from_url(redis_url, decode_responses=True)
         self._last_alert_time = {} # (building_id, metric_type) -> timestamp
         self._debounce_seconds = 900 # 15 minutes
-        import functools, time
-        self._get_thresholds = functools.lru_cache(maxsize=128)(self._fetch_thresholds_cached)
-        self._last_cache_clear = time.time()
-        
-    def _fetch_thresholds_cached(self, building_id: str):
-        import json, logging
-        try:
-            keys = self.redis.keys(f"threshold:{building_id}:*")
-            thresholds = []
-            for k in keys:
-                data = self.redis.get(k)
-                if data:
-                    thresholds.append(json.loads(data))
-            return thresholds
-        except Exception as e:
-            logging.exception(f"Failed to fetch thresholds from Redis: {e}")
-            return []
 
     def _update_ema_zscore(self, sensor_id: str, value: float):
         import math
@@ -132,38 +128,9 @@ class AnomalyDetectorObserver(Observer):
             
         return (value - ema) / stddev
 
-    def _evaluate_threshold(self, t, sensor_id, power_kw, z_score):
-        if t.get("metric_type") != "POWER_USAGE":
-            return False, "Warning", None, z_score
-            
-        upper = t.get("upper_limit_kw")
-        lower = t.get("lower_limit_kw")
-        use_z_score = t.get("use_z_score", False)
-        z_thresh = t.get("z_score_threshold")
-        
-        if upper is not None and power_kw > float(upper):
-            sev = "Critical" if abs(power_kw - float(upper)) / float(upper) > 0.5 else "Warning"
-            return True, sev, float(upper), z_score
-            
-        if lower is not None and power_kw < float(lower):
-            sev = "Critical" if abs(power_kw - float(lower)) / float(lower) > 0.5 else "Warning"
-            return True, sev, float(lower), z_score
-            
-        if use_z_score:
-            if z_score is None:
-                z_score = self._update_ema_zscore(sensor_id, power_kw)
-            if z_thresh is not None and abs(z_score) > float(z_thresh):
-                return True, "Warning", float(z_thresh), z_score
-            
-        return False, "Warning", None, z_score
-
     def update(self, payload: dict):
         import time, json, logging
         from datetime import datetime, timezone
-        # Clear cache every 30 seconds to get fresh thresholds
-        if time.time() - self._last_cache_clear > 30:
-            self._get_thresholds.cache_clear()
-            self._last_cache_clear = time.time()
             
         building_id = payload.get("building_id")
         sensor_id = payload.get("sensor_id")
@@ -172,20 +139,21 @@ class AnomalyDetectorObserver(Observer):
         if not building_id or not sensor_id:
             return
             
-        thresholds = self._get_thresholds(building_id)
-        if not thresholds:
-            return
-            
         now = time.time()
-        z_score = None
+        z_score = self._update_ema_zscore(sensor_id, power_kw)
+        
+        # Trigger anomaly if Z-score indicates outlier
+        if abs(z_score) > 2.5:
+            severity = "Critical" if abs(z_score) > 3.0 else "High"
             
-        for t in thresholds:
-            is_anomaly, severity, expected, z_score = self._evaluate_threshold(t, sensor_id, power_kw, z_score)
-            if is_anomaly:
-                self._trigger_anomaly(
-                    building_id, sensor_id, "POWER_USAGE", severity, power_kw, expected,
-                    z_score if t.get("use_z_score", False) else None, now, payload.get("timestamp")
-                )
+            key = f"zscore:ema:{sensor_id}"
+            data = self.redis.hgetall(key)
+            expected = float(data.get(b"ema", data.get("ema", 0.0))) if data else 0.0
+            
+            self._trigger_anomaly(
+                building_id, sensor_id, "POWER_USAGE", severity, power_kw, expected,
+                z_score, now, payload.get("timestamp")
+            )
                 
     def _trigger_anomaly(self, building_id, sensor_id, metric, severity, value, limit, z_score, now, timestamp_str):
         import json, logging

@@ -27,6 +27,7 @@ jest.mock('../../../backend/core/src/middleware/rbac.middleware', () => ({
 const mockedLog = {
     log_id: "log-1",
     user_id: "user-1",
+    building_id: null,
     action_type: "LOGIN",
     target_table: "users",
     ip_address: "196.25.1.4",
@@ -52,7 +53,7 @@ describe("Audit Log Routes", () => {
         (prisma.auditLog.findMany as jest.Mock).mockResolvedValue([mockedLog]);
     });
 
-    it("rejects a non admin", async () => {
+    it("rejects a viewer", async () => {
         currentRole = "VIEWER";
 
         const response = await request(createAuditApp()).get('/api/admin/audit-logs');
@@ -60,10 +61,23 @@ describe("Audit Log Routes", () => {
         expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
     });
 
+    it("allows a building manager to view their own audit logs", async () => {
+        currentRole = "BUILDING_MANAGER";
+
+        const response = await request(createAuditApp()).get('/api/admin/audit-logs');
+
+        expect(response.status).toBe(200);
+        const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
+        expect(args.where.OR).toEqual(expect.arrayContaining([
+            expect.objectContaining({ user_id: "admin-1" })
+        ]));
+    });
+
     it("returns the logs in the shape which the view expects", async () => {
         const response = await request(createAuditApp()).get('/api/admin/audit-logs');
         expect(response.status).toBe(200);
         expect(response.body.status).toBe("success");
+        expect(response.body.next_cursor).toBeNull();
         expect(response.body.data[0]).toEqual({
             log_id: "log-1",
             timestamp: "2026-08-24T09:15:00.000Z",
@@ -73,6 +87,7 @@ describe("Audit Log Routes", () => {
             operation: null,
             severity: null,
             user_id: "user-1",
+            building_id: null,
             user_email: "amina@optigrid.test",
             ip_address: "196.25.1.4"
         });
@@ -82,22 +97,40 @@ describe("Audit Log Routes", () => {
         const response = await request(createAuditApp())
             .get('/api/admin/audit-logs')
             .query({
-                action_type: "LOGIN",
                 user_id: "8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2",
                 from: "2026-08-01",
                 to: "2026-08-24",
+                page: "DASHBOARD",
+                severity: "error",
+                cursor: "7f263a8e-977c-44c4-b06d-52805c9b5fc7",
                 limit: "25",
             });
 
         expect(response.status).toBe(200);
         const args = (prisma.auditLog.findMany as jest.Mock).mock.calls[0][0];
-        expect(args.where.action_type).toBe("LOGIN");
+        expect(args.where.action_type).toBe("VIEW_DASHBOARD");
+        expect(args.where.severity).toBe("ERROR");
         expect(args.where.user_id).toBe("8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2");
-        expect(args.take).toBe(25);
+        expect(args.cursor).toEqual({ log_id: "7f263a8e-977c-44c4-b06d-52805c9b5fc7" });
+        expect(args.skip).toBe(1);
+        expect(args.take).toBe(26);
     });
 
     it("rejects an invalid filter", async () => {
         const response = await request(createAuditApp()).get('/api/admin/audit-logs').query({ user_id: "not-a-uuid" });
+        expect(response.status).toBe(400);
+        expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { query: { page: "ADMIN" }, label: "unsupported page" },
+        { query: { cursor: "not-a-uuid" }, label: "invalid cursor" },
+        { query: { action_type: "LOGIN", page: "DASHBOARD" }, label: "conflicting action and page filters" },
+    ])("rejects $label", async ({ query }) => {
+        const response = await request(createAuditApp())
+            .get('/api/admin/audit-logs')
+            .query(query);
+
         expect(response.status).toBe(400);
         expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
     });

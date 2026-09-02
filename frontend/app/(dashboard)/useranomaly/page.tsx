@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useBuildings } from "@/lib/useBuildings";
+import { useState, useMemo, useEffect } from "react";
 import {
   Anomaly,
   AnomaliesTable,
@@ -10,24 +11,54 @@ import {
   NotificationBadge,
   AnomalyDetailsModal,
   HistoricAlertsModal,
+  AnomalyToast,
   formatDate,
   formatChartTime,
   useAnomalyChartData,
   useAnomalyFilters,
   useHistoricFilterState,
-  mockViewerData,
 } from "../../../components/sharedanomaly";
+import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
 
 type MetricType = "power" | "cost";
 
 export default function ViewerAnomalyPage() {
-  const [anomalies] = useState<Anomaly[]>(mockViewerData.anomalies);
-  const [buildings] = useState(mockViewerData.buildings);
-  const [historicAnomalies] = useState<Anomaly[]>(mockViewerData.historic);
+  const { toastMessage, setToastMessage } = useAnomalyWebSocket();
+  const { data: buildings = [] } = useBuildings();
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const anomaliesRes = await fetch("/api/anomalies/portfolio?take=1000");
+        
+        if (anomaliesRes.ok) {
+          const payload = await anomaliesRes.json();
+          const allAnomalies: Anomaly[] = payload.data || [];
+          
+          const oneWeekAgo = new Date();
+          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+          
+          setAnomalies(allAnomalies.filter((a: Anomaly) => {
+            const isRecent = new Date(a.detected_timestamp) >= oneWeekAgo;
+            return (a.status === "Open" || a.status === "In_Progress") && isRecent;
+          }));
+          setHistoricAnomalies(allAnomalies);
+        }
+      } catch (err) {
+        console.error("Failed to fetch viewer dashboard data", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showHistoricModal, setShowHistoricModal] = useState<boolean>(false);
-  const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("b1");
+  const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("all");
   const [chartMetric, setChartMetric] = useState<MetricType>("power");
 
   const {
@@ -61,13 +92,15 @@ export default function ViewerAnomalyPage() {
   }, [anomalies]);
 
   const { chartData, anomalyPoints } = useAnomalyChartData(
-    anomalies,
+    historicAnomalies.length > 0 ? historicAnomalies : anomalies,
     selectedBuildingForChart,
-    chartMetric
+    chartMetric,
+    buildings
   );
 
   return (
     <div className="dashboard-page">
+      <AnomalyToast message={toastMessage} onClose={() => setToastMessage(null)} />
       <div className="dashboard-shell">
         <main className="dashboard-main" role="main" aria-label="Anomaly viewer main content">
           <div className="dashboard-header">
@@ -86,6 +119,7 @@ export default function ViewerAnomalyPage() {
           <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} />
 
           <EnergyChart
+            loading={loading}
             chartData={chartData}
             anomalyPoints={anomalyPoints}
             buildings={buildings}

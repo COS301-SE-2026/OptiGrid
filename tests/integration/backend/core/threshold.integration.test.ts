@@ -55,8 +55,7 @@ describe('Threshold API Integration', () => {
 			building_id: buildingId,
 			metric_type: 'power_kw',
 			unit: 'kW',
-			upper_limit_kw: 500,
-			allowed_spike_percentage: 15,
+			z_score_threshold: 2.5,
 		};
 
 		const response = await request(harness.app)
@@ -67,7 +66,7 @@ describe('Threshold API Integration', () => {
 		expect(response.status).toBe(201);
 		expect(response.body.status).toBe('success');
 		expect(response.body.data.metric_type).toBe('power_kw');
-		expect(response.body.data.upper_limit_kw).toBe('500');
+		expect(response.body.data.z_score_threshold).toBe(2.5);
 	});
 
 	it('fetches thresholds for a building', async () => {
@@ -76,8 +75,8 @@ describe('Threshold API Integration', () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
 		await client.query(
-			`INSERT INTO alert_thresholds (threshold_id, building_id, metric_type, upper_limit_kw, is_active) 
-			 VALUES ($1, $2, 'power_kw', 1000, true)`,
+			`INSERT INTO alert_thresholds (threshold_id, building_id, metric_type, z_score_threshold, is_active) 
+			 VALUES ($1, $2, 'power_kw', 2.0, true)`,
 			[thresholdId, buildingId]
 		);
 		await client.end();
@@ -89,7 +88,7 @@ describe('Threshold API Integration', () => {
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('success');
 		expect(response.body.data.length).toBeGreaterThan(0);
-		expect(response.body.data[0].upper_limit_kw).toBe('1000');
+		expect(response.body.data[0].z_score_threshold).toBe(2.0);
 	});
 
 	it('updates an existing threshold', async () => {
@@ -97,8 +96,8 @@ describe('Threshold API Integration', () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
 		await client.query(
-			`INSERT INTO alert_thresholds (threshold_id, building_id, metric_type, upper_limit_kw, is_active) 
-			 VALUES ($1, $2, 'power_kw', 1000, true)`,
+			`INSERT INTO alert_thresholds (threshold_id, building_id, metric_type, z_score_threshold, is_active) 
+			 VALUES ($1, $2, 'power_kw', 2.0, true)`,
 			[thresholdId, buildingId]
 		);
 		await client.end();
@@ -106,11 +105,11 @@ describe('Threshold API Integration', () => {
 		const response = await request(harness.app)
 			.patch(`/api/thresholds/${thresholdId}`)
 			.set(authHeaders)
-			.send({ upper_limit_kw: 1200 });
+			.send({ z_score_threshold: 3.0 });
 
 		expect(response.status).toBe(200);
 		expect(response.body.status).toBe('success');
-		expect(response.body.data.upper_limit_kw).toBe('1200');
+		expect(response.body.data.z_score_threshold).toBe(3.0);
 	});
 
 	it('deletes an existing threshold', async () => {
@@ -118,8 +117,8 @@ describe('Threshold API Integration', () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
 		await client.query(
-			`INSERT INTO alert_thresholds (threshold_id, building_id, metric_type, upper_limit_kw, is_active) 
-			 VALUES ($1, $2, 'power_kw', 1000, true)`,
+			`INSERT INTO alert_thresholds (threshold_id, building_id, metric_type, z_score_threshold, is_active) 
+			 VALUES ($1, $2, 'power_kw', 2.0, true)`,
 			[thresholdId, buildingId]
 		);
 		await client.end();
