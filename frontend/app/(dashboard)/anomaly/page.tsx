@@ -226,7 +226,7 @@ export default function ManagerAnomalyPage() {
     );
   }, [buildings]);
 
-  const { chartData, anomalyPoints } = useAnomalyChartData(
+  const { chartData, anomalyPoints, chartError, chartLoading } = useAnomalyChartData(
     anomalies,
     selectedBuildingForChart,
     chartMetric,
@@ -267,6 +267,8 @@ export default function ManagerAnomalyPage() {
           <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} />
 
           <EnergyChart
+            loading={chartLoading}
+            error={chartError}
             chartData={chartData}
             anomalyPoints={anomalyPoints}
             buildings={buildings}
