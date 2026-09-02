@@ -103,6 +103,11 @@ describe('Anomaly Controller', () => {
 			req.user = { id: mockUserId, roleType: 'MANAGER' };
 			(prisma.userBuildingAccess.findMany as jest.Mock).mockResolvedValue([{ building_id: mockBuildingId }]);
 			(prisma.anomaly.findMany as jest.Mock).mockResolvedValue([{ anomaly_id: 'a-2', severity_level: 'Critical' }]);
+			(prisma.anomaly.count as jest.Mock)
+				.mockResolvedValueOnce(87)
+				.mockResolvedValueOnce(87)
+				.mockResolvedValueOnce(50)
+				.mockResolvedValueOnce(12);
 			
 			await getPortfolioAnomalies(req, res);
 
@@ -114,7 +119,22 @@ describe('Anomaly Controller', () => {
 			expect(res.json).toHaveBeenCalledWith({
 				status: 'success',
 				data: [{ anomaly_id: 'a-2', severity_level: 'critical', building_name: 'Unknown Building' }],
-				meta: { skip: 0, take: 50, total: 0 }
+				meta: { skip: 0, take: 50, total: 87 },
+				summary: { total: 87, open: 50, critical: 12 },
+			});
+		});
+
+		it('should return zero totals when the user has no allowed buildings', async () => {
+			(prisma.userBuildingAccess.findMany as jest.Mock).mockResolvedValue([]);
+
+			await getPortfolioAnomalies(req, res);
+
+			expect(prisma.anomaly.findMany).not.toHaveBeenCalled();
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'success',
+				data: [],
+				meta: { total: 0, skip: 0, take: 50 },
+				summary: { total: 0, open: 0, critical: 0 },
 			});
 		});
 

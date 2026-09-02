@@ -95,6 +95,12 @@ export interface AlertThreshold {
   is_active: boolean;
 }
 
+export interface AnomalySummary {
+  total: number;
+  open: number;
+  critical: number;
+}
+
 function getZScoreLabel(zScore: number): string {
   if (zScore >= 4.0) return "Extreme Spike";
   if (zScore >= 3.0) return "High Spike";
@@ -216,15 +222,20 @@ export function NotificationBadge({ count }: Readonly<{ count: number }>) {
   );
 }
 
-export function AnalyticsSummary({ 
-  anomalies, 
-  totalBuildings 
+export function AnalyticsSummary({
+  anomalies,
+  totalBuildings,
+  summary,
 }: Readonly<{
-  anomalies: Anomaly[]; 
+  anomalies: Anomaly[];
   totalBuildings: number;
+  summary?: AnomalySummary | null;
 }>) {
   const openAnomalies = anomalies.filter((a) => a.status === "Open" || a.status === "In_Progress");
   const criticalAnomalies = anomalies.filter((a) => a.severity_level === "critical" && a.status !== "Resolved");
+  const totalCount = summary?.total ?? anomalies.length;
+  const openCount = summary?.open ?? openAnomalies.length;
+  const criticalCount = summary?.critical ?? criticalAnomalies.length;
 
   return (
     <div
@@ -237,18 +248,18 @@ export function AnalyticsSummary({
     >
       <div className="card dashboard-card-tight">
         <div className="dashboard-kpi-label">Total Alerts</div>
-        <div className="dashboard-kpi-value">{anomalies.length}</div>
+        <div className="dashboard-kpi-value">{totalCount}</div>
       </div>
       <div className="card dashboard-card-tight">
         <div className="dashboard-kpi-label">Open</div>
         <div className="dashboard-kpi-value" style={{ color: "#E07A7A" }}>
-          {openAnomalies.length}
+          {openCount}
         </div>
       </div>
       <div className="card dashboard-card-tight">
         <div className="dashboard-kpi-label">Critical</div>
         <div className="dashboard-kpi-value" style={{ color: "#8B1E3F" }}>
-          {criticalAnomalies.length}
+          {criticalCount}
         </div>
       </div>
       <div className="card dashboard-card-tight">

@@ -38,7 +38,10 @@ beforeEach(() => {
     if (url.includes("/api/anomalies/portfolio")) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ data: MOCK_ANOMALIES }),
+        json: () => Promise.resolve({
+          data: MOCK_ANOMALIES,
+          summary: { total: 87, open: 50, critical: 12 },
+        }),
       });
     }
     if (url.includes("/api/thresholds/portfolio")) {
@@ -139,8 +142,9 @@ describe("ManagerAnomalyPage", () => {
       { label: "Open", type: "label" },
       { label: "Critical", type: "label" },
       { label: "Buildings", type: "label" },
-      { label: "Total Alerts", type: "count", value: "2" },
-      { label: "Critical", type: "count", value: "1" },
+      { label: "Total Alerts", type: "count", value: "87" },
+      { label: "Open", type: "count", value: "50" },
+      { label: "Critical", type: "count", value: "12" },
     ])("renders $label $type", async ({ label, type, value }) => {
       await renderPage();
 
