@@ -79,7 +79,7 @@ export default function ManagerAnomalyPage() {
   const [showThresholdModal, setShowThresholdModal] = useState<boolean>(false);
   const [editingThreshold, setEditingThreshold] = useState<AlertThreshold | null>(null);
   const [notifications, setNotifications] = useState<NotificationPopup[]>([]);
-  const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("b1");
+  const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("");
   const [chartMetric, setChartMetric] = useState<MetricType>("power");
 
   const emptyThresholdForm = {
@@ -216,10 +216,21 @@ export default function ManagerAnomalyPage() {
 
   const totalBuildings = useMemo(() => buildings.length, [buildings]);
 
+  useEffect(() => {
+    if (buildings.length === 0) return;
+
+    setSelectedBuildingForChart((currentBuildingId) =>
+      buildings.some((building) => building.id === currentBuildingId)
+        ? currentBuildingId
+        : buildings[0].id
+    );
+  }, [buildings]);
+
   const { chartData, anomalyPoints } = useAnomalyChartData(
     anomalies,
     selectedBuildingForChart,
-    chartMetric
+    chartMetric,
+    buildings
   );
 
 
