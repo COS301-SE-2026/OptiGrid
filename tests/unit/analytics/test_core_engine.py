@@ -509,25 +509,14 @@ def test_recommendations_negative(mock_non_data, engine):
     mock_non_data.return_value = []
     df = pd.DataFrame({'usage': [100.0, 100.0, 100.0, 100.0]})
     ml_metrics= {
-        "forecast_peak": 110.0,
+        "forecast_peak": 90.0,
         "min_historic": 100.0
     }
     #act n assert
     engine._generate_recommendations("building-123", df, ml_metrics, "weekly")
     engine.supabase.table.return_value.upsert.assert_not_called()
 
-@patch('backend.analytics.src.core_engine.UTILITY_RATE_KWH', 0.01)
-@patch("backend.analytics.src.core_engine.RecommendationSynthesizer.generate_non_data_driven_recs")
-def test_recommendations_low_savings(mock_non_data, engine):
-    """Test that no recommendation is snet if savings < R50 """
-    mock_non_data.return_value = []
-    df = pd.DataFrame({'usage': [10.0, 10.0, 10.0]})
-    ml_metrics= {
-        "forecast_peak": 13.1,
-        "min_historic": 5.0
-    }
-    engine._generate_recommendations("building", df, ml_metrics, "weekly")
-    engine.supabase.table.return_value.upsert.assert_not_called()
+
 
 def test_empty_df(engine):
     """Test that no recommendation is made if no data frame"""

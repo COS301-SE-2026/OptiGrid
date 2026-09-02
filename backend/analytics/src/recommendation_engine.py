@@ -27,7 +27,7 @@ class RecommendationSynthesizer:
             thresold_kw = 1
         #predictive peak recommendations calc
         peak_base_ratio = forecast_peak/thresold_kw
-        if forecast_peak > thresold_kw and peak_base_ratio > 1.3:
+        if forecast_peak > thresold_kw and peak_base_ratio > 1.0:
             peak_rec = self._calculate_peak_shaving(building_id, building_type, forecast_peak,
                     thresold_kw, tariffs, time_window, peak_base_ratio
             )
@@ -121,13 +121,10 @@ class RecommendationSynthesizer:
                 peak_end = str(tar["peak_end_time"])[:5]
 
         peak_kwh_saved = kw_reduced * 2.0
-        rate = 1
-        if time_window == "weekly":
-            rate = 4
+        # Assume peak occurs every weekday (approx 20 days a month)
+        rate = 20
         monthly_savings = (peak_rate*peak_kwh_saved) * rate
 
-        if monthly_savings < 50.0:
-            return None
 
         context = "Peak Shaving"
         if self._is_duplicate(building_id, context):
