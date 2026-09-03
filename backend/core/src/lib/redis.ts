@@ -19,15 +19,22 @@ const createRedisClient = () => ({
         }
         return deleted;
     },
-    pipeline: () => ({
-        del: (...keys: string[]) => {
-            for (const key of keys) {
-                testRedisStore.delete(key);
-            }
-            return { exec: async () => [] };
-        },
-        exec: async () => []
-    }),
+    pipeline: () => {
+        const p: any = {
+            del: (...keys: string[]) => {
+                for (const key of keys) {
+                    testRedisStore.delete(key);
+                }
+                return p;
+            },
+            set: (key: string, value: string) => {
+                testRedisStore.set(key, value);
+                return p;
+            },
+            exec: async () => []
+        };
+        return p;
+    },
     on: () => undefined,
     quit: async () => {
         testRedisStore.clear();
