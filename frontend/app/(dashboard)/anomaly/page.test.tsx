@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, within, act } from "@testing-library/react";
+import { render, screen, fireEvent, within, act, waitFor } from "@testing-library/react";
 import ManagerAnomalyPage from "./page";
 import "@testing-library/jest-dom";
 
@@ -21,8 +21,10 @@ jest.mock("recharts", () => {
   return rechartsMockFactory();
 });
 
+const mockUseBuildings = jest.fn();
+
 jest.mock("@/lib/useBuildings", () => ({
-  useBuildings: () => ({ data: MOCK_BUILDINGS, isLoading: false, error: null }),
+  useBuildings: () => mockUseBuildings(),
 }));
 
 
@@ -31,11 +33,15 @@ afterAll(() => jest.useRealTimers());
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseBuildings.mockReturnValue({ data: MOCK_BUILDINGS, isLoading: false, error: null });
   (global.fetch as jest.Mock) = jest.fn((url: string) => {
     if (url.includes("/api/anomalies/portfolio")) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ data: MOCK_ANOMALIES }),
+        json: () => Promise.resolve({
+          data: MOCK_ANOMALIES,
+          summary: { total: 87, open: 50, critical: 12 },
+        }),
       });
     }
     if (url.includes("/api/thresholds/portfolio")) {
@@ -74,6 +80,26 @@ const getSearchInput = () =>
 
 describe("ManagerAnomalyPage", () => {
   describe("Initial render", () => {
+    it("loads chart data for the first assigned building instead of a placeholder id", async () => {
+      const buildingId = "11111111-1111-4111-8111-111111111111";
+      mockUseBuildings.mockReturnValue({
+        data: [{ id: buildingId, name: "XYZ" }],
+        isLoading: false,
+        error: null,
+      });
+
+      await renderPage();
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          `/api/buildings/${buildingId}/series?time_range=7d`
+        );
+      });
+      expect(global.fetch).not.toHaveBeenCalledWith(
+        "/api/buildings/b1/series?time_range=7d"
+      );
+    });
+
     it("renders the Anomaly Alerts heading", async () => {
       await renderPage();
       expect(screen.getByRole("heading", { name: /anomaly alerts/i })).toBeInTheDocument();
@@ -116,8 +142,9 @@ describe("ManagerAnomalyPage", () => {
       { label: "Open", type: "label" },
       { label: "Critical", type: "label" },
       { label: "Buildings", type: "label" },
-      { label: "Total Alerts", type: "count", value: "2" },
-      { label: "Critical", type: "count", value: "1" },
+      { label: "Total Alerts", type: "count", value: "87" },
+      { label: "Open", type: "count", value: "50" },
+      { label: "Critical", type: "count", value: "12" },
     ])("renders $label $type", async ({ label, type, value }) => {
       await renderPage();
 

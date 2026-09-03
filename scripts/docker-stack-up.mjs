@@ -325,7 +325,7 @@ writeFileSync(
 
 if (!skipBuild) {
   if (includeFrontend) {
-    run("docker build -f frontend/Dockerfile -t ghcr.io/local/optigrid-frontend:latest .");
+    run(`docker build --build-arg NEXT_PUBLIC_SUPABASE_URL=${env.supabaseUrl} --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=${env.supabaseAnonKey} -f frontend/Dockerfile -t ghcr.io/local/optigrid-frontend:latest .`);
   }
   run("docker build -f backend/core/Dockerfile -t ghcr.io/local/optigrid-core:latest .");
   run("docker build -f backend/ingestion/Dockerfile -t ghcr.io/local/optigrid-ingestion:latest .");

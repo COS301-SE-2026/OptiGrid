@@ -30,6 +30,7 @@ export const startAnomalySubscriber = async () => {
 					z_score_value,
 					detected_timestamp
 				} = data;
+				const normalizedSeverity = String(severity_level).toLowerCase();
 
 				// check for an active, unmuted threshold to attach
 				const thresholds = await prisma.alertThreshold.findMany({
@@ -51,7 +52,7 @@ export const startAnomalySubscriber = async () => {
 						sensor_id,
 						threshold_id: activeThreshold ? activeThreshold.threshold_id : null,
 						anomaly_type: metric_type,
-						severity_level,
+						severity_level: normalizedSeverity,
 						description: `Detected ${detected_value.toFixed(2)} (expected ${expected_value.toFixed(2)})`,
 						status: 'Open',
 						z_score_value,
@@ -79,7 +80,7 @@ export const startAnomalySubscriber = async () => {
 						metric_type,
 						detected_value,
 						expected_value,
-						severity_level
+						normalizedSeverity
 					);
 				}
 

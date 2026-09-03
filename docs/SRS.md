@@ -238,8 +238,20 @@ The users of the OptiGrid system are expected to fit into the following groups:
 * **TUCBW:** The Admin navigates to the billing settings and inputs the new seasonal Time-of-Use rates.
 * **TUCEW:** The system recalculates all future optimisation cost-saving insights based on the newly entered rates.
 
+**Use Case 31: Apply Recommendations**
+* **Actor:** Manager
+* **TUCBW:** The Manager clicks on the apply button to apply the recommendation
+* **TUCEW:** The system applies the recommednation and the user sees a success message
+
+**Use Case 32: Dismiss Recommendations**
+* **Actor:** Manager
+* **TUCBW:** The Manager clicks on the dismiss button to apply the recommendation
+* **TUCEW:** The system dismisses the recommednation and the user sees a success message
+
 ### Use Cases Diagram
 ![Optimisation Recommendations Use Case Diagram](./images/Optimisation_Recommendations.png)
+
+![Recommendation Operations Use Case Diagram](./images/Recommendation_Operations.png)
 
 ***
 

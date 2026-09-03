@@ -149,7 +149,14 @@ class AnalyticsEngine:
                     .field("cost_zar", cost_zar) \
                     .time(current_time, WritePrecision.NS)
                 
-                points_buffer.append(point)
+                point_down = Point("energy_telemetry_downsampled") \
+                    .tag("building_id", clean_id) \
+                    .field("usage", round(raw_usage, 2)) \
+                    .field("usage_kwh", round(raw_usage, 2)) \
+                    .field("cost_zar", cost_zar) \
+                    .time(current_time, WritePrecision.NS)
+
+                points_buffer.extend([point, point_down])
                 current_time += timedelta(minutes=15)
                 
                 if len(points_buffer) >= 1000:
@@ -615,6 +622,8 @@ class AnalyticsEngine:
             self.seed_missing_influx_telemetry(b_id)
 
         try:
+            import time
+            time.sleep(3) # Wait for InfluxDB to index newly seeded data
             # retry queries after seeding
             res_w = self.influx.query_api().query_data_frame(query_weekly)
             df_w = pd.concat(res_w) if isinstance(res_w, list) else res_w
@@ -748,8 +757,7 @@ class AnalyticsEngine:
             df_weekly = pd.DataFrame()
             df_monthly = pd.DataFrame()
 
-        df_weekly = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
-        monthly_seeded = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
+        df_weekly, monthly_seeded = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
         if not monthly_seeded.empty: 
             df_monthly = monthly_seeded
         #process monthly and weekly data
@@ -801,5 +809,5 @@ class AnalyticsEngine:
             try:
                 self.supabase.table("optimisation_recommendations").upsert(recs_all).execute()
             except Exception as e:
-                logger.exception("Failed to insert recommendations for: ", building_id)
+                logger.exception("Failed to insert recommendations for: %s", building_id)
     
