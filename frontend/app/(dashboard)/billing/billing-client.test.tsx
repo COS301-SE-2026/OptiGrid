@@ -61,8 +61,8 @@ describe("BillingClient", () => {
         expect(options.method).toBe("PUT");
         expect(JSON.parse(options.body)).toEqual({
             season_name: "Winter",
-            peak_rate_usd: 0.33,
-            off_peak_rate_usd: 0.22,
+            peak_rate_zar: 0.33,
+            off_peak_rate_zar: 0.22,
         });
     });
 
