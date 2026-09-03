@@ -4,39 +4,26 @@ export type FAQCategory = { category: string, items: FAQItem[] };
 export const Categories: FAQCategory[] = [
     {
         category: "Sign Up & Account",
-        items: [
-            {
-                question: "How do I create an OptiGrid account?",
-                answer: "Click 'Get started free' on the landing page, fill in your first name, last name, email address, and a password of at least 8 characters, then re-enter the password to confirm it. Once the account is created you are signed in and taken straight to your dashboard.",
-            },
-            {
-                question: "Can I sign up with an email that is already registered?",
-                answer: "No. If the email address is already in use, the sign up form shows a message telling you to log in instead. Use a different email or log in to your existing account.",
-            },
-        ],
+        items: [{
+            question: "How do I create an OptiGrid account?",
+            answer: "Click 'Get started free' on the landing page, fill in your first name, last name, email address, and a password of at least 8 characters, then re-enter the password to confirm it. Once the account is created you are signed in and taken straight to your dashboard.",
+        },
+        { question: "Can I sign up with an email that is already registered?",answer: "No. If the email address is already in use, the sign up form shows a message telling you to log in instead. Use a different email or log in to your existing account.",
+            },],
     },
-    {
-        category: "Login & Session",
-        items: [
-            {
+    {category: "Login & Session",
+        items: [ {
                 question: "How do I log in?",
                 answer: "Navigate to the Login page, enter your registered email address and password, and click 'Log in'. You will be taken to your dashboard on success.",
             },
-            {
-                question: "How do I log out?",
+            {question: "How do I log out?",
                 answer: "Click the 'Logout' button at the bottom of the sidebar in any dashboard page. Your session will be cleared and you will be redirected to the login page.",
-            },
-            {
-                question: "Why was I sent back to the login page?",
+            },{question: "Why was I sent back to the login page?",
                 answer: "Your session expired or the browser cookie was cleared. Any dashboard page checks for a valid session and sends you to the login page when it does not find one, so logging in again will get you back.",
-            },
-        ],
+            },],
     },
-    {
-        category: "Appearance",
-        items: [
-            {
-                question: "Does OptiGrid support dark mode?",
+    {category: "Appearance",
+        items: [{question: "Does OptiGrid support dark mode?",
                 answer: "Yes. Open Settings from the sidebar and use the theme card, which shows the mode you are in and a button to switch to the other one.",
             },
             {
@@ -48,11 +35,9 @@ export const Categories: FAQCategory[] = [
     {
         category: "Buildings",
         items: [
-            {
-                question: "How do I add a building?",
+            {question: "How do I add a building?",
                 answer: "Click '+ Add building' at the top of the dashboard. Only the building name is required, so you can fill in as much of the rest as you have to hand. Saving returns you to the dashboard with the new building in the list.",
-            },
-            {
+            },{
                 question: "Why should I fill in the floor area?",
                 answer: "It is what makes the efficiency comparison work. OptiGrid divides a building's energy use by its floor area, so a building with no floor area recorded is left out of the efficiency ratio on the Compare page.",
             },
@@ -61,12 +46,9 @@ export const Categories: FAQCategory[] = [
     {
         category: "Live Readings",
         items: [
-            {
-                question: "What does the Live page show?",
+            {question: "What does the Live page show?",
                 answer: "It lists your buildings with the demand each one is drawing right now in kW, the energy it has used so far today in kWh, and a status badge. The busiest buildings are sorted to the top.",
-            },
-            {
-                question: "How often does it update?",
+            },{question: "How often does it update?",
                 answer: "Readings stream in as the sensors report them, and the page refreshes the rest of the building details every five seconds. The line under the heading tells you whether the connection is live and when the page last updated.",
             },
             {
@@ -75,11 +57,8 @@ export const Categories: FAQCategory[] = [
             },
         ],
     },
-    {
-        category: "Compare Buildings",
-        items: [
-            {
-                question: "How do I compare two buildings?",
+    {category: "Compare Buildings",
+        items: [{question: "How do I compare two buildings?",
                 answer: "Open Compare, pick a building in each of the two selectors, then choose a date range and whether you want to compare cost or energy. The chart redraws to plot both buildings over that period.",
             },
             {
@@ -92,43 +71,31 @@ export const Categories: FAQCategory[] = [
             },
         ],
     },
-    {
-        category: "Demand Forecast",
-        items: [
-            {
+    {category: "Demand Forecast",items: [{
                 question: "What does the Demand Forecast page show?",
-                answer: "It shows a combined chart of historical energy consumption (kWh) and an ML-driven short-term demand forecast for a selected building, including a confidence band around the prediction.",
-            },
-            {
+                answer: "It shows a combined chart of historical energy consumption (kWh) and an ML-driven short-term demand forecast for a selected building, including a confidence band around the prediction.", },{
                 question: "How accurate are the forecasts?",
                 answer: "Forecast accuracy is measured by MAPE (Mean Absolute Percentage Error). The model accuracy card in the forecast summary shows the current MAPE for the selected building so you can judge how much to rely on it.",
             },
-            {
-                question: "How do I generate a forecast for a different building?",
-                answer: "Use the building selector on the Forecast page to pick any building in your portfolio, then click 'Run forecast'. The chart and summary metrics update once it finishes.",
-            },
-            {
+            {question: "How do I generate a forecast for a different building?",
+                answer: "Use the building selector on the Forecast page to pick any building in your portfolio, then click 'Run forecast'. The chart and summary metrics update once it finishes.",},{
+
                 question: "What is the peak demand figure in the forecast summary?",
                 answer: "It is the highest single predicted demand value within the forecast window, along with the timestamp it is expected to occur. Use it to plan ahead for peak tariff periods.",
-            },
-            {
+            },{
                 question: "What is the difference between the weekly and monthly horizon?",
-                answer: "Weekly projects the next seven days at an hourly resolution, which suits day to day planning. Monthly projects the next twelve weeks and is better for spotting seasonal movement.",
-            },
-            {
-                question: "What is the shaded area around the forecast line?",
+                answer: "Weekly projects the next seven days at an hourly resolution, which suits day to day planning. Monthly projects the next twelve weeks and is better for spotting seasonal movement.",},
+            {question: "What is the shaded area around the forecast line?",
                 answer: "That is the confidence range. The prediction itself is the dashed line, and the shading shows the span the actual demand is expected to fall within. A wider band means there is more uncertainty in that part of the forecast.",
             },
         ],
     },
     {
-        category: "Insights",
-        items: [
-            {
+    category: "Insights",
+            items: [ {
                 question: "What are insights?",
                 answer: "They are load shifting suggestions worked out from your consumption and forecast data. Each one describes the strategy, the load it proposes to move, the window it applies to, and the estimated monthly saving in Rand.",
-            },
-            {
+            },{
                 question: "What do the statuses on a recommendation mean?",
                 answer: "Pending is waiting on a decision and Applying has been approved and is being put into effect. Implemented has been carried out, Dismissed was reviewed and turned down, and Expired passed its window before anyone acted on it.",
             },
@@ -220,42 +187,31 @@ export const PublicCategories: FAQCategory[] = [
             },
         ],
     },
-    {
-        category: "Alerts & Recommendations",
-        items: [
-            {
-                question: "What is an anomaly alert?",
-                answer: "It is raised when a reading moves outside the range expected for that building. Voltage, current, power, and energy are each covered, and the alert points at the specific measure that moved.",
+    {category: "Alerts & Recommendations",
+        items: [{
+                question: "What is an anomaly alert?",answer: "It is raised when a reading moves outside the range expected for that building. Voltage, current, power, and energy are each covered, and the alert points at the specific measure that moved.",
             },
             {
                 question: "What are insights?",
                 answer: "Load shifting suggestions worked out from your consumption and forecast data. Each one describes the strategy, the load it proposes to move, the window it applies to, and the estimated monthly saving in Rand.",
             },
-            {
-                question: "Does OptiGrid change anything at my site on its own?",
-                answer: "No. Recommendations are put to the team that runs the building, and it is up to them to approve or dismiss each one.",
+                {
+                question: "Does OptiGrid change anything at my site on its own?",answer: "No. Recommendations are put to the team that runs the building, and it is up to them to approve or dismiss each one.",
             },
-        ],
-    },
+        ],},
     {
-        category: "Access & Support",
-        items: [
-            {
+        category: "Access & Support",items: [{
                 question: "Can different people see different things?",
                 answer: "Yes. Access follows the role on the account, so administrators, building managers, and viewers each see the pages that suit their work.",
             },
             {
                 question: "Is there a record of what changes?",
                 answer: "Administrators and building managers have an audit trail covering activity on the platform, which is useful when you need to trace who changed what.",
-            },
-            {
-                question: "Where do I find guides once I have signed up?",
+                },
+            {question: "Where do I find guides once I have signed up?",
                 answer: "The help centre opens from the sidebar after you log in. It holds the user manual, video tutorials with written steps, and a support contact form.",
             },
-            {
-                question: "How do I reach the team before signing up?",
+    {question: "How do I reach the team before signing up?",
                 answer: "Use the Contact link in the footer to send us a message and we will get back to you.",
-            },
-        ],
-    },
+            },],},
 ];
