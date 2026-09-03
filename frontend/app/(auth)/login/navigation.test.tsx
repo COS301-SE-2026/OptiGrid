@@ -29,10 +29,10 @@ describe("login navigation", () => {
 
 	it("replaces the current route after authentication succeeds", async () => {
 		const originalLocation = window.location;
-		// @ts-ignore
-		delete window.location;
-		// @ts-ignore
-		window.location = { ...originalLocation, href: '' };
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		delete (window as any).location;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(window as any).location = { ...originalLocation, href: '' };
 
 		const user = userEvent.setup();
 		render(<LoginPage />);
@@ -46,7 +46,7 @@ describe("login navigation", () => {
 		replaceRoute("/_sessions/test-tab-id/dashboard");
 		expect(window.location.href).toBe("/_sessions/test-tab-id/dashboard");
 
-		// @ts-ignore
-		window.location = originalLocation;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(window as any).location = originalLocation;
 	});
 });

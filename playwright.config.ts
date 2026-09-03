@@ -22,6 +22,7 @@ export default defineConfig({
         ...process.env,
         PORT: corePort,
         HARDWARE_API_KEY: hardwareApiKey,
+        DISABLE_RATE_LIMIT: "true",
       },
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,

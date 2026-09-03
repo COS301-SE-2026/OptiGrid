@@ -5,7 +5,7 @@ export const rateLimiter = (
 capacity: number,
 refillRate: number) => {//refillrate is in seconds
     return async (req:Request, resp: Response, nextFunc: NextFunction) : Promise<void> => {
-        if (process.env.DISABLE_RATE_LIMIT === "true") {
+        if (process.env.DISABLE_RATE_LIMIT === "true" || process.env.NODE_ENV === "test") {
             return nextFunc();
         }
         const id = req.ip || req.socket.remoteAddress || "unknown";
