@@ -92,7 +92,7 @@ test.describe("Anomaly Alerts", () => {
     await login(page, user);
 
 
-    await expect(page.getByRole("heading", { name: /Dashboard/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Welcome back/i })).toBeVisible();
     await page.getByRole("link", { name: /Anomaly/i }).click();
 
     await expect(page).not.toHaveURL(/\/login/);
