@@ -17,7 +17,7 @@ describe("LogoutButton", () => {
 		});
 
 		const mockF = jest.fn().mockResolvedValue({});
-		global.fetch = mockF as any;
+		global.fetch = mockF as jest.Mock;
 
 		render(<LogoutButton />);
 		const user = userEvent.setup();
