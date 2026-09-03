@@ -73,7 +73,7 @@ async function login(page: Page, user: E2EUser): Promise<void> {
       response.url().includes("/api/auth/session") &&
       response.status() === 200,
     { timeout: 60000 }
-  ).catch(() => {});
+  );
 
   
   await page.waitForURL((url) => !url.pathname.endsWith("/login"), {
@@ -92,8 +92,8 @@ test.describe("Anomaly Alerts", () => {
     await login(page, user);
 
 
-    await page.goto("/useranomaly", { waitUntil: "domcontentloaded" });
-
+    await expect(page.getByRole("heading", { name: /Dashboard/i })).toBeVisible();
+    await page.getByRole("link", { name: /Anomaly/i }).click();
 
     await expect(page).not.toHaveURL(/\/login/);
 
