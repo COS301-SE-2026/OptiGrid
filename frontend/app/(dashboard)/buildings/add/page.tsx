@@ -28,7 +28,6 @@ type FormData = {
     latitude: string;
     longitude: string;
     nominal_voltage: string;
-    max_current_threshold: string;
 };
 
 const initial: FormData = {
@@ -42,7 +41,6 @@ const initial: FormData = {
     latitude: "",
     longitude: "",
     nominal_voltage: "230",
-    max_current_threshold: "60",
 };
 
 const errorStyle = {
@@ -87,10 +85,6 @@ export default function AddBuildingPage() {
         if (form.nominal_voltage && (isNaN(voltage) || voltage <= 0))
             next.nominal_voltage = "Nominal voltage must be a positive number.";
 
-        const current = Number(form.max_current_threshold);
-        if (form.max_current_threshold && (isNaN(current) || current <= 0))
-            next.max_current_threshold = "Max current must be a positive number.";
-
         setErrors(next);
         return Object.keys(next).length === 0;
     };
@@ -113,7 +107,6 @@ export default function AddBuildingPage() {
         if (form.latitude) body.latitude = Number(form.latitude);
         if (form.longitude) body.longitude = Number(form.longitude);
         if (form.nominal_voltage) body.nominal_voltage = Number(form.nominal_voltage);
-        if (form.max_current_threshold) body.max_current_threshold = Number(form.max_current_threshold);
 
         try {
             const res = await fetch("/api/buildings", {
@@ -277,28 +270,6 @@ export default function AddBuildingPage() {
                         {errors.nominal_voltage && (
                             <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
                                 {errors.nominal_voltage}
-                            </p>
-                        )}
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                        <label className="label" htmlFor="max_current_threshold">Max current (A)</label>
-                        <input
-                            id="max_current_threshold"
-                            name="max_current_threshold"
-                            type="number"
-                            min="0"
-                            step="any"
-                            className="input"
-                            value={form.max_current_threshold}
-                            onChange={handleChange}
-                            disabled={loading}
-                            placeholder="60"
-                            style={errors.max_current_threshold ? errorStyle : undefined}
-                        />
-                        {errors.max_current_threshold && (
-                            <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
-                                {errors.max_current_threshold}
                             </p>
                         )}
                     </div>

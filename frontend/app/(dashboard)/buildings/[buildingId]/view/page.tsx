@@ -332,10 +332,6 @@ export default function ViewBuildingPage({
                         label="Nominal Voltage"
                         value={displayValueWithUnit(building.nominal_voltage, "V")}
                     />
-                    <Detail
-                        label="Max Current Threshold"
-                        value={displayValueWithUnit(building.max_current_threshold, "A")}
-                    />
                 </DetailsSection>
 
                 <DetailsSection title="Energy Consumption">
