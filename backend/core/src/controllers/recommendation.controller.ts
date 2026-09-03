@@ -110,7 +110,7 @@ export const updateTariffController = async(req:Request, resp:Response) => {
       });
     }
 
-    if(user.roleType == "VIEWER") {
+    if(user.roleType !== "ADMIN" || user.roleType !== "Admin") {
       return resp.status(403).json({
         status:"error",
         message:"No access to this"
