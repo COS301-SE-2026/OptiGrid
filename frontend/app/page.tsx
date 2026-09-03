@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { PublicNav } from "../components/PublicNav";
 
 function MonitorIcon() {
     return (
@@ -58,6 +59,63 @@ function TrendingUpIcon() {
     );
 }
 
+function AlertIcon() {
+    return (
+        <svg
+            height="20"
+            width="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+            <path d="M12 9v4M12 17h.01" />
+        </svg>
+    );
+}
+
+function LightbulbIcon() {
+    return (
+        <svg
+            height="20"
+            width="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M9 18h6M10 22h4" />
+            <path d="M12 2a7 7 0 0 0-4 12.7V18h8v-3.3A7 7 0 0 0 12 2z" />
+        </svg>
+    );
+}
+
+function ReceiptIcon() {
+    return (
+        <svg
+            height="20"
+            width="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2l-3 2-2-2-2 2-2-2-2 2z" />
+            <path d="M9 8h6M9 12h6" />
+        </svg>
+    );
+}
+
 const features: { icon: ReactNode; title: string; description: string }[] = [
     {
         icon: <MonitorIcon />,
@@ -77,6 +135,21 @@ const features: { icon: ReactNode; title: string; description: string }[] = [
         description:
             "ML-driven predictions help you plan procurement and avoid peak tariffs.",
     },
+    {
+        icon: <AlertIcon />,
+        title: "Catch anomalies early",
+        description: "Voltage, current, power, and energy are watched for readings outside the expected range."
+    },
+    {
+        icon: <LightbulbIcon />,
+        title: "Act on load shifting insights",
+        description: "Recommendations set out the load to move, the window, and the estimated monthly saving."
+    },
+    {
+        icon: <ReceiptIcon />,
+        title: "Keep tariffs and costs current",
+        description: "Tariff rates keep every cost and saving figure tied to what you actually pay."
+    },
 ];
 
 const outcomes = [
@@ -95,35 +168,27 @@ const outcomes = [
         title: "Buildings online",
         description: "Connect meters, BMS, and IoT gateways in days, not months.",
     },
+    {
+        metric: "5s",
+        title: "Live refresh",
+        description: "Building details refresh every five seconds as sensors report in."
+    },
+    {
+        metric: "4",
+        title: "Measures watched",
+        description: "Voltage, current, power, and energy are each monitored for anomalies."
+    },
+    {
+        metric: "12 weeks",
+        title: "Forecast horizon",
+        description: "Weekly and monthly views cover the next seven days out to twelve weeks."
+    },
 ];
 
 export default function LandingPage() {
     return (
         <div className="landing-page">
-            <header className="navbar landing-nav">
-                <div className="landing-shell landing-nav-inner">
-                    <Link href="/" className="landing-wordmark">
-                        OptiGrid
-                    </Link>
-                    <nav className="landing-links" aria-label="Primary">
-                        <a href="#features">Features</a>
-                        <a href="#outcomes">Outcomes</a>
-                        <Link href="/help">Help</Link>
-                    
-                        <a href="/brand_style_guide (1).pdf" download="optigrid_brand_style_guide.pdf">
-                        Brand Guide
-                        </a>
-                    </nav>
-                    <div className="landing-nav-actions">
-                        <Link href="/login" className="btn btn-secondary">
-                            Log in
-                        </Link>
-                        <Link href="/signup" className="btn btn-primary">
-                            Get started free
-                        </Link>
-                    </div>
-                </div>
-            </header>
+            <PublicNav signedIn={false} anchorPrefix="" />
 
             <main>
                 <section className="landing-hero">
@@ -136,11 +201,6 @@ export default function LandingPage() {
                                 demand forecasting so facility teams act on data instead
                                 of guessing.
                             </p>
-                            <div className="landing-actions">
-                                <Link href="/signup" className="btn btn-primary">
-                                    Get started free
-                                </Link>
-                            </div>
                             <div className="landing-metrics">
                                 <div className="metric-card">
                                     <span className="metric">4.8%</span>

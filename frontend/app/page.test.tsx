@@ -41,6 +41,18 @@ describe("LandingPage", () => {
             const loginLink = screen.getByRole("link", { name: "Log in" });
             expect(loginLink).toHaveAttribute("href", "/login");
         });
+
+        it("renders a Get started free link pointing to signup page", () => {
+            const signupLink = screen.getByRole("link", {
+                name: "Get started free",
+            });
+            expect(signupLink).toHaveAttribute("href", "/signup");
+        });
+
+        it("renders the Brand download link", () => {
+            expect(screen.getByRole("link", { name: "Brand" })).toBeInTheDocument();
+        });
+
     });
 
     describe("hero", () => {
@@ -56,25 +68,14 @@ describe("LandingPage", () => {
             ).toBeInTheDocument();
         });
 
-        it("renders a Get started free link pointing to /signup", () => {
-            const main = screen.getByRole("main");
-            const signupLink = within(main).getByRole("link", {
-                name: "Get started free",
-            });
-            expect(signupLink).toHaveAttribute("href", "/signup");
-        });
-
-        it("renders a Get started free link in the hero", () => {
+        it("does not render a Get started free link in the hero", () => {
             const main = screen.getByRole("main");
             const heroHeading = within(main).getByRole("heading", {
                 name: "Cut energy costs across every building you operate.",
             });
             const heroSection = heroHeading.closest("section");
             expect(heroSection).not.toBeNull();
-            const signupLink = within(heroSection as HTMLElement).getByRole("link", {
-                name: "Get started free",
-            });
-            expect(signupLink).toHaveAttribute("href", "/signup");
+            expect(within(heroSection as HTMLElement).queryByRole("link", {name: "Get started free"})).toBeNull();
         });
     });
 
@@ -110,6 +111,12 @@ describe("LandingPage", () => {
                 screen.getByText(/ML-driven predictions/)
             ).toBeInTheDocument();
         });
+
+        it("renders the all the newer feature headings", () => {
+            expect(screen.getByRole("heading", { name: "Catch anomalies early" })).toBeInTheDocument();
+            expect(screen.getByRole("heading", { name: "Act on load shifting insights" })).toBeInTheDocument();
+            expect(screen.getByRole("heading", { name: "Keep tariffs and costs current" })).toBeInTheDocument();
+        });
     });
 
     describe("footer", () => {
@@ -143,6 +150,9 @@ describe("LandingPage", () => {
             expect(
                 outcomesScope.getByRole("heading", { name: "Buildings online" })
             ).toBeInTheDocument();
+            expect(outcomesScope.getByRole("heading", { name: "Live refresh" })).toBeInTheDocument();
+            expect(outcomesScope.getByRole("heading", { name: "Measures watched" })).toBeInTheDocument();
+            expect(outcomesScope.getByRole("heading", { name: "Forecast horizon" })).toBeInTheDocument();
         });
     });
 

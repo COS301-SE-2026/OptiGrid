@@ -1,4 +1,4 @@
-import { Categories } from "./data";
+import { Categories, PublicCategories } from "./data";
 
 describe("FAQs data integrity", () => {
     it("has at least one category", () => {
@@ -54,5 +54,50 @@ describe("FAQs data integrity", () => {
         expect(names).toContain("Appearance");
         expect(names).toContain("Buildings");
         expect(names).toContain("Demand Forecast");
+    });
+});
+
+describe("Public FAQs data", () => {
+    it("has at least one category", () => {
+        expect(PublicCategories.length).toBeGreaterThan(0);
+    });
+
+    it("every category has a name and at least has one item", () => {
+        for (const category of PublicCategories) {
+            expect(category.category.trim()).not.toBe("");
+            expect(category.items.length).toBeGreaterThan(0);
+        }
+    });
+
+    it("has unique category names", () => {
+        const names = PublicCategories.map((c) => c.category);
+        expect(new Set(names).size).toBe(names.length);
+    });
+
+    it("keeps the signup questions visitors need", () => {
+        const names = PublicCategories.map((c) => c.category);
+        expect(names).toContain("About OptiGrid");
+        expect(names).toContain("Sign Up & Account");
+    });
+
+    it("every item has a question and an answer", () => {
+        for (const category of PublicCategories) {
+            for (const item of category.items) {
+                expect(item.question.trim()).not.toBe("");
+                expect(item.answer.trim()).not.toBe("");
+            }
+        }
+    });
+
+    it("leaves out categories that only apply once you are signed in", () => {
+        const names = PublicCategories.map((c) => c.category);
+        expect(names).not.toContain("Appearance");
+        expect(names).not.toContain("Login & Session");
+    });
+
+    it("leaves out any questions about using the dashboard itself", () => {
+        const questions = PublicCategories.flatMap((c) => c.items.map((item) => item.question));
+        expect(questions).not.toContain("How do I log out?");
+        expect(questions).not.toContain("How do I add a building?");
     });
 });

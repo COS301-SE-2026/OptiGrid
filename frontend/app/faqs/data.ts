@@ -156,3 +156,106 @@ export const Categories: FAQCategory[] = [
         ],
     },
 ];
+export const PublicCategories: FAQCategory[] = [
+    {
+        category: "About OptiGrid",
+        items: [
+            {
+                question: "What is OptiGrid?",
+                answer: "OptiGrid is an energy intelligence platform for teams that run more than one building. It brings meter and sensor readings, anomaly detection, demand forecasting, and cost tracking into one workspace so decisions are made from data rather than from guesswork.",
+            },
+            {
+                question: "Who is OptiGrid for?",
+                answer: "Facility and portfolio teams who need to keep energy spend under control across several sites. Roles range from viewers who read the numbers, to building managers who act on alerts and recommendations, to administrators who manage users and tariffs.",
+            },
+            {
+                question: "What does OptiGrid need from my buildings?",
+                answer: "Meter, BMS, or IoT gateway readings for the buildings you want to track. Details such as floor area are optional, though recording them unlocks the per square metre efficiency comparison between buildings.",
+            },
+            {
+                question: "Which currency are the figures shown in?",
+                answer: "Costs and savings are shown in South African Rand and worked out from the tariff rates configured for your organisation.",
+            },
+        ],
+    },
+    {
+        category: "Sign Up & Account",
+        items: [
+            {
+                question: "How do I create an OptiGrid account?",
+                answer: "Click 'Get started free', fill in your first name, last name, email address, and a password of at least 8 characters, then re-enter the password to confirm it. Once the account is created you are signed in and taken straight to your dashboard.",
+            },
+            {
+                question: "Can I sign up with an email that is already registered?",
+                answer: "No. If the email address is already in use, the sign up form tells you to log in instead. Use a different email or log in to your existing account.",
+            },
+            {
+                question: "Do I need to install anything?",
+                answer: "No. OptiGrid runs in the browser, so once you have an account you can open it from any computer without setting up software.",
+            },
+        ],
+    },
+    {
+        category: "What You Can Do",
+        items: [
+            {
+                question: "What does the dashboard show?",
+                answer: "Every building in your portfolio with its energy use and cost figures, so you can see how the whole estate is performing before drilling into a single site.",
+            },
+            {
+                question: "Can I see readings as they happen?",
+                answer: "Yes. The Live page lists your buildings with the demand each one is drawing right now in kW and the energy used so far today in kWh. Readings stream in as sensors report them, and a building with nothing arriving for five minutes is flagged as offline.",
+            },
+            {
+                question: "How does OptiGrid compare two buildings?",
+                answer: "Pick two buildings, a date range, and whether you are comparing cost or energy. The chart plots both over that period, and the insights panel gives the total difference along with an efficiency ratio once floor area is recorded for both.",
+            },
+            {
+                question: "What can OptiGrid forecast?",
+                answer: "Short term demand for any building in your portfolio, plotted against historical consumption with a confidence range around the prediction. Weekly covers the next seven days hour by hour and monthly covers the next twelve weeks.",
+            },
+            {
+                question: "How accurate are the forecasts?",
+                answer: "Accuracy is reported as MAPE, the mean absolute percentage error, and shown per building so you can judge how much weight to give a prediction.",
+            },
+        ],
+    },
+    {
+        category: "Alerts & Recommendations",
+        items: [
+            {
+                question: "What is an anomaly alert?",
+                answer: "It is raised when a reading moves outside the range expected for that building. Voltage, current, power, and energy are each covered, and the alert points at the specific measure that moved.",
+            },
+            {
+                question: "What are insights?",
+                answer: "Load shifting suggestions worked out from your consumption and forecast data. Each one describes the strategy, the load it proposes to move, the window it applies to, and the estimated monthly saving in Rand.",
+            },
+            {
+                question: "Does OptiGrid change anything at my site on its own?",
+                answer: "No. Recommendations are put to the team that runs the building, and it is up to them to approve or dismiss each one.",
+            },
+        ],
+    },
+    {
+        category: "Access & Support",
+        items: [
+            {
+                question: "Can different people see different things?",
+                answer: "Yes. Access follows the role on the account, so administrators, building managers, and viewers each see the pages that suit their work.",
+            },
+            {
+                question: "Is there a record of what changes?",
+                answer: "Administrators and building managers have an audit trail covering activity on the platform, which is useful when you need to trace who changed what.",
+            },
+            {
+                question: "Where do I find guides once I have signed up?",
+                answer: "The help centre opens from the sidebar after you log in. It holds the user manual, video tutorials with written steps, and a support contact form.",
+            },
+            {
+                question: "How do I reach the team before signing up?",
+                answer: "Use the Contact link in the footer to send us a message and we will get back to you.",
+            },
+        ],
+    },
+];
