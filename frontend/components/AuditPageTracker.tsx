@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { stripTabSessionPath } from "../lib/tab-session";
 
 const AUDITED_PAGES: Record<string, "DASHBOARD" | "LIVE" | "COMPARE"> = {
     "/dashboard": "DASHBOARD",
@@ -14,16 +15,17 @@ export function AuditPageTracker() {
     const lastRecordedPath = useRef<string | null>(null);
 
     useEffect(() => {
-        const page = AUDITED_PAGES[pathname];
+        const route = stripTabSessionPath(pathname);
+        const page = AUDITED_PAGES[route];
         if (!page) {
             lastRecordedPath.current = null;
             return;
         }
 
-        if (lastRecordedPath.current === pathname) {
+        if (lastRecordedPath.current === route) {
             return;
         }
-        lastRecordedPath.current = pathname;
+        lastRecordedPath.current = route;
 
         void fetch("/api/audit-events/page-view", {
             method: "POST",

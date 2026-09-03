@@ -13,6 +13,14 @@ export const signup = async (req: Request, res: Response) => {
         const { email, password, name } = req.body;
         const user = await authService.signup(email, password, name);
 
+        await recordAuditLog({
+            userId: user?.userId,
+            actionType: "SIGNUP",
+            targetTable: "users",
+            newValue: { email: user?.email ?? email },
+            ipAddress: getClientIp(req)
+        });
+
         return res.status(201).json({
             message: 'User created successfully',
             user,
@@ -61,6 +69,12 @@ export const login = async (req: Request, res: Response) => {
     catch (error: unknown) {
         if (error instanceof Error) {
             if (error.message === 'Invalid email or password') {
+                await recordAuditLog({
+                    actionType: "LOGIN_FAILED",
+                    targetTable: "users",
+                    newValue: { email: req.body?.email ?? null },
+                    ipAddress: getClientIp(req)
+                });
                 return res.status(400).json({ message: "Invalid email or password" });
             }
             if (error instanceof AccountDeactivatedError) {
@@ -76,6 +90,26 @@ export const login = async (req: Request, res: Response) => {
         }
         return res.status(500).json({ message: "Internal server error" });
     }
+};
+
+// the session cookies are cleared by the webapp and this only records that the session ended so the audit trail shows both ends of a session
+export const logout = async (req: Request, res: Response) => {
+    if (!req.user?.id) {
+        return res.status(401).json({ message: 'Unauthorised' });
+    }
+
+    const recorded = await recordAuditLog({
+        userId: req.user.id,
+        actionType: "LOGOUT",
+        targetTable: "users",
+        ipAddress: getClientIp(req),
+    });
+
+    if (!recorded) {
+        return res.status(503).json({ message: 'Unable to record logout activity' });
+    }
+
+    return res.status(200).json({ message: 'Logout recorded' });
 };
 
 // A deactivated user must be able to prove their identity and restore the
@@ -140,7 +174,8 @@ export const getManagersController = async (req: Request, resp: Response) => {
 
 const helperForManager = (
     funcToCall: (userId: string, buildingId: string) => Promise<any>,
-    action: string
+    action: string,
+    auditAction: string
 ) => {
     return async (req: Request, resp: Response) => {
         try {
@@ -170,6 +205,16 @@ const helperForManager = (
             }
 
             const out = await funcToCall(userId, buildingId);
+
+            await recordAuditLog({
+                userId: req.user?.id ?? null,
+                buildingId,
+                actionType: auditAction,
+                targetTable: "building_authorized_users",
+                newValue: { manager_id: userId, building_id: buildingId },
+                ipAddress: getClientIp(req)
+            });
+
             return resp.status(200).json(out);
         }
         catch (error: unknown) {
@@ -180,5 +225,5 @@ const helperForManager = (
         }
     };
 };
-export const assignManagerController = helperForManager(authService.assignMangerToBuilding, "assigning");
-export const removeManagerController = helperForManager(authService.removeAssignment, "removing");
+export const assignManagerController = helperForManager(authService.assignMangerToBuilding, "assigning", "ASSIGN_MANAGER");
+export const removeManagerController = helperForManager(authService.removeAssignment, "removing", "REMOVE_MANAGER");
