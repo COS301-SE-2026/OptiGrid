@@ -1,3 +1,6 @@
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/optigrid_test?schema=public";
+}
 import { applyRecommendationController, viewRecommendationController, updateTariffController } from "../../../backend/core/src/controllers/recommendation.controller";
 import { applyRecommendation, viewRecommendationService, updateTariffService } from "../../../backend/core/src/services/recommendation.service";
 import { Request, Response } from "express";

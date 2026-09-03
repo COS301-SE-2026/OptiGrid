@@ -16,8 +16,8 @@ function buildRequest(body: unknown, withAuth = true) {
 
 const validRates = {
 	season_name: "Summer",
-	peak_rate_usd: 0.33,
-	off_peak_rate_usd: 0.22
+	peak_rate_zar: 0.33,
+	off_peak_rate_zar: 0.22
 };
 
 describe("building tariffs route", () => {

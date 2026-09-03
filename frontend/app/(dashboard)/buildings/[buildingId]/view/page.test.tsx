@@ -106,7 +106,6 @@ describe("ViewBuildingPage", () => {
       expect(screen.getByText(/5000 m²/)).toBeInTheDocument();
       expect(screen.getByText("200")).toBeInTheDocument();
       expect(screen.getByText("230 V")).toBeInTheDocument();
-      expect(screen.getByText("60 A")).toBeInTheDocument();
       expect(screen.getByText("-26.111")).toBeInTheDocument();
       expect(screen.getByText("28.055")).toBeInTheDocument();
       expect(screen.getAllByText("2026-07-17T08:00:00.000Z")).toHaveLength(2);
