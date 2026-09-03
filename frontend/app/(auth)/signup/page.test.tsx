@@ -7,23 +7,7 @@ import { initialSignupFormData } from "./validation";
 const mockPush = jest.fn();
 const mockFetch = jest.fn();
 
-jest.mock("next/link", () => {
-    return function MockLink({
-        href,
-        children,
-        ...rest
-    }: {
-        href: string;
-        children: React.ReactNode;
-        [key: string]: unknown;
-    }) {
-        return (
-            <a href={href} {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>
-                {children}
-            </a>
-        );
-    };
-});
+jest.mock("next/link");
 
 jest.mock("next/navigation", () => ({
     useRouter: () => ({ push: mockPush }),

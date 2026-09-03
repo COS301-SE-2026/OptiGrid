@@ -77,22 +77,12 @@ export default function LoginPage() {
     };
 
     return (
-        <main
-            style={{
-                minHeight: "100vh",
-                background: "var(--brand-bg)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "var(--space-7) var(--space-5)",
-            }}
-        >
+        <main className="auth-page">
             <section
-                className="card"
-                style={{ width: "min(420px, 100%)", display: "grid", gap: "var(--space-5)" }}
+                className="card auth-card"
                 aria-labelledby="login-title"
             >
-                <header style={{ display: "grid", gap: "var(--space-2)" }}>
+                <header className="auth-header">
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
@@ -104,26 +94,19 @@ export default function LoginPage() {
                     <div
                         role="status"
                         aria-live="polite"
-                        style={{
-                            border: "1px solid var(--brand-secondary)",
-                            background: "color-mix(in srgb, var(--brand-secondary) 12%, transparent)",
-                            color: "var(--brand-ink)",
-                            padding: "var(--space-3) var(--space-4)",
-                            borderRadius: "var(--radius-md)",
-                            fontSize: "var(--fs-small)",
-                        }}
+                        className="auth-notice"
                     >
                         {notice}
                     </div>
                 )}
 
                 <form
-                    style={{ display: "grid", gap: "var(--space-5)" }} 
-                    noValidate 
-                    onSubmit={handleSubmit} 
+                    className="auth-form"
+                    noValidate
+                    onSubmit={handleSubmit}
                     suppressHydrationWarning
                 >
-                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
+                    <div className="auth-field">
                         <label className="label" htmlFor="email">Work email</label>
                         <input
                             id="email"
@@ -140,7 +123,7 @@ export default function LoginPage() {
                         />
                     </div>
 
-                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
+                    <div className="auth-field">
                         <label className="label" htmlFor="password">Password</label>
                         <input
                             id="password"
@@ -161,21 +144,17 @@ export default function LoginPage() {
                         type="submit"
                         disabled={loading}
                         aria-disabled={loading}
-                        className="btn btn-primary"
-                        style={{ 
-                            width: "100%", 
-                            marginTop: "var(--space-5)",
+                        className="btn btn-primary auth-submit"
+                        style={{
                             backgroundColor: "#3A6B7C",
                             color: "#FFFFFF",
-                            fontWeight: "var(--fw-semibold)",
-                            fontSize: "var(--fs-body)",
                         }}
                     >
                         {loading ? "Logging in..." : "Log in"}
                     </button>
 
-                    <GoogleAuthButton 
-                        onLoading={setLoading} 
+                    <GoogleAuthButton
+                        onLoading={setLoading}
                         onError={setError}
                     />
 
@@ -183,26 +162,16 @@ export default function LoginPage() {
                         <div
                             role="alert"
                             aria-live="assertive"
-                            style={{
-                                border: "1px solid var(--brand-danger)",
-                                background: "color-mix(in srgb, var(--brand-danger) 12%, transparent)",
-                                color: "var(--brand-danger)",
-                                padding: "var(--space-3) var(--space-4)",
-                                borderRadius: "var(--radius-md)",
-                                fontSize: "var(--fs-small)",
-                            }}
+                            className="auth-alert"
                         >
                             {error}
                         </div>
                     )}
                 </form>
 
-                <p
-                    className="text-muted"
-                    style={{ textAlign: "center", fontSize: "var(--fs-small)" }}
-                >
+                <p className="text-muted auth-footnote">
                     No account?{" "}
-                    <Link href="/signup" style={{ color: "var(--brand-primary-cta)", fontWeight: 600 }}>
+                    <Link href="/signup">
                         Sign up free
                     </Link>
                 </p>

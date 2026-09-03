@@ -73,7 +73,7 @@ export function TabSessionProvider({ children }: { children: ReactNode }) {
 				destination.origin !== window.location.origin ||
 				destination.pathname.startsWith("/_sessions/") ||
 				destination.pathname.startsWith("/api/") ||
-				["/", "/login", "/signup", "/help", "/contact", "/faqs"].includes(destination.pathname)
+				["/", "/login", "/signup"].includes(destination.pathname)
 			) {
 				return;
 			}

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { applyRecommendation, viewRecommendationService, updateTariffService, dismissRecommendationService } from '../services/recommendation.service';
 import { viewParameterSchema, viewQuerySchema, tariffParameterSchema, tariffQuerySchema } from '../validation/recommendation.validation';
+import { getClientIp, recordAuditLog } from '../services/auditLog.service';
 
 const helperController = (action: "apply" | "dismiss", 
   serviceFunc: (userId: string, buildingId: string, reccomendationId: string) => Promise<boolean>) => {
@@ -121,6 +122,15 @@ export const updateTariffController = async(req:Request, resp:Response) => {
     const payload = tariffQuerySchema.parse(req.body);
 
     await updateTariffService(user.id, building_id, payload);
+
+    await recordAuditLog({
+      userId: user.id,
+      buildingId: building_id,
+      actionType: "UPDATE",
+      targetTable: "tariffs",
+      newValue: payload,
+      ipAddress: getClientIp(req)
+    });
 
     return resp.status(200).json({
       status: "success",

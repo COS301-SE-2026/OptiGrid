@@ -43,6 +43,27 @@ describe("AuditPageTracker", () => {
         );
     });
 
+    it("records the dashboard when the tab session prefix is on the path", async () => {
+        mockPathname = "/_sessions/6f1f2e5a-9b6c-4f0e-8a1d-2c3b4d5e6f70/dashboard";
+        render(<AuditPageTracker />);
+
+        await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+        expect(global.fetch).toHaveBeenCalledWith("/api/audit-events/page-view",
+            expect.objectContaining({ body: JSON.stringify({ page: "DASHBOARD" }) }),
+        );
+    });
+
+    it("records compare when the tab session prefix is on the path", async () => {
+        mockPathname = "/_sessions/6f1f2e5a-9b6c-4f0e-8a1d-2c3b4d5e6f70/compare";
+        render(<AuditPageTracker />);
+
+        await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+        expect(global.fetch).toHaveBeenCalledWith(
+            "/api/audit-events/page-view",
+            expect.objectContaining({ body: JSON.stringify({ page: "COMPARE" }) }),
+        );
+    });
+
     it("ignores pages outside the audit allowlist", () => {
         mockPathname = "/settings";
         render(<AuditPageTracker />);

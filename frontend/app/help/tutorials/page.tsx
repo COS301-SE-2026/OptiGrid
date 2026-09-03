@@ -7,6 +7,7 @@ type Tutorial = {
     title: string;
     description: string;
     sourceUrl?: string;
+    posterUrl?: string;
     // set only when a clip carries spoken narration and otherwise default to silent
     hasAudio?: boolean;
     // defaults to SILENT_CAPTIONS_URL
@@ -21,33 +22,10 @@ function toSteps(block: string): string[] {
 
 const tutorials: Tutorial[] = [
     {
-        title: "Sign up for an OptiGrid account",
-        description: "Walk through the first-time registration flow and learn what details are required before you can access the platform.",
-        sourceUrl: "/help/tutorials/signup.mp4",
-        steps: `
-            Open the OptiGrid landing page and choose "Get started free".
-            Enter your first name, last name and work email address.
-            Choose a password of at least 8 characters, then re-enter it to confirm.
-            Select "Create account". OptiGrid validates each field and shows an inline message beneath any field that needs attention.
-            On success you are redirected to the login page with a confirmation message.
-        `,
-    },
-    {
-        title: "Log in",
-        description: "See the standard login flow.",
-        sourceUrl: "/help/tutorials/login.mp4",
-        steps: `
-            Open the login page from the landing page or the "Log in" link.
-            Enter the work email and password used at registration.
-            Select "Log in".
-            If the credentials are not recognised, an error message appears above the form explaining what to correct.
-            On success you land on the dashboard, which shows your portfolio overview.
-        `,
-    },
-    {
         title: "Add a building",
         description: "Create a new building record so it can be tracked, compared, and included in forecasts.",
         sourceUrl: "/help/tutorials/add_building.mp4",
+        posterUrl: "/help/tutorials/add_building-poster.jpg",
         steps: `
             From the dashboard, select "+ Add building".
             Enter the building name (required) and pick a building type from the dropdown.
@@ -61,6 +39,7 @@ const tutorials: Tutorial[] = [
         title: "Compare two buildings",
         description: "Compare building performance side by side to identify which sites are using more energy than expected.",
         sourceUrl: "/help/tutorials/compare_buildings.mp4",
+        posterUrl: "/help/tutorials/compare_buildings-poster.jpg",
         steps: `
             Open "Compare" from the main navigation.
             Choose the first building from the left dropdown and the second from the right dropdown.
@@ -73,11 +52,48 @@ const tutorials: Tutorial[] = [
         title: "Review demand forecasts",
         description: "Check the forecast view to see how OptiGrid projects near-term demand for your selected building.",
         sourceUrl: "/help/tutorials/run_forecast.mp4",
+        posterUrl: "/help/tutorials/run_forecast-poster.jpg",
         steps: `
             Open "Forecast" from the main navigation.
             Select a building and choose either the weekly or monthly horizon.
             Run the forecast. A chart plots predicted demand as a dashed line against recorded history.
             The summary cards beneath the chart show the selected building, the number of forecast points, and the projected peak timestamp.
+        `,
+    },
+    {
+        title: "Review insights",
+        description: "Learn how to read the load shifting strategies OptiGrid suggests, and how to approve or dismiss one.",
+        sourceUrl: "/help/tutorials/review_insights.mp4",
+        posterUrl: "/help/tutorials/review_insights-poster.jpg",
+        steps: `
+            Open "Insights" from the main navigation.
+            Select a building from the dropdown, then use the status filter to narrow the list to Pending, Applying, Implemented, Dismissed, or Expired recommendations.
+            The three summary cards show how many recommendations are active, the potential monthly savings across them, and the total number listed.
+            Each card describes the strategy in plain language, its estimated monthly saving, when it was generated, and when it expires.
+            Select "Review" on a card to open its details. From there you can Approve it, Dismiss it, or Close the dialog without acting on it. Approving moves it to the Applying status.
+        `,
+    },
+    {
+        title: "View anomaly alerts",
+        description: "Find out how to check for readings that have moved outside the expected range for a building.",
+        steps: `
+            Open "Anomaly" from the main navigation.
+            The list shows every alert raised across your buildings, with the building it belongs to and the measurement involved.
+            Alerts cover voltage, current, power, and energy, so each one points at the specific measurement that moved outside its expected range.
+            If a reading lines up with something you already know about, such as planned work on site, no action is needed. Otherwise pass it on to the team responsible for that building.
+        `,
+    },
+    {
+        title: "Manage your profile and settings",
+        description: "See what your profile looks like and how to switch between light and dark mode from the Settings page.",
+        sourceUrl: "/help/tutorials/manage_account.mp4",
+        posterUrl: "/help/tutorials/manage_account-poster.jpg",
+        steps: `
+            Open "Settings" from the sidebar.
+            The Profile Information card shows your first name, last name, email address, and your role, which is read only. Edit any of the other fields, then select "Save Changes" to apply them or "Reset" to discard your edits.
+            The Theme card shows whether you are in light or dark mode, with a button to switch to the other one.
+            The Help & Contact card links straight to the Help Centre and the Contact page without leaving Settings.
+            The Account Management card holds Logout, Recover Account, and Delete Account. Select "Logout" to end your session and return to the login screen.
         `,
     },
 ];
@@ -107,7 +123,7 @@ function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
                         className="tutorial-video"
                         controls
                         preload="none"
-                        poster="/help/tutorials/tutorial-poster.svg"
+                        poster={tutorial.posterUrl}
                         aria-label={`Tutorial video: ${tutorial.title}`}
                         aria-describedby={stepsId}
                     >
@@ -142,7 +158,7 @@ function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
                     {tutorial.title}
                 </h2>
                 <p className="text-muted">{tutorial.description}</p>
-                {!tutorial.hasAudio ? (
+                {tutorial.sourceUrl && !tutorial.hasAudio ? (
                     <p className="tutorial-media-note">
                         This tutorial is a silent screen recording. The written steps below describe everything shown on screen.
                     </p>
@@ -162,7 +178,7 @@ function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
 
 export const metadata = {
     title: "Tutorials - OptiGrid",
-    description: "Short OptiGrid tutorials for signup, login, and building management workflows.",
+    description: "Short OptiGrid tutorials for building management and portfolio workflows.",
 };
 
 export default function TutorialsPage() {

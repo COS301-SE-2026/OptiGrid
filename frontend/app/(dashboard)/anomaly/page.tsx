@@ -6,10 +6,8 @@ import {
   Anomaly,
   AnomalySummary,
   AlertThreshold,
-  AnomaliesTable,
   AnalyticsSummary,
-  EnergyChart,
-  FilterBar,
+  AnomalyOverview,
   Modal,
   AnomalyDetailsModal,
   HistoricAlertsModal,
@@ -97,18 +95,7 @@ export default function ManagerAnomalyPage() {
   };
   const [thresholdForm, setThresholdForm] = useState(emptyThresholdForm);
 
-  const {
-    selectedBuilding,
-    statusFilter,
-    severityFilter,
-    searchQuery,
-    setSelectedBuilding,
-    setStatusFilter,
-    setSeverityFilter,
-    setSearchQuery,
-    filteredAnomalies,
-    resetFilters,
-  } = useAnomalyFilters(anomalies);
+  const filters = useAnomalyFilters(anomalies);
 
   const { historicFilter, historicSearch, setHistoricFilter, setHistoricSearch, resetHistoricFilters } =
     useHistoricFilterState();
@@ -229,7 +216,7 @@ export default function ManagerAnomalyPage() {
     );
   }, [buildings]);
 
-  const { chartData, anomalyPoints, chartError, chartLoading } = useAnomalyChartData(
+  const chart = useAnomalyChartData(
     anomalies,
     selectedBuildingForChart,
     chartMetric,
@@ -269,39 +256,19 @@ export default function ManagerAnomalyPage() {
 
           <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} summary={summary} />
 
-          <EnergyChart
-            loading={chartLoading}
-            error={chartError}
-            chartData={chartData}
-            anomalyPoints={anomalyPoints}
+          <AnomalyOverview
+            chart={chart}
+            filters={filters}
             buildings={buildings}
-            selectedBuilding={selectedBuildingForChart}
             chartMetric={chartMetric}
-            onBuildingChange={setSelectedBuildingForChart}
+            selectedBuildingForChart={selectedBuildingForChart}
+            onChartBuildingChange={setSelectedBuildingForChart}
             onMetricChange={setChartMetric}
             formatChartTime={formatChartTime}
-          />
-
-          <FilterBar
-            buildings={buildings}
-            selectedBuilding={selectedBuilding}
-            statusFilter={statusFilter}
-            severityFilter={severityFilter}
-            searchQuery={searchQuery}
-            onBuildingChange={setSelectedBuilding}
-            onStatusChange={setStatusFilter}
-            onSeverityChange={setSeverityFilter}
-            onSearchChange={setSearchQuery}
-            onReset={resetFilters}
+            formatDate={formatDate}
+            onRowClick={handleViewDetails}
             buildingFilterLabel="Building:"
           />
-
-          <section aria-label="Anomalies list">
-            <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
-              Current Anomalies
-            </h2>
-            <AnomaliesTable anomalies={filteredAnomalies} onRowClick={handleViewDetails} formatDate={formatDate} />
-          </section>
         </main>
       </div>
 

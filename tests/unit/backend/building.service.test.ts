@@ -31,14 +31,31 @@ const mockedPrisma = prisma as unknown as {
 };
 
 // we have to mocj the influx db 
-jest.mock('../../../backend/core/src/lib/influx', () => ({
-	__esModule: true,
-	queryTotalKwh: jest.fn(),
-	queryUsageDetails: jest.fn(),
-	queryUsageSeries: jest.fn(),
-	UTILITY_COST_ZAR_PER_KWH: 2.5,
-	UTILITY_COST_USD_PER_KWH: 0.15,
-}));
+jest.mock('../../../backend/core/src/lib/influx', () => {
+	const zarPerKwh = 2.5;
+	const usdPerKwh = 0.15;
+
+	return {
+		__esModule: true,
+		queryTotalKwh: jest.fn(),
+		queryUsageDetails: jest.fn(),
+		queryUsageSeries: jest.fn(),
+		UTILITY_COST_ZAR_PER_KWH: zarPerKwh,
+		UTILITY_COST_USD_PER_KWH: usdPerKwh,
+		ZAR_PER_USD: zarPerKwh / usdPerKwh,
+		resolveCostZar: (costZar: number, costUsd: number, kwh: number) => {
+			if (costZar > 0) {
+				return costZar;
+			}
+
+			if (costUsd > 0) {
+				return costUsd * (zarPerKwh / usdPerKwh);
+			}
+
+			return kwh * zarPerKwh;
+		},
+	};
+});
 
 // Mock provisioning service to avoid actual InfluxDB calls in tests
 jest.mock('../../../backend/core/src/services/provisioning.service', () => ({
