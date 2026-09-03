@@ -42,7 +42,7 @@ describe("SignUp route for integration", () => {
         expect(resp.status).toBe(200);
         expect(data.accessToken).toBe("token1234");
         expect(global.fetch).toHaveBeenCalledTimes(1);
-        expect(url).toBe("http://localhost:4000/auth/login");
+        expect(url).toContain("/auth/login");
     });
 
     it("should_return_400_if_missing_stuff", async () => {

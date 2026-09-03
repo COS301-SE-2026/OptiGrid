@@ -4,7 +4,6 @@ import type { CoreApiHarness } from "./harness/core-api-harness";
 import { startInfluxHarness, stopInfluxHarness } from "./harness/influx-container";
 import type { StartedInfluxHarness } from "./harness/influx-container";
 import { InfluxDB, Point } from "@influxdata/influxdb-client";
-import { forwardToIngestionService } from "../../../../backend/core/src/services/sensor.services";
 
 describe("Telemetry Integration Tests", () => {
     let harness: CoreApiHarness;
@@ -129,6 +128,7 @@ describe("Telemetry Integration Tests", () => {
                 json: jest.fn().mockResolvedValue(mockResponseJson),
             });
 
+            const { forwardToIngestionService } = await import("../../../../backend/core/src/services/sensor.services");
             const result = await forwardToIngestionService(mockPayload);
 
             expect(global.fetch).toHaveBeenCalledTimes(1);
