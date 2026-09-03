@@ -9,7 +9,7 @@ Built by **[Coreflow](https://github.com/OptiGrid)**
 ---
 
 [![Build](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/OptiGrid/ci.yml?label=BUILD&style=flat-square)](https://github.com/COS301-SE-2026/OptiGrid/actions)
-[![Coverage](https://img.shields.io/coveralls/github/COS301-SE-2026/OptiGrid?label=COVERAGE&style=flat-square)](https://coveralls.io/github/COS301-SE-2026/OptiGrid)
+[![Coverage](https://img.shields.io/codecov/c/github/COS301-SE-2026/OptiGrid?label=COVERAGE&style=flat-square)](https://codecov.io/gh/COS301-SE-2026/OptiGrid)
 [![Requirements](https://img.shields.io/badge/Requirements-Passing-success?style=flat-square)](https://github.com/COS301-SE-2026/OptiGrid)
 [![Issues](https://img.shields.io/github/issues/COS301-SE-2026/OptiGrid?label=ISSUES&style=flat-square)](https://github.com/COS301-SE-2026/OptiGrid/issues)
 [![Monitoring](https://img.shields.io/badge/Monitoring-UptimeRobot-brightgreen?style=flat-square)](https://uptimerobot.com)
@@ -39,6 +39,25 @@ The system connects building managers and energy grids through a sophisticated d
 
 ## GitHub Project Board
 [View GitHub Project Board →](https://github.com/orgs/COS301-SE-2026/projects)
+
+## Demo 3
+**SRS Document:**
+[Functional Requirements (SRS)](docs/SRS.md)
+
+**SAS Document:**
+[Functional Requirements (SAS)](docs/SAS.pdf)
+
+**Coding Standards Document:**
+[Coding Standards](docs/Coding_Standards.pdf)
+
+**User Manual:**
+[User Manual](docs/User_Manual.pdf)
+
+**Testing Policy Document:**
+[Testing Policy](docs/Testing_Policy.pdf)
+
+**Brand Style Guide:**
+[Brand Style Guide](docs/Brand_Style_Guide.pdf)
 
 ## Demo 2
 **SRS Document:**
