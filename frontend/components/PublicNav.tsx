@@ -15,7 +15,7 @@ export function PublicNav({
                     <nav className="landing-links" aria-label="Primary">
                         <a href={`${anchorPrefix}#features`}>Features</a>
                         <a href={`${anchorPrefix}#outcomes`}>Outcomes</a>
-                        <a href="/brand_style_guide (1).pdf" download="optigrid_brand_style_guide.pdf">Brand</a>
+                        <Link href="/brandstyle">Brand</Link>
                     </nav>
                 )}
                 <div className="landing-nav-actions">
