@@ -37,7 +37,7 @@ class RecommendationSynthesizer:
         #anomalies recommendations calc
         if anomalies:
             for i in anomalies:
-                if i.get("severity_level") in ["High", "Critical"] and i.get("status") == "Open":
+                if str(i.get("severity_level", "")).lower() in ["high", "critical"] and i.get("status") == "Open":
                     anomaly_rec = self._calculate_anomaly_investigation(building_id, building_type, i)
                     if anomaly_rec:
                         recs.append(anomaly_rec)

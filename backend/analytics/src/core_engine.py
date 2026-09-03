@@ -784,7 +784,7 @@ class AnalyticsEngine:
         mean_usage = df['usage'].mean()
         std_usage = df['usage'].std()        
         forecast_peak = ml_metrics.get("forecast_peak", 0.0) 
-        threshold_kw = mean_usage + (0.5 * std_usage)
+        threshold_kw = mean_usage + (0.2 * std_usage)
 
         recs_data = self.synthesizer.generate_data_driven_rec(
             building_id=building_id,
