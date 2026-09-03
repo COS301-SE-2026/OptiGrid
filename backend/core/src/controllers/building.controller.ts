@@ -100,7 +100,7 @@ export const listBuildingsController = async (req: Request, res: Response) => {
       return; 
     }
     
-    const buildings = await listBuildingsForUser(userId);
+    const buildings = await listBuildingsForUser(userId, req.user.roleType);
     
     const getUsage = await Promise.all(
       buildings.map(async (b) => {
@@ -171,7 +171,7 @@ export const getPortfolioConsumptionController = async (req: Request, res: Respo
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 
-    const portfolioConsumption = await getPortfolioConsumption(req.user.id);
+    const portfolioConsumption = await getPortfolioConsumption(req.user.id, req.user.roleType);
     return res.status(200).json({
       status: 'success',
       data: portfolioConsumption,

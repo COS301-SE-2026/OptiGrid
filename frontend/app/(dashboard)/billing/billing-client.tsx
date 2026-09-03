@@ -130,7 +130,7 @@ export default function BillingClient() {
     return (
         <div>
             <PageHeading
-                title="Billing settings"
+                title="Update tariff rates"
                 subtitle="Set the seasonal time-of-use rates used to cost energy usage and size the optimisation savings."
             />
 

@@ -35,7 +35,7 @@ describe("AuditPage", () => {
         } as never);
     });
 
-    it.each(["ADMIN", "BUILDING_MANAGER"])("allows %s users", async (roleType) => {
+    it.each(["ADMIN"])("allows %s users", async (roleType) => {
         mockParseSession.mockReturnValue({
             userId: "user-1",
             email: "user@optigrid.test",
@@ -57,13 +57,13 @@ describe("AuditPage", () => {
         expect(redirect).toHaveBeenCalledWith("/login");
     });
 
-    it("redirects viewers to the dashboard", async () => {
+    it.each(["VIEWER", "BUILDING_MANAGER"])("redirects %s to the dashboard", async (roleType) => {
         mockParseSession.mockReturnValue({
             userId: "viewer-1",
             email: "viewer@optigrid.test",
             firstName: "View",
             lastName: "User",
-            roleType: "VIEWER",
+            roleType,
         });
 
         await expect(AuditPage()).rejects.toThrow("redirect:/dashboard");
