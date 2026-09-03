@@ -109,10 +109,7 @@ export default function LandingPage() {
                         <a href="#features">Features</a>
                         <a href="#outcomes">Outcomes</a>
                         <Link href="/help">Help</Link>
-                    
-                        <a href="/brand_style_guide (1).pdf" download="optigrid_brand_style_guide.pdf">
-                        Brand Guide
-                        </a>
+                        <Link href="/brandstyle">brand guide</Link>
                     </nav>
                     <div className="landing-nav-actions">
                         <Link href="/login" className="btn btn-secondary">
