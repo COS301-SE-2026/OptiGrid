@@ -180,22 +180,22 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", authRate, userAuthRoutes);
-	app.use("/api/accounts", authenticateRequest, normalRate, accountRoutes);
-	app.use("/api/admin/users", authenticateRequest, strictRate, adminUserRoutes);
-	app.use("/api/admin/health", authenticateRequest, normalRate, systemHealthRoutes);
-	app.use("/api/admin/audit-logs", authenticateRequest, normalRate, auditLogRoutes);
-	app.use("/api/audit-events", authenticateRequest, normalRate, auditEventRoutes);
+	app.use("/api/accounts", normalRate, authenticateRequest, accountRoutes);
+	app.use("/api/admin/users", strictRate, authenticateRequest, adminUserRoutes);
+	app.use("/api/admin/health", normalRate, authenticateRequest, systemHealthRoutes);
+	app.use("/api/admin/audit-logs", normalRate, authenticateRequest, auditLogRoutes);
+	app.use("/api/audit-events", normalRate, authenticateRequest, auditEventRoutes);
 	app.use("/api/sensors", sensorRoutes);
-	app.use("/api/analytics", authenticateRequest, homeRate,analyticsRoutes);
-	app.use("/api/buildings", authenticateRequest, normalRate, buildingRoutes);
-	app.use("/api/preferences", authenticateRequest, normalRate, userPreferencesRoutes);
-	app.use("/api/contact", strictRate,contactRoutes);
-	app.use("/api/users",authRate, userAuthRoutes);
+	app.use("/api/analytics", homeRate, authenticateRequest, analyticsRoutes);
+	app.use("/api/buildings", normalRate, authenticateRequest, buildingRoutes);
+	app.use("/api/preferences", normalRate, authenticateRequest, userPreferencesRoutes);
+	app.use("/api/contact", strictRate, contactRoutes);
+	app.use("/api/users", authRate, userAuthRoutes);
 	app.use('/api/telemetry', telemetryRoutes);
-	app.use("/api/buildings/:building_id/recommendations", authenticateRequest, normalRate, recommendationRoutes);
-	app.use('/api/thresholds', authenticateRequest, normalRate, thresholdRoutes);
-	app.use('/api/anomalies', authenticateRequest, normalRate, anomalyRoutes);
-	app.use('/api/reports', authenticateRequest, normalRate, reportRoutes);
+	app.use("/api/buildings/:building_id/recommendations", normalRate, authenticateRequest, recommendationRoutes);
+	app.use('/api/thresholds', normalRate, authenticateRequest, thresholdRoutes);
+	app.use('/api/anomalies', normalRate, authenticateRequest, anomalyRoutes);
+	app.use('/api/reports', normalRate, authenticateRequest, reportRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });
