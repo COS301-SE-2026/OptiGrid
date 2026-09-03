@@ -23,7 +23,7 @@ class RecommendationSynthesizer:
     ) -> List[Dict[str, Any]]:
         recs = []
 
-        if thresold_kw < 0:
+        if thresold_kw <= 0:
             thresold_kw = 1
         #predictive peak recommendations calc
         peak_base_ratio = forecast_peak/thresold_kw
@@ -151,7 +151,7 @@ class RecommendationSynthesizer:
                     "min_expected": round(threshold_kw, 2),
                     "max_allowed": round(forecast_peak, 2)
                 },
-                "assumed_equipment": equipment,
+                "target_equipment": equipment,
                 "confidence_score": 0.85,
                 "context": context
             },
@@ -179,7 +179,7 @@ class RecommendationSynthesizer:
             "status": "Pending",
             "recommendation_category": "data",
             "applicable_range": {
-                "assumed_equipment": equipment,
+                "target_equipment": equipment,
                 "context": context,
                 "anomaly_id": anomaly.get("anomaly_id")
             },
@@ -218,7 +218,7 @@ class RecommendationSynthesizer:
             "status": "Pending",
             "recommendation_category": "non_data",
             "applicable_range": {
-                "assumed_equipment": equipment,
+                "target_equipment": equipment,
                 "context": context
             },
             "generated_date": datetime.now(timezone.utc).isoformat(),
