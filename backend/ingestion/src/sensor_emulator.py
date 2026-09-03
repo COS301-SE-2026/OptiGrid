@@ -118,7 +118,7 @@ async def post_telemetry(session, payload):
     except Exception as e:
         print(f"Network error posting telemetry: {e}")
 
-def _generate_sensor_payload(s, b_id, b, num_sensors, sensor_profiles, now, hour_fraction, timestamp):
+def _generate_sensor_payload(s, b_id, b, num_sensors, sensor_profiles, now, hour_fraction, timestamp, total_sensors=1):
     s_id = s["sensor_id"]
     if s_id not in sensor_profiles:
         sensor_profiles[s_id] = get_sensor_profile(s_id, b.get("square_footage"), b.get("building_type"), num_sensors)
@@ -128,9 +128,18 @@ def _generate_sensor_payload(s, b_id, b, num_sensors, sensor_profiles, now, hour
     prof = sensor_profiles[s_id]
     current_unix = now.timestamp()
     if current_unix > prof.get("anomaly_active_until", 0):
-        if secure_random.random() < (0.000001 * ANOMALY_FREQUENCY_MULTIPLIER):
+        probability_per_tick = (2.5 / 43200.0) * ANOMALY_FREQUENCY_MULTIPLIER / max(1, total_sensors)
+        if secure_random.random() < probability_per_tick:
             prof["anomaly_active_until"] = current_unix + secure_random.randint(60, 300)
-            prof["anomaly_mult"] = secure_random.uniform(3.0, 5.0) if secure_random.random() > 0.5 else secure_random.uniform(0.1, 0.3)
+            prof["anomaly_mult"] = secure_random.choice([
+                secure_random.uniform(1.3, 1.6), # low
+                secure_random.uniform(0.6, 0.8), # low
+                secure_random.uniform(1.6, 2.0), # medium
+                secure_random.uniform(0.4, 0.6), # medium
+                secure_random.uniform(2.0, 3.0), # high
+                secure_random.uniform(3.0, 5.0), # critical
+                secure_random.uniform(0.1, 0.3)  # critical
+            ])
         else:
             prof["anomaly_mult"] = 1.0
     
@@ -201,7 +210,7 @@ async def _run_single_iteration(
         b = active_emulator_buildings.get(b_id, {})
         num_sensors = sensors_per_building.get(b_id, 1)
         
-        payload = _generate_sensor_payload(s, b_id, b, num_sensors, sensor_profiles, now, hour_fraction, timestamp)
+        payload = _generate_sensor_payload(s, b_id, b, num_sensors, sensor_profiles, now, hour_fraction, timestamp, len(active_sensors))
         tasks.append(post_telemetry(session, payload))
 
     if tasks:
