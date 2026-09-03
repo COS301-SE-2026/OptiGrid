@@ -483,11 +483,11 @@ class AnalyticsEngine:
         try:
             # execute weekly query and convert to data frame
             res_weekly = self.influx.query_api().query_data_frame(query_weekly)
-            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
+            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, (list, tuple)) else res_weekly
             
             # execute monthly query and convert to data frame
             res_monthly = self.influx.query_api().query_data_frame(query_monthly)
-            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
+            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, (list, tuple)) else res_monthly
         except Exception:
             logger.exception("Failed to query InfluxDB for building %s", clean_id)
             return
@@ -498,9 +498,9 @@ class AnalyticsEngine:
             try:
                 # retry queries after seeding
                 res_weekly = self.influx.query_api().query_data_frame(query_weekly)
-                df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
+                df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, (list, tuple)) else res_weekly
                 res_monthly = self.influx.query_api().query_data_frame(query_monthly)
-                df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
+                df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, (list, tuple)) else res_monthly
             except Exception:
                 logger.exception("Re-querying InfluxDB after seeding failed for %s", clean_id)
                 return
@@ -626,9 +626,9 @@ class AnalyticsEngine:
             time.sleep(3) # Wait for InfluxDB to index newly seeded data
             # retry queries after seeding
             res_w = self.influx.query_api().query_data_frame(query_weekly)
-            df_w = pd.concat(res_w) if isinstance(res_w, list) else res_w
+            df_w = pd.concat(res_w) if isinstance(res_w, (list, tuple)) else res_w
             res_m = self.influx.query_api().query_data_frame(query_monthly)
-            df_m = pd.concat(res_m) if isinstance(res_m, list) else res_m
+            df_m = pd.concat(res_m) if isinstance(res_m, (list, tuple)) else res_m
             return df_w, df_m
         except Exception:
             logger.exception("Re-querying InfluxDB after seeding failed")
@@ -698,11 +698,11 @@ class AnalyticsEngine:
         try:
             # Execute weekly query and convert to data frame
             res_weekly = self.influx.query_api().query_data_frame(query_weekly)
-            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
+            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, (list, tuple)) else res_weekly
             
             # Execute monthly query and convert to data frame
             res_monthly = self.influx.query_api().query_data_frame(query_monthly)
-            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
+            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, (list, tuple)) else res_monthly
         except Exception:
             logger.exception("InfluxDB batch query failed")
             df_weekly = pd.DataFrame()
@@ -749,9 +749,9 @@ class AnalyticsEngine:
         try:
             #get data frama for weekly n monthly
             res_weekly = self.influx.query_api().query_data_frame(weekly)
-            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
+            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, (list, tuple)) else res_weekly
             res_monthly = self.influx.query_api().query_data_frame(monthly)
-            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
+            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, (list, tuple)) else res_monthly
         except Exception as error:
             logger.exception("InfluxDB building query failed")
             df_weekly = pd.DataFrame()
