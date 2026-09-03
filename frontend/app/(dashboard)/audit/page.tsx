@@ -12,7 +12,7 @@ export default async function AuditPage() {
         redirect("/login");
     }
 
-    if (user.roleType !== "ADMIN" && user.roleType !== "BUILDING_MANAGER") {
+    if (user.roleType !== "ADMIN") {
         redirect("/dashboard");
     }
     return <AuditClient />;

@@ -10,7 +10,7 @@ const router = Router();
  * /api/admin/audit-logs:
  *   get:
  *     summary: View Audit Logs
- *     description: Returns a chronological ledger of user logins and configuration changes. Admins can view all entries; building managers are limited to their own entries and actions tied to their authorized buildings. Newest entries first.
+ *     description: Returns a chronological ledger of user logins and configuration changes. Admins can view all entries. Newest entries first.
  *     tags:
  *       - Audit
  *     security:
@@ -42,7 +42,7 @@ const router = Router();
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Restrict the ledger to a single actor. Building-manager results remain limited to their own entries and authorized buildings.
+ *         description: Restrict the ledger to a single actor.
  *       - in: query
  *         name: from
  *         required: false
@@ -133,9 +133,9 @@ const router = Router();
  *       '401':
  *         description: Unauthorized
  *       '403':
- *         description: Forbidden, the caller is not an admin or building manager
+ *         description: Forbidden, the caller is not an admin
  *       '500':
  *         description: Internal Server Error
  */
-router.get('/', reqRole([UserRole.ADMIN, UserRole.BUILDING_MANAGER]), listAuditLogsController);
+router.get('/', reqRole([UserRole.ADMIN]), listAuditLogsController);
 export default router;
