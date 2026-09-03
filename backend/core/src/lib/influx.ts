@@ -12,6 +12,19 @@ const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'ener
 
 export const UTILITY_COST_ZAR_PER_KWH = 2.50;
 export const UTILITY_COST_USD_PER_KWH = 0.13;
+export const ZAR_PER_USD = UTILITY_COST_ZAR_PER_KWH / UTILITY_COST_USD_PER_KWH;
+
+// cost_usd and cost_zar are different currencies. The usd reading has to be converted before it is reported as rand rather than passed through as if it were already zar
+export const resolveCostZar = (costZar: number, costUsd: number, kwh: number): number => {
+    if (costZar > 0) {
+        return costZar;
+    }
+    if (costUsd > 0) {
+        return costUsd * ZAR_PER_USD;
+    }
+
+    return kwh * UTILITY_COST_ZAR_PER_KWH;
+};
 
 const allowedTimeRanges = new Set(['today', '1d', '7d', '30d', '90d', '1y']);
 const telemetryMeasurements = ['energy_consumption', 'building_energy_usage', 'energy_telemetry_downsampled', 'energy_telemetry'];
@@ -261,7 +274,7 @@ async function queryBucketUsageSeries(
             return {
                 timestamp,
                 kwh,
-                cost_zar: point.costZar > 0 ? point.costZar : (point.costUsd > 0 ? point.costUsd : kwh * UTILITY_COST_ZAR_PER_KWH),
+                cost_zar: resolveCostZar(point.costZar, point.costUsd, kwh),
             };
         });
 }

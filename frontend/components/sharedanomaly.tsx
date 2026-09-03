@@ -102,6 +102,33 @@ function getZScoreLabel(zScore: number): string {
   return "Slight Variance";
 }
 
+export function roundToTwo(value: number): number {
+  return Number.isFinite(value) ? Number(value.toFixed(2)) : 0;
+}
+
+export function toFiniteValue(value: unknown): number {
+  const parsedValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+export function formatMetricValue(value: number, metric: MetricType): string {
+  const amount = roundToTwo(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+  return metric === "cost" ? `R ${amount}` : `${amount} kWh`;
+}
+
+export function formatAxisTick(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 2,
+  });
+}
+
 function resolveBuildingId(selectedBuilding: string, buildingsList: Building[] = []): string {
   if (selectedBuilding !== "all") {
     return selectedBuilding;
@@ -560,8 +587,11 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
                 tick={{ fill: "var(--brand-ink-muted)", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
+                width={70}
+                domain={[0, (dataMax: number) => (dataMax > 0 ? dataMax * 1.1 : 1)]}
+                tickFormatter={formatAxisTick}
                 label={{
-                  value: chartMetric === "power" ? "kWh" : "R",
+                  value: chartMetric === "power" ? "Energy (kWh)" : "Cost (R)",
                   angle: -90,
                   position: "insideLeft",
                   style: { fill: "var(--brand-ink-muted)", fontSize: 10 }
@@ -578,18 +608,18 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
                 labelFormatter={(label) => new Date(label).toLocaleString()}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter={(value: number, name: string, item: any) => {
-                  const unit = chartMetric === "power" ? "kWh" : "R";
+                  const formatted = formatMetricValue(value, chartMetric);
                   const isAnomaly = item?.payload?.isAnomaly;
                   if (name === "actual") {
                     return [
-                      isAnomaly ? `${value} ${unit} (Anomaly Detected ⚠️)` : `${value} ${unit}`,
+                      isAnomaly ? `${formatted} (anomaly detected)` : formatted,
                       "Actual",
                     ];
                   }
                   if (name === "expected") {
-                    return [`${value} ${unit}`, "Expected"];
+                    return [formatted, "Expected"];
                   }
-                  return [`${value} ${unit}`, name];
+                  return [formatted, name];
                 }}
               />
               <defs>
@@ -772,11 +802,13 @@ export function parseNumberOrNull(value: string): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+const EMPTY_BUILDINGS: Building[] = [];
+
 export function useAnomalyChartData(
   anomalies: Anomaly[],
   selectedBuildingForChart: string,
   chartMetric: MetricType,
-  buildings: Building[] = []
+  buildings: Building[] = EMPTY_BUILDINGS
 ) {
   const [seriesData, setSeriesData] = useState<{ timestamp: string; kwh: number; cost_zar: number }[]>([]);
 
@@ -824,8 +856,8 @@ export function useAnomalyChartData(
         const hour = pDate.getHours();
         const current = hourlyBaselines.get(hour) || { kwhSum: 0, costSum: 0, count: 0 };
         hourlyBaselines.set(hour, {
-          kwhSum: current.kwhSum + point.kwh,
-          costSum: current.costSum + point.cost_zar,
+          kwhSum: current.kwhSum + toFiniteValue(point.kwh),
+          costSum: current.costSum + toFiniteValue(point.cost_zar),
           count: current.count + 1,
         });
       }
@@ -838,19 +870,21 @@ export function useAnomalyChartData(
       const hour = pDate.getHours();
       
       const baseline = hourlyBaselines.get(hour);
-      const expectedKwh = baseline && baseline.count > 0 ? baseline.kwhSum / baseline.count : point.kwh * 0.85;
-      const expectedCost = baseline && baseline.count > 0 ? baseline.costSum / baseline.count : point.cost_zar * 0.85;
-      
+      const actualKwh = toFiniteValue(point.kwh);
+      const actualCost = toFiniteValue(point.cost_zar);
+      const expectedKwh = baseline && baseline.count > 0 ? baseline.kwhSum / baseline.count : actualKwh * 0.85;
+      const expectedCost = baseline && baseline.count > 0 ? baseline.costSum / baseline.count : actualCost * 0.85;
+
       return {
         timestamp: point.timestamp,
-        actual: point.kwh,
-        expected: expectedKwh, 
-        cost: point.cost_zar,
-        expectedCost: expectedCost,
+        actual: roundToTwo(actualKwh),
+        expected: roundToTwo(expectedKwh),
+        cost: roundToTwo(actualCost),
+        expectedCost: roundToTwo(expectedCost),
         isAnomaly,
       };
     });
-  }, [seriesData, selectedBuildingForChart, anomalies]);
+  }, [seriesData, selectedBuildingForChart, anomalies, buildings]);
 
   const anomalyPoints = useMemo(() => {
     return chartData
