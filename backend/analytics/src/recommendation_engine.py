@@ -120,9 +120,9 @@ class RecommendationSynthesizer:
             if tar.get("peak_end_time"):
                 peak_end = str(tar["peak_end_time"])[:5]
 
-        peak_kwh_saved = kw_reduced * 2.0
-        # Assume peak occurs every weekday (approx 20 days a month)
-        rate = 20
+        peak_kwh_saved = kw_reduced * 0.5 # assume 50% of the peak reduction is achievable for 1 hour
+        # Assume peak occurs half the weekdays (approx 10 days a month)
+        rate = 10
         monthly_savings = (peak_rate*peak_kwh_saved) * rate
 
 
@@ -175,7 +175,7 @@ class RecommendationSynthesizer:
         return {
             "building_id": building_id,
             "strategy_description": startegy,
-            "estimated_monthly_savings": 200.0,
+            "estimated_monthly_savings": 100.0,
             "status": "Pending",
             "recommendation_category": "data",
             "applicable_range": {
@@ -194,22 +194,22 @@ class RecommendationSynthesizer:
         equipment = self.get_probable_equipment(building_type)
         if context == "Winter Optimisation":
             strategy = f"Winter tariffs are active. Shift non-essential heavy loads (like {equipment}) to off-peak hours to avoid seasonal peak surcharges."
-            savings = 500.0
+            savings = 250.0
         elif context == "Summer Lighting":
             strategy= "Sunset is occurring later. Adjust outdoor lighting and communal area timer schedules to match daylight hours."
-            savings =150.0
+            savings = 75.0
         elif context == "Winter Heating":
             strategy = f"Winter temperatures increase aggregate load. Ensure climate control and heating systems (such as {equipment}) are on strict timers to prevent overnight idling."
-            savings = 300.0
+            savings = 150.0
         elif context == "Spring HVAC Optimisation":
             strategy = f"Spring weather can be variable. Optimise HVAC systems (such as {equipment}) by relying more on fresh air ventilation to reduce baseload."
-            savings = 250.0
+            savings = 125.0
         elif context == "Autumn Lighting":
             strategy = f"Days are getting shorter in autumn. Adjust outdoor lighting and communal area timer schedules to match daylight hours efficiently."
-            savings = 150.0
+            savings = 75.0
         else:
             strategy = f"General seasonal optimisation for {context}. Monitor usage on {equipment}."
-            savings = 100.0
+            savings = 50.0
 
         return {
             "building_id": building_id,

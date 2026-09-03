@@ -1,3 +1,6 @@
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/optigrid_test?schema=public";
+}
 import request from 'supertest';
 import { UserRole } from '@prisma/client';
 import { createApp } from '../../../backend/core/src/app';
