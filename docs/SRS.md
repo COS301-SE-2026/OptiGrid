@@ -480,7 +480,7 @@ Non-functional requirements describe the quality attributes and operational char
 * **Scalability** – The system should support an increase in workload of up to 200% without requiring major architectural changes or experiencing more than a 10% decrease in performance.
 * **Security** – All sensitive user data should be encrypted using AES-256 encryption, and the system should enforce multi-factor authentication for administrative accounts.
 * **Reliability** – The system should achieve 99.9% uptime and recover from critical failures within 5 minutes.
-* **Maintainability** – New features or bug fixes should be deployable within 2 hours, and the codebase should maintain at least 80% automated test coverage.
+* **Maintainability** – Each first-party application function shall have a cyclomatic complexity of at most 10, measured using the versioned JavaScript/TypeScript and Python analyzers documented in the maintainability test plan, and the codebase shall maintain at least 80% automated test coverage. Complexity analysis excludes test fixtures, generated code, type declarations, and third-party dependencies; application callbacks, methods, and nested functions are included. See [maintainability test scope and execution](../tests/nfr/maintainability/README.md).
 * **Usability** – A new user should be able to complete core tasks within 5 minutes of first using the system, with at least 85% user satisfaction during usability testing.
 * **Availability** – The system should be available 24/7, excluding scheduled maintenance periods not exceeding 2 hours per month.
 
