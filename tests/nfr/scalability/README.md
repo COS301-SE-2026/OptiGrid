@@ -1,4 +1,17 @@
-# Local scalability NFR tests
+# Local scalability and architectural capability tests (v2)
+
+The user approved this criteria revision on 2026-09-03 after reviewing the
+original results. **SC02 now measures horizontal scaling effectiveness at the
+same workload; SC05 measures local scaling responsiveness.** SC01 retains the
+SRS's baseline-relative latency target, and SC03/SC04 retain their original
+criteria. Every run reports both v2 and the original-v1 outcomes. A 60% v2
+capability score is not a claim that the SRS scalability requirement passes.
+
+`assessment.mjs` is the single source for both assessments. `assessment.test.mjs`
+checks that lost data, idle replicas, invalid load, slow scaling, and missing
+readiness evidence cannot produce passing capability results. It also checks
+that original latency failures and warm-up errors remain visible. Diagnostic
+checks are reported separately, outside the fixed SC01–SC05 denominator.
 
 This suite implements SC01–SC05 for the scalability requirement in SRS section 6.
 It runs actual OptiGrid ingestion, queue workers, InfluxDB, Redis and the
@@ -45,10 +58,10 @@ under-two-second dashboard freshness claim are outside this suite's scope.
 | ID | Quality requirement and architectural tactic | Executable scenario | Pass criterion | Evidence |
 | --- | --- | --- | --- | --- |
 | SC01 | SRS scalability; independent ingestion services and horizontal replicas | Run W/one replica, 2W/two replicas and 3W/three replicas for five measured minutes each. Scale both ingestion APIs and workers. | Both elevated ingestion p95 values ≤1.10× baseline; errors <1%; generator valid; accepted points persisted and queues drained in all three phases. | `results.json`, baseline/double/triple_scaled request traces, samples, reconciliation and topology logs. |
-| SC02 | Horizontal scaling and load distribution | Compare the same 150/s workload with one and three API/worker replicas. | Three replicas meet SC01's baseline-relative latency, errors, generator and persistence criteria; all three APIs accept traffic and all three workers write points. The one-versus-three improvement is reported separately, without assuming linear speedup. | `triple_single-*`, `triple_scaled-*`, per-upstream request totals and individual worker logs. |
+| SC02 | Horizontal scaling effectiveness and load distribution | Compare the same 150/s workload with one and three API/worker replicas for the unchanged measurement duration. | Three-replica p95 is strictly lower than one-replica p95 at the same workload; both trials have errors <1%, valid generators, accepted-point persistence and queue drainage; all three APIs accept traffic and all three workers write points. SC01 separately retains baseline-relative latency. | `triple_single-*`, `triple_scaled-*`, per-upstream request totals and individual worker logs. |
 | SC03 | Microservice separation and independent frontend resources | Read `frontend /api/telemetry/live` → core → InfluxDB at 2/s while ingestion rises from W/one replica to 3W/three replicas. Validate 100 actual building rows. | Read p95 ≤1.10× baseline; errors <1%; generator valid; exactly one frontend replica before and after. | Baseline/high read traces, container topology, resource snapshots. |
 | SC04 | Redis buffering and asynchronous workers | Send 150/s for 60 seconds with three APIs/workers, then stop traffic and observe drainage. | Valid generator, ingestion errors <1%, zero missing/unexpected telemetry keys and empty queue within 120 seconds. | `burst-requests.ndjson`, `burst-samples.json`, `burst-reconciliation.json`, worker logs. |
-| SC05 | Experimental traffic-driven local autoscaling | Start one API/worker under 150/s. Sample the proxy's measured ten-second request rate; ≥100/s sustained for ten seconds triggers Compose scaling to three. | Three healthy/discovered APIs and three running workers within 60 seconds of trigger; measured ingestion meets SC01's latency/error/generator/persistence criteria. | `SC05-controller-events.json`, scaling logs, `automatic-*` traces/topologies. |
+| SC05 | Experimental traffic-driven local scaling responsiveness | Start one API/worker under 150/s. Sample the proxy's measured ten-second request rate; ≥100/s sustained for ten seconds triggers Compose scaling to three. | Recorded sustained-load trigger; three healthy APIs and three running workers in the immediate readiness topology within 60 seconds; measured errors <1%, valid generator and accepted-point persistence. Original baseline-relative latency and request continuity remain separately reported. | `SC05-controller-events.json`, scaling logs, `automatic-*` traces/topologies. |
 
 SC04 verifies burst buffering with healthy dependencies. It does not verify
 durability during Redis/database failure. SC05 has no scale-down policy, cooldown
@@ -61,9 +74,15 @@ well before making any claim about uninterrupted requests during scaling.
 
 ## Setup and execution
 
-Run from the repository root using Node 22, the installed pnpm workspace
-dependencies, and Docker Desktop with Linux containers and Compose v2. The runner
-uses the existing root `ioredis` and core `@influxdata/influxdb-client` packages.
+Run from the repository root using Node 22 and Docker Desktop with Linux
+containers and Compose v2. The runner has its own pinned dependencies; install
+them without installing the entire application workspace:
+
+```powershell
+npm install --prefix tests/nfr/scalability --ignore-scripts
+node --test tests/nfr/scalability/assessment.test.mjs
+```
+
 The core's `backend/core/dist` must be built from the source under test:
 
 ```powershell
@@ -99,7 +118,8 @@ Full execution takes about 30 minutes, plus any queue-drain time. A unique
 timestamped evidence directory is created under `test-results/scalability/`.
 Use `--output test-results/scalability/my-run` to name one; use a new directory
 for each run to preserve earlier evidence. Exit code 0 means all scoped tests
-pass; 1 means a failed criterion or execution error. Missing scenarios are
+pass; 1 means a failed criterion or execution error, even if the revised score
+reaches 60%. Missing scenarios are
 recorded as BLOCKED if execution stops early. A preflight PASS alone is not an
 NFR pass.
 
@@ -107,7 +127,7 @@ The runner stops only its own test containers when done. `--keep-stack` leaves
 them available for inspection. To stop a retained test stack:
 
 ```powershell
-docker compose -p optigrid-nfr-scale-0903 -f tests/nfr/scalability/compose.yml stop
+docker compose -p optigrid-nfr-scale-capabilities-v2 -f tests/nfr/scalability/compose.yml stop
 ```
 
 Do not run two copies simultaneously: test ports are fixed. The optional
@@ -132,7 +152,11 @@ test values. The normal OptiGrid stack and Supabase are left running.
 | InfluxDB | 2 | 768 MiB | 1 |
 
 `proxy.mjs` supplies round-robin routing and traffic measurements for the local
-harness. `core-entry.cjs` starts the actual core HTTP application without its
+harness. V2 checks API readiness and Redis connectivity before routing to a new
+replica; DNS discovery alone is not readiness. It does not retry failed POSTs.
+This harness reliability change is distinct from the criteria revision and
+must be disclosed when comparing the new run with historical measurements.
+`core-entry.cjs` starts the actual core HTTP application without its
 unrelated scheduled jobs. It does not replace route handlers or bypass route
 authentication. The existing live-telemetry route used here requires no login;
 authenticated metadata operations and Supabase are outside scope.
@@ -157,17 +181,32 @@ telemetry key. Reconciliation JSON contains accepted/stored keys and queue-drain
 observations. Worker logs establish actual persistence activity; controller logs
 establish a measured-load trigger instead of a timer that merely starts replicas.
 
-Use `docs/testing/scalability-results-2026-09-03.md` for the measured SAS table and
-report, and retain the raw evidence directory/ZIP with the submission. If a
+Use `docs/testing/scalability-results-v2-2026-09-03.md` for the new measured table
+and report. The preserved original report is
+`docs/testing/scalability-results-2026-09-03-original.md`. Retain raw evidence
+with the submission. If a
 criterion fails, keep the target and improve the tactic before rerunning the same
 plan. Local evidence must be labelled local in the SAS.
 
 The saved measurements can also be checked offline, without starting containers:
 
 ```powershell
-node tests/nfr/scalability/audit-evidence.mjs test-results/scalability/2026-09-03-local
+node tests/nfr/scalability/audit-evidence.mjs test-results/scalability/v2-full-2026-09-03
 ```
 
 This produces `evidence-audit.json`, recomputing counts and p95 from request
 traces and checking that reconciliation covers all accepted keys. An audit PASS
 means the evidence is internally consistent; it does not change an NFR FAIL.
+
+To apply the approved revision to an existing complete run without modifying
+its evidence, use a new output directory:
+
+```powershell
+node scripts/reassess-scalability.mjs <original-evidence-directory> --output <new-reassessment-directory>
+```
+
+This runs the offline raw-trace audit, checks that original-v1 outcomes still
+match the saved results, and reads the immediate controller readiness topology
+and events. It saves a new `reassessment.json` with the original result hash.
+Its output is explicitly retrospective; it is not a fresh benchmark. Use a
+fresh full run to establish current behaviour under the revised criteria.

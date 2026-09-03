@@ -318,6 +318,27 @@ pnpm --filter @optigrid/frontend run test
 pnpm --filter @optigrid/core run test
 ```
 
+### Run Scalability Tests
+
+The isolated local Docker suite measures 50/100/150 telemetry requests per
+second and reports both the original SRS-oriented criteria and revised
+architectural capability checks. A capability pass percentage does not establish
+SRS compliance; SC01 and scale-up request failures remain reported separately.
+
+```powershell
+npm install --prefix tests/nfr/scalability --ignore-scripts
+npm run test:nfr:scalability:assessment
+npm run test:nfr:scalability:preflight
+npm run test:nfr:scalability
+```
+
+See the [setup and fixed test plan](tests/nfr/scalability/README.md),
+[fresh benchmark results](docs/testing/scalability-results-v2-2026-09-03.md),
+[preserved original results](docs/testing/scalability-results-2026-09-03-original.md),
+and [revised-criteria reassessment](docs/testing/scalability-reassessment-v2-2026-09-03.md).
+The full workload takes about 30 minutes after setup. A nonzero benchmark exit
+code still indicates at least one failing check, even when 60% of checks pass.
+
 ### Run Integration Tests
 
 ```bash

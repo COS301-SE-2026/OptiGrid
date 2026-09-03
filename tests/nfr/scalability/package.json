@@ -1,0 +1,14 @@
+{
+  "name": "optigrid-scalability-harness",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test assessment.test.mjs",
+    "preflight": "node ../../../scripts/nfr-scalability.mjs --mode preflight",
+    "benchmark": "node ../../../scripts/nfr-scalability.mjs"
+  },
+  "dependencies": {
+    "@influxdata/influxdb-client": "1.35.0",
+    "ioredis": "5.10.1"
+  }
+}

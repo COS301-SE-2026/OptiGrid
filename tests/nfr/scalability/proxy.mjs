@@ -10,9 +10,25 @@ let perUpstream = {};
 let total = 0;
 async function discover() {
   if (Date.now() < refreshAt && upstreams.length) return;
-  if (!refresh) refresh = dns.resolve4('ingestion-api').then(ips => { upstreams = [...new Set(ips)].sort(); refreshAt = Date.now() + 1000; }).finally(() => { refresh = undefined; });
+  if (!refresh) refresh = dns.resolve4('ingestion-api').then(async ips => {
+    // Docker DNS announces new containers before Uvicorn is ready. Route only
+    // to replicas whose actual health endpoint reports Redis connectivity.
+    const checked = await Promise.all([...new Set(ips)].sort().map(async ip => {
+      try {
+        const response = await fetch(`http://${ip}:8000/health`, { signal: AbortSignal.timeout(1000) });
+        const health = await response.json();
+        return response.ok && health.status === 'ok' && health.redis === 'connected' ? ip : null;
+      } catch { return null; }
+    }));
+    upstreams = checked.filter(Boolean);
+    refreshAt = Date.now() + 1000;
+  }).finally(() => { refresh = undefined; });
   await refresh;
 }
+// Do not hold ordinary writes behind a readiness check for a new replica.
+// If no healthy upstream exists yet, the request path awaits discovery.
+const discoveryTimer = setInterval(() => { discover().catch(error => console.error('Discovery:', error.message)); }, 1000);
+discoveryTimer.unref();
 const server = http.createServer(async (req, res) => {
   if (req.url === '/_nfr/metrics') {
     await discover().catch(() => {});
@@ -33,7 +49,7 @@ const server = http.createServer(async (req, res) => {
     for (const key of buckets.keys()) if (key < second - 30) buckets.delete(key);
   }
   try {
-    await discover();
+    if (!upstreams.length) await discover();
     const host = upstreams[cursor++ % upstreams.length];
     if (!host) throw new Error('No ingestion replicas available');
     const forwarded = http.request({ hostname: host, port: 8000, path: req.url, method: req.method, headers: { ...req.headers, host: `${host}:8000` }, agent, timeout: 10000 }, upstream => {
@@ -51,4 +67,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 server.listen(8080, '0.0.0.0');
-process.on('SIGTERM', () => server.close(() => process.exit(0)));
+process.on('SIGTERM', () => { clearInterval(discoveryTimer); agent.destroy(); server.close(() => process.exit(0)); });

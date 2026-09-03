@@ -7,17 +7,18 @@ import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { assessCapabilities } from '../tests/nfr/scalability/assessment.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const require = createRequire(path.join(root, 'package.json'));
-const requireCore = createRequire(path.join(root, 'backend/core/package.json'));
+const require = createRequire(path.join(root, 'tests/nfr/scalability/package.json'));
 const Redis = require('ioredis');
-const { InfluxDB } = requireCore('@influxdata/influxdb-client');
+const { InfluxDB } = require('@influxdata/influxdb-client');
 const argv = process.argv.slice(2);
 const arg = (key, fallback) => argv.includes(key) ? argv[argv.indexOf(key) + 1] : fallback;
-const project = arg('--project', 'optigrid-nfr-scale-0903');
+const project = arg('--project', 'optigrid-nfr-scale-capabilities-v2');
 if (!/^optigrid-nfr-scale-[a-z0-9-]+$/.test(project)) throw new Error('Only isolated optigrid-nfr-scale-* projects are allowed.');
 const stamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
 const out = path.resolve(root, arg('--output', `test-results/scalability/${stamp}`));
+if (fs.existsSync(out) && fs.readdirSync(out).length) throw new Error('Use a new output directory; existing evidence must not be overwritten.');
 fs.mkdirSync(out, { recursive: true });
 const configDir = path.join(root, 'tests/nfr/scalability');
 const composeFile = path.join(configDir, 'compose.yml');
@@ -173,7 +174,9 @@ async function controller(signal, events) {
         const workerCount = state.filter(c => c.Service === 'ingestion-worker' && c.State === 'running').length;
         const elapsedSeconds = (Date.now() - triggeredAt) / 1000;
         emit({ type: 'ready', apiCount, workerCount, elapsedSeconds });
-        return { triggered: true, elapsedSeconds, apiCount, workerCount, passed: elapsedSeconds <= plan.autoscaleDeadlineSeconds && apiCount === plan.maxReplicas && workerCount === plan.maxReplicas };
+        return { triggered: true, elapsedSeconds, apiCount, workerCount,
+          readyTopology: state.map(({ Service, State, Health }) => ({ Service, State, Health })), events,
+          passed: elapsedSeconds <= plan.autoscaleDeadlineSeconds && apiCount === plan.maxReplicas && workerCount === plan.maxReplicas };
       }
     } else exceededAt = undefined;
     await sleep(2000);
@@ -215,7 +218,7 @@ async function phase(name, rps, replicas, { warmup = plan.warmupSeconds, seconds
       status = response.status; upstream = response.headers.get('x-nfr-upstream');
       const body = await response.json();
       ok = kind === 'write' ? status === 201 && body.status === 'success' && body.building_id === point.building_id : status === 200 && body.status === 'success' && Array.isArray(body.data) && body.data.length === plan.buildingCount && body.data.every(row => seedIds.includes(row.building_id) && Number.isFinite(row.current_kw));
-      if (!ok) error = `Unexpected response: HTTP ${status}, records=${body.data?.length}`;
+      if (!ok) error = `Unexpected response: HTTP ${status}, records=${body.data?.length}, message=${String(body.message ?? '').slice(0, 300)}`;
     } catch (err) { error = err.message; }
     const record = { kind, measured, index, status, ok, upstream, latencyMs: performance.now() - started, scheduleLagMs: started - due, time: new Date().toISOString(), pointKey: point ? pointKey(point) : undefined, error };
     if (kind === 'write') { allWrites.push(record); if (ok) expectedKeys.add(record.pointKey); }
@@ -268,17 +271,8 @@ async function phase(name, rps, replicas, { warmup = plan.warmupSeconds, seconds
   }
   return data;
 }
-const ratio = (high, baseline) => high / baseline;
-function validGenerator(measure) { return Math.abs(measure.sent - measure.expected) / measure.expected <= plan.offeredRateTolerance && measure.scheduleP95Ms <= plan.maxScheduleP95Ms; }
-function trafficPass(measure, baseline) { return validGenerator(measure) && measure.errorRate < plan.errorRateLimit && ratio(measure.p95Ms, baseline.p95Ms) <= plan.latencyRatioLimit; }
 function assess() {
-  const b = report.phases.baseline; const d = report.phases.double; const h = report.phases.triple_scaled; const s = report.phases.triple_single; const burst = report.phases.burst; const auto = report.phases.automatic;
-  const frontCount = phase => phase.after.filter(c => c.Service === 'frontend' && c.State === 'running').length;
-  if (b && d && h) report.results.SC01 = { status: validGenerator(b.writes) && b.writes.errorRate < plan.errorRateLimit && trafficPass(d.writes, b.writes) && trafficPass(h.writes, b.writes) && [b, d, h].every(p => p.reconciliation.passed) ? 'PASS' : 'FAIL', baselineP95Ms: b.writes.p95Ms, doubleLatencyRatio: ratio(d.writes.p95Ms, b.writes.p95Ms), tripleLatencyRatio: ratio(h.writes.p95Ms, b.writes.p95Ms) };
-  if (b && s && h) report.results.SC02 = { status: trafficPass(h.writes, b.writes) && h.reconciliation.passed && Object.values(h.finalProxy.perUpstream).filter(u => u.accepted > 0).length === plan.maxReplicas && h.reconciliation.workerActivity.filter(w => w.flushedMessages > 0).length === plan.maxReplicas ? 'PASS' : 'FAIL', oneReplicaP95Ms: s.writes.p95Ms, threeReplicaP95Ms: h.writes.p95Ms, improvementPercent: (1 - h.writes.p95Ms / s.writes.p95Ms) * 100, perUpstream: h.finalProxy.perUpstream, workerActivity: h.reconciliation.workerActivity };
-  if (b && h) report.results.SC03 = { status: validGenerator(b.reads) && b.reads.errorRate < plan.errorRateLimit && trafficPass(h.reads, b.reads) && frontCount(b) === 1 && frontCount(h) === 1 ? 'PASS' : 'FAIL', baselineReadP95Ms: b.reads.p95Ms, highReadP95Ms: h.reads.p95Ms, latencyRatio: ratio(h.reads.p95Ms, b.reads.p95Ms), frontendReplicasBaseline: frontCount(b), frontendReplicasHigh: frontCount(h) };
-  if (burst) report.results.SC04 = { status: burst.reconciliation.passed && validGenerator(burst.writes) && burst.writes.errorRate < plan.errorRateLimit ? 'PASS' : 'FAIL', ...burst.reconciliation };
-  if (b && auto) report.results.SC05 = { status: auto.controller?.passed && trafficPass(auto.writes, b.writes) && auto.reconciliation.passed ? 'PASS' : 'FAIL', controller: auto.controller, latencyRatio: ratio(auto.writes.p95Ms, b.writes.p95Ms), errorRate: auto.writes.errorRate, scope: 'Experimental local controller; no production autoscaler claim.' };
+  Object.assign(report, assessCapabilities(report.phases, plan));
   save();
 }
 let cleanupReady = false;
@@ -290,7 +284,7 @@ try {
   const imageRefs = { NFR_INGESTION_IMAGE: 'ghcr.io/local/optigrid-ingestion:latest', NFR_CORE_IMAGE: 'ghcr.io/local/optigrid-core:latest', NFR_FRONTEND_IMAGE: 'ghcr.io/local/optigrid-frontend:latest', NFR_REDIS_IMAGE: 'redis:7-alpine', NFR_INFLUX_IMAGE: 'influxdb:2.7-alpine' };
   report.images = {};
   for (const [key, ref] of Object.entries(imageRefs)) { const image = await docker(['image', 'inspect', ref, '--format', '{{.Id}}'], `image-${key}`); env[key] = image.stdout.trim(); report.images[key] = { ref, id: env[key] }; }
-  const sourceFiles = ['backend/ingestion/src/main.py', 'backend/ingestion/src/queue_worker.py', 'backend/ingestion/src/observers.py', 'backend/core/dist/src/app.js', 'backend/core/dist/src/controllers/telemetry.controller.js', 'tests/nfr/scalability/compose.yml', 'tests/nfr/scalability/plan.json', 'scripts/nfr-scalability.mjs'];
+  const sourceFiles = ['backend/ingestion/src/main.py', 'backend/ingestion/src/queue_worker.py', 'backend/ingestion/src/observers.py', 'backend/ingestion/src/metrics.py', 'backend/core/dist/src/app.js', 'backend/core/dist/src/controllers/telemetry.controller.js', 'tests/nfr/scalability/compose.yml', 'tests/nfr/scalability/plan.json', 'tests/nfr/scalability/assessment.mjs', 'tests/nfr/scalability/proxy.mjs', 'tests/nfr/scalability/package.json', 'scripts/nfr-scalability.mjs'];
   report.sourceHashes = Object.fromEntries(sourceFiles.map(file => [file, crypto.createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex')]));
   await compose(['up', '-d', '--wait', '--wait-timeout', '120'], 'stack-start', 150000); cleanupReady = true;
   await redis.connect();
