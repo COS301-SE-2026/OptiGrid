@@ -59,18 +59,7 @@ export default function ViewerAnomalyPage() {
   const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("all");
   const [chartMetric, setChartMetric] = useState<MetricType>("power");
 
-  const {
-    selectedBuilding,
-    statusFilter,
-    severityFilter,
-    searchQuery,
-    setSelectedBuilding,
-    setStatusFilter,
-    setSeverityFilter,
-    setSearchQuery,
-    filteredAnomalies,
-    resetFilters,
-  } = useAnomalyFilters(anomalies);
+  const filters = useAnomalyFilters(anomalies);
 
   const { historicFilter, historicSearch, setHistoricFilter, setHistoricSearch, resetHistoricFilters } =
     useHistoricFilterState();
@@ -89,7 +78,7 @@ export default function ViewerAnomalyPage() {
     return uniqueBuildings.size;
   }, [anomalies]);
 
-  const { chartData, anomalyPoints, chartError, chartLoading } = useAnomalyChartData(
+  const chart = useAnomalyChartData(
     historicAnomalies.length > 0 ? historicAnomalies : anomalies,
     selectedBuildingForChart,
     chartMetric,
@@ -117,28 +106,17 @@ export default function ViewerAnomalyPage() {
           <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} />
 
           <AnomalyOverview
-            chartLoading={loading || chartLoading}
-            chartError={chartError}
-            chartData={chartData}
-            anomalyPoints={anomalyPoints}
+            chart={chart}
+            filters={filters}
+            buildings={buildings}
             chartMetric={chartMetric}
             selectedBuildingForChart={selectedBuildingForChart}
             onChartBuildingChange={setSelectedBuildingForChart}
             onMetricChange={setChartMetric}
             formatChartTime={formatChartTime}
-            buildings={buildings}
-            selectedBuilding={selectedBuilding}
-            statusFilter={statusFilter}
-            severityFilter={severityFilter}
-            searchQuery={searchQuery}
-            onBuildingChange={setSelectedBuilding}
-            onStatusChange={setStatusFilter}
-            onSeverityChange={setSeverityFilter}
-            onSearchChange={setSearchQuery}
-            onReset={resetFilters}
-            anomalies={filteredAnomalies}
-            onRowClick={handleViewDetails}
             formatDate={formatDate}
+            onRowClick={handleViewDetails}
+            pageLoading={loading || chart.chartLoading}
           />
         </main>
       </div>

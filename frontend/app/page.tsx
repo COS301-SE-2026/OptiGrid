@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { PublicNav } from "../components/PublicNav";
 
-function MonitorIcon() {
+function FeatureIcon({ children }: Readonly<{ children: ReactNode }>) {
     return (
         <svg
             width="20"
@@ -15,104 +15,62 @@ function MonitorIcon() {
             strokeLinejoin="round"
             aria-hidden="true"
         >
+            {children}
+        </svg>
+    );
+}
+
+function MonitorIcon() {
+    return (
+        <FeatureIcon>
             <rect x="2" y="3" width="20" height="14" rx="2" />
             <path d="M8 21h8M12 17v4" />
-        </svg>
+        </FeatureIcon>
     );
 }
 
 function BarChartIcon() {
     return (
-        <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
+        <FeatureIcon>
             <path d="M3 3v18h18" />
             <path d="M7 16v-4M11 16V8M15 16v-6" />
-        </svg>
+        </FeatureIcon>
     );
 }
 
 function TrendingUpIcon() {
     return (
-        <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
+        <FeatureIcon>
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
             <polyline points="16 7 22 7 22 13" />
-        </svg>
+        </FeatureIcon>
     );
 }
 
 function AlertIcon() {
     return (
-        <svg
-            height="20"
-            width="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
+        <FeatureIcon>
             <path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
             <path d="M12 9v4M12 17h.01" />
-        </svg>
+        </FeatureIcon>
     );
 }
 
 function LightbulbIcon() {
     return (
-        <svg
-            height="20"
-            width="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
+        <FeatureIcon>
             <path d="M9 18h6M10 22h4" />
             <path d="M12 2a7 7 0 0 0-4 12.7V18h8v-3.3A7 7 0 0 0 12 2z" />
-        </svg>
+        </FeatureIcon>
     );
 }
 
 function ReceiptIcon() {
     return (
-        <svg
-            height="20"
-            width="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
+        <FeatureIcon>
             <path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2l-3 2-2-2-2 2-2-2-2 2z" />
             <path d="M9 8h6M9 12h6" />
-        </svg>
+        </FeatureIcon>
     );
 }
 

@@ -840,47 +840,66 @@ const EMPTY_BUILDINGS: Building[] = [];
 const SERIES_ERROR_MESSAGE = "Unable to load energy consumption data.";
 
 
-interface AnomalyOverviewProps extends FilterBarProps {
+export type AnomalyChartState = {
   chartData: typeof mockConsumptionData;
   anomalyPoints: { timestamp: string; y: number }[];
+  chartError?: string | null;
+  chartLoading?: boolean;
+};
+
+export type AnomalyFilterState = {
+  selectedBuilding: string;
+  statusFilter: string;
+  severityFilter: string;
+  searchQuery: string;
+  setSelectedBuilding: (value: string) => void;
+  setStatusFilter: (value: string) => void;
+  setSeverityFilter: (value: string) => void;
+  setSearchQuery: (value: string) => void;
+  filteredAnomalies: Anomaly[];
+  resetFilters: () => void;
+};
+
+interface AnomalyOverviewProps {
+  chart: AnomalyChartState;
+  filters: AnomalyFilterState;
+  buildings: Building[];
   chartMetric: MetricType;
   selectedBuildingForChart: string;
   onChartBuildingChange: (value: string) => void;
   onMetricChange: (value: MetricType) => void;
   formatChartTime: (timestamp: string) => string;
-  chartLoading?: boolean;
-  chartError?: string | null;
-  anomalies: Anomaly[];
-  onRowClick: (anomaly: Anomaly) => void;
   formatDate: (date: string) => string;
+  onRowClick: (anomaly: Anomaly) => void;
+  pageLoading?: boolean;
+  buildingFilterLabel?: string;
 }
 
-// z manager and viewer anomaly pages present the same chart filters and table
+// the manager and viewer anomaly pages present the same chart, filters and table
 export function AnomalyOverview(props: Readonly<AnomalyOverviewProps>) {
   const {
-    chartData,
-    anomalyPoints,
+    chart,
+    filters,
+    buildings,
     chartMetric,
     selectedBuildingForChart,
     onChartBuildingChange,
     onMetricChange,
     formatChartTime,
-    chartLoading,
-    chartError,
-    anomalies,
-    onRowClick,
     formatDate,
-    ...filterProps
+    onRowClick,
+    pageLoading,
+    buildingFilterLabel,
   } = props;
 
   return (
     <>
       <EnergyChart
-        loading={chartLoading}
-        error={chartError}
-        chartData={chartData}
-        anomalyPoints={anomalyPoints}
-        buildings={filterProps.buildings}
+        loading={pageLoading ?? chart.chartLoading}
+        error={chart.chartError}
+        chartData={chart.chartData}
+        anomalyPoints={chart.anomalyPoints}
+        buildings={buildings}
         selectedBuilding={selectedBuildingForChart}
         chartMetric={chartMetric}
         onBuildingChange={onChartBuildingChange}
@@ -888,11 +907,25 @@ export function AnomalyOverview(props: Readonly<AnomalyOverviewProps>) {
         formatChartTime={formatChartTime}
       />
 
-      <FilterBar {...filterProps} />
+      <FilterBar
+        buildings={buildings}
+        selectedBuilding={filters.selectedBuilding}
+        statusFilter={filters.statusFilter}
+        severityFilter={filters.severityFilter}
+        searchQuery={filters.searchQuery}
+        onBuildingChange={filters.setSelectedBuilding}
+        onStatusChange={filters.setStatusFilter}
+        onSeverityChange={filters.setSeverityFilter}
+        onSearchChange={filters.setSearchQuery}
+        onReset={filters.resetFilters}
+        buildingFilterLabel={buildingFilterLabel}
+      />
 
       <section aria-label="Anomalies list">
-        <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>Current Anomalies</h2>
-        <AnomaliesTable anomalies={anomalies} onRowClick={onRowClick} formatDate={formatDate} />
+        <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
+          Current Anomalies
+        </h2>
+        <AnomaliesTable anomalies={filters.filteredAnomalies} onRowClick={onRowClick} formatDate={formatDate} />
       </section>
     </>
   );

@@ -1,23 +1,7 @@
 import { PublicNav } from "./PublicNav";
 import { render, screen } from "@testing-library/react";
 
-jest.mock("next/link", () => {
-    return function MockLink({
-        href,
-        children,
-        ...rest
-    }: {
-        href: string;
-        children: React.ReactNode;
-        [key: string]: unknown;
-    }) {
-        return (
-            <a href={href} {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>
-                {children}
-            </a>
-        );
-    };
-});
+jest.mock("next/link");
 
 describe("PublicNav", () => {
     describe("signed out", () => {

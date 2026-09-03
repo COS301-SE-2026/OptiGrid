@@ -95,18 +95,7 @@ export default function ManagerAnomalyPage() {
   };
   const [thresholdForm, setThresholdForm] = useState(emptyThresholdForm);
 
-  const {
-    selectedBuilding,
-    statusFilter,
-    severityFilter,
-    searchQuery,
-    setSelectedBuilding,
-    setStatusFilter,
-    setSeverityFilter,
-    setSearchQuery,
-    filteredAnomalies,
-    resetFilters,
-  } = useAnomalyFilters(anomalies);
+  const filters = useAnomalyFilters(anomalies);
 
   const { historicFilter, historicSearch, setHistoricFilter, setHistoricSearch, resetHistoricFilters } =
     useHistoricFilterState();
@@ -227,7 +216,7 @@ export default function ManagerAnomalyPage() {
     );
   }, [buildings]);
 
-  const { chartData, anomalyPoints, chartError, chartLoading } = useAnomalyChartData(
+  const chart = useAnomalyChartData(
     anomalies,
     selectedBuildingForChart,
     chartMetric,
@@ -268,29 +257,17 @@ export default function ManagerAnomalyPage() {
           <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} summary={summary} />
 
           <AnomalyOverview
-            chartLoading={chartLoading}
-            chartError={chartError}
-            chartData={chartData}
-            anomalyPoints={anomalyPoints}
+            chart={chart}
+            filters={filters}
+            buildings={buildings}
             chartMetric={chartMetric}
             selectedBuildingForChart={selectedBuildingForChart}
             onChartBuildingChange={setSelectedBuildingForChart}
             onMetricChange={setChartMetric}
             formatChartTime={formatChartTime}
-            buildings={buildings}
-            selectedBuilding={selectedBuilding}
-            statusFilter={statusFilter}
-            severityFilter={severityFilter}
-            searchQuery={searchQuery}
-            onBuildingChange={setSelectedBuilding}
-            onStatusChange={setStatusFilter}
-            onSeverityChange={setSeverityFilter}
-            onSearchChange={setSearchQuery}
-            onReset={resetFilters}
-            buildingFilterLabel="Building:"
-            anomalies={filteredAnomalies}
-            onRowClick={handleViewDetails}
             formatDate={formatDate}
+            onRowClick={handleViewDetails}
+            buildingFilterLabel="Building:"
           />
         </main>
       </div>

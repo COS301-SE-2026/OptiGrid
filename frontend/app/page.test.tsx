@@ -1,23 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import LandingPage from "./page";
 
-jest.mock("next/link", () => {
-    return function MockLink({
-        href,
-        children,
-        ...rest
-    }: {
-        href: string;
-        children: React.ReactNode;
-        [key: string]: unknown;
-    }) {
-        return (
-            <a href={href} {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>
-                {children}
-            </a>
-        );
-    };
-});
+jest.mock("next/link");
 
 describe("LandingPage", () => {
     beforeEach(() => {
