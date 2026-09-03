@@ -29,10 +29,10 @@ function buildUniqueUser(): E2EUser {
 }
 
 async function createUser(
-  request: APIRequestContext,
+  req: APIRequestContext,
   user: E2EUser
 ): Promise<void> {
-  const response = await request.post(`${CORE_BASE_URL}/auth/signup`, {
+  const resp = await req.post(`${CORE_BASE_URL}/auth/signup`, {
     data: {
       email: user.email,
       password: user.password,
@@ -40,11 +40,11 @@ async function createUser(
     },
   });
 
-  const payload = await response.json().catch(() => ({}));
+  const payload = await resp.json().catch(() => ({}));
 
   expect(
-    response.ok(),
-    `Expected signup to succeed, got ${response.status()} with payload ${JSON.stringify(payload)}`
+    resp.ok(),
+    `Expected signup to succeed, got ${resp.status()} with payload ${JSON.stringify(payload)}`
   ).toBeTruthy();
 }
 
@@ -57,17 +57,15 @@ async function login(page: Page, user: E2EUser): Promise<void> {
   const loginResponsePromise = page.waitForResponse(
     (response) =>
       response.url().includes("/api/auth/login") &&
-      response.request().method() === "POST"
+      response.status() === 200
   );
 
   await page.getByRole("button", { name: "Log in" }).click();
+  await loginResponsePromise;  
 
-  const loginResponse = await loginResponsePromise;
-
-  expect(
-    loginResponse.ok(),
-    `Expected login to succeed, got ${loginResponse.status()}`
-  ).toBeTruthy();
+  await page.waitForURL((url) => !url.pathname.endsWith("/login"), {
+    waitUntil: "domcontentloaded",
+  });
 
   
   await page.waitForResponse(
