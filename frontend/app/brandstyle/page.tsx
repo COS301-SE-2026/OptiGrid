@@ -32,6 +32,130 @@ const NAV = [
   { id: "changelog", label: "Changelog" },
 ];
 
+const PRIMARY_COLOURS = [
+  {
+    src: gridTealSwatch,
+    number: 6,
+    name: "Grid Teal",
+    hex: "#4D869C",
+    rgb: "(77, 134, 156)",
+    hsl: "(196, 36%, 46%)",
+    usage: "Primary brand colour, main actions, headers",
+  },
+  {
+    src: meterMintSwatch,
+    number: 7,
+    name: "Meter Mint",
+    hex: "#7AB2B2",
+    rgb: "(122, 178, 178)",
+    hsl: "(180, 28%, 59%)",
+    usage: "Secondary brand colour",
+  },
+  {
+    src: conductorInkSwatch,
+    number: 8,
+    name: "Conductor Ink",
+    hex: "#0B1120",
+    rgb: "(11, 17, 32)",
+    hsl: "(226, 49%, 8%)",
+    usage: "Dark mode primary",
+  },
+];
+
+const SUPPORTING_COLOURS = [
+  {
+    src: daylightSwatch,
+    number: 9,
+    name: "Daylight",
+    hex: "#EEF7FF",
+    rgb: "(238, 247, 255)",
+    hsl: "(208, 100%, 97%)",
+    usage: "Light mode backgrounds",
+  },
+  {
+    src: surfaceFrostSwatch,
+    number: 10,
+    name: "Surface Frost",
+    hex: "#CDE8E5",
+    rgb: "(205, 232, 229)",
+    hsl: "(173, 34%, 86%)",
+    usage: "Cards, surfaces, borders",
+  },
+  {
+    src: nightPrimarySwatch,
+    number: 11,
+    name: "Night Primary",
+    hex: "#8BB8E8",
+    rgb: "(139, 184, 232)",
+    hsl: "(211, 68%, 73%)",
+    usage: "Dark mode accents",
+  },
+];
+
+const SPACING_TOKENS = [
+  ["--space-1", "0.25rem", "Compact spacing"],
+  ["--space-2", "0.5rem", "Tight spacing, icons"],
+  ["--space-3", "0.75rem", "Small gaps"],
+  ["--space-4", "1rem", "Standard spacing"],
+  ["--space-5", "1.5rem", "Medium spacing"],
+  ["--space-6", "2rem", "Large spacing"],
+  ["--space-7", "3rem", "Section spacing"],
+  ["--space-8", "4rem", "Page spacing"],
+];
+
+const RADIUS_TOKENS = [
+  ["--radius-sm", "0.375rem", "Inputs, small buttons"],
+  ["--radius-md", "0.625rem", "Cards, modals"],
+  ["--radius-lg", "1rem", "Large cards, containers"],
+  ["--radius-pill", "62.44rem", "Badges, pills"],
+];
+
+function SectionHeader({ number, title }) {
+  return (
+    <>
+      <div
+        style={{
+          fontSize: "var(--fs-h2)",
+          fontWeight: "var(--fw-bold)",
+          color: "var(--brand-primary)",
+          fontFamily: "var(--font-heading)",
+          marginBottom: "var(--space-2)",
+        }}
+      >
+        {number}
+      </div>
+      <h2
+        style={{
+          fontSize: "var(--fs-h2)",
+          fontWeight: "var(--fw-bold)",
+          fontFamily: "var(--font-heading)",
+          color: "var(--brand-ink)",
+          marginBottom: "var(--space-4)",
+        }}
+      >
+        {title}
+      </h2>
+    </>
+  );
+}
+
+function SubHeading({ children, mt = true }) {
+  return (
+    <h4
+      style={{
+        fontSize: "var(--fs-h3)",
+        fontWeight: "var(--fw-semibold)",
+        fontFamily: "var(--font-heading)",
+        color: "var(--brand-ink)",
+        marginBottom: "var(--space-2)",
+        marginTop: mt ? "var(--space-4)" : 0,
+      }}
+    >
+      {children}
+    </h4>
+  );
+}
+
 function Figure({ src, number, caption, maxHeight = "300px" }) {
   const isStatic = typeof src === "object" && src !== null;
 
@@ -46,7 +170,6 @@ function Figure({ src, number, caption, maxHeight = "300px" }) {
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
-            
           }}
         >
           <Image
@@ -131,6 +254,120 @@ function ColorRow({ src, number, name, hex, rgb, hsl, usage, maxHeight = "180px"
         <dd style={{ margin: 0 }}>{usage}</dd>
       </dl>
     </div>
+  );
+}
+
+function TokenCard({ token, value, usage }) {
+  return (
+    <div
+      style={{
+        padding: "var(--space-3)",
+        backgroundColor: "var(--brand-surface-alt)",
+        borderRadius: "var(--radius-md)",
+        border: "1px solid var(--brand-border)",
+        color: "var(--brand-ink)",
+      }}
+    >
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)" }}>{token}</div>
+      <div style={{ fontSize: "var(--fs-body)", fontFamily: "var(--font-mono)", color: "var(--brand-primary)" }}>{value}</div>
+      <div style={{ fontSize: "var(--fs-small)", color: "var(--brand-ink-muted)", fontFamily: "var(--font-body)" }}>{usage}</div>
+    </div>
+  );
+}
+
+function TokenGrid({ tokens }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+        gap: "var(--space-3)",
+        marginBottom: "var(--space-4)",
+      }}
+    >
+      {tokens.map(([tok, val, use]) => (
+        <TokenCard key={tok} token={tok} value={val} usage={use} />
+      ))}
+    </div>
+  );
+}
+
+function TableHead({ columns }) {
+  return (
+    <thead>
+      <tr style={{ borderBottom: "1px solid var(--brand-border)", textAlign: "left" }}>
+        {columns.map((col) => (
+          <th
+            key={col}
+            style={{
+              padding: "var(--space-2)",
+              fontWeight: "var(--fw-semibold)",
+              color: "var(--brand-ink-muted)",
+            }}
+          >
+            {col}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+function StyledTable({ columns, children }) {
+  return (
+    <table
+      style={{
+        width: "100%",
+        borderCollapse: "collapse",
+        fontFamily: "var(--font-body)",
+        fontSize: "var(--fs-small)",
+        marginBottom: "var(--space-4)",
+        color: "var(--brand-ink)",
+      }}
+    >
+      <TableHead columns={columns} />
+      <tbody>{children}</tbody>
+    </table>
+  );
+}
+
+function StyledTd({ mono, children }) {
+  return (
+    <td
+      style={{
+        padding: "var(--space-2)",
+        fontFamily: mono ? "var(--font-mono)" : undefined,
+      }}
+    >
+      {children}
+    </td>
+  );
+}
+
+function StyledTr({ cells }) {
+  return (
+    <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
+      {cells.map(({ content, mono }, i) => (
+        <StyledTd key={i} mono={mono}>
+          {content}
+        </StyledTd>
+      ))}
+    </tr>
+  );
+}
+
+function BodyText({ children, mb = "var(--space-3)" }) {
+  return (
+    <p
+      style={{
+        color: "var(--brand-ink-muted)",
+        lineHeight: "var(--lh-body)",
+        fontFamily: "var(--font-body)",
+        marginBottom: mb,
+      }}
+    >
+      {children}
+    </p>
   );
 }
 
@@ -280,200 +517,58 @@ export default function OptiGridStyleGuide() {
             >
               <span>Version 1.0</span>
               <span>July 30, 2026</span>
-              <span>Team Coreflow · COS 301, University of Pretoria</span>
+              <span>Team Coreflow - COS 301, University of Pretoria</span>
             </div>
           </section>
 
           <section id="intro" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                color: "var(--brand-primary)",
-                fontFamily: "var(--font-heading)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              1
-            </div>
-            <h2
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Introduction
-            </h2>
+            <SectionHeader number="1" title="Introduction" />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              1.1 What is OptiGrid?
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <SubHeading>1.1 What is OptiGrid?</SubHeading>
+            <BodyText>
               OptiGrid ingests meter readings from offices, hospitals, schools, shopping centres,
               and industrial sites, then surfaces what is consuming energy, where it is wasted,
               and what to do about it. Real-time monitoring, anomaly detection, demand
               forecasting, and optimisation recommendations come together in a single
               dashboard-first experience, so operators stop reacting to bills after the fact and
               start making decisions on live data.
-            </p>
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              1.2 Our Vision
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
-              Make every buildings energy usage visible, predictable, and improvable — a future
+            <SubHeading>1.2 Our Vision</SubHeading>
+            <BodyText>
+              Make every buildings energy usage visible, predictable, and improvable - a future
               where operators have the same instrumentation for energy as they do for finance:
               real-time, granular, and acted on daily rather than quarterly.
-            </p>
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              1.3 Our Mission
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-              }}
-            >
+            <SubHeading>1.3 Our Mission</SubHeading>
+            <BodyText mb="0">
               Deliver a scalable, multi-tenant platform that ingests data from any meter or feed,
               detects inefficiencies, forecasts demand, and recommends cost-saving actions. Built
               on open standards so any building, large or small, can participate.
-            </p>
+            </BodyText>
           </section>
 
           <section id="logo" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                color: "var(--brand-primary)",
-                fontFamily: "var(--font-heading)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              2
-            </div>
-            <h2
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Logo & Iconography
-            </h2>
+            <SectionHeader number="2" title="Logo & Iconography" />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              2.1 Main Logo
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <SubHeading>2.1 Main Logo</SubHeading>
+            <BodyText>
               The wordmark set in Space Grotesk Bold. A dark variant (ink on light surfaces) and
-              a light variant (soft primary on dark surfaces) exist — use whichever produces the
+              a light variant (soft primary on dark surfaces) exist - use whichever produces the
               higher contrast against its background.
-            </p>
+            </BodyText>
             <Figure src={mainLogo} number={1} caption="OptiGrid Main Logo" maxHeight="140px" />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              2.2 Secondary Logo
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <SubHeading>2.2 Secondary Logo</SubHeading>
+            <BodyText>
               A square OG monogram with the wordmark stacked below, built for compact
               placements: app icons, favicons, social avatars, and anywhere the horizontal
               wordmark would be illegible.
-            </p>
+            </BodyText>
             <Figure src={secondaryLogo} number={2} caption="OptiGrid Secondary Logo" maxHeight="220px" />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              2.3 Logo Usage Rules
-            </h4>
+            <SubHeading>2.3 Logo Usage Rules</SubHeading>
             <p
               style={{
                 color: "var(--brand-ink-muted)",
@@ -482,7 +577,7 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-2)",
               }}
             >
-              <strong>Minimum size</strong> — full logo: 24px minimum height. Monogram: 32x32px minimum.
+              <strong>Minimum size</strong> - full logo: 24px minimum height. Monogram: 32x32px minimum.
             </p>
             <ul
               style={{
@@ -501,41 +596,9 @@ export default function OptiGridStyleGuide() {
           </section>
 
           <section id="type" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                color: "var(--brand-primary)",
-                fontFamily: "var(--font-heading)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              3
-            </div>
-            <h2
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Typography
-            </h2>
+            <SectionHeader number="3" title="Typography" />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              3.1.1 Space Grotesk
-            </h4>
+            <SubHeading>3.1.1 Space Grotesk</SubHeading>
             <Figure src={spaceGroteskSpecimen} number={3} caption="Space Grotesk" maxHeight="200px" />
             <p
               style={{
@@ -545,34 +608,15 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-2)",
               }}
             >
-              <strong>Usage:</strong> headings, dashboard titles  <strong>Source:</strong> Google Fonts
-               <strong>Weights:</strong> 500, 700
+              <strong>Usage:</strong> headings, dashboard titles <strong>Source:</strong> Google Fonts <strong>Weights:</strong> 500, 700
             </p>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <BodyText>
               Used for all headings, dashboard titles, the wordmark, and prominent calls to
               action. Its geometric letterforms and warm, rounded curves communicate a technical
               product without feeling cold or generic.
-            </p>
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              3.1.2 Inter
-            </h4>
+            <SubHeading>3.1.2 Inter</SubHeading>
             <Figure src={interSpecimen} number={4} caption="Inter" maxHeight="200px" />
             <p
               style={{
@@ -582,32 +626,13 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-2)",
               }}
             >
-              <strong>Usage:</strong> body text, paragraphs, form labels, button copy, table cells
-               <strong>Source:</strong> Google Fonts  <strong>Weights:</strong> 400, 500, 600, 700
+              <strong>Usage:</strong> body text, paragraphs, form labels, button copy, table cells <strong>Source:</strong> Google Fonts <strong>Weights:</strong> 400, 500, 600, 700
             </p>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <BodyText>
               Inter holds up at 12px and below, which matters for dense dashboards and metric tables.
-            </p>
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              3.1.3 JetBrains Mono
-            </h4>
+            <SubHeading>3.1.3 JetBrains Mono</SubHeading>
             <Figure src={jetbrainsMonoSpecimen} number={5} caption="JetBrains Mono" maxHeight="200px" />
             <p
               style={{
@@ -617,396 +642,64 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-2)",
               }}
             >
-              <strong>Usage:</strong> numeric values, kWh, costs, timestamps 
-              <strong> Source:</strong> Google Fonts  <strong>Weights:</strong> 400, 500
+              <strong>Usage:</strong> numeric values, kWh, costs, timestamps <strong>Source:</strong> Google Fonts <strong>Weights:</strong> 400, 500
             </p>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <BodyText>
               Tabular-nums lining keeps columns aligned in tables.
-            </p>
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              3.2 Typographic Scale
-            </h4>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontFamily: "var(--font-body)",
-                fontSize: "var(--fs-small)",
-                marginBottom: "var(--space-4)",
-                color: "var(--brand-ink)",
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: "1px solid var(--brand-border)",
-                    textAlign: "left",
-                  }}
-                >
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Style</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Variable</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Size</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Usage</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Display</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>--fs-hero</td>
-                  <td style={{ padding: "var(--space-2)" }}>3.25rem</td>
-                  <td style={{ padding: "var(--space-2)" }}>Hero titles, landing pages</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>H1</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>--fs-h1</td>
-                  <td style={{ padding: "var(--space-2)" }}>2.25rem</td>
-                  <td style={{ padding: "var(--space-2)" }}>Page titles, section headers</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>H2</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>--fs-h2</td>
-                  <td style={{ padding: "var(--space-2)" }}>1.75rem</td>
-                  <td style={{ padding: "var(--space-2)" }}>Section headings</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>H3</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>--fs-h3</td>
-                  <td style={{ padding: "var(--space-2)" }}>1.125rem</td>
-                  <td style={{ padding: "var(--space-2)" }}>Card headers, subheadings</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Body</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>--fs-body</td>
-                  <td style={{ padding: "var(--space-2)" }}>1rem</td>
-                  <td style={{ padding: "var(--space-2)" }}>Default body text</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Small</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>--fs-small</td>
-                  <td style={{ padding: "var(--space-2)" }}>0.8125rem</td>
-                  <td style={{ padding: "var(--space-2)" }}>Labels, captions, metadata</td>
-                </tr>
-              </tbody>
-            </table>
+            <SubHeading>3.2 Typographic Scale</SubHeading>
+            <StyledTable columns={["Style", "Variable", "Size", "Usage"]}>
+              <StyledTr cells={[{ content: "Display" }, { content: "--fs-hero", mono: true }, { content: "3.25rem" }, { content: "Hero titles, landing pages" }]} />
+              <StyledTr cells={[{ content: "H1" }, { content: "--fs-h1", mono: true }, { content: "2.25rem" }, { content: "Page titles, section headers" }]} />
+              <StyledTr cells={[{ content: "H2" }, { content: "--fs-h2", mono: true }, { content: "1.75rem" }, { content: "Section headings" }]} />
+              <StyledTr cells={[{ content: "H3" }, { content: "--fs-h3", mono: true }, { content: "1.125rem" }, { content: "Card headers, subheadings" }]} />
+              <StyledTr cells={[{ content: "Body" }, { content: "--fs-body", mono: true }, { content: "1rem" }, { content: "Default body text" }]} />
+              <StyledTr cells={[{ content: "Small" }, { content: "--fs-small", mono: true }, { content: "0.8125rem" }, { content: "Labels, captions, metadata" }]} />
+            </StyledTable>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              3.3 Font Weight
-            </h4>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontFamily: "var(--font-body)",
-                fontSize: "var(--fs-small)",
-                marginBottom: "var(--space-4)",
-                color: "var(--brand-ink)",
-              }}
-            >
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)", textAlign: "left" }}>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Weight</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Value</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Usage</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Regular</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>400</td>
-                  <td style={{ padding: "var(--space-2)" }}>Body text, paragraphs</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Medium</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>500</td>
-                  <td style={{ padding: "var(--space-2)" }}>Labels, subheadings, emphasis</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Semi-bold</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>600</td>
-                  <td style={{ padding: "var(--space-2)" }}>Buttons, important text</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Bold</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>700</td>
-                  <td style={{ padding: "var(--space-2)" }}>Headings, wordmark</td>
-                </tr>
-              </tbody>
-            </table>
+            <SubHeading>3.3 Font Weight</SubHeading>
+            <StyledTable columns={["Weight", "Value", "Usage"]}>
+              <StyledTr cells={[{ content: "Regular" }, { content: "400", mono: true }, { content: "Body text, paragraphs" }]} />
+              <StyledTr cells={[{ content: "Medium" }, { content: "500", mono: true }, { content: "Labels, subheadings, emphasis" }]} />
+              <StyledTr cells={[{ content: "Semi-bold" }, { content: "600", mono: true }, { content: "Buttons, important text" }]} />
+              <StyledTr cells={[{ content: "Bold" }, { content: "700", mono: true }, { content: "Headings, wordmark" }]} />
+            </StyledTable>
           </section>
 
           <section id="color" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                color: "var(--brand-primary)",
-                fontFamily: "var(--font-heading)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              4
-            </div>
-            <h2
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Colour Palette
-            </h2>
+            <SectionHeader number="4" title="Colour Palette" />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              4.1 Primary Colours
-            </h4>
-            <ColorRow src={gridTealSwatch} number={6} name="Grid Teal" hex="#4D869C" rgb="(77, 134, 156)" hsl="(196°, 36%, 46%)" usage="Primary brand colour, main actions, headers" maxHeight="160px" />
-            <ColorRow src={meterMintSwatch} number={7} name="Meter Mint" hex="#7AB2B2" rgb="(122, 178, 178)" hsl="(180°, 28%, 59%)" usage="Secondary brand colour" maxHeight="160px" />
-            <ColorRow src={conductorInkSwatch} number={8} name="Conductor Ink" hex="#0B1120" rgb="(11, 17, 32)" hsl="(226°, 49%, 8%)" usage="Dark mode primary" maxHeight="160px" />
+            <SubHeading>4.1 Primary Colours</SubHeading>
+            {PRIMARY_COLOURS.map((c) => (
+              <ColorRow key={c.number} {...c} maxHeight="160px" />
+            ))}
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              4.2 Supporting Colours
-            </h4>
-            <ColorRow src={daylightSwatch} number={9} name="Daylight" hex="#EEF7FF" rgb="(238, 247, 255)" hsl="(208°, 100%, 97%)" usage="Light mode backgrounds" maxHeight="160px" />
-            <ColorRow src={surfaceFrostSwatch} number={10} name="Surface Frost" hex="#CDE8E5" rgb="(205, 232, 229)" hsl="(173°, 34%, 86%)" usage="Cards, surfaces, borders" maxHeight="160px" />
-            <ColorRow src={nightPrimarySwatch} number={11} name="Night Primary" hex="#8BB8E8" rgb="(139, 184, 232)" hsl="(211°, 68%, 73%)" usage="Dark mode accents" maxHeight="160px" />
+            <SubHeading>4.2 Supporting Colours</SubHeading>
+            {SUPPORTING_COLOURS.map((c) => (
+              <ColorRow key={c.number} {...c} maxHeight="160px" />
+            ))}
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              4.3 Functional Colours
-            </h4>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontFamily: "var(--font-body)",
-                fontSize: "var(--fs-small)",
-                marginBottom: "var(--space-4)",
-                color: "var(--brand-ink)",
-              }}
-            >
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)", textAlign: "left" }}>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Name</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Hex</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>RGB</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Usage</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Success</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>#2F7D5D</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>(16, 185, 129)</td>
-                  <td style={{ padding: "var(--space-2)" }}>Positive actions</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Warning</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>#B26B00</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>(245, 158, 11)</td>
-                  <td style={{ padding: "var(--space-2)" }}>Caution, pending actions</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Error</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>#B23B3B</td>
-                  <td style={{ padding: "var(--space-2)", fontFamily: "var(--font-mono)" }}>(239, 68, 68)</td>
-                  <td style={{ padding: "var(--space-2)" }}>Destructive actions, errors</td>
-                </tr>
-              </tbody>
-            </table>
+            <SubHeading>4.3 Functional Colours</SubHeading>
+            <StyledTable columns={["Name", "Hex", "RGB", "Usage"]}>
+              <StyledTr cells={[{ content: "Success" }, { content: "#2F7D5D", mono: true }, { content: "(16, 185, 129)", mono: true }, { content: "Positive actions" }]} />
+              <StyledTr cells={[{ content: "Warning" }, { content: "#B26B00", mono: true }, { content: "(245, 158, 11)", mono: true }, { content: "Caution, pending actions" }]} />
+              <StyledTr cells={[{ content: "Error" }, { content: "#B23B3B", mono: true }, { content: "(239, 68, 68)", mono: true }, { content: "Destructive actions, errors" }]} />
+            </StyledTable>
           </section>
 
           <section id="tokens" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                color: "var(--brand-primary)",
-                fontFamily: "var(--font-heading)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              5
-            </div>
-            <h2
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Design Tokens
-            </h2>
+            <SectionHeader number="5" title="Design Tokens" />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              5.1 Spacing Scale
-            </h4>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: "var(--space-3)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              {[
-                ["--space-1", "0.25rem", "Compact spacing"],
-                ["--space-2", "0.5rem", "Tight spacing, icons"],
-                ["--space-3", "0.75rem", "Small gaps"],
-                ["--space-4", "1rem", "Standard spacing"],
-                ["--space-5", "1.5rem", "Medium spacing"],
-                ["--space-6", "2rem", "Large spacing"],
-                ["--space-7", "3rem", "Section spacing"],
-                ["--space-8", "4rem", "Page spacing"],
-              ].map(([tok, val, use]) => (
-                <div
-                  key={tok}
-                  style={{
-                    padding: "var(--space-3)",
-                    backgroundColor: "var(--brand-surface-alt)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--brand-border)",
-                    color: "var(--brand-ink)",
-                  }}
-                >
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)" }}>{tok}</div>
-                  <div style={{ fontSize: "var(--fs-body)", fontFamily: "var(--font-mono)", color: "var(--brand-primary)" }}>{val}</div>
-                  <div style={{ fontSize: "var(--fs-small)", color: "var(--brand-ink-muted)", fontFamily: "var(--font-body)" }}>{use}</div>
-                </div>
-              ))}
-            </div>
+            <SubHeading>5.1 Spacing Scale</SubHeading>
+            <TokenGrid tokens={SPACING_TOKENS} />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              5.2 Radius Tokens
-            </h4>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: "var(--space-3)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              {[
-                ["--radius-sm", "0.375rem", "Inputs, small buttons"],
-                ["--radius-md", "0.625rem", "Cards, modals"],
-                ["--radius-lg", "1rem", "Large cards, containers"],
-                ["--radius-pill", "62.44rem", "Badges, pills"],
-              ].map(([tok, val, use]) => (
-                <div
-                  key={tok}
-                  style={{
-                    padding: "var(--space-3)",
-                    backgroundColor: "var(--brand-surface-alt)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--brand-border)",
-                    color: "var(--brand-ink)",
-                  }}
-                >
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)" }}>{tok}</div>
-                  <div style={{ fontSize: "var(--fs-body)", fontFamily: "var(--font-mono)", color: "var(--brand-primary)" }}>{val}</div>
-                  <div style={{ fontSize: "var(--fs-small)", color: "var(--brand-ink-muted)", fontFamily: "var(--font-body)" }}>{use}</div>
-                </div>
-              ))}
-            </div>
+            <SubHeading>5.2 Radius Tokens</SubHeading>
+            <TokenGrid tokens={RADIUS_TOKENS} />
           </section>
 
           <section id="components" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                color: "var(--brand-primary)",
-                fontFamily: "var(--font-heading)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              6
-            </div>
-            <h2
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Components
-            </h2>
+            <SectionHeader number="6" title="Components" />
 
             <div
               style={{
@@ -1016,17 +709,7 @@ export default function OptiGridStyleGuide() {
               }}
             >
               <div>
-                <h4
-                  style={{
-                    fontSize: "var(--fs-h3)",
-                    fontWeight: "var(--fw-semibold)",
-                    fontFamily: "var(--font-heading)",
-                    color: "var(--brand-ink)",
-                    marginBottom: "var(--space-2)",
-                  }}
-                >
-                  6.1 Buttons
-                </h4>
+                <SubHeading mt={false}>6.1 Buttons</SubHeading>
                 <Figure src={buttonsFigure} number={12} caption="Buttons" maxHeight="140px" />
                 <ul
                   style={{
@@ -1038,25 +721,15 @@ export default function OptiGridStyleGuide() {
                     margin: 0,
                   }}
                 >
-                  <li><strong>Default</strong> : base styling</li>
-                  <li><strong>Hover</strong> : darker background and overlay</li>
-                  <li><strong>Active</strong> : pressed state</li>
-                  <li><strong>Disabled</strong> : no hover</li>
+                  <li><strong>Default</strong>: base styling</li>
+                  <li><strong>Hover</strong>: darker background and overlay</li>
+                  <li><strong>Active</strong>: pressed state</li>
+                  <li><strong>Disabled</strong>: no hover</li>
                 </ul>
               </div>
 
               <div>
-                <h4
-                  style={{
-                    fontSize: "var(--fs-h3)",
-                    fontWeight: "var(--fw-semibold)",
-                    fontFamily: "var(--font-heading)",
-                    color: "var(--brand-ink)",
-                    marginBottom: "var(--space-2)",
-                  }}
-                >
-                  6.2 Input
-                </h4>
+                <SubHeading mt={false}>6.2 Input</SubHeading>
                 <Figure src={inputFigure} number={13} caption="Input Field" maxHeight="220px" />
                 <ul
                   style={{
@@ -1068,26 +741,16 @@ export default function OptiGridStyleGuide() {
                     margin: 0,
                   }}
                 >
-                  <li><strong>Default</strong> : border colour</li>
-                  <li><strong>Focus</strong> : border colour Grid Teal</li>
-                  <li><strong>Error</strong> : border colour Error, error message</li>
-                  <li><strong>Success</strong> : border colour Success</li>
-                  <li><strong>Disabled</strong> : 50% opacity</li>
+                  <li><strong>Default</strong>: border colour</li>
+                  <li><strong>Focus</strong>: border colour Grid Teal</li>
+                  <li><strong>Error</strong>: border colour Error, error message</li>
+                  <li><strong>Success</strong>: border colour Success</li>
+                  <li><strong>Disabled</strong>: 50% opacity</li>
                 </ul>
               </div>
 
               <div>
-                <h4
-                  style={{
-                    fontSize: "var(--fs-h3)",
-                    fontWeight: "var(--fw-semibold)",
-                    fontFamily: "var(--font-heading)",
-                    color: "var(--brand-ink)",
-                    marginBottom: "var(--space-2)",
-                  }}
-                >
-                  6.3 Badges
-                </h4>
+                <SubHeading mt={false}>6.3 Badges</SubHeading>
                 <Figure src={badgesFigure} number={14} caption="Badges" maxHeight="100px" />
                 <ul
                   style={{
@@ -1099,25 +762,15 @@ export default function OptiGridStyleGuide() {
                     margin: 0,
                   }}
                 >
-                  <li><strong>Default</strong> : Grid Teal</li>
-                  <li><strong>Success</strong> : #2F7D5D</li>
-                  <li><strong>Warning</strong> : #B26B00</li>
-                  <li><strong>Error</strong> : #B23B3B</li>
+                  <li><strong>Default</strong>: Grid Teal</li>
+                  <li><strong>Success</strong>: #2F7D5D</li>
+                  <li><strong>Warning</strong>: #B26B00</li>
+                  <li><strong>Error</strong>: #B23B3B</li>
                 </ul>
               </div>
 
               <div>
-                <h4
-                  style={{
-                    fontSize: "var(--fs-h3)",
-                    fontWeight: "var(--fw-semibold)",
-                    fontFamily: "var(--font-heading)",
-                    color: "var(--brand-ink)",
-                    marginBottom: "var(--space-2)",
-                  }}
-                >
-                  6.5 Cards
-                </h4>
+                <SubHeading mt={false}>6.5 Cards</SubHeading>
                 <Figure src={cardFigure} number={15} caption="Card Component" maxHeight="260px" />
                 <ul
                   style={{
@@ -1129,178 +782,46 @@ export default function OptiGridStyleGuide() {
                     margin: 0,
                   }}
                 >
-                  <li>Background — white (light mode) or Night Primary (dark mode)</li>
-                  <li>Border radius — --radius-md</li>
-                  <li>Shadow — --shadow-md</li>
-                  <li>Padding — --space-5</li>
+                  <li>Background - white (light mode) or Night Primary (dark mode)</li>
+                  <li>Border radius - --radius-md</li>
+                  <li>Shadow - --shadow-md</li>
+                  <li>Padding - --space-5</li>
                 </ul>
               </div>
             </div>
           </section>
 
           <section id="principles" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                color: "var(--brand-primary)",
-                fontFamily: "var(--font-heading)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              7
-            </div>
-            <h2
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Design Principles
-            </h2>
+            <SectionHeader number="7" title="Design Principles" />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              7.1 Clarity over Decoration
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <SubHeading>7.1 Clarity over Decoration</SubHeading>
+            <BodyText>
               A user should read the most important number on a screen without scanning. Metrics are large, mono, and unambiguous.
-            </p>
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              7.2 Consistency
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <SubHeading>7.2 Consistency</SubHeading>
+            <BodyText>
               A button, badge, or card looks the same on every screen. Tokens, not bespoke styles.
-            </p>
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              7.3 Responsive
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <SubHeading>7.3 Responsive</SubHeading>
+            <BodyText>
               Every screen works from 360px upward. The sidebar collapses to a top nav below 768px.
-            </p>
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              7.4 Accessible First
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <SubHeading>7.4 Accessible First</SubHeading>
+            <BodyText>
               Visible focus rings, labelled inputs, colour never the only signal. WCAG 2.2 AA minimum.
-            </p>
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              7.5 Quiet by Default
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
+            <SubHeading>7.5 Quiet by Default</SubHeading>
+            <BodyText>
               No carousels, no parallax, no modal-on-load. Motion limited to 150ms transitions.
-            </p>
+            </BodyText>
           </section>
 
           <section id="a11y" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                color: "var(--brand-primary)",
-                fontFamily: "var(--font-heading)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              8
-            </div>
-            <h2
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Accessibility Standards
-            </h2>
+            <SectionHeader number="8" title="Accessibility Standards" />
             <ul
               style={{
                 paddingLeft: "var(--space-5)",
@@ -1318,64 +839,14 @@ export default function OptiGridStyleGuide() {
           </section>
 
           <section id="voice" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                color: "var(--brand-primary)",
-                fontFamily: "var(--font-heading)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              9
-            </div>
-            <h2
-              style={{
-                fontSize: "var(--fs-h2)",
-                fontWeight: "var(--fw-bold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Voice & Tone
-            </h2>
+            <SectionHeader number="9" title="Voice & Tone" />
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              9.1 Use Active Voice
-            </h4>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
-              Good: Add a new building.  Avoid: A new building can be added.
-            </p>
+            <SubHeading>9.1 Use Active Voice</SubHeading>
+            <BodyText>
+              Good: Add a new building. Avoid: A new building can be added.
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              9.2 UI Copy Guidelines
-            </h4>
+            <SubHeading>9.2 UI Copy Guidelines</SubHeading>
             <p
               style={{
                 color: "var(--brand-ink-muted)",
@@ -1384,7 +855,7 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-2)",
               }}
             >
-              <strong>Button labels</strong> — use action verbs (Edit, Delete, Register, Compare); be specific (Add Building, not Submit).
+              <strong>Button labels</strong> - use action verbs (Edit, Delete, Register, Compare); be specific (Add Building, not Submit).
             </p>
             <p
               style={{
@@ -1394,66 +865,19 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-2)",
               }}
             >
-              <strong>Error messages</strong> — explain the problem clearly and provide a solution or next step.
+              <strong>Error messages</strong> - explain the problem clearly and provide a solution or next step.
             </p>
-            <p
-              style={{
-                color: "var(--brand-ink-muted)",
-                lineHeight: "var(--lh-body)",
-                fontFamily: "var(--font-body)",
-                marginBottom: "var(--space-3)",
-              }}
-            >
-              <strong>Empty states</strong> — explain what should be there and provide a call to action.
-            </p>
+            <BodyText>
+              <strong>Empty states</strong> - explain what should be there and provide a call to action.
+            </BodyText>
 
-            <h4
-              style={{
-                fontSize: "var(--fs-h3)",
-                fontWeight: "var(--fw-semibold)",
-                fontFamily: "var(--font-heading)",
-                color: "var(--brand-ink)",
-                marginBottom: "var(--space-2)",
-                marginTop: "var(--space-4)",
-              }}
-            >
-              9.3 Examples
-            </h4>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontFamily: "var(--font-body)",
-                fontSize: "var(--fs-small)",
-                marginBottom: "var(--space-4)",
-                color: "var(--brand-ink)",
-              }}
-            >
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)", textAlign: "left" }}>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Context</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Preferred copy</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Empty building list</td>
-                  <td style={{ padding: "var(--space-2)" }}>No buildings yet. Add your first building to start monitoring energy usage.</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Error saving</td>
-                  <td style={{ padding: "var(--space-2)" }}>Could not save changes. Please check all fields and try again.</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Success action</td>
-                  <td style={{ padding: "var(--space-2)" }}>Building added successfully.</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>Confirmation</td>
-                  <td style={{ padding: "var(--space-2)" }}>Are you sure you want to delete this building? This action cannot be undone.</td>
-                </tr>
-              </tbody>
-            </table>
+            <SubHeading>9.3 Examples</SubHeading>
+            <StyledTable columns={["Context", "Preferred copy"]}>
+              <StyledTr cells={[{ content: "Empty building list" }, { content: "No buildings yet. Add your first building to start monitoring energy usage." }]} />
+              <StyledTr cells={[{ content: "Error saving" }, { content: "Could not save changes. Please check all fields and try again." }]} />
+              <StyledTr cells={[{ content: "Success action" }, { content: "Building added successfully." }]} />
+              <StyledTr cells={[{ content: "Confirmation" }, { content: "Are you sure you want to delete this building? This action cannot be undone." }]} />
+            </StyledTable>
           </section>
 
           <section id="changelog" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
@@ -1479,32 +903,16 @@ export default function OptiGridStyleGuide() {
             >
               Changelog
             </h2>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontFamily: "var(--font-body)",
-                fontSize: "var(--fs-small)",
-                color: "var(--brand-ink)",
-              }}
-            >
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)", textAlign: "left" }}>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Version</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Date</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Description</th>
-                  <th style={{ padding: "var(--space-2)", fontWeight: "var(--fw-semibold)", color: "var(--brand-ink-muted)" }}>Author</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
-                  <td style={{ padding: "var(--space-2)" }}>1.0</td>
-                  <td style={{ padding: "var(--space-2)" }}>July 30, 2026</td>
-                  <td style={{ padding: "var(--space-2)" }}>Initial release of the OptiGrid Brand Style Guide. Added Accessibility Standards, Voice & Tone, and Design Tokens.</td>
-                  <td style={{ padding: "var(--space-2)" }}>Team Coreflow</td>
-                </tr>
-              </tbody>
-            </table>
+            <StyledTable columns={["Version", "Date", "Description", "Author"]}>
+              <StyledTr
+                cells={[
+                  { content: "1.0" },
+                  { content: "July 30, 2026" },
+                  { content: "Initial release of the OptiGrid Brand Style Guide. Added Accessibility Standards, Voice & Tone, and Design Tokens." },
+                  { content: "Team Coreflow" },
+                ]}
+              />
+            </StyledTable>
           </section>
         </main>
       </div>
