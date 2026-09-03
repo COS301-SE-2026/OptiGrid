@@ -170,6 +170,14 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 
 	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
 
+	// Security Headers (NFR: Configuration and Compliance)
+	app.use((_req, res, next) => {
+		res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+		res.setHeader('Content-Security-Policy', "default-src 'self'");
+		res.setHeader('X-Frame-Options', 'DENY');
+		next();
+	});
+
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", authRate, userAuthRoutes);
 	app.use("/api/accounts", authenticateRequest, normalRate, accountRoutes);
