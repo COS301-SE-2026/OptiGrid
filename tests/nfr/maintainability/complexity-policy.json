@@ -1,0 +1,6 @@
+{
+  "maximum": 10,
+  "metric": "cyclomatic complexity per application function",
+  "javascriptAnalyzer": "ESLint 8.57.1 complexity rule",
+  "pythonAnalyzer": "Radon 6.0.1"
+}
