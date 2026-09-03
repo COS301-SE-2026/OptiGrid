@@ -3,10 +3,10 @@ import Link from "next/link";
 export function PublicNav({
     signedIn,
     anchorPrefix = "/",
-}: {
+}: Readonly<{
     signedIn: boolean;
     anchorPrefix?: string;
-}) {
+}>) {
     return (
         <header className="navbar landing-nav">
             <div className="landing-shell landing-nav-inner">

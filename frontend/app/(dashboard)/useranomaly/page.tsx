@@ -4,10 +4,8 @@ import { useBuildings } from "@/lib/useBuildings";
 import { useState, useMemo, useEffect } from "react";
 import {
   Anomaly,
-  AnomaliesTable,
   AnalyticsSummary,
-  EnergyChart,
-  FilterBar,
+  AnomalyOverview,
   NotificationBadge,
   AnomalyDetailsModal,
   HistoricAlertsModal,
@@ -118,20 +116,16 @@ export default function ViewerAnomalyPage() {
 
           <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} />
 
-          <EnergyChart
-            loading={loading || chartLoading}
-            error={chartError}
+          <AnomalyOverview
+            chartLoading={loading || chartLoading}
+            chartError={chartError}
             chartData={chartData}
             anomalyPoints={anomalyPoints}
-            buildings={buildings}
-            selectedBuilding={selectedBuildingForChart}
             chartMetric={chartMetric}
-            onBuildingChange={setSelectedBuildingForChart}
+            selectedBuildingForChart={selectedBuildingForChart}
+            onChartBuildingChange={setSelectedBuildingForChart}
             onMetricChange={setChartMetric}
             formatChartTime={formatChartTime}
-          />
-
-          <FilterBar
             buildings={buildings}
             selectedBuilding={selectedBuilding}
             statusFilter={statusFilter}
@@ -142,14 +136,10 @@ export default function ViewerAnomalyPage() {
             onSeverityChange={setSeverityFilter}
             onSearchChange={setSearchQuery}
             onReset={resetFilters}
+            anomalies={filteredAnomalies}
+            onRowClick={handleViewDetails}
+            formatDate={formatDate}
           />
-
-          <section aria-label="Anomalies list">
-            <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
-              Current Anomalies
-            </h2>
-            <AnomaliesTable anomalies={filteredAnomalies} onRowClick={handleViewDetails} formatDate={formatDate} />
-          </section>
         </main>
       </div>
 

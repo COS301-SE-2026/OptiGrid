@@ -110,6 +110,8 @@ export const logout = async (req: Request, res: Response) => {
     }
 
     return res.status(200).json({ message: 'Logout recorded' });
+};
+
 export const googleAuthLoginController = async (req: Request, resp: Response) => {
     try {
         const { access, email, firstName, lastName } = req.body;

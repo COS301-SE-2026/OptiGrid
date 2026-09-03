@@ -114,6 +114,34 @@ export function formatZScoreDeviation(zScore: number): string {
   return `${sign}${zScore.toFixed(1)}σ from baseline`;
 }
 
+export function toFiniteValue(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function roundToTwo(value: number): number {
+  return Number.isFinite(value) ? Number(value.toFixed(2)) : 0;
+}
+
+export function formatMetricValue(value: number, metric: MetricType): string {
+  const amount = roundToTwo(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return metric === "cost" ? `R ${amount}` : `${amount} kWh`;
+}
+
+export function formatAxisTick(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 2,
+  });
+}
+
 function resolveBuildingId(selectedBuilding: string, buildingsList: Building[] = []): string {
   if (selectedBuilding !== "all") {
     return selectedBuilding;
@@ -502,6 +530,22 @@ interface EnergyChartProps {
   error?: string | null;
 }
 
+function ChartStatusMessage({ message, tone }: Readonly<{ message: string; tone: "muted" | "danger" }>) {
+  const isError = tone === "danger";
+  return (
+    <div
+      {...(isError ? { role: "alert" } : {})}
+      style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <span className={isError ? undefined : "text-muted"}
+        style={{ fontSize: "var(--fs-small)", ...(isError ? { color: "var(--brand-danger)" } : {}) }}
+      >
+        {message}
+      </span>
+    </div>
+  );
+}
+
 export function EnergyChart(props: Readonly<EnergyChartProps>) {
   const {
     chartData,
@@ -556,18 +600,9 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
       </div>
 
       <div style={{ height: "300px", width: "100%" }}>
-        {loading ? (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Loading chart data...</span>
-          </div>
-        ) : error ? (
-          <div
-            role="alert"
-            style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <span style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>{error}</span>
-          </div>
-        ) : (
+        {loading && <ChartStatusMessage message="Loading chart data..." tone="muted" />}
+        {!loading && error && <ChartStatusMessage message={error} tone="danger" />}
+        {!loading && !error && (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
@@ -803,6 +838,65 @@ export function parseNumberOrNull(value: string): number | null {
 
 const EMPTY_BUILDINGS: Building[] = [];
 const SERIES_ERROR_MESSAGE = "Unable to load energy consumption data.";
+
+
+interface AnomalyOverviewProps extends FilterBarProps {
+  chartData: typeof mockConsumptionData;
+  anomalyPoints: { timestamp: string; y: number }[];
+  chartMetric: MetricType;
+  selectedBuildingForChart: string;
+  onChartBuildingChange: (value: string) => void;
+  onMetricChange: (value: MetricType) => void;
+  formatChartTime: (timestamp: string) => string;
+  chartLoading?: boolean;
+  chartError?: string | null;
+  anomalies: Anomaly[];
+  onRowClick: (anomaly: Anomaly) => void;
+  formatDate: (date: string) => string;
+}
+
+// z manager and viewer anomaly pages present the same chart filters and table
+export function AnomalyOverview(props: Readonly<AnomalyOverviewProps>) {
+  const {
+    chartData,
+    anomalyPoints,
+    chartMetric,
+    selectedBuildingForChart,
+    onChartBuildingChange,
+    onMetricChange,
+    formatChartTime,
+    chartLoading,
+    chartError,
+    anomalies,
+    onRowClick,
+    formatDate,
+    ...filterProps
+  } = props;
+
+  return (
+    <>
+      <EnergyChart
+        loading={chartLoading}
+        error={chartError}
+        chartData={chartData}
+        anomalyPoints={anomalyPoints}
+        buildings={filterProps.buildings}
+        selectedBuilding={selectedBuildingForChart}
+        chartMetric={chartMetric}
+        onBuildingChange={onChartBuildingChange}
+        onMetricChange={onMetricChange}
+        formatChartTime={formatChartTime}
+      />
+
+      <FilterBar {...filterProps} />
+
+      <section aria-label="Anomalies list">
+        <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>Current Anomalies</h2>
+        <AnomaliesTable anomalies={anomalies} onRowClick={onRowClick} formatDate={formatDate} />
+      </section>
+    </>
+  );
+}
 
 export function useAnomalyChartData(
   anomalies: Anomaly[],

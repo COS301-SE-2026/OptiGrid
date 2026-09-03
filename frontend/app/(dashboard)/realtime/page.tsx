@@ -292,13 +292,14 @@ export default function RealtimePage() {
         return (
             <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
-                    <div role="group" aria-label="Filter by status" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                    <fieldset style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", border: 0, padding: 0, margin: 0, minInlineSize: "auto" }}>
+                        <legend className="sr-only">Filter by status</legend>
                         {STATUS_FILTERS.map((filter) => (
                             <button key={filter} type="button" className={`live-chip ${statusFilter === filter ? "on" : ""}`} aria-pressed={statusFilter === filter} onClick={() => setStatusFilter(filter)}>
                                 {filter} ({statusCounts[filter]})
                             </button>
                         ))}
-                    </div>
+                    </fieldset>
                     <span className="text-muted" style={{ fontSize: "0.72rem" }}>
                         Sorted by live active power (kW)
                     </span>
