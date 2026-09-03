@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { Building, BuildingType, LifecycleState } from '@prisma/client';
 import crypto from 'node:crypto';
-import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries, UTILITY_COST_USD_PER_KWH, UTILITY_COST_ZAR_PER_KWH } from '../lib/influx';
+import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries, resolveCostZar, UTILITY_COST_USD_PER_KWH, UTILITY_COST_ZAR_PER_KWH } from '../lib/influx';
 import prisma from '../lib/prisma';
 import { deleteInfluxBucket, queueBuildingProvisioning } from './provisioning.service';
 
@@ -617,9 +617,7 @@ export const compareBuildingsService = async (
     const rawTotalCostUsd = toFiniteNumber(influxData?.total_cost_usd);
     const rawTotalCostZar = toFiniteNumber(influxData?.total_cost_zar);
 
-    const totalCostZar = rawTotalCostZar > 0
-      ? rawTotalCostZar
-      : (rawTotalCostUsd > 0 ? rawTotalCostUsd : totalKwh * UTILITY_COST_ZAR_PER_KWH);
+    const totalCostZar = resolveCostZar(rawTotalCostZar, rawTotalCostUsd, totalKwh);
 
     const totalCostUsd = rawTotalCostUsd > 0
       ? rawTotalCostUsd

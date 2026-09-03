@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
     signup,
     login,
+    logout,
     recoverAccount,
     getManagersController,
     getViewersController,
@@ -320,6 +321,8 @@ router.post('/oauth-login', googleAuthLoginController);
  *                 value:
  *                   message: "Internal server error"
  */
+router.post('/logout', authenticateRequest, logout);
+
 router.post('/recover-account', validateBody(loginSchema), recoverAccount);
 
 router.get('/viewers', authenticateRequest, reqRole([UserRole.ADMIN]), getViewersController);

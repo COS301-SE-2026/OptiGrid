@@ -78,46 +78,22 @@ export default function SignupPage() {
     };
 
     return (
-        <main
-            style={{
-                minHeight: "100vh",
-                background: "var(--brand-bg)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "var(--space-5)",
-            }}
-        >
-            <section
-                className="card"
-                style={{ width: "min(420px, 100%)", display: "grid", gap: "var(--space-4)" }}
-            >
-                <header style={{ display: "grid", gap: "var(--space-1)" }}>
+        <main className="auth-page">
+            <section className="card auth-card">
+                <header className="auth-header">
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
                     <p className="landing-kicker">OptiGrid Access</p>
                     <h1>Create your account</h1>
-                    <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                    <p className="text-muted auth-lede">
                         Monitor usage, catch anomalies, and start saving in minutes.
                     </p>
                 </header>
 
-                <form style={{
-                        display: "grid",
-                        gap: "var(--space-4)"
-                    }} noValidate onSubmit={handleSubmit} suppressHydrationWarning>
-                    <div
-                        style={{
-                            display: "grid",
-                            gap: "var(--space-4)",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
-                        }}
-                    >
-                        <div style={{ 
-                                display: "grid", 
-                                gap: "var(--space-1)" 
-                            }}>
+                <form className="auth-form" noValidate onSubmit={handleSubmit} suppressHydrationWarning>
+                    <div className="auth-row">
+                        <div className="auth-field">
                             <label className="label" htmlFor="firstName">
                                 First name
                             </label>
@@ -143,20 +119,14 @@ export default function SignupPage() {
                                 <p
                                     id="firstName-error"
                                     role="alert"
-                                    style={{
-                                        color: "var(--brand-danger)",
-                                        fontSize: "var(--fs-small)",
-                                    }}
+                                    className="auth-field-error"
                                 >
                                     {errors.firstName}
                                 </p>
                             )}
                         </div>
 
-                        <div style={{ 
-                                display: "grid", 
-                                gap: "var(--space-1)" 
-                            }}>
+                        <div className="auth-field">
                             <label className="label" htmlFor="lastName">
                                 Last name
                             </label>
@@ -182,10 +152,7 @@ export default function SignupPage() {
                                 <p
                                     id="lastName-error"
                                     role="alert"
-                                    style={{
-                                        color: "var(--brand-danger)",
-                                        fontSize: "var(--fs-small)",
-                                    }}
+                                    className="auth-field-error"
                                 >
                                     {errors.lastName}
                                 </p>
@@ -193,10 +160,7 @@ export default function SignupPage() {
                         </div>
                     </div>
 
-                    <div style={{ 
-                            display: "grid", 
-                            gap: "var(--space-1)" 
-                        }}>
+                    <div className="auth-field">
                         <label className="label" htmlFor="email">
                             Work email
                         </label>
@@ -222,20 +186,14 @@ export default function SignupPage() {
                             <p
                                 id="email-error"
                                 role="alert"
-                                style={{
-                                    color: "var(--brand-danger)",
-                                    fontSize: "var(--fs-small)",
-                                }}
+                                className="auth-field-error"
                             >
                                 {errors.email}
                             </p>
                         )}
                     </div>
 
-                    <div style={{ 
-                            display: "grid",
-                            gap: "var(--space-1)" 
-                        }}>
+                    <div className="auth-field">
                         <label className="label" htmlFor="password">
                             Password
                         </label>
@@ -261,20 +219,14 @@ export default function SignupPage() {
                             <p
                                 id="password-error"
                                 role="alert"
-                                style={{
-                                    color: "var(--brand-danger)",
-                                    fontSize: "var(--fs-small)",
-                                }}
+                                className="auth-field-error"
                             >
                                 {errors.password}
                             </p>
                         )}
                     </div>
 
-                    <div style={{ 
-                            display: "grid", 
-                            gap: "var(--space-1)" 
-                        }}>
+                    <div className="auth-field">
                         <label className="label" htmlFor="confirmPassword">
                             Confirm password
                         </label>
@@ -302,10 +254,7 @@ export default function SignupPage() {
                             <p
                                 id="confirmPassword-error"
                                 role="alert"
-                                style={{
-                                    color: "var(--brand-danger)",
-                                    fontSize: "var(--fs-small)",
-                                }}
+                                className="auth-field-error"
                             >
                                 {errors.confirmPassword}
                             </p>
@@ -315,53 +264,27 @@ export default function SignupPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="btn btn-primary"
-                        style={{ 
-                            width: "100%",
+                        className="btn btn-primary auth-submit"
+                        style={{
                             backgroundColor: "#3A6B7C",
                             color: "#FFFFFF",
-                            fontWeight: "var(--fw-semibold)",
-                            fontSize: "var(--fs-body)",
                         }}
                     >
                         {loading ? "Creating account..." : "Create account"}
                     </button>
                     
-                    <GoogleAuthButton 
-                        onLoading={setLoading} 
-                        onError={setApiError}> 
-                    </GoogleAuthButton>
+                    <GoogleAuthButton onLoading={setLoading} onError={setApiError}/>
 
                     {apiError && (
-                        <div
-                            role="alert"
-                            style={{
-                                border: "1px solid var(--brand-danger)",
-                                background:
-                                    "color-mix(in srgb, var(--brand-danger) 12%, transparent)",
-                                color: "var(--brand-danger)",
-                                padding: "var(--space-3) var(--space-4)",
-                                borderRadius: "var(--radius-md)",
-                                fontSize: "var(--fs-small)",
-                            }}
-                        >
+                        <div role="alert" className="auth-alert">
                             {apiError}
                         </div>
                     )}
                 </form>
 
-                <p
-                    className="text-muted"
-                    style={{ textAlign: "center", fontSize: "var(--fs-small)" }}
-                >
+                <p className="text-muted auth-footnote">
                     Have an account?{" "}
-                    <Link
-                        href="/login"
-                        style={{
-                            color: "var(--brand-primary-cta)",
-                            fontWeight: 600,
-                        }}
-                    >
+                    <Link href="/login">
                         Log in
                     </Link>
                 </p>

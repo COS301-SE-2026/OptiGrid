@@ -114,6 +114,34 @@ export function formatZScoreDeviation(zScore: number): string {
   return `${sign}${zScore.toFixed(1)}σ from baseline`;
 }
 
+export function toFiniteValue(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function roundToTwo(value: number): number {
+  return Number.isFinite(value) ? Number(value.toFixed(2)) : 0;
+}
+
+export function formatMetricValue(value: number, metric: MetricType): string {
+  const amount = roundToTwo(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return metric === "cost" ? `R ${amount}` : `${amount} kWh`;
+}
+
+export function formatAxisTick(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 2,
+  });
+}
+
 function resolveBuildingId(selectedBuilding: string, buildingsList: Building[] = []): string {
   if (selectedBuilding !== "all") {
     return selectedBuilding;
@@ -502,6 +530,22 @@ interface EnergyChartProps {
   error?: string | null;
 }
 
+function ChartStatusMessage({ message, tone }: Readonly<{ message: string; tone: "muted" | "danger" }>) {
+  const isError = tone === "danger";
+  return (
+    <div
+      {...(isError ? { role: "alert" } : {})}
+      style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <span className={isError ? undefined : "text-muted"}
+        style={{ fontSize: "var(--fs-small)", ...(isError ? { color: "var(--brand-danger)" } : {}) }}
+      >
+        {message}
+      </span>
+    </div>
+  );
+}
+
 export function EnergyChart(props: Readonly<EnergyChartProps>) {
   const {
     chartData,
@@ -556,18 +600,9 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
       </div>
 
       <div style={{ height: "300px", width: "100%" }}>
-        {loading ? (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Loading chart data...</span>
-          </div>
-        ) : error ? (
-          <div
-            role="alert"
-            style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <span style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>{error}</span>
-          </div>
-        ) : (
+        {loading && <ChartStatusMessage message="Loading chart data..." tone="muted" />}
+        {!loading && error && <ChartStatusMessage message={error} tone="danger" />}
+        {!loading && !error && (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
@@ -586,8 +621,11 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
                 tick={{ fill: "var(--brand-ink-muted)", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
+                width={70}
+                domain={[0, (dataMax: number) => (dataMax > 0 ? dataMax * 1.1 : 1)]}
+                tickFormatter={formatAxisTick}
                 label={{
-                  value: chartMetric === "power" ? "kWh" : "R",
+                  value: chartMetric === "power" ? "Energy (kWh)" : "Cost (R)",
                   angle: -90,
                   position: "insideLeft",
                   style: { fill: "var(--brand-ink-muted)", fontSize: 10 }
@@ -604,18 +642,18 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
                 labelFormatter={(label) => new Date(label).toLocaleString()}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter={(value: number, name: string, item: any) => {
-                  const unit = chartMetric === "power" ? "kWh" : "R";
+                  const formatted = formatMetricValue(value, chartMetric);
                   const isAnomaly = item?.payload?.isAnomaly;
                   if (name === "actual") {
                     return [
-                      isAnomaly ? `${value} ${unit} (Anomaly Detected ⚠️)` : `${value} ${unit}`,
+                      isAnomaly ? `${formatted} (anomaly detected)` : formatted,
                       "Actual",
                     ];
                   }
                   if (name === "expected") {
-                    return [`${value} ${unit}`, "Expected"];
+                    return [formatted, "Expected"];
                   }
-                  return [`${value} ${unit}`, name];
+                  return [formatted, name];
                 }}
               />
               <defs>
@@ -801,6 +839,98 @@ export function parseNumberOrNull(value: string): number | null {
 const EMPTY_BUILDINGS: Building[] = [];
 const SERIES_ERROR_MESSAGE = "Unable to load energy consumption data.";
 
+
+export type AnomalyChartState = {
+  chartData: typeof mockConsumptionData;
+  anomalyPoints: { timestamp: string; y: number }[];
+  chartError?: string | null;
+  chartLoading?: boolean;
+};
+
+export type AnomalyFilterState = {
+  selectedBuilding: string;
+  statusFilter: string;
+  severityFilter: string;
+  searchQuery: string;
+  setSelectedBuilding: (value: string) => void;
+  setStatusFilter: (value: string) => void;
+  setSeverityFilter: (value: string) => void;
+  setSearchQuery: (value: string) => void;
+  filteredAnomalies: Anomaly[];
+  resetFilters: () => void;
+};
+
+interface AnomalyOverviewProps {
+  chart: AnomalyChartState;
+  filters: AnomalyFilterState;
+  buildings: Building[];
+  chartMetric: MetricType;
+  selectedBuildingForChart: string;
+  onChartBuildingChange: (value: string) => void;
+  onMetricChange: (value: MetricType) => void;
+  formatChartTime: (timestamp: string) => string;
+  formatDate: (date: string) => string;
+  onRowClick: (anomaly: Anomaly) => void;
+  pageLoading?: boolean;
+  buildingFilterLabel?: string;
+}
+
+// the manager and viewer anomaly pages present the same chart, filters and table
+export function AnomalyOverview(props: Readonly<AnomalyOverviewProps>) {
+  const {
+    chart,
+    filters,
+    buildings,
+    chartMetric,
+    selectedBuildingForChart,
+    onChartBuildingChange,
+    onMetricChange,
+    formatChartTime,
+    formatDate,
+    onRowClick,
+    pageLoading,
+    buildingFilterLabel,
+  } = props;
+
+  return (
+    <>
+      <EnergyChart
+        loading={pageLoading ?? chart.chartLoading}
+        error={chart.chartError}
+        chartData={chart.chartData}
+        anomalyPoints={chart.anomalyPoints}
+        buildings={buildings}
+        selectedBuilding={selectedBuildingForChart}
+        chartMetric={chartMetric}
+        onBuildingChange={onChartBuildingChange}
+        onMetricChange={onMetricChange}
+        formatChartTime={formatChartTime}
+      />
+
+      <FilterBar
+        buildings={buildings}
+        selectedBuilding={filters.selectedBuilding}
+        statusFilter={filters.statusFilter}
+        severityFilter={filters.severityFilter}
+        searchQuery={filters.searchQuery}
+        onBuildingChange={filters.setSelectedBuilding}
+        onStatusChange={filters.setStatusFilter}
+        onSeverityChange={filters.setSeverityFilter}
+        onSearchChange={filters.setSearchQuery}
+        onReset={filters.resetFilters}
+        buildingFilterLabel={buildingFilterLabel}
+      />
+
+      <section aria-label="Anomalies list">
+        <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
+          Current Anomalies
+        </h2>
+        <AnomaliesTable anomalies={filters.filteredAnomalies} onRowClick={onRowClick} formatDate={formatDate} />
+      </section>
+    </>
+  );
+}
+
 export function useAnomalyChartData(
   anomalies: Anomaly[],
   selectedBuildingForChart: string,
@@ -884,8 +1014,8 @@ export function useAnomalyChartData(
         const hour = pDate.getHours();
         const current = hourlyBaselines.get(hour) || { kwhSum: 0, costSum: 0, count: 0 };
         hourlyBaselines.set(hour, {
-          kwhSum: current.kwhSum + point.kwh,
-          costSum: current.costSum + point.cost_zar,
+          kwhSum: current.kwhSum + toFiniteValue(point.kwh),
+          costSum: current.costSum + toFiniteValue(point.cost_zar),
           count: current.count + 1,
         });
       }
@@ -898,15 +1028,17 @@ export function useAnomalyChartData(
       const hour = pDate.getHours();
       
       const baseline = hourlyBaselines.get(hour);
-      const expectedKwh = baseline && baseline.count > 0 ? baseline.kwhSum / baseline.count : point.kwh * 0.85;
-      const expectedCost = baseline && baseline.count > 0 ? baseline.costSum / baseline.count : point.cost_zar * 0.85;
-      
+      const actualKwh = toFiniteValue(point.kwh);
+      const actualCost = toFiniteValue(point.cost_zar);
+      const expectedKwh = baseline && baseline.count > 0 ? baseline.kwhSum / baseline.count : actualKwh * 0.85;
+      const expectedCost = baseline && baseline.count > 0 ? baseline.costSum / baseline.count : actualCost * 0.85;
+
       return {
         timestamp: point.timestamp,
-        actual: point.kwh,
-        expected: expectedKwh, 
-        cost: point.cost_zar,
-        expectedCost: expectedCost,
+        actual: roundToTwo(actualKwh),
+        expected: roundToTwo(expectedKwh),
+        cost: roundToTwo(actualCost),
+        expectedCost: roundToTwo(expectedCost),
         isAnomaly,
       };
     });

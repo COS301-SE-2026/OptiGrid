@@ -34,3 +34,11 @@ export function getTabSessionPath(pathname: string, tabSessionId = getTabSession
 export function getTabSessionCookiePath(tabSessionId: string | null): string {
 	return tabSessionId ? `/_sessions/${tabSessionId}` : "/";
 }
+
+const TAB_SESSION_PREFIX_PATTERN = /^\/_sessions\/[0-9a-f-]+(?=\/|$)/i;
+
+// routes are rewritten to /_sessions/<tab id>/... thereforre callers that match on a route need the plain application path back
+export function stripTabSessionPath(pathname: string): string {
+	const strippedSession = pathname.replace(TAB_SESSION_PREFIX_PATTERN, "");
+	return strippedSession === "" ? "/" : strippedSession;
+}

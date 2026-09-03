@@ -160,9 +160,14 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
     );
 }
 
+type StatusFilter = "All" | BuildingStatus;
+
+const STATUS_FILTERS: StatusFilter[] = ["All", "Normal", "Peak alert", "Offline"];
+
 export default function RealtimePage() {
     const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
     const [latestReadings, setLatestReadings] = useState<Record<string, { currentKw: number; timestamp: string }>>({});
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
 
     useEffect(() => {
         setLastRefreshedAt(new Date());
@@ -243,7 +248,13 @@ export default function RealtimePage() {
         return { ...b, currentKw, status };
     });
 
-    const visibleBuildings = [...mergedBuildings]
+    const statusCounts: Record<StatusFilter, number> = {
+        All: mergedBuildings.length,
+        Normal: mergedBuildings.filter((b) => b.status === "Normal").length,
+        "Peak alert": mergedBuildings.filter((b) => b.status === "Peak alert").length,
+        Offline: mergedBuildings.filter((b) => b.status === "Offline").length
+    };
+    const visibleBuildings = mergedBuildings.filter((b) => statusFilter === "All" || b.status === statusFilter)
         .sort((a, b) => (b.currentKw ?? b.todayKwh ?? -1) - (a.currentKw ?? a.todayKwh ?? -1));
 
     const renderMainContent = () => {
@@ -281,29 +292,30 @@ export default function RealtimePage() {
         return (
             <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
-                    <span 
-                        className="live-chip on"
-                        style={{
-                            backgroundColor: "#3A6B7C",
-                            color: "#FFFFFF",
-                            padding: "var(--space-1) var(--space-3)",
-                            borderRadius: "var(--radius-pill)",
-                            fontSize: "var(--fs-small)",
-                            fontWeight: "var(--fw-medium)",
-                        }}
-                    >
-                        All ({mergedBuildings.length})
-                    </span>
+                    <fieldset style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", border: 0, padding: 0, margin: 0, minInlineSize: "auto" }}>
+                        <legend className="sr-only">Filter by status</legend>
+                        {STATUS_FILTERS.map((filter) => (
+                            <button key={filter} type="button" className={`live-chip ${statusFilter === filter ? "on" : ""}`} aria-pressed={statusFilter === filter} onClick={() => setStatusFilter(filter)}>
+                                {filter} ({statusCounts[filter]})
+                            </button>
+                        ))}
+                    </fieldset>
                     <span className="text-muted" style={{ fontSize: "0.72rem" }}>
                         Sorted by live active power (kW)
                     </span>
                 </div>
 
-                <ul style={GRID_STYLE} aria-label="Buildings list">
-                    {visibleBuildings.map((building) => (
-                        <BuildingCard key={building.id} building={building} />
-                    ))}
-                </ul>
+                {visibleBuildings.length === 0 ? (
+                    <div className="card dashboard-empty">
+                        <p className="text-muted">No buildings match the {statusFilter} filter.</p>
+                    </div>
+                ) : (
+                    <ul style={GRID_STYLE} aria-label="Buildings list">
+                        {visibleBuildings.map((building) => (
+                            <BuildingCard key={building.id} building={building} />
+                        ))}
+                    </ul>
+                )}
             </>
         );
     };

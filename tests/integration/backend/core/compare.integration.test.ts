@@ -3,10 +3,30 @@ const request = require('supertest');
 import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
 
 // we need to mock influx because it isnt spun up in harness
-jest.mock('../../../../backend/core/src/lib/influx', () => ({
-	queryTotalKwh: jest.fn(),
-	queryUsageSeries: jest.fn().mockResolvedValue([]),
-}));
+jest.mock('../../../../backend/core/src/lib/influx', () => {
+	const zarPerKwh = 2.5;
+	const usdPerKwh = 0.13;
+
+	return {
+		queryTotalKwh: jest.fn(),
+		queryUsageSeries: jest.fn().mockResolvedValue([]),
+		queryUsageDetails: jest.fn(),
+		UTILITY_COST_ZAR_PER_KWH: zarPerKwh,
+		UTILITY_COST_USD_PER_KWH: usdPerKwh,
+		ZAR_PER_USD: zarPerKwh / usdPerKwh,
+		resolveCostZar: (costZar: number, costUsd: number, kwh: number) => {
+			if (costZar > 0) {
+				return costZar;
+			}
+
+			if (costUsd > 0) {
+				return costUsd * (zarPerKwh / usdPerKwh);
+			}
+
+			return kwh * zarPerKwh;
+		},
+	};
+});
 import { queryTotalKwh } from '../../../../backend/core/src/lib/influx';
 
 const mockedQueryTotalKwh = queryTotalKwh as jest.Mock;
