@@ -356,7 +356,7 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-3)",
               }}
             >
-              Make every building's energy usage visible, predictable, and improvable — a future
+              Make every buildings energy usage visible, predictable, and improvable — a future
               where operators have the same instrumentation for energy as they do for finance:
               real-time, granular, and acted on daily rather than quarterly.
             </p>
@@ -456,7 +456,7 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-3)",
               }}
             >
-              A square "OG" monogram with the wordmark stacked below, built for compact
+              A square OG monogram with the wordmark stacked below, built for compact
               placements: app icons, favicons, social avatars, and anywhere the horizontal
               wordmark would be illegible.
             </p>
@@ -1361,7 +1361,7 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-3)",
               }}
             >
-              Good: "Add a new building."  Avoid: "A new building can be added."
+              Good: Add a new building.  Avoid: A new building can be added.
             </p>
 
             <h4
@@ -1384,7 +1384,7 @@ export default function OptiGridStyleGuide() {
                 marginBottom: "var(--space-2)",
               }}
             >
-              <strong>Button labels</strong> — use action verbs ("Edit", "Delete", "Register", "Compare"); be specific ("Add Building", not "Submit").
+              <strong>Button labels</strong> — use action verbs (Edit, Delete, Register, Compare); be specific (Add Building, not Submit).
             </p>
             <p
               style={{
@@ -1438,19 +1438,19 @@ export default function OptiGridStyleGuide() {
               <tbody>
                 <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
                   <td style={{ padding: "var(--space-2)" }}>Empty building list</td>
-                  <td style={{ padding: "var(--space-2)" }}>"No buildings yet. Add your first building to start monitoring energy usage."</td>
+                  <td style={{ padding: "var(--space-2)" }}>No buildings yet. Add your first building to start monitoring energy usage.</td>
                 </tr>
                 <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
                   <td style={{ padding: "var(--space-2)" }}>Error saving</td>
-                  <td style={{ padding: "var(--space-2)" }}>"Could not save changes. Please check all fields and try again."</td>
+                  <td style={{ padding: "var(--space-2)" }}>Could not save changes. Please check all fields and try again.</td>
                 </tr>
                 <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
                   <td style={{ padding: "var(--space-2)" }}>Success action</td>
-                  <td style={{ padding: "var(--space-2)" }}>"Building added successfully."</td>
+                  <td style={{ padding: "var(--space-2)" }}>Building added successfully.</td>
                 </tr>
                 <tr style={{ borderBottom: "1px solid var(--brand-border)" }}>
                   <td style={{ padding: "var(--space-2)" }}>Confirmation</td>
-                  <td style={{ padding: "var(--space-2)" }}>"Are you sure you want to delete this building? This action cannot be undone."</td>
+                  <td style={{ padding: "var(--space-2)" }}>Are you sure you want to delete this building? This action cannot be undone.</td>
                 </tr>
               </tbody>
             </table>
