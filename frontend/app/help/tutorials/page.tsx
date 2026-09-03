@@ -76,6 +76,8 @@ const tutorials: Tutorial[] = [
     {
         title: "View anomaly alerts",
         description: "Find out how to check for readings that have moved outside the expected range for a building.",
+        sourceUrl: "/help/tutorials/review_anomaly.mp4",
+        posterUrl: "/help/tutorials/review_anomaly-poster.png",
         steps: `
             Open "Anomaly" from the main navigation.
             The list shows every alert raised across your buildings, with the building it belongs to and the measurement involved.
