@@ -67,7 +67,7 @@ export default function LoginPage() {
             setNotice(`Login successful${firstName ? `, ${firstName}` : ""}.`);
             setFormData(initialLoginFormData);
             navigateAfterLogin((destination) => {
-                window.location.href = destination;
+                router.replace(destination);
             });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed. Please try again.");

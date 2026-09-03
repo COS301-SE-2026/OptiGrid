@@ -40,7 +40,7 @@ describe("BillingClient", () => {
     it("renders the tariff form", () => {
         render(<BillingClient />);
 
-        expect(screen.getByRole("heading", { name: "Billing settings" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Update tariff rates" })).toBeInTheDocument();
         expect(screen.getByLabelText(/building/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/season/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/^peak rate/i)).toBeInTheDocument();

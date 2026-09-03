@@ -63,6 +63,11 @@ export const listAuditLogsController = async (req: Request, resp: Response) => {
 
     const query = auditLogQuerySchema.parse(req.query);
 
+    let manager_id: string | undefined;
+    if (req.user.roleType === UserRole.BUILDING_MANAGER) {
+      manager_id = req.user.id;
+    }
+
     const result = await listAuditLogs({
       action_type: query.action_type,
       page: query.page,
@@ -71,7 +76,8 @@ export const listAuditLogsController = async (req: Request, resp: Response) => {
       from: query.from,
       to: query.to,
       cursor: query.cursor,
-      limit: query.limit
+      limit: query.limit,
+      manager_id
     });
 
     return resp.status(200).json({

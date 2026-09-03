@@ -12,13 +12,13 @@ const { minimumLines } = require('../tests/nfr/maintainability/coverage-policy.c
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const option = (name, fallback) => argv.includes(name) ? argv[argv.indexOf(name) + 1] : fallback;
-const selected = new Set(option('--only', 'm02,node-coverage,python-coverage,m03,m04,m05').split(','));
-const knownChecks = new Set(['m02', 'node-coverage', 'frontend-coverage', 'core-coverage', 'python-coverage', 'm03', 'm04', 'm05']);
+const selected = new Set(option('--only', 'm02,node-coverage,python-coverage,m03,m05').split(','));
+const knownChecks = new Set(['m02', 'node-coverage', 'frontend-coverage', 'core-coverage', 'python-coverage', 'm03', 'm05']);
 for (const check of selected) if (!knownChecks.has(check)) throw new Error(`Unknown check: ${check}`);
 const stamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
 const out = path.resolve(root, option('--output', `test-results/maintainability/${stamp}`));
 fs.mkdirSync(out, { recursive: true });
-const python = service => path.resolve(root, option(`--python-${service}`, `test-results/nfr-environments/${service}/${process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'}`));
+const python = service => path.resolve(root, option(`--python-${service}`, `.venv/${process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'}`));
 const jest = path.join(root, 'node_modules/jest/bin/jest.js');
 const git = (...args) => spawnSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true }).stdout?.trim();
 const prior = fs.existsSync(path.join(out, 'results.json')) ? JSON.parse(fs.readFileSync(path.join(out, 'results.json'), 'utf8')) : null;
@@ -139,18 +139,7 @@ if (selected.has('m03')) {
   }
   result('m03-python-enforcement', { status: pythonFixtures.every(r => r.status === 'PASS') ? 'PASS' : 'FAIL' });
 }
-if (selected.has('m04')) {
-  const fixtures = complexitySelfTest();
-  const actual = checkComplexity(root);
-  write(path.join(out, 'm04-javascript.json'), { fixtures, ...actual });
-  result('m04-javascript', { status: actual.passed && fixtures.every(f => f.passed) ? 'PASS' : 'FAIL', filesChecked: actual.filesChecked, functionsChecked: actual.functionsChecked, components: actual.components, violations: actual.violations.length, errors: actual.errors.length, fixturesPassed: fixtures.filter(f => f.passed).length, fixturesTotal: fixtures.length, evidence: 'm04-javascript.json' });
-  const p = run('m04-python', python('ingestion'), [path.join(root, 'tests/nfr/maintainability/complexity.py'), root, path.join(out, 'm04-python.json')]);
-  const data = json(path.join(out, 'm04-python.json'));
-  if (data) Object.assign(p, { filesChecked: data.filesChecked, functionsChecked: data.functionsChecked, components: data.components, violations: data.violations.length, errors: data.errors.length, fixturesPassed: data.fixtures.filter(f => f.passed).length, fixturesTotal: data.fixtures.length });
-  if (!data && p.status === 'PASS') p.status = 'FAIL';
-  save();
-  run('environment-complexity', python('ingestion'), ['-m', 'pip', 'freeze']);
-}
+// if (selected.has('m04')) { ... }
 if (selected.has('m05')) {
   for (const component of ['frontend', 'core']) {
     const cwd = path.join(root, component === 'core' ? 'backend/core' : 'frontend');

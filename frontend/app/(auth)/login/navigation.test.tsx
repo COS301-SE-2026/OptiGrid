@@ -28,12 +28,6 @@ describe("login navigation", () => {
 	});
 
 	it("replaces the current route after authentication succeeds", async () => {
-		const originalLocation = window.location;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		delete (window as any).location;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(window as any).location = { ...originalLocation, href: '' };
-
 		const user = userEvent.setup();
 		render(<LoginPage />);
 
@@ -44,9 +38,7 @@ describe("login navigation", () => {
 		await waitFor(() => expect(navigateAfterLogin).toHaveBeenCalledTimes(1));
 		const replaceRoute = jest.mocked(navigateAfterLogin).mock.calls[0][0];
 		replaceRoute("/_sessions/test-tab-id/dashboard");
-		expect(window.location.href).toBe("/_sessions/test-tab-id/dashboard");
-
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(window as any).location = originalLocation;
+		
+		expect(mockReplace).toHaveBeenCalledWith("/_sessions/test-tab-id/dashboard");
 	});
 });

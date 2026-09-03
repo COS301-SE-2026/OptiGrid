@@ -11,6 +11,7 @@ export interface AuditLogFilters {
   to?: Date;
   cursor?: string;
   limit: number;
+  manager_id?: string;
 }
 export interface AuditEntry {
   userId?: string | null;

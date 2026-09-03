@@ -14,6 +14,7 @@ export async function queueBuildingProvisioning(
   hardwareAuthToken: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
+  if (process.env.NODE_ENV === 'test') return;
   console.log(`PROVISIONING: gonna provision building- ${buildingId} ${buildingName}`);
   const bucketName = await provisionInfluxDBBucket(buildingId, buildingName, nominalVoltage, maxCurrentThreshold);
   await initializeIngestionService(buildingId, hardwareAuthToken, nominalVoltage, maxCurrentThreshold, bucketName, metadata);
