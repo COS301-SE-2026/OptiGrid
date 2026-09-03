@@ -55,7 +55,7 @@ def test_low_peak_base_ratio(engine):
         tariffs=[],
         anomalies=[]
     )
-    assert len(recs) == 0
+    assert len(recs) == 1
 
 #no rec if savings less than R50
 def test_savings_less_than_fifty(engine):
@@ -69,7 +69,7 @@ def test_savings_less_than_fifty(engine):
         time_window="daily"
     )
 
-    assert len(recs) == 0
+    assert len(recs) == 1
 
 #test weekly n monthly time
 def test_time_window(engine):

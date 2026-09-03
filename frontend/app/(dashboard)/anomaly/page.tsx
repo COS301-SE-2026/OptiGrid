@@ -4,6 +4,7 @@ import { useBuildings } from "@/lib/useBuildings";
 import { useState, useMemo, useEffect } from "react";
 import {
   Anomaly,
+  AnomalySummary,
   AlertThreshold,
   AnomaliesTable,
   AnalyticsSummary,
@@ -45,6 +46,7 @@ export default function ManagerAnomalyPage() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [thresholds, setThresholds] = useState<AlertThreshold[]>([]);
   const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
+  const [summary, setSummary] = useState<AnomalySummary | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -57,6 +59,7 @@ export default function ManagerAnomalyPage() {
         if (anomaliesRes.ok) {
           const payload = await anomaliesRes.json();
           const allAnomalies: Anomaly[] = payload.data || [];
+          setSummary(payload.summary || null);
           setAnomalies(allAnomalies.filter(a => a.status === "Open" || a.status === "In_Progress"));
           setHistoricAnomalies(allAnomalies.filter(a => a.status === "Resolved" || a.status === "Ignored"));
         }
@@ -79,7 +82,7 @@ export default function ManagerAnomalyPage() {
   const [showThresholdModal, setShowThresholdModal] = useState<boolean>(false);
   const [editingThreshold, setEditingThreshold] = useState<AlertThreshold | null>(null);
   const [notifications, setNotifications] = useState<NotificationPopup[]>([]);
-  const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("b1");
+  const [selectedBuildingForChart, setSelectedBuildingForChart] = useState<string>("");
   const [chartMetric, setChartMetric] = useState<MetricType>("power");
 
   const emptyThresholdForm = {
@@ -216,10 +219,21 @@ export default function ManagerAnomalyPage() {
 
   const totalBuildings = useMemo(() => buildings.length, [buildings]);
 
-  const { chartData, anomalyPoints } = useAnomalyChartData(
+  useEffect(() => {
+    if (buildings.length === 0) return;
+
+    setSelectedBuildingForChart((currentBuildingId) =>
+      buildings.some((building) => building.id === currentBuildingId)
+        ? currentBuildingId
+        : buildings[0].id
+    );
+  }, [buildings]);
+
+  const { chartData, anomalyPoints, chartError, chartLoading } = useAnomalyChartData(
     anomalies,
     selectedBuildingForChart,
-    chartMetric
+    chartMetric,
+    buildings
   );
 
 
@@ -253,9 +267,11 @@ export default function ManagerAnomalyPage() {
             </div>
           </div>
 
-          <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} />
+          <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} summary={summary} />
 
           <EnergyChart
+            loading={chartLoading}
+            error={chartError}
             chartData={chartData}
             anomalyPoints={anomalyPoints}
             buildings={buildings}

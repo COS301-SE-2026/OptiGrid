@@ -95,11 +95,23 @@ export interface AlertThreshold {
   is_active: boolean;
 }
 
-function getZScoreLabel(zScore: number): string {
-  if (zScore >= 4.0) return "Extreme Spike";
-  if (zScore >= 3.0) return "High Spike";
-  if (zScore >= 2.0) return "Moderate Spike";
+export interface AnomalySummary {
+  total: number;
+  open: number;
+  critical: number;
+}
+
+export function getZScoreLabel(zScore: number): string {
+  const magnitude = Math.abs(zScore);
+  if (magnitude >= 4.0) return "Extreme Spike";
+  if (magnitude >= 3.0) return "High Spike";
+  if (magnitude >= 2.0) return "Moderate Spike";
   return "Slight Variance";
+}
+
+export function formatZScoreDeviation(zScore: number): string {
+  const sign = zScore >= 0 ? "+" : "";
+  return `${sign}${zScore.toFixed(1)}σ from baseline`;
 }
 
 function resolveBuildingId(selectedBuilding: string, buildingsList: Building[] = []): string {
@@ -216,15 +228,20 @@ export function NotificationBadge({ count }: Readonly<{ count: number }>) {
   );
 }
 
-export function AnalyticsSummary({ 
-  anomalies, 
-  totalBuildings 
+export function AnalyticsSummary({
+  anomalies,
+  totalBuildings,
+  summary,
 }: Readonly<{
-  anomalies: Anomaly[]; 
+  anomalies: Anomaly[];
   totalBuildings: number;
+  summary?: AnomalySummary | null;
 }>) {
   const openAnomalies = anomalies.filter((a) => a.status === "Open" || a.status === "In_Progress");
   const criticalAnomalies = anomalies.filter((a) => a.severity_level === "critical" && a.status !== "Resolved");
+  const totalCount = summary?.total ?? anomalies.length;
+  const openCount = summary?.open ?? openAnomalies.length;
+  const criticalCount = summary?.critical ?? criticalAnomalies.length;
 
   return (
     <div
@@ -237,18 +254,18 @@ export function AnalyticsSummary({
     >
       <div className="card dashboard-card-tight">
         <div className="dashboard-kpi-label">Total Alerts</div>
-        <div className="dashboard-kpi-value">{anomalies.length}</div>
+        <div className="dashboard-kpi-value">{totalCount}</div>
       </div>
       <div className="card dashboard-card-tight">
         <div className="dashboard-kpi-label">Open</div>
         <div className="dashboard-kpi-value" style={{ color: "#E07A7A" }}>
-          {openAnomalies.length}
+          {openCount}
         </div>
       </div>
       <div className="card dashboard-card-tight">
         <div className="dashboard-kpi-label">Critical</div>
         <div className="dashboard-kpi-value" style={{ color: "#8B1E3F" }}>
-          {criticalAnomalies.length}
+          {criticalCount}
         </div>
       </div>
       <div className="card dashboard-card-tight">
@@ -451,7 +468,7 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
                           {getZScoreLabel(anomaly.z_score_value)}
                         </span>
                         <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                          +{anomaly.z_score_value.toFixed(1)}σ from baseline
+                          {formatZScoreDeviation(anomaly.z_score_value)}
                         </span>
                       </div>
                     ) : (
@@ -482,6 +499,7 @@ interface EnergyChartProps {
   onMetricChange: (value: MetricType) => void;
   formatChartTime: (timestamp: string) => string;
   loading?: boolean;
+  error?: string | null;
 }
 
 export function EnergyChart(props: Readonly<EnergyChartProps>) {
@@ -495,6 +513,7 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
     onMetricChange,
     formatChartTime: formatChartTimeProp,
     loading,
+    error,
   } = props;
 
   const getDataKey = () => chartMetric === "power" ? "actual" : "cost";
@@ -540,6 +559,13 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
         {loading ? (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>Loading chart data...</span>
+          </div>
+        ) : error ? (
+          <div
+            role="alert"
+            style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <span style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>{error}</span>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -772,34 +798,68 @@ export function parseNumberOrNull(value: string): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+const EMPTY_BUILDINGS: Building[] = [];
+const SERIES_ERROR_MESSAGE = "Unable to load energy consumption data.";
+
 export function useAnomalyChartData(
   anomalies: Anomaly[],
   selectedBuildingForChart: string,
   chartMetric: MetricType,
-  buildings: Building[] = []
+  buildings: Building[] = EMPTY_BUILDINGS
 ) {
   const [seriesData, setSeriesData] = useState<{ timestamp: string; kwh: number; cost_zar: number }[]>([]);
+  const [chartError, setChartError] = useState<string | null>(null);
+  const [chartLoading, setChartLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    const buildingId = resolveBuildingId(selectedBuildingForChart, buildings);
+
+    if (!buildingId) {
+      setSeriesData([]);
+      setChartError(null);
+      setChartLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const fetchSeries = async () => {
-      const buildingId = resolveBuildingId(selectedBuildingForChart, buildings);
-      if (!buildingId) return;
+      setChartError(null);
+      setChartLoading(true);
+
       try {
         const res = await fetch(`/api/buildings/${buildingId}/series?time_range=7d`);
+        if (!res.ok) {
+          throw new Error(`Series request failed with status ${res.status}`);
+        }
+
         const json = await res.json();
-        if (json.status === 'success' && Array.isArray(json.data)) {
+        if (!cancelled && json.status === 'success' && Array.isArray(json.data)) {
           const oneWeekAgo = new Date();
           oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
           const recentPoints = json.data.filter((p: { timestamp: string }) => new Date(p.timestamp) >= oneWeekAgo);
           setSeriesData(recentPoints);
+        } else if (!cancelled) {
+          setSeriesData([]);
         }
-      } catch (err) {
-        console.error("Failed to fetch series data", err);
+      } catch {
+        if (!cancelled) {
+          setSeriesData([]);
+          setChartError(SERIES_ERROR_MESSAGE);
+        }
+      } finally {
+        if (!cancelled) {
+          setChartLoading(false);
+        }
       }
     };
-    if (buildings.length > 0 || selectedBuildingForChart !== "all") {
-      fetchSeries();
-    }
+
+    void fetchSeries();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedBuildingForChart, buildings]);
 
   const chartData = useMemo(() => {
@@ -850,7 +910,7 @@ export function useAnomalyChartData(
         isAnomaly,
       };
     });
-  }, [seriesData, selectedBuildingForChart, anomalies]);
+  }, [seriesData, selectedBuildingForChart, anomalies, buildings]);
 
   const anomalyPoints = useMemo(() => {
     return chartData
@@ -861,7 +921,7 @@ export function useAnomalyChartData(
       }));
   }, [chartData, chartMetric]);
 
-  return { chartData, anomalyPoints };
+  return { chartData, anomalyPoints, chartError, chartLoading };
 }
 
 

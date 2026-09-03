@@ -144,7 +144,7 @@ class AnomalyDetectorObserver(Observer):
         
         # Trigger anomaly if Z-score indicates outlier
         if abs(z_score) > 2.5:
-            severity = "Critical" if abs(z_score) > 3.0 else "High"
+            severity = "critical" if abs(z_score) > 3.0 else "high"
             
             key = f"zscore:ema:{sensor_id}"
             data = self.redis.hgetall(key)

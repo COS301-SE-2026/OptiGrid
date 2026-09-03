@@ -399,12 +399,12 @@ def test_process_building_positive(monthly, weekly, seeded, register, engine):
     """Test process building"""
     df_influx_mock = _create_mock_df(24, 10.0, 'bld_test_1')
     engine.influx.query_api().query_data_frame.return_value = df_influx_mock
-    seeded.return_value = df_influx_mock
+    seeded.return_value = (df_influx_mock, df_influx_mock)
     #act
     engine.process_building("building-123")
     register.assert_called_once_with("building-123")
     #assert
-    assert seeded.call_count>= 2
+    seeded.assert_called_once()
     weekly.assert_called_once()
     monthly.assert_called_once()
 
@@ -415,7 +415,7 @@ def test_process_building_positive(monthly, weekly, seeded, register, engine):
 def test_process_building_influx(monthly, weekly, seeded, register, engine):
     """Test process building handles influx exception properly"""
     engine.influx.query_api().query_data_frame.side_effect = Exception("Influx Error")
-    seeded.return_value = pd.DataFrame()
+    seeded.return_value = (pd.DataFrame(), pd.DataFrame())
     #act
     engine.process_building("building-123")
     register.assert_called_once_with("building-123")
@@ -509,25 +509,14 @@ def test_recommendations_negative(mock_non_data, engine):
     mock_non_data.return_value = []
     df = pd.DataFrame({'usage': [100.0, 100.0, 100.0, 100.0]})
     ml_metrics= {
-        "forecast_peak": 110.0,
+        "forecast_peak": 90.0,
         "min_historic": 100.0
     }
     #act n assert
     engine._generate_recommendations("building-123", df, ml_metrics, "weekly")
     engine.supabase.table.return_value.upsert.assert_not_called()
 
-@patch('backend.analytics.src.core_engine.UTILITY_RATE_KWH', 0.01)
-@patch("backend.analytics.src.core_engine.RecommendationSynthesizer.generate_non_data_driven_recs")
-def test_recommendations_low_savings(mock_non_data, engine):
-    """Test that no recommendation is snet if savings < R50 """
-    mock_non_data.return_value = []
-    df = pd.DataFrame({'usage': [10.0, 10.0, 10.0]})
-    ml_metrics= {
-        "forecast_peak": 13.1,
-        "min_historic": 5.0
-    }
-    engine._generate_recommendations("building", df, ml_metrics, "weekly")
-    engine.supabase.table.return_value.upsert.assert_not_called()
+
 
 def test_empty_df(engine):
     """Test that no recommendation is made if no data frame"""

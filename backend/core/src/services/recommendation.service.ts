@@ -84,6 +84,8 @@ export const viewRecommendationService = async (userId:string, buildingId: strin
       estimated_monthly_savings: true,
       status: true,
       expires_at: true,
+      generated_date: true,
+      applicable_range: true
     }
   });
   return rec;

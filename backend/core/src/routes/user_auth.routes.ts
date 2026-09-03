@@ -7,6 +7,7 @@ import {
     getViewersController,
     assignManagerController,
     removeManagerController,
+    googleAuthLoginController,
 } from '../controllers/user_auth.controller';
 import { validateSignUp, validateBody, signupSchema, loginSchema } from '../validation/user_auth.validation';
 import { reqRole } from '../middleware/rbac.middleware';
@@ -192,6 +193,7 @@ router.post('/signup', validateSignUp(signupSchema), signup);
  *                   example: Internal server error
  */
 router.post('/login', validateBody(loginSchema), login)
+router.post('/oauth-login', googleAuthLoginController);
 
 /**
  * @swagger

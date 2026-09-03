@@ -3,10 +3,46 @@ import { AnomalyStatus } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { checkBuildingAccess, getAllowedBuildingIds } from '../utils/auth.utils';
 
-async function fetchAndRespondAnomalies(buildingFilter: any, query: any, res: Response): Promise<void> {
+interface AnomalySummary {
+	total: number;
+	open: number;
+	critical: number;
+}
+
+async function getAnomalySummary(buildingFilter: any): Promise<AnomalySummary> {
+	const activeFilter = {
+		...buildingFilter,
+		status: { in: [AnomalyStatus.Open, AnomalyStatus.In_Progress] },
+	};
+
+	const [total, open, critical] = await Promise.all([
+		prisma.anomaly.count({ where: buildingFilter }),
+		prisma.anomaly.count({ where: activeFilter }),
+		prisma.anomaly.count({
+			where: {
+				...activeFilter,
+				severity_level: { equals: 'critical', mode: 'insensitive' },
+			},
+		}),
+	]);
+
+	return { total, open, critical };
+}
+
+async function fetchAndRespondAnomalies(
+	buildingFilter: any,
+	query: any,
+	res: Response,
+	includeSummary = false
+): Promise<void> {
 	const { skip = '0', take = '50', severity, status, startDate, endDate } = query;
 	const where: any = { ...buildingFilter };
-	if (severity) where.severity_level = severity as string;
+	if (severity) {
+		where.severity_level = {
+			equals: String(severity).toLowerCase(),
+			mode: 'insensitive',
+		};
+	}
 	if (status) where.status = status as AnomalyStatus;
 	if (startDate || endDate) {
 		where.detected_timestamp = {};
@@ -17,7 +53,7 @@ async function fetchAndRespondAnomalies(buildingFilter: any, query: any, res: Re
 	const skipNum = Number.parseInt(skip as string, 10);
 	const takeNum = Number.parseInt(take as string, 10);
 
-	const [anomalies, totalCount] = await Promise.all([
+	const [anomalies, totalCount, summary] = await Promise.all([
 		prisma.anomaly.findMany({
 			where,
 			skip: skipNum,
@@ -26,10 +62,12 @@ async function fetchAndRespondAnomalies(buildingFilter: any, query: any, res: Re
 			include: { building: true },
 		}),
 		prisma.anomaly.count({ where }),
+		includeSummary ? getAnomalySummary(buildingFilter) : Promise.resolve(null),
 	]);
 
 	const mappedAnomalies = anomalies.map((a) => ({
 		...a,
+		severity_level: a.severity_level.toLowerCase(),
 		building_name: a.building?.building_name || 'Unknown Building',
 	}));
 
@@ -41,6 +79,7 @@ async function fetchAndRespondAnomalies(buildingFilter: any, query: any, res: Re
 			skip: skipNum,
 			take: takeNum,
 		},
+		...(summary ? { summary } : {}),
 	});
 }
 
@@ -135,11 +174,21 @@ export const getPortfolioAnomalies = async (req: Request, res: Response): Promis
 		const allowedBuildingIds = await getAllowedBuildingIds(req);
 
 		if (allowedBuildingIds.length === 0) {
-			res.status(200).json({ status: 'success', data: [], meta: { total: 0, skip: 0, take: 50 } });
+			res.status(200).json({
+				status: 'success',
+				data: [],
+				meta: { total: 0, skip: 0, take: 50 },
+				summary: { total: 0, open: 0, critical: 0 },
+			});
 			return;
 		}
 
-		await fetchAndRespondAnomalies({ building_id: { in: allowedBuildingIds } }, req.query, res);
+		await fetchAndRespondAnomalies(
+			{ building_id: { in: allowedBuildingIds } },
+			req.query,
+			res,
+			true
+		);
 	} catch (error: any) {
 		console.error('[AnomalyController] Error fetching portfolio anomalies:', error);
 		res.status(500).json({ status: 'error', message: 'Failed to fetch portfolio anomalies' });
