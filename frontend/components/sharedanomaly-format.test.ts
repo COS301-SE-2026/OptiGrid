@@ -40,10 +40,10 @@ describe("anomaly chart value formatting", () => {
 
     it("renders zero rather than a broken value when input is not finite", () => {
       expect(formatMetricValue(Number.NaN, "power")).toBe("0.00 kWh");
+    });
 
     it("always shows two decimals so values line up", () => {
       expect(formatMetricValue(12, "cost")).toBe("R 12.00");
-    });
     });
   });
 
