@@ -155,6 +155,7 @@ class RecommendationSynthesizer:
                 "confidence_score": 0.85,
                 "context": context
             },
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=(7 if time_window == "weekly" else 30))).isoformat()
         }
 
@@ -182,6 +183,7 @@ class RecommendationSynthesizer:
                 "context": context,
                 "anomaly_id": anomaly.get("anomaly_id")
             },
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
         }
 
@@ -219,6 +221,7 @@ class RecommendationSynthesizer:
                 "assumed_equipment": equipment,
                 "context": context
             },
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
         }
 
