@@ -1,0 +1,24 @@
+{
+  "baselineRps": 50,
+  "buildingCount": 100,
+  "readRps": 2,
+  "warmupSeconds": 30,
+  "measurementSeconds": 300,
+  "burstSeconds": 60,
+  "queueDrainSeconds": 120,
+  "latencyRatioLimit": 1.10,
+  "errorRateLimit": 0.01,
+  "offeredRateTolerance": 0.01,
+  "maxScheduleP95Ms": 100,
+  "autoscaleThresholdRps": 100,
+  "autoscaleSustainSeconds": 10,
+  "autoscaleDeadlineSeconds": 60,
+  "maxReplicas": 3,
+  "notes": [
+    "W=50 means 100 buildings with one sensor reporting every two seconds; the rate was fixed before measurements.",
+    "+200% workload means 3W=150 requests per second.",
+    "SC03 exercises the frontend-to-core live telemetry API with valid nonempty InfluxDB data, not browser rendering or authenticated metadata endpoints.",
+    "All service resource limits and local images are recorded; existing unrelated containers remain running.",
+    "SC05 uses an experimental local traffic-driven controller. It does not demonstrate an existing production autoscaler."
+  ]
+}
