@@ -96,7 +96,7 @@ describe('Escalation Worker Integration', () => {
 
         // assert prolonged anomaly was escalated
         expect(prolongedResult?.escalation_level).toBe(1);
-        expect(prolongedResult?.severity_level).toBe('Critical');
+		expect(prolongedResult?.severity_level).toBe('critical');
 
         // assert recent anomaly was completely untouched
         expect(recentResult?.escalation_level).toBe(0);

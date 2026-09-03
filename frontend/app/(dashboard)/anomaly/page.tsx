@@ -4,6 +4,7 @@ import { useBuildings } from "@/lib/useBuildings";
 import { useState, useMemo, useEffect } from "react";
 import {
   Anomaly,
+  AnomalySummary,
   AlertThreshold,
   AnomaliesTable,
   AnalyticsSummary,
@@ -45,6 +46,7 @@ export default function ManagerAnomalyPage() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [thresholds, setThresholds] = useState<AlertThreshold[]>([]);
   const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
+  const [summary, setSummary] = useState<AnomalySummary | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -57,6 +59,7 @@ export default function ManagerAnomalyPage() {
         if (anomaliesRes.ok) {
           const payload = await anomaliesRes.json();
           const allAnomalies: Anomaly[] = payload.data || [];
+          setSummary(payload.summary || null);
           setAnomalies(allAnomalies.filter(a => a.status === "Open" || a.status === "In_Progress"));
           setHistoricAnomalies(allAnomalies.filter(a => a.status === "Resolved" || a.status === "Ignored"));
         }
@@ -264,7 +267,7 @@ export default function ManagerAnomalyPage() {
             </div>
           </div>
 
-          <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} />
+          <AnalyticsSummary anomalies={anomalies} totalBuildings={totalBuildings} summary={summary} />
 
           <EnergyChart
             loading={chartLoading}
