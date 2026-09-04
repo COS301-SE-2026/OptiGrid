@@ -109,8 +109,8 @@ export default function BillingClient() {
                 credentials: "include",
                 body: JSON.stringify({
                     season_name: form.season_name,
-                    peak_rate_usd: Number(form.peak_rate),
-                    off_peak_rate_usd: Number(form.off_peak_rate),
+                    peak_rate_zar: Number(form.peak_rate),
+                    off_peak_rate_zar: Number(form.off_peak_rate),
                 }),
             });
             const data = await res.json().catch(() => ({}));
@@ -130,7 +130,7 @@ export default function BillingClient() {
     return (
         <div>
             <PageHeading
-                title="Billing settings"
+                title="Update tariff rates"
                 subtitle="Set the seasonal time-of-use rates used to cost energy usage and size the optimisation savings."
             />
 

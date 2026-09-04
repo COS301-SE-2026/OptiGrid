@@ -99,13 +99,13 @@ export const updateTariffService = async(userId:string, buildingId: string, payl
   });
   if(!building) throw new Error("Building not found");
 
-  const user = await prisma.userBuildingAccess.findFirst({
+  const access = await prisma.userBuildingAccess.findFirst({
     where: {
       user_id: userId,
       building_id: buildingId
     }
   });
-  if(!user) throw new Error("Access Denied");
+  if(!access) throw new Error("Access Denied");
 
   const tariff = await prisma.utilityTariff.findFirst({
     where: {

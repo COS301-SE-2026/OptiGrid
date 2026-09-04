@@ -40,7 +40,7 @@ describe("BillingClient", () => {
     it("renders the tariff form", () => {
         render(<BillingClient />);
 
-        expect(screen.getByRole("heading", { name: "Billing settings" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Update tariff rates" })).toBeInTheDocument();
         expect(screen.getByLabelText(/building/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/season/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/^peak rate/i)).toBeInTheDocument();
@@ -61,8 +61,8 @@ describe("BillingClient", () => {
         expect(options.method).toBe("PUT");
         expect(JSON.parse(options.body)).toEqual({
             season_name: "Winter",
-            peak_rate_usd: 0.33,
-            off_peak_rate_usd: 0.22,
+            peak_rate_zar: 0.33,
+            off_peak_rate_zar: 0.22,
         });
     });
 

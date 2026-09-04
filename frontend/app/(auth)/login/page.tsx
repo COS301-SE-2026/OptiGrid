@@ -66,7 +66,9 @@ export default function LoginPage() {
             const firstName = payload?.user?.firstName as string | undefined;
             setNotice(`Login successful${firstName ? `, ${firstName}` : ""}.`);
             setFormData(initialLoginFormData);
-            navigateAfterLogin((destination) => router.replace(destination));
+            navigateAfterLogin((destination) => {
+                router.replace(destination);
+            });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed. Please try again.");
         } finally {

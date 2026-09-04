@@ -13,14 +13,14 @@ describe("NavLinks audit visibility", () => {
         mockUsePathname.mockReturnValue("/dashboard");
     });
 
-    it.each(["ADMIN", "BUILDING_MANAGER"])("shows Audit to %s users", (role) => {
+    it.each(["ADMIN"])("shows Audit to %s users", (role) => {
         render(<NavLinks role={role} />);
 
         expect(screen.getByRole("link", { name: "Audit" })).toHaveAttribute("href", "/audit");
     });
 
-    it("hides Audit from viewers", () => {
-        render(<NavLinks role="VIEWER" />);
+    it.each(["VIEWER", "BUILDING_MANAGER"])("hides Audit from %s users", (role) => {
+        render(<NavLinks role={role} />);
 
         expect(screen.queryByRole("link", { name: "Audit" })).not.toBeInTheDocument();
     });

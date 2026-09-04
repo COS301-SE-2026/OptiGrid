@@ -7,11 +7,11 @@ export interface AuditLogFilters {
   page?: "DASHBOARD" | "LIVE" | "COMPARE";
   severity?: "info" | "warning" | "error" | "critical";
   user_id?: string;
-  manager_id?: string;
   from?: Date;
   to?: Date;
   cursor?: string;
   limit: number;
+  manager_id?: string;
 }
 export interface AuditEntry {
   userId?: string | null;
@@ -58,22 +58,6 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
     timestamp.lte = endOfDay;
   }
 
-  const managerScope: Prisma.AuditLogWhereInput = filters.manager_id
-    ? {
-        OR: [
-          { user_id: filters.manager_id },
-          {
-            building: {
-              is: {
-                authorized_users: {
-                  some: { user_id: filters.manager_id },
-                },
-              },
-            },
-          },
-        ],
-      }
-    : {};
   const actionType = filters.page ? PAGE_VIEW_ACTIONS[filters.page] : filters.action_type;
 
   const logs = await prisma.auditLog.findMany({
@@ -82,7 +66,6 @@ export const listAuditLogs = async (filters: AuditLogFilters) => {
       ...(filters.severity && { severity: AUDIT_SEVERITIES[filters.severity] }),
       ...(filters.user_id && { user_id: filters.user_id }),
       ...(Object.keys(timestamp).length > 0 && { timestamp }),
-      ...managerScope,
     },
     orderBy: [
       { timestamp: "desc" },

@@ -62,18 +62,22 @@ export const listAuditLogsController = async (req: Request, resp: Response) => {
     }
 
     const query = auditLogQuerySchema.parse(req.query);
-    const isBuildingManager = req.user.roleType === UserRole.BUILDING_MANAGER;
+
+    let manager_id: string | undefined;
+    if (req.user.roleType === UserRole.BUILDING_MANAGER) {
+      manager_id = req.user.id;
+    }
 
     const result = await listAuditLogs({
       action_type: query.action_type,
       page: query.page,
       severity: query.severity,
       user_id: query.user_id,
-      manager_id: isBuildingManager ? req.user.id : undefined,
       from: query.from,
       to: query.to,
       cursor: query.cursor,
-      limit: query.limit
+      limit: query.limit,
+      manager_id
     });
 
     return resp.status(200).json({

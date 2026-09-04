@@ -8,7 +8,13 @@ export function useAnomalyWebSocket() {
   useEffect(() => {
     //connect to the core backend web socket server directly
     const wsUrl = process.env.NEXT_PUBLIC_CORE_WS_URL || "ws://localhost:4000";
-    const ws = new WebSocket(wsUrl);
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(wsUrl);
+    } catch (error) {
+      console.error("Failed to initialize WebSocket: ", error);
+      return;
+    }
 
     ws.onopen = () => {
       console.log("Connected to anomaly WebSocket");

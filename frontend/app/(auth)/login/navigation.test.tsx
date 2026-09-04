@@ -38,6 +38,7 @@ describe("login navigation", () => {
 		await waitFor(() => expect(navigateAfterLogin).toHaveBeenCalledTimes(1));
 		const replaceRoute = jest.mocked(navigateAfterLogin).mock.calls[0][0];
 		replaceRoute("/_sessions/test-tab-id/dashboard");
+		
 		expect(mockReplace).toHaveBeenCalledWith("/_sessions/test-tab-id/dashboard");
 	});
 });

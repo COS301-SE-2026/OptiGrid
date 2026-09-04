@@ -22,10 +22,15 @@ export default function GoogleAuthButton({ onLoading,onError}: AuthButton) {
         }
     };
     
+    return null;
+    /*
     return (
         <>
-            <div className="auth-divider">
-                <span>or</span>
+        {/** google auth button * /}
+            <div style={{ display: 'flex', alignItems: 'center', margin: '16px 0' }}>
+                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--brand-secondary)' }} ></div>
+                <span style={{ padding: '0 10px', fontSize: '0.875rem', color: 'var(--brand-ink)' }}>or</span>
+                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--brand-secondary)' }} ></div>
             </div>
 
             <button
@@ -44,4 +49,5 @@ export default function GoogleAuthButton({ onLoading,onError}: AuthButton) {
             </button>
         </>
     );
+    */
 }

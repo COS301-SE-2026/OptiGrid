@@ -1,8 +1,28 @@
 import { randomUUID } from 'node:crypto';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../../../../backend/core/src/services/idempotency.services';
-import { redis } from '../../../../backend/core/src/lib/redis';
+import { startRedisHarness, stopRedisHarness, StartedRedisHarness } from './harness/redis-container';
 
+let redis: any;
+let harness: StartedRedisHarness;
 describe('Idempotency service integration', () => {
+	beforeAll(async () => {
+		harness = await startRedisHarness();
+		process.env.REDIS_URL = harness.url;
+		process.env.REDIS_HOST = harness.host;
+		process.env.REDIS_PORT = harness.port.toString();
+		const redisModule = await import('../../../../backend/core/src/lib/redis');
+		redis = redisModule.redis;
+	});
+
+	afterAll(async () => {
+		if (redis) {
+			await redis.quit();
+		}
+		if (harness) {
+			await stopRedisHarness(harness);
+		}
+	});
+
 	const userId = `user-${randomUUID()}`;
 	it('saves and reads a cached response payload', async () => {
 		const key = `integration-${randomUUID()}`;

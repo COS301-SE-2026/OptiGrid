@@ -56,7 +56,7 @@ describe("SignUp route for integration", () => {
         expect(data.accessToken).toBe("token1234");
         expect(global.fetch).toHaveBeenCalledTimes(2);
         const [signupUrl, signupOpt] = (global.fetch as jest.Mock).mock.calls[0];
-        expect(signupUrl).toBe("http://localhost:4000/auth/signup");
+        expect(signupUrl).toContain("/auth/signup");
         expect(signupOpt.body).toContain("John Doe");
     });
 

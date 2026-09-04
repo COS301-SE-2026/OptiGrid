@@ -642,17 +642,33 @@ export default function DashboardPage() {
                         Portfolio overview - last updated {lastUpdatedLabel}
                     </p>
                 </div>
-                <Link 
-                    href="/buildings/add" 
-                    className="btn btn-primary"
+                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                    <a 
+                        href={getTabSessionPath("/api/reports/summary")}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-primary"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
+                        }}
+                    >
+                        Download Summary Report
+                    </a>
+                    <Link 
+                        href="/buildings/add" 
+                        className="btn btn-primary"
                  //   aria-label="Add a new building to your portfolio"
-                    style={{
-                        backgroundColor: "#3A6B7C",
-                        color: "#FFFFFF",
-                    }}
-                >
-                    + Add building
-                </Link>
+                        style={{
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
+                        }}
+                    >
+                        + Add building
+                    </Link>
+                </div>
             </div>
 
             <div className="dashboard-kpi-grid" aria-label="Portfolio statistics">

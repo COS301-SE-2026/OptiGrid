@@ -1,38 +1,14 @@
 const { Client } = require('pg');
 const request = require('supertest');
 import { createCoreApiHarness, type CoreApiHarness, getAuthHeaders } from './harness/core-api-harness';
+import { startInfluxHarness, stopInfluxHarness } from './harness/influx-container';
+import type { StartedInfluxHarness } from './harness/influx-container';
+import { InfluxDB, Point } from '@influxdata/influxdb-client';
 
-// we need to mock influx because it isnt spun up in harness
-jest.mock('../../../../backend/core/src/lib/influx', () => {
-	const zarPerKwh = 2.5;
-	const usdPerKwh = 0.13;
-
-	return {
-		queryTotalKwh: jest.fn(),
-		queryUsageSeries: jest.fn().mockResolvedValue([]),
-		queryUsageDetails: jest.fn(),
-		UTILITY_COST_ZAR_PER_KWH: zarPerKwh,
-		UTILITY_COST_USD_PER_KWH: usdPerKwh,
-		ZAR_PER_USD: zarPerKwh / usdPerKwh,
-		resolveCostZar: (costZar: number, costUsd: number, kwh: number) => {
-			if (costZar > 0) {
-				return costZar;
-			}
-
-			if (costUsd > 0) {
-				return costUsd * (zarPerKwh / usdPerKwh);
-			}
-
-			return kwh * zarPerKwh;
-		},
-	};
-});
-import { queryTotalKwh } from '../../../../backend/core/src/lib/influx';
-
-const mockedQueryTotalKwh = queryTotalKwh as jest.Mock;
 
 describe('Building integration - Compare Buildings', () => {
 	let harness: CoreApiHarness;
+	let influxHarness: StartedInfluxHarness;
 	let injectAuthenticatedUser = true;
 	
 	const tenantId = '8680c655-bfa3-433b-81aa-084fc76882d9';
@@ -55,6 +31,12 @@ describe('Building integration - Compare Buildings', () => {
 	};
 
 	beforeAll(async () => {
+		influxHarness = await startInfluxHarness();
+		process.env.INFLUX_URL = influxHarness.url;
+		process.env.INFLUXDB_TOKEN = influxHarness.token;
+		process.env.INFLUXDB_ORG = influxHarness.org;
+		process.env.INFLUXDB_BUCKET = influxHarness.bucket;
+
 		harness = await createCoreApiHarness({
 			appOptions: {
 				routeMiddleware: [authMiddleware],
@@ -65,8 +47,6 @@ describe('Building integration - Compare Buildings', () => {
 
 	beforeEach(async () => {
 		injectAuthenticatedUser = true;
-        //reset influx mock
-		jest.clearAllMocks();
 
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
@@ -107,7 +87,10 @@ describe('Building integration - Compare Buildings', () => {
 		}
 	});
 
-	afterAll(async () => {if (harness) await harness.stop();});
+	afterAll(async () => {
+		if (harness) await harness.stop();
+		if (influxHarness) await stopInfluxHarness(influxHarness);
+	});
 
 	afterEach(async () => {
 		injectAuthenticatedUser = true;
@@ -115,7 +98,32 @@ describe('Building integration - Compare Buildings', () => {
 	});
 
 	it('compares buildings successfully with valid parameters', async () => {
-		mockedQueryTotalKwh.mockResolvedValueOnce(8200).mockResolvedValueOnce(6400);
+		const client = new InfluxDB({ url: influxHarness.url, token: influxHarness.token });
+		const writeApi = client.getWriteApi(influxHarness.org, influxHarness.bucket, 'ms');
+		
+		const pastDate = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000); // 5 days ago
+		pastDate.setMinutes(0, 0, 0); // predictable hour boundary
+		
+		// Write 8200 total for A
+		writeApi.writePoint(
+			new Point('energy_consumption')
+				.tag('building_id', buildingIdA)
+				.floatField('usage', 8200)
+				.floatField('cost_zar', 820)
+				.floatField('cost_usd', 82)
+				.timestamp(pastDate)
+		);
+		// Write 6400 total for B
+		writeApi.writePoint(
+			new Point('energy_consumption')
+				.tag('building_id', buildingIdB)
+				.floatField('usage', 6400)
+				.floatField('cost_zar', 640)
+				.floatField('cost_usd', 64)
+				.timestamp(pastDate)
+		);
+		await writeApi.close();
+
 		const response = await request(harness.app)
 			.post(`/api/buildings/compare?building_id_a=${buildingIdA}&building_id_b=${buildingIdB}&time_range=30d`)
 			.set(authHeaders);
@@ -137,8 +145,6 @@ describe('Building integration - Compare Buildings', () => {
 				total_kwh: 6400
 			}
 		});
-		
-		expect(mockedQueryTotalKwh).toHaveBeenCalledTimes(2);
 	});
 
 	it('returns 401 Unauthorized if user is not authenticated', async () => {

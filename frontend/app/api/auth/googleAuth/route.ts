@@ -14,6 +14,9 @@ type SessionUser = {
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url);
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const forwardedProto = request.headers.get("x-forwarded-proto") || "http";
+    const actualOrigin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : (process.env.NEXT_PUBLIC_SITE_URL || origin);
     const code = searchParams.get("code");
     const next = searchParams.get("next") ?? "/dashboard";
     const tabId = request.headers.get(TAB_SESSION_HEADER);
@@ -58,10 +61,10 @@ export async function GET(request: Request) {
                     lastName,
                 }),
             });
-            if (!respCore.ok) return NextResponse.redirect(`${origin}/login?error=OAuthSyncFailed`);
+            if (!respCore.ok) return NextResponse.redirect(`${actualOrigin}/login?error=OAuthSyncFailed`);
 
             const jsonData = await respCore.json();
-            const resp = NextResponse.redirect(`${origin}${next}`);
+            const resp = NextResponse.redirect(`${actualOrigin}${next}`);
             const sessionUser: SessionUser = {
                 userId: jsonData.user.userId,
                 email: jsonData.user.email,
@@ -75,5 +78,5 @@ export async function GET(request: Request) {
             return resp;
         }
     }
-    return NextResponse.redirect(`${origin}/login?error=OAuthFailed`);
+    return NextResponse.redirect(`${actualOrigin}/login?error=OAuthFailed`);
 }

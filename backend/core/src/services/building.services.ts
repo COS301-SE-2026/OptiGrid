@@ -267,7 +267,12 @@ export const createBuilding = async (
   });
 };
 
-export const listBuildingsForUser = async (userId: string) => {
+export const listBuildingsForUser = async (userId: string, role?: string) => {
+  if (role === "ADMIN") {
+    return prisma.building.findMany({
+      orderBy: { created_at: "desc" },
+    });
+  }
   return prisma.building.findMany({
     where: {
       authorized_users: {
@@ -322,8 +327,8 @@ function lastSevenUtcDateKeys(now = new Date()): string[] {
   });
 }
 
-export const getPortfolioConsumption = async (userId: string): Promise<PortfolioConsumption> => {
-  const buildings = await listBuildingsForUser(userId);
+export const getPortfolioConsumption = async (userId: string, role?: string): Promise<PortfolioConsumption> => {
+  const buildings = await listBuildingsForUser(userId, role);
   const dateKeys = lastSevenUtcDateKeys();
   const todayDate = dateKeys.at(-1)!;
   const dailyTotals = new Map(dateKeys.map((date) => [date, { kwh: 0, costZar: 0 }]));

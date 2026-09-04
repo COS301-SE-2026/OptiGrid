@@ -18,6 +18,7 @@ import adminUserRoutes from "./routes/admin_user.routes";
 import systemHealthRoutes from "./routes/systemHealth.routes";
 import auditLogRoutes from "./routes/auditLog.routes";
 import auditEventRoutes from "./routes/auditEvent.routes";
+import reportRoutes from "./routes/report.routes";
 import cors from 'cors';
 
 export interface CreateAppOptions {
@@ -169,23 +170,32 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 
 	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
 
+	// Security Headers (NFR: Configuration and Compliance)
+	app.use((_req, res, next) => {
+		res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+		res.setHeader('Content-Security-Policy', "default-src 'self'");
+		res.setHeader('X-Frame-Options', 'DENY');
+		next();
+	});
+
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", authRate, userAuthRoutes);
-	app.use("/api/accounts", authenticateRequest, normalRate, accountRoutes);
-	app.use("/api/admin/users", authenticateRequest, strictRate, adminUserRoutes);
-	app.use("/api/admin/health", authenticateRequest, normalRate, systemHealthRoutes);
-	app.use("/api/admin/audit-logs", authenticateRequest, normalRate, auditLogRoutes);
-	app.use("/api/audit-events", authenticateRequest, normalRate, auditEventRoutes);
+	app.use("/api/accounts", normalRate, authenticateRequest, accountRoutes);
+	app.use("/api/admin/users", strictRate, authenticateRequest, adminUserRoutes);
+	app.use("/api/admin/health", normalRate, authenticateRequest, systemHealthRoutes);
+	app.use("/api/admin/audit-logs", normalRate, authenticateRequest, auditLogRoutes);
+	app.use("/api/audit-events", normalRate, authenticateRequest, auditEventRoutes);
 	app.use("/api/sensors", sensorRoutes);
-	app.use("/api/analytics", authenticateRequest, homeRate,analyticsRoutes);
-	app.use("/api/buildings", authenticateRequest, normalRate, buildingRoutes);
-	app.use("/api/preferences", authenticateRequest, normalRate, userPreferencesRoutes);
-	app.use("/api/contact", strictRate,contactRoutes);
-	app.use("/api/users",authRate, userAuthRoutes);
+	app.use("/api/analytics", homeRate, authenticateRequest, analyticsRoutes);
+	app.use("/api/buildings", normalRate, authenticateRequest, buildingRoutes);
+	app.use("/api/preferences", normalRate, authenticateRequest, userPreferencesRoutes);
+	app.use("/api/contact", strictRate, contactRoutes);
+	app.use("/api/users", authRate, userAuthRoutes);
 	app.use('/api/telemetry', telemetryRoutes);
-	app.use("/api/buildings/:building_id/recommendations", authenticateRequest, normalRate, recommendationRoutes);
-	app.use('/api/thresholds', authenticateRequest, normalRate, thresholdRoutes);
-	app.use('/api/anomalies', authenticateRequest, normalRate, anomalyRoutes);
+	app.use("/api/buildings/:building_id/recommendations", normalRate, authenticateRequest, recommendationRoutes);
+	app.use('/api/thresholds', normalRate, authenticateRequest, thresholdRoutes);
+	app.use('/api/anomalies', normalRate, authenticateRequest, anomalyRoutes);
+	app.use('/api/reports', normalRate, authenticateRequest, reportRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });
