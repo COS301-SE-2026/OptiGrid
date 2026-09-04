@@ -8,6 +8,26 @@ if (process.env.NODE_ENV === 'test') {
         on: () => {},
         get: async (k: string) => store.get(k) || null,
         set: async (k: string, v: string) => { store.set(k, v); return "OK"; },
+        keys: async (pattern: string) => Array.from(store.keys()),
+        del: async (...keys: string[]) => {
+            let deleted = 0;
+            for (const key of keys) { if (store.delete(key)) deleted++; }
+            return deleted;
+        },
+        pipeline: () => {
+            const p: any = {
+                del: (...keys: string[]) => {
+                    for (const key of keys) store.delete(key);
+                    return p;
+                },
+                set: (key: string, value: string) => {
+                    store.set(key, value);
+                    return p;
+                },
+                exec: async () => []
+            };
+            return p;
+        },
         quit: async () => { store.clear(); }
     };
 } else {
