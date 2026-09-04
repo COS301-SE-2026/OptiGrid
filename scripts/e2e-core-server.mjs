@@ -120,6 +120,7 @@ async function main() {
       ...process.env,
       NODE_ENV: "test",
       PORT: CORE_PORT,
+      DISABLE_RATE_LIMIT: "true",
     };
 
     if (USE_LOCAL_SUPABASE) {

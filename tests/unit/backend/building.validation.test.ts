@@ -3,7 +3,7 @@ import { createBuildingSchema } from '../../../backend/core/src/validation/build
 import { compareBuildingsSchema } from '../../../backend/core/src/validation/building.validation';
 import { deleteBuildingSchema } from '../../../backend/core/src/validation/building.validation';
 import { buildingDetailsParamsSchema } from '../../../backend/core/src/validation/building.validation';
-import { buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema } from '../../../backend/core/src/validation/building.validation';
+import { buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, buildingSeriesParamsSchema, buildingSeriesQuerySchema } from '../../../backend/core/src/validation/building.validation';
 
 describe('building validation', () => {
 	it('accepts_a_valid_building_payload', () => {
@@ -163,6 +163,20 @@ describe('building energy consumption validation', () => {
 	it('rejects_invalid_building_id_and_time_range', () => {
 		expect(() => buildingEnergyConsumptionParamsSchema.parse({ building_id: 'not-a-uuid' })).toThrow();
 		expect(() => buildingEnergyConsumptionQuerySchema.parse({ time_range: '14d' })).toThrow();
+	});
+});
+
+describe('building series validation', () => {
+	it('accepts a UUID and defaults the time range to seven days', () => {
+		const params = { building_id: '11111111-1111-4111-8111-111111111111' };
+
+		expect(buildingSeriesParamsSchema.parse(params)).toEqual(params);
+		expect(buildingSeriesQuerySchema.parse({})).toEqual({ time_range: '7d' });
+	});
+
+	it('rejects placeholder building ids and unsupported time ranges', () => {
+		expect(() => buildingSeriesParamsSchema.parse({ building_id: 'b1' })).toThrow();
+		expect(() => buildingSeriesQuerySchema.parse({ time_range: '14d' })).toThrow();
 	});
 });
 

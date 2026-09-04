@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { Building, BuildingType, LifecycleState } from '@prisma/client';
 import crypto from 'node:crypto';
-import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries, UTILITY_COST_USD_PER_KWH, UTILITY_COST_ZAR_PER_KWH } from '../lib/influx';
+import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries, resolveCostZar, UTILITY_COST_USD_PER_KWH, UTILITY_COST_ZAR_PER_KWH } from '../lib/influx';
 import prisma from '../lib/prisma';
 import { deleteInfluxBucket, queueBuildingProvisioning } from './provisioning.service';
 
@@ -267,7 +267,12 @@ export const createBuilding = async (
   });
 };
 
-export const listBuildingsForUser = async (userId: string) => {
+export const listBuildingsForUser = async (userId: string, role?: string) => {
+  if (role === "ADMIN") {
+    return prisma.building.findMany({
+      orderBy: { created_at: "desc" },
+    });
+  }
   return prisma.building.findMany({
     where: {
       authorized_users: {
@@ -322,8 +327,8 @@ function lastSevenUtcDateKeys(now = new Date()): string[] {
   });
 }
 
-export const getPortfolioConsumption = async (userId: string): Promise<PortfolioConsumption> => {
-  const buildings = await listBuildingsForUser(userId);
+export const getPortfolioConsumption = async (userId: string, role?: string): Promise<PortfolioConsumption> => {
+  const buildings = await listBuildingsForUser(userId, role);
   const dateKeys = lastSevenUtcDateKeys();
   const todayDate = dateKeys.at(-1)!;
   const dailyTotals = new Map(dateKeys.map((date) => [date, { kwh: 0, costZar: 0 }]));
@@ -617,9 +622,7 @@ export const compareBuildingsService = async (
     const rawTotalCostUsd = toFiniteNumber(influxData?.total_cost_usd);
     const rawTotalCostZar = toFiniteNumber(influxData?.total_cost_zar);
 
-    const totalCostZar = rawTotalCostZar > 0
-      ? rawTotalCostZar
-      : (rawTotalCostUsd > 0 ? rawTotalCostUsd : totalKwh * UTILITY_COST_ZAR_PER_KWH);
+    const totalCostZar = resolveCostZar(rawTotalCostZar, rawTotalCostUsd, totalKwh);
 
     const totalCostUsd = rawTotalCostUsd > 0
       ? rawTotalCostUsd

@@ -7,8 +7,9 @@ class SSEManager{
             this.clients.set(buildingId, new Set());
         }
         this.clients.get(buildingId)!.add(res);
+        res.write(': connected\n\n');
 
-        // remove client on connection close\
+        // remove client on connection close
         res.on('close', () => {
             this.removeClient(buildingId, res);
         });

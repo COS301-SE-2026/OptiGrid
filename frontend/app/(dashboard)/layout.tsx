@@ -5,6 +5,7 @@ import { NavLinks } from "./nav-links";
 import { buildDisplayName, parseSession, SESSION_COOKIE_NAME, type SessionUser } from "../../lib/session";
 import Link from "next/link";
 import { LogoutButton } from "./logout-button";
+import { AuditPageTracker } from "../../components/AuditPageTracker";
 
 function getInitials(user: SessionUser): string {
     const first = user.firstName?.[0] ?? "";
@@ -31,17 +32,20 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
     return (
         <div className="dashboard-page">
+            <AuditPageTracker />
             <div className="dashboard-shell">
                 <aside className="card dashboard-sidebar">
                     <p className="dashboard-brand">OptiGrid</p>
-                    <div className="dashboard-user" style={{ marginTop: "12px" }}>
+                    <div className="dashboard-user">
                         <div className="dashboard-avatar">{initials}</div>
                         <span>{displayName}</span>
                     </div>
-                    <NavLinks role={user.roleType} />
-                    <div className="dashboard-utility">
-                        <Link href="/help" className="dashboard-link">Help Centre</Link>
-                        <Link href="/contact" className="dashboard-link">Contact Us</Link>
+                    <div className="dashboard-navgroup">
+                        <NavLinks role={user.roleType} />
+                        <div className="dashboard-utility">
+                            <Link href="/help" className="dashboard-link">Help Centre</Link>
+                            <Link href="/contact" className="dashboard-link">Contact Us</Link>
+                        </div>
                     </div>
                     <LogoutButton />
                 </aside>

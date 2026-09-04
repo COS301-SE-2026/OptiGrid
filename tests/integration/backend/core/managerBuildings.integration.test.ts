@@ -5,12 +5,12 @@ const {Client } = require("pg");
 const req = require("supertest");
 import { randomUUID as uuidv4 } from 'crypto';
 
-jest.mock("../../../../backend/core/src/lib/influx", () => ({
-    queryTotalKwh: jest.fn().mockResolvedValue(null),
-}));
+import { startInfluxHarness, stopInfluxHarness } from "./harness/influx-container";
+import type { StartedInfluxHarness } from "./harness/influx-container";
 
 describe("Manger Buildings Page Integration tests", () => {
     let harness: CoreApiHarness;
+    let influxHarness: StartedInfluxHarness;
     const tenantId = '8680c655-bfa3-433b-81aa-084fc76882d9';
     const managerUserId = 'bbe48b78-438f-4ed7-9fe7-a8fc9addc187';
     const viewerUserId = '1f11cc3f-c6a0-4d10-84fd-f27b9500862a';
@@ -23,6 +23,12 @@ describe("Manger Buildings Page Integration tests", () => {
     };
 
     beforeAll(async () => {
+        influxHarness = await startInfluxHarness();
+        process.env.INFLUX_URL = influxHarness.url;
+        process.env.INFLUXDB_TOKEN = influxHarness.token;
+        process.env.INFLUXDB_ORG = influxHarness.org;
+        process.env.INFLUXDB_BUCKET = influxHarness.bucket;
+
         harness = await createCoreApiHarness();
         managerHeader = await getAuthHeaders(managerUserId);
         normalHeader = await getAuthHeaders(viewerUserId);
@@ -74,6 +80,7 @@ describe("Manger Buildings Page Integration tests", () => {
     });
     afterAll(async () => {
         if(harness) await harness.stop();
+        if(influxHarness) await stopInfluxHarness(influxHarness);
     });
 
     async function building({
@@ -144,8 +151,8 @@ describe("Manger Buildings Page Integration tests", () => {
         expect(resp.status).toBe(200);
         expect(resp.body.status).toBe("success");
         expect(resp.body.data).toHaveLength(1);
-        expect(data.todays_usage).toBeNull();
-    }) ;
+        expect(data.todays_usage).toBe(0);
+    });
 
     it("should_retunf_an_empty_array_if_no_building_assigned", async () => {
         await building({

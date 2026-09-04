@@ -38,6 +38,15 @@ def test_worker_processes_standard_message_successfully(mock_redis_class, mock_i
         pass
 
     assert mock_write_api.write.called
+    
+    args, kwargs = mock_write_api.write.call_args
+    point = kwargs['record']
+    assert point._name == "energy_telemetry"
+    assert point._tags["building_id"] == "building-001"
+    assert point._tags["sensor_id"] == "sensor-100"
+    assert point._fields["usage"] == 250.75
+    assert point._fields["voltage_v"] == 230.0
+    assert point._fields["current_a"] == 1.09
 
 
 @patch('backend.ingestion.src.queue_worker.require_influx_config')
@@ -70,12 +79,27 @@ def test_worker_resolves_fallback_structural_keys(mock_redis_class, mock_influx_
         pass
 
     assert mock_write_api.write.called
+    
+    args, kwargs = mock_write_api.write.call_args
+    point = kwargs['record']
+    assert point._tags["building_id"] == "building-999"
+    assert point._tags["sensor_id"] == "sensor-999"
+    assert point._fields["usage"] == 150.5
+    # Default values assigned when missing
+    assert point._fields["voltage_v"] == 230.0
+    assert point._fields["current_a"] == 0.0
 
 
+@patch('backend.ingestion.src.queue_worker.publish_failure_event')
 @patch('backend.ingestion.src.queue_worker.require_influx_config')
 @patch('backend.ingestion.src.queue_worker.InfluxDBClient')
 @patch('backend.ingestion.src.queue_worker.redis.Redis')
-def test_worker_ignores_and_survives_corrupt_payload_exceptions(mock_redis_class, mock_influx_class, mock_require_config):
+def test_worker_reports_and_survives_corrupt_payload_exceptions(
+    mock_redis_class,
+    mock_influx_class,
+    mock_require_config,
+    mock_publish_failure,
+):
     """Test Case 3: Edge case - corrupt/malformed payload is caught safely and skipped"""
     mock_redis_instance = MagicMock()
     mock_redis_class.return_value = mock_redis_instance
@@ -96,14 +120,58 @@ def test_worker_ignores_and_survives_corrupt_payload_exceptions(mock_redis_class
         pass
 
     mock_write_api.write.assert_not_called()
+    mock_publish_failure.assert_called_once()
+    assert mock_publish_failure.call_args.args == (mock_redis_instance,)
+    assert mock_publish_failure.call_args.kwargs["service"] == "ingestion-worker"
+    assert mock_publish_failure.call_args.kwargs["operation"] == "process-queue-payload"
+    assert mock_publish_failure.call_args.kwargs["error_code"] == "PAYLOAD_PROCESSING_FAILED"
+    assert isinstance(mock_publish_failure.call_args.kwargs["error"], json.JSONDecodeError)
 
 
-@patch('backend.ingestion.src.queue_worker.time.sleep')
+@patch('backend.ingestion.src.queue_worker.publish_failure_event')
 @patch('backend.ingestion.src.queue_worker.require_influx_config')
 @patch('backend.ingestion.src.queue_worker.InfluxDBClient')
 @patch('backend.ingestion.src.queue_worker.redis.Redis')
-def test_worker_handles_redis_connection_drops_via_sleep_backoff(mock_redis_class, mock_influx_class, mock_require_config, mock_sleep):
-    """Test Case 4: Edge case - Redis connection failure triggers 5s sleep backoff"""
+def test_worker_reports_influx_observer_failures(
+    mock_redis_class,
+    mock_influx_class,
+    mock_require_config,
+    mock_publish_failure,
+):
+    mock_redis_instance = MagicMock()
+    mock_redis_class.return_value = mock_redis_instance
+    payload = {
+        "building_id": "building-001",
+        "sensor_id": "sensor-001",
+        "power_kw": 250.75,
+    }
+    mock_redis_instance.brpop.side_effect = [
+        ("ingestion_queue", json.dumps(payload)),
+        KeyboardInterrupt(),
+    ]
+    mock_write_api = MagicMock()
+    mock_write_api.write.side_effect = RuntimeError("Influx unavailable")
+    mock_influx_class.return_value.write_api.return_value = mock_write_api
+
+    try:
+        run_queue_worker()
+    except KeyboardInterrupt:
+        pass
+
+    mock_publish_failure.assert_called_once()
+    assert mock_publish_failure.call_args.args == (mock_redis_instance,)
+    assert mock_publish_failure.call_args.kwargs["operation"] == "write-to-influx"
+    assert mock_publish_failure.call_args.kwargs["error_code"] == "INFLUX_WRITE_FAILED"
+    assert mock_publish_failure.call_args.kwargs["building_id"] == "building-001"
+    assert mock_publish_failure.call_args.kwargs["sensor_id"] == "sensor-001"
+
+
+@patch('backend.ingestion.src.queue_worker.shutdown_requested.wait')
+@patch('backend.ingestion.src.queue_worker.require_influx_config')
+@patch('backend.ingestion.src.queue_worker.InfluxDBClient')
+@patch('backend.ingestion.src.queue_worker.redis.Redis')
+def test_worker_handles_redis_connection_drops_via_shutdown_backoff(mock_redis_class, mock_influx_class, mock_require_config, mock_wait):
+    """Test Case 4: Edge case - Redis connection failure triggers interruptible 5s backoff"""
     mock_redis_instance = MagicMock()
     mock_redis_class.return_value = mock_redis_instance
 
@@ -120,4 +188,4 @@ def test_worker_handles_redis_connection_drops_via_sleep_backoff(mock_redis_clas
     except KeyboardInterrupt:
         pass
 
-    mock_sleep.assert_called_with(5)
+    mock_wait.assert_called_with(5)

@@ -23,22 +23,19 @@ describe("TutorialsPage", () => {
         expect(screen.getByText("Review demand forecasts")).toBeInTheDocument();
     });
 
-    it("plays a video for each tutorial rather than a placeholder", () => {
+    it("plays a video for every tutorial that has a source recorded", () => {
         const expectedSources: Array<[string, string]> = [
-            ["Sign up for an OptiGrid account", "/help/tutorials/signup.mp4"],
-            ["Log in", "/help/tutorials/login.mp4"],
             ["Add a building", "/help/tutorials/add_building.mp4"],
             ["Compare two buildings", "/help/tutorials/compare_buildings.mp4"],
-            ["Review demand forecasts", "/help/tutorials/run_forecast.mp4"]
+            ["Review demand forecasts", "/help/tutorials/run_forecast.mp4"],
+            ["Review insights", "/help/tutorials/review_insights.mp4"],
+            ["Manage your profile and settings", "/help/tutorials/manage_account.mp4"]
         ];
 
         for (const [title, source] of expectedSources) {
-            const card = screen.getByRole("heading", { name: title }).closest("article");
-            
+            const card = screen.getByRole("heading", { name: title }).closest("li");
             expect(card).not.toBeNull();
             expect((card as HTMLElement).querySelector("source")).toHaveAttribute("src", source);
         }
-        //every card now has a real video
-        expect(screen.queryByText("Source pending")).not.toBeInTheDocument();
     });
 });

@@ -125,10 +125,10 @@ describe('Analytics API Integration', () => {
 		expect(response.body).toHaveProperty('historical');
 		expect(response.body).toHaveProperty('forecast');
 		expect(response.body).toHaveProperty('summary');
-		expect(response.body.summary.peak_kwh).toBe(350.5);
+		expect(response.body.summary.peak_kwh).toBe(300);
 		expect(response.body.summary.avg_daily_kwh).toBe(120.2);
 		expect(response.body.summary.mape).toBe(2.1);
-		expect(response.body.historical[0].kwh).toBe(150.5);
+		expect(response.body.historical[0].kwh).toBe(300);
 		expect(response.body.forecast[0].yhat).toBe(300);
 		expect(response.body.forecast[0].yhat_lower).toBe(300);
 		expect(response.body.forecast[0].yhat_upper).toBe(300);
@@ -247,7 +247,7 @@ describe('Analytics API Integration', () => {
 			.send({ horizon_days: 30, granularity: 'weekly' });
 
 		expect(response.status).toBe(200);
-		expect(response.body.summary.peak_kwh).toBe(250.0);
+		expect(response.body.summary.peak_kwh).toBe(240);
 		expect(response.body.summary.avg_daily_kwh).toBe(100.0);
 		expect(response.body.forecast[0].yhat).toBe(240);
 	});
@@ -303,10 +303,10 @@ describe('Analytics API Integration', () => {
 			.send({ horizon_days: 7, granularity: 'hourly' });
 
 		expect(response.status).toBe(200);
-		expect(response.body.summary.peak_kwh).toBe(500.0);
+		expect(response.body.summary.peak_kwh).toBe(215);
 		expect(response.body.summary.avg_daily_kwh).toBe(180.5);
 		expect(response.body.summary.mape).toBe(1.5);
-		expect(response.body.historical[0].kwh).toBe(200.0);
+		expect(response.body.historical[0].kwh).toBe(210);
 		expect(response.body.forecast).toHaveLength(2);
 		expect(response.body.forecast[0]).toEqual({
 			timestamp: '2026-07-23T00:00:00Z',
@@ -325,6 +325,9 @@ describe('Analytics API Integration', () => {
 	it('should return data from building_analytics_monthly when horizon=monthly', async () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
 		await client.connect();
+
+		const DAY_MS = 24 * 60 * 60 * 1000;
+		const isoOffsetDays = (days: number) => new Date(Date.now() + days * DAY_MS).toISOString();
 
 		try {
 			await seedAssignedBuildingAccess(client);
@@ -347,9 +350,9 @@ describe('Analytics API Integration', () => {
 					280.0,
 					3.8,
 					JSON.stringify([
-						{ timestamp: '2026-07-28T00:00:00Z', yhat: 700, yhat_lower: 650, yhat_upper: 750 },
-						{ timestamp: '2026-08-04T00:00:00Z', yhat: 720, yhat_lower: 670, yhat_upper: 770 },
-						{ timestamp: '2026-08-11T00:00:00Z', yhat: 690, yhat_lower: 640, yhat_upper: 740 },
+						{ timestamp: isoOffsetDays(7), yhat: 700, yhat_lower: 650, yhat_upper: 750 },
+						{ timestamp: isoOffsetDays(14), yhat: 720, yhat_lower: 670, yhat_upper: 770 },
+						{ timestamp: isoOffsetDays(21), yhat: 690, yhat_lower: 640, yhat_upper: 740 },
 					]),
 				],
 			);
@@ -362,12 +365,13 @@ describe('Analytics API Integration', () => {
 			.send({ horizon_days: 30, granularity: 'weekly' });
 
 		expect(response.status).toBe(200);
-		expect(response.body.summary.peak_kwh).toBe(750.0);
+		expect(response.body.summary.peak_kwh).toBe(720);
 		expect(response.body.summary.avg_daily_kwh).toBe(280.0);
 		expect(response.body.summary.mape).toBe(3.8);
-		expect(response.body.historical[0].kwh).toBe(320.0);
+		expect(response.body.historical[0].kwh).toBe(700);
 		expect(response.body.forecast).toHaveLength(3);
 		expect(response.body.forecast[0].yhat).toBe(700);
+		expect(response.body.forecast[1].yhat).toBe(720);
 		expect(response.body.forecast[2].yhat).toBe(690);
 	});
 
@@ -460,7 +464,7 @@ describe('Analytics API Integration', () => {
 			.send({ horizon: 'monthly', horizon_days: 30, granularity: 'weekly' });
 
 		expect(response.status).toBe(200);
-		expect(response.body.summary.peak_kwh).toBe(900.0);
+		expect(response.body.summary.peak_kwh).toBe(850);
 		expect(response.body.forecast).toHaveLength(1);
 		expect(response.body.forecast[0].yhat).toBe(850);
 	});

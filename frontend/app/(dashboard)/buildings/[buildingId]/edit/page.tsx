@@ -16,7 +16,6 @@ type BuildingRecord = {
     geohash?: string | null;
     building_type?: string | null;
     nominal_voltage?: number | null;
-    max_current_threshold?: number | null;
     hardware_auth_token?: string | null;
     lifecycle_state?: string | null; 
 };
@@ -37,7 +36,6 @@ type UpdatePayload = {
     geohash?: string;
     building_type?: string | null;
     nominal_voltage?: number | null;
-    max_current_threshold?: number | null;
     lifecycle_state?: string | null;
 };
 
@@ -70,7 +68,6 @@ export default function EditBuildingPage({
         timezone: "UTC",
         max_occupancy: "",
         nominal_voltage: "230",
-        max_current_threshold: "60",
         lifecycle_state: "PROVISIONING",
         latitude: "",
         longitude: "",
@@ -118,7 +115,6 @@ export default function EditBuildingPage({
                                 ? String(building.max_occupancy)
                                 : "",
                         nominal_voltage: building.nominal_voltage != null ? String(building.nominal_voltage) : "230",
-                        max_current_threshold: building.max_current_threshold != null ? String(building.max_current_threshold) : "60",
                         lifecycle_state: building.lifecycle_state ?? "PROVISIONING",
                         latitude: building.latitude != null ? String(building.latitude) : "",
                         longitude: building.longitude != null ? String(building.longitude) : "",
@@ -159,7 +155,6 @@ export default function EditBuildingPage({
             square_footage: toNumber(form.square_footage),
             max_occupancy: toNumber(form.max_occupancy),
             nominal_voltage: toNumber(form.nominal_voltage),
-            max_current_threshold: toNumber(form.max_current_threshold),
             lifecycle_state: form.lifecycle_state.trim() || undefined,
             latitude: toNumber(form.latitude),
             longitude: toNumber(form.longitude),
@@ -208,7 +203,7 @@ export default function EditBuildingPage({
     if (loading) {
         return (
             <div className="card">
-                <p className="text-muted">Loading building details...</p>
+                <p role="status" aria-live="polite" className="text-muted">Loading building details...</p>
             </div>
         );
     }
@@ -217,7 +212,7 @@ export default function EditBuildingPage({
         return (
             <div className="card">
                 <h1 className="dashboard-title">Edit Building</h1>
-                <p className="text-muted" style={{ marginTop: "8px" }}>{error}</p>
+                <p role="alert" className="text-muted" style={{ marginTop: "var(--space-2)" }}>{error}</p>
             </div>
         );
     }
@@ -227,8 +222,8 @@ export default function EditBuildingPage({
             <h1 className="dashboard-title">Edit Building Details</h1>
             <p className="dashboard-subtitle">Update the building profile details.</p>
 
-            <form onSubmit={handleSubmit} style={{ marginTop: "16px", display: "grid", gap: "12px" }}>
-                <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+            <form onSubmit={handleSubmit} style={{ marginTop: "var(--space-4)", display: "grid", gap: "var(--space-3)" }}>
+                <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
                     <div>
                         <label className="label" htmlFor="building_name">Building name</label>
                         <input
@@ -278,7 +273,7 @@ export default function EditBuildingPage({
                     />
                 </div>
 
-            <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+            <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
                 <div>
                     <label className="label" htmlFor="square_footage">Square footage</label>
                     <input
@@ -306,8 +301,8 @@ export default function EditBuildingPage({
                 </div>
             </div>
 
-            {/* add nominal voltage and max current threshold*/}
-            <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+            {/* add nominal voltage */}
+            <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
                 <div>
                     <label className="label" htmlFor="nominal_voltage"> Nominal Voltage</label>
                     <input 
@@ -322,23 +317,9 @@ export default function EditBuildingPage({
                         inputMode="numeric">
                     </input>
                 </div>
-                <div>
-                    <label className="label" htmlFor="max_current_threshold">Max Current Threshold</label>
-                    <input 
-                        id="max_current_threshold"
-                        className="input" 
-                        value={form.max_current_threshold}
-                        onChange={(event) => 
-                            setForm((prev) => ({
-                                ...prev, max_current_threshold:event.target.value
-                            }))
-                        }
-                        inputMode="numeric">
-                    </input>
-                </div>
             </div>
 
-            <div style={{display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
+            <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
                  <div>
                     <label className="label" htmlFor="timezone">Timezone</label>
                     <input
@@ -353,7 +334,7 @@ export default function EditBuildingPage({
                 <div>
                     <label className="label" htmlFor="lifecycle_state">Building State</label>
                     <select 
-                        id="building_type"
+                        id="lifecycle_state"
                         className="input"
                         value={form.lifecycle_state}
                         onChange={(event) =>
@@ -372,7 +353,7 @@ export default function EditBuildingPage({
                 <div style={
                     {
                      display: "grid",
-                     gap: "12px", 
+                     gap: "var(--space-3)", 
                      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" 
                     }}>
                     <div>
@@ -412,14 +393,14 @@ export default function EditBuildingPage({
                     />
                 </div>
                 {success ? (
-                    <p style={{ color: "var(--brand-success)", fontWeight: 500, fontSize: "0.9rem" }}>
+                    <p role="status" aria-live="polite" style={{ color: "var(--brand-success)", fontWeight: 500, fontSize: "var(--fs-small)" }}>
                         Building updated successfully. Redirecting...
                     </p>
                 ) : error ? (
-                    <p style={{ color: "var(--brand-danger)", fontSize: "0.9rem" }}>{error}</p>
+                    <p role="alert" aria-live="assertive" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>{error}</p>
                 ) : null}
 
-                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "flex-end" }}>
                     <button
                         type="button"
                         className="btn btn-secondary"

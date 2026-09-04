@@ -8,14 +8,19 @@ const navigation = [
     { label: "Compare", href: "/compare" },
     { label: "Live", href: "/realtime" },
     { label: "Forecast", href: "/forecast" },
+    { label: "Insights", href: "/insights" },
     { label: "Admin", href: "/admin", roles: ["ADMIN"] },
+    { label: "Tariff rates", href: "/billing", roles: ["ADMIN"] },
+    { label: "Audit", href: "/audit", roles: ["ADMIN"] },
     { label: "Manage", href: "/manager", roles: ["BUILDING_MANAGER"] },
+    { label: "Anomaly", href: "/anomaly", roles:["BUILDING_MANAGER"]},
+    { label: "Anomaly", href: "/useranomaly", roles:["VIEWER"]},
     { label: "Settings", href:"/settings"},
    
     
 ];
 
-export function NavLinks({ role }: { role?: string }) {
+export function NavLinks({ role }: { readonly role?: string }) {
     const pathname = usePathname();
     return (
         <nav className="dashboard-nav" aria-label="Dashboard">

@@ -42,13 +42,11 @@ describe('Building integration - List and Update Buildings', () => {
 					lastName: 'User',
 				},
 			]);
-
-			await client.query(`
-				UPDATE users
-				SET role_type = 'Admin'
-				WHERE user_id = $1`, 
+			
+			await client.query(
+				`UPDATE users SET role_type = 'Building_Manager' WHERE user_id = $1`, 
 				[userId]
-			)
+			);
 		} finally {
 			await client.end();
 		}
@@ -182,6 +180,17 @@ describe('Building integration - List and Update Buildings', () => {
 	});
 
 	it('returns 200 when updating a building the by an admin', async () => {
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+		try {
+			await client.query(
+				`UPDATE users SET role_type = 'Admin' WHERE user_id = $1`, 
+				[userId]
+			);
+		} finally {
+			await client.end();
+		}
+
 		const buildingId = await seedBuilding({
 			name: 'Restricted Building',
 			ownerId: otherUserId,

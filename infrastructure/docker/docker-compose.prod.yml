@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     restart: unless-stopped
     ports:
       - "0.0.0.0:6379:6379"
@@ -11,17 +11,17 @@ services:
       retries: 5
 
   influxdb:
-    image: influxdb:2.7-alpine
+    image: influxdb:2.7-alpine@sha256:991673dc2d237bd79b15d6627410d72de111387e7dac673dbb92cf3333ffcc8c
     ports:
       - "0.0.0.0:8086:8086"
     restart: unless-stopped
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_INIT_USERNAME:-admin}
-      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_INIT_PASSWORD:-optigrid-influx-password}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_INIT_PASSWORD:?INFLUXDB_INIT_PASSWORD has to be set}
       DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:?INFLUXDB_TOKEN hasto be set}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
       interval: 5s
@@ -29,6 +29,7 @@ services:
       retries: 5
     volumes:
       - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
 
   mlflow:
     image: ghcr.io/cos301-se-2026/optigrid-analytics:latest
@@ -59,34 +60,17 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
-
-  frontend:
-    image: ghcr.io/cos301-se-2026/optigrid-frontend:latest
-    build:
-      context: ../../
-      dockerfile: frontend/Dockerfile
-    restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      CORE_URL: http://core:${CORE_PORT:-4000}
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    depends_on:
-      core:
-        condition: service_healthy
-
   core:
     image: ghcr.io/cos301-se-2026/optigrid-core:latest
     build:
       context: ../../
       dockerfile: backend/core/Dockerfile
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     ports:
       - "${CORE_PORT:-4000}:4000"
     environment:
@@ -127,12 +111,22 @@ services:
     ports:
       - "${INGESTION_PORT:-8000}:8000"
     command: ["python", "-m", "uvicorn", "backend.ingestion.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     environment:
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ingestion:
       image: ghcr.io/cos301-se-2026/optigrid-ingestion:latest
@@ -141,6 +135,11 @@ services:
         dockerfile: backend/ingestion/Dockerfile
       restart: unless-stopped
       command: ["python", "-m", "backend.ingestion.src.queue_worker"]
+      deploy:
+        resources:
+          limits:
+            memory: 256M
+            cpus: "0.5"
       environment:
         REDIS_HOST: ${REDIS_HOST:-redis}
         REDIS_PORT: ${REDIS_PORT:-6379}
@@ -149,7 +148,7 @@ services:
         INFLUXDB_ORG: ${INFLUXDB_ORG}
         INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
         SUPABASE_URL: ${SUPABASE_URL}
-        SUPABASE_KEY: ${SUPABASE_KEY:-${SUPABASE_SERVICE_ROLE_KEY}}
+        SUPABASE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
         SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       depends_on:
         redis:
@@ -164,6 +163,11 @@ services:
       dockerfile: backend/ingestion/Dockerfile
     restart: unless-stopped
     command: ["python", "-m", "backend.ingestion.src.sensor_emulator"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL:-http://influxdb:8086}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
@@ -172,13 +176,38 @@ services:
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY:-${SUPABASE_SERVICE_ROLE_KEY}}
+      SUPABASE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       API_INGEST_URL: http://ingestion-api:8000/api/telemetry/ingest
       HARDWARE_API_KEY: ${HARDWARE_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      seeder:
+        condition: service_completed_successfully
+
+  seeder:
+    image: ghcr.io/cos301-se-2026/optigrid-ingestion:latest
+    build:
+      context: ../../
+      dockerfile: backend/ingestion/Dockerfile
+    restart: "no"
+    command: ["python", "-m", "backend.ingestion.src.seeder"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    environment:
+      INFLUXDB_URL: ${INFLUXDB_URL:-http://influxdb:8086}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    depends_on:
       influxdb:
         condition: service_healthy
 
@@ -191,13 +220,18 @@ services:
     command: ["python", "-m", "uvicorn", "backend.analytics.src.main:app", "--host", "0.0.0.0", "--port", "5001"]
     ports:
       - "5001:5001"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
     environment:
       INFLUXDB_URL: ${INFLUXDB_URL}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
       INFLUXDB_ORG: ${INFLUXDB_ORG}
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
       SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY:-${SUPABASE_SERVICE_ROLE_KEY}}
+      SUPABASE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
     depends_on:
@@ -205,7 +239,73 @@ services:
         condition: service_healthy
       mlflow:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/health', timeout=5).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  analytics-worker:
+    image: ghcr.io/cos301-se-2026/optigrid-analytics:latest
+    build: 
+      context: ../../
+      dockerfile: backend/analytics/Dockerfile
+    command: ["python", "-m", "backend.analytics.src.queue_worker"]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    environment:
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      INFLUXDB_URL: ${INFLUXDB_URL}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+    depends_on:
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+
+  analytics-batch:
+    image: ghcr.io/cos301-se-2026/optigrid-analytics:latest
+    build: 
+      context: ../../
+      dockerfile: backend/analytics/Dockerfile
+    command: ["python", "-m", "backend.analytics.src.batch_worker"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    environment:
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      INFLUXDB_URL: ${INFLUXDB_URL}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+    depends_on:
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+        
 volumes:
   mlflow_data:
   influxdb_data:
+  influxdb_config:

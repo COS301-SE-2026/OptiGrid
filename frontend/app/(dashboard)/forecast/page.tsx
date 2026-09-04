@@ -1,7 +1,10 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { AccessibleChart } from "../../../components/AccessibleChart";
+import { useMutation } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
+import { useBuildings } from "@/lib/useBuildings";
+import { PageHeading } from "@/components/PageHeading";
 import {
     Area,
     CartesianGrid,
@@ -46,12 +49,6 @@ type ChartPoint = {
     yhat_range?: [number, number];
 };
 
-type BuildingApiRecord = {
-    building_id: string;
-    building_name: string;
-};
-
-type Building = { id: string; name: string };
 
 function toFiniteNumber(value: unknown): number | undefined {
     if (typeof value === "number" && Number.isFinite(value)) {
@@ -152,7 +149,6 @@ function buildChartData(result: ForecastResult | undefined) {
     const normalizedHistorical = processHistoricalData(result.historical ?? []);
     const normalizedForecast = processForecastData(result.forecast ?? []);
 
-    // Connect boundary timestamp for line continuity
     const connectedForecast = [...normalizedForecast];
     if (normalizedHistorical.length > 0 && connectedForecast.length > 0) {
         const lastHist = normalizedHistorical.at(-1);
@@ -226,7 +222,7 @@ function ChevronDown() {
 }
 
 function Skeleton({ style }: Readonly<{ style?: CSSProperties }>) {
-    return <div className="skeleton" style={style} />;
+    return <div className="skeleton" style={style} aria-hidden="true" />;
 }
 
 function BuildingStatusNotice({
@@ -242,21 +238,21 @@ function BuildingStatusNotice({
 }>) {
     if (buildingsError) {
         return (
-            <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+            <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }} role="alert">
                 Unable to load your assigned buildings right now.
             </p>
         );
     }
     if (buildingsCount === 0 && !buildingsLoading) {
         return (
-            <p className="text-muted" style={{ marginTop: "12px" }}>
+            <p className="text-muted" style={{ marginTop: "var(--space-3)" }}>
                 No buildings are currently assigned to your account.
             </p>
         );
     }
     if (forecastError) {
         return (
-            <p className="text-muted" style={{ marginTop: "12px", color: "var(--brand-danger)" }}>
+            <p className="text-muted" style={{ marginTop: "var(--space-3)", color: "var(--brand-danger)" }} role="alert">
                 {forecastError}
             </p>
         );
@@ -275,13 +271,14 @@ function KpiCard({
     value: string | null;
     skeletonWidth?: number;
 }>) {
+    const ariaLabel = `${label}: ${value || "No data"}`;
     return (
-        <div className="card dashboard-card-tight">
+        <article className="card dashboard-card-tight" aria-label={ariaLabel}>
             <p className="dashboard-kpi-label">{label}</p>
-            {isPending && <Skeleton style={{ height: 28, width: skeletonWidth, marginTop: 12 }} />}
+            {isPending && <Skeleton style={{ height: 28, width: skeletonWidth, marginTop: "var(--space-3)" }} />}
             {!isPending && value && <p className="dashboard-kpi-value metric">{value}</p>}
             {!isPending && !value && <p className="dashboard-kpi-value text-muted">--</p>}
-        </div>
+        </article>
     );
 }
 
@@ -323,7 +320,7 @@ function ForecastChartContainer({
                     borderRadius: "var(--radius-md)",
                     border: "1px dashed var(--brand-border)",
                     color: "var(--brand-ink-muted)",
-                    fontSize: "0.9rem",
+                    fontSize: "var(--fs-small)",
                 }}
             >
                 Configure the controls above and run a forecast.
@@ -333,6 +330,28 @@ function ForecastChartContainer({
 
     return (
         <>
+            <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
+                Historical and predicted energy demand for {selectedBuildingName}
+            </p>
+            <AccessibleChart
+                caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in kWh`}
+                categoryLabel="Timestamp"
+                categories={chartData.map((point) => formatTooltipLabel(point.timestamp, horizon))}
+                series={[
+                    { name: "Recorded (kWh)", values: chartData.map((point) => point.kwh) },
+                    { name: "Predicted (kWh)", values: chartData.map((point) => point.yhat) },
+                    ...(hasConfidenceBand
+                        ? [{
+                            name: "95% confidence interval (kWh)",
+                            values: chartData.map((point) =>
+                                point.yhat_range
+                                    ? `${point.yhat_range[0].toLocaleString()} to ${point.yhat_range[1].toLocaleString()}`
+                                    : null,
+                            ),
+                        }]
+                        : []),
+                ]}
+            >
             <ResponsiveContainer width="100%" height={240}>
                 <ComposedChart
                     data={chartData}
@@ -362,6 +381,12 @@ function ForecastChartContainer({
                         }}
                         axisLine={false}
                         tickLine={false}
+                        label={{
+                            value: "kWh",
+                            angle: -90,
+                            position: "insideLeft",
+                            style: { fill: "var(--brand-ink-muted)", fontSize: 10 }
+                        }}
                     />
                     <Tooltip
                         contentStyle={{
@@ -369,12 +394,12 @@ function ForecastChartContainer({
                             border: "1px solid var(--brand-border)",
                             borderRadius: "12px",
                             color: "var(--brand-ink)",
-                            fontSize: "12px",
+                            fontSize: "var(--fs-small)",
                         }}
                         cursor={{ stroke: "var(--brand-border)" }}
                         labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon)}
+                        formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy"]}
                     />
-                    {/* Native confidence range area band */}
                     {hasConfidenceBand ? (
                         <Area
                             type="monotone"
@@ -419,19 +444,29 @@ function ForecastChartContainer({
                     />
                 </ComposedChart>
             </ResponsiveContainer>
+            </AccessibleChart>
 
-            {/* Legend */}
             <div
                 className="text-muted"
                 style={{
-                    marginTop: "12px",
+                    marginTop: "var(--space-3)",
                     display: "flex",
                     alignItems: "center",
-                    gap: "20px",
-                    fontSize: "0.75rem",
+                    gap: "var(--space-4)",
+                    fontSize: "var(--fs-small)"
                 }}
             >
-                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                    <span
+                        style={{
+                            width: 16,
+                            borderTop: "2px solid var(--brand-primary)",
+                            display: "inline-block",
+                        }}
+                    />
+                    <span>Historical</span>
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                     <span
                         style={{
                             width: 16,
@@ -441,52 +476,66 @@ function ForecastChartContainer({
                     />
                     <span>Predicted</span>
                 </span>
+                {hasConfidenceBand && (
+                    <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                        <span
+                            style={{
+                                width: 16,
+                                height: 4,
+                                backgroundColor: "var(--brand-primary)",
+                                opacity: 0.15,
+                                display: "inline-block",
+                            }}
+                        />
+                        <span>Confidence range</span>
+                    </span>
+                )}
             </div>
 
             <div
                 style={{
-                    marginTop: "20px",
+                    marginTop: "var(--space-5)",
                     display: "grid",
-                    gap: "12px",
+                    gap: "var(--space-3)",
                     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                 }}
             >
                 <div
                     style={{
-                        padding: "14px 16px",
+                        padding: "var(--space-3) var(--space-4)",
                         border: "1px solid var(--brand-border)",
                         borderRadius: "var(--radius-md)",
-                        background: "var(--brand-bg-subtle)",
+                        background: "var(--brand-surface-alt)",
                     }}
                 >
                     <p className="dashboard-kpi-label">Building</p>
-                    <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                    <p className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)" }}>
                         {selectedBuildingName}
                     </p>
                 </div>
                 <div
                     style={{
-                        padding: "14px 16px",
+                        padding: "var(--space-3) var(--space-4)",
                         border: "1px solid var(--brand-border)",
                         borderRadius: "var(--radius-md)",
-                        background: "var(--brand-bg-subtle)",
+                        background: "var(--brand-surface-alt)",
                     }}
                 >
                     <p className="dashboard-kpi-label">Forecast points</p>
-                    <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                    <p className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)" }}>
                         {result.forecast.length}
                     </p>
                 </div>
                 <div
                     style={{
-                        padding: "14px 16px",
+                        padding: "var(--space-3) var(--space-4)",
                         border: "1px solid var(--brand-border)",
                         borderRadius: "var(--radius-md)",
-                        background: "var(--brand-bg-subtle)",
+                        background: "var(--brand-surface-alt)",
                     }}
                 >
                     <p className="dashboard-kpi-label">Peak timestamp</p>
-                    <p className="dashboard-kpi-value" style={{ fontSize: "1rem" }}>
+                    <p className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)" }}>
                         {formatPeakTimestamp(result.summary.peak_timestamp)}
                     </p>
                 </div>
@@ -500,29 +549,7 @@ export default function ForecastPage() {
     const [horizon, setHorizon] = useState<"weekly" | "monthly">("weekly");
     const [forecastError, setForecastError] = useState<string | null>(null);
 
-    const { data: buildings = [], isLoading: buildingsLoading, isError: buildingsError } = useQuery<
-        Building[]
-    >({
-        queryKey: ["buildings"],
-        queryFn: async () => {
-            const response = await fetch("/api/buildings", {
-                method: "GET",
-                credentials: "include",
-                cache: "no-store",
-            });
-
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(payload.message || "Unable to load buildings.");
-            }
-
-            const buildingRecords = Array.isArray(payload?.data) ? payload.data : [];
-            return buildingRecords.map((building: BuildingApiRecord) => ({
-                id: building.building_id,
-                name: building.building_name,
-            }));
-        },
-    });
+    const { data: buildings = [], isLoading: buildingsLoading, isError: buildingsError } = useBuildings();
 
     const { mutate, isPending, data: result } = useMutation({
         mutationFn: async (params: ForecastParams) => {
@@ -564,36 +591,26 @@ export default function ForecastPage() {
         appearance: "none",
         WebkitAppearance: "none",
         MozAppearance: "none",
-        paddingRight: "32px",
+        paddingRight: "var(--space-6)",
     };
 
     return (
         <div>
-            {/* Page header */}
-            <div
-                className="dashboard-section"
-                style={{
-                    borderBottom: "1px solid var(--brand-border)",
-                    paddingBottom: "var(--space-4)",
-                }}
-            >
-                <h1 className="dashboard-title">Demand Forecast</h1>
-                <p className="dashboard-subtitle">
-                    Select a building and horizon to view its upcoming energy demand forecast.
-                </p>
-            </div>
+            <PageHeading
+                title="Demand Forecast"
+                subtitle="Select a building and horizon to view its upcoming energy demand forecast."
+            />
 
-            {/* Controls */}
-            <div className="card dashboard-section">
+            <section className="card dashboard-section" aria-label="Forecast controls">
                 <div
                     style={{
                         display: "grid",
-                        gap: "16px",
+                        gap: "var(--space-4)",
                         gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                         alignItems: "end",
                     }}
                 >
-                    <div style={{ display: "grid", gap: "6px" }}>
+                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
                         <label
                             htmlFor="building-select"
                             className="label"
@@ -609,6 +626,7 @@ export default function ForecastPage() {
                                 value={buildingId}
                                 disabled={buildingsLoading || buildings.length === 0}
                                 onChange={(e) => setBuildingId(e.target.value)}
+                                aria-label="Select a building for forecast"
                             >
                                 <option value="">
                                     {buildingsLoading ? "Loading buildings..." : "Select building"}
@@ -628,13 +646,14 @@ export default function ForecastPage() {
                                     color: "var(--brand-ink-muted)",
                                     pointerEvents: "none",
                                 }}
+                                aria-hidden="true"
                             >
                                 <ChevronDown />
                             </span>
                         </div>
                     </div>
 
-                    <div style={{ display: "grid", gap: "6px" }}>
+                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
                         <label
                             htmlFor="horizon-select"
                             className="label"
@@ -649,6 +668,7 @@ export default function ForecastPage() {
                                 style={selectStyle}
                                 value={horizon}
                                 onChange={(e) => setHorizon(e.target.value as "weekly" | "monthly")}
+                                aria-label="Select forecast horizon"
                             >
                                 <option value="weekly">Weekly (Next 7 Days)</option>
                                 <option value="monthly">Monthly (Next 12 Weeks)</option>
@@ -662,13 +682,14 @@ export default function ForecastPage() {
                                     color: "var(--brand-ink-muted)",
                                     pointerEvents: "none",
                                 }}
+                                aria-hidden="true"
                             >
                                 <ChevronDown />
                             </span>
                         </div>
                     </div>
 
-                    <div style={{ display: "grid", gap: "6px" }}>
+                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
                         <span className="label" style={{ opacity: 0 }}>
                             Run
                         </span>
@@ -682,7 +703,11 @@ export default function ForecastPage() {
                                 })
                             }
                             className="btn btn-primary"
-                            style={{ width: "100%" }}
+                            style={{
+                                width: "100%",
+                                backgroundColor: "#3A6B7C",
+                                color: "#FFFFFF",
+                            }}
                         >
                             {isPending && <Spinner />}
                             Run forecast
@@ -696,10 +721,9 @@ export default function ForecastPage() {
                     buildingsLoading={buildingsLoading}
                     forecastError={forecastError}
                 />
-            </div>
+            </section>
 
-            {/* Chart */}
-            <div className="card dashboard-section">
+            <section className="card dashboard-section" aria-label="Demand forecast chart">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Demand Trend</h2>
                     <span className="dashboard-section-meta">
@@ -719,10 +743,9 @@ export default function ForecastPage() {
                     showForecastDots={showForecastDots}
                     selectedBuildingName={selectedBuildingName}
                 />
-            </div>
+            </section>
 
-            {/* KPI cards */}
-            <div className="dashboard-kpi-grid">
+            <div className="dashboard-kpi-grid" aria-label="Forecast summary statistics">
                 <KpiCard
                     label="Peak demand"
                     isPending={isPending}

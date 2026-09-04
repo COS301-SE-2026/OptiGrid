@@ -1,6 +1,7 @@
 import RealtimePage from "./page";
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
 
@@ -92,6 +93,21 @@ describe("Rendering readings", () => {
         expect(screen.getByText("100.00")).toBeInTheDocument();
         expect(screen.getByText("12 West St")).toBeInTheDocument();
     });
+
+    it("links each building card to its detail view", async () => {
+        mockBuildings([sandtonOffice]);
+        renderPage();
+
+        const cardLink = await screen.findByRole("link", {
+            name: /view live telemetry for sandton office/i,
+        });
+
+        expect(cardLink).toHaveAttribute(
+            "href",
+            "/buildings/11111111-0000-0000-0000-000000000001/view",
+        );
+    });
+
     it("marks a building offline when it reports zero usage and no status", async () => {
         mockBuildings([rosebankStore]);
         renderPage();
@@ -116,15 +132,37 @@ describe("Sorting", () => {
     });
 });
 describe("Building list", () => {
-    it("shows every building with the total count without an alerts filter", async () => {
+    it("shows every building under the All filter with the total count", async () => {
         mockBuildings([sandtonOffice, midrandWarehouse, rosebankStore]);
         renderPage();
         await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
-        // the alerts filter is removed forr now until anomaly detection is implemented later
-        expect(screen.queryByRole("button", { name: /alerts/i })).not.toBeInTheDocument();
-        expect(screen.getByText(/all \(3\)/i)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /all \(3\)/i })).toHaveAttribute("aria-pressed", "true");
         expect(screen.getByText("Midrand Warehouse")).toBeInTheDocument();
         expect(screen.getByText("Rosebank Store")).toBeInTheDocument();
+    });
+
+    it("narrows the list to the buildings matching the selected status filter", async () => {
+        mockBuildings([sandtonOffice, midrandWarehouse, rosebankStore]);
+        renderPage();
+        await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
+
+        const user = userEvent.setup();
+        await user.click(screen.getByRole("button", { name: /^peak alert \(1\)$/i }));
+
+        expect(screen.getByText("Midrand Warehouse")).toBeInTheDocument();
+        expect(screen.queryByText("Sandton Office")).not.toBeInTheDocument();
+        expect(screen.queryByText("Rosebank Store")).not.toBeInTheDocument();
+    });
+
+    it("says nothing matches when a filter has no buildings", async () => {
+        mockBuildings([sandtonOffice]);
+        renderPage();
+        await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
+
+        const user = userEvent.setup();
+        await user.click(screen.getByRole("button", { name: /^offline \(0\)$/i }));
+        expect(screen.getByText(/no buildings match the offline filter/i)).toBeInTheDocument();
+        expect(screen.queryByText("Sandton Office")).not.toBeInTheDocument();
     });
 
     it("does not render a manual refresh button", async () => {

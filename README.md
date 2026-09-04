@@ -9,7 +9,7 @@ Built by **[Coreflow](https://github.com/OptiGrid)**
 ---
 
 [![Build](https://img.shields.io/github/actions/workflow/status/COS301-SE-2026/OptiGrid/ci.yml?label=BUILD&style=flat-square)](https://github.com/COS301-SE-2026/OptiGrid/actions)
-[![Coverage](https://img.shields.io/coveralls/github/COS301-SE-2026/OptiGrid?label=COVERAGE&style=flat-square)](https://coveralls.io/github/COS301-SE-2026/OptiGrid)
+[![Coverage](https://img.shields.io/codecov/c/github/COS301-SE-2026/OptiGrid?label=COVERAGE&style=flat-square)](https://codecov.io/gh/COS301-SE-2026/OptiGrid)
 [![Requirements](https://img.shields.io/badge/Requirements-Passing-success?style=flat-square)](https://github.com/COS301-SE-2026/OptiGrid)
 [![Issues](https://img.shields.io/github/issues/COS301-SE-2026/OptiGrid?label=ISSUES&style=flat-square)](https://github.com/COS301-SE-2026/OptiGrid/issues)
 [![Monitoring](https://img.shields.io/badge/Monitoring-UptimeRobot-brightgreen?style=flat-square)](https://uptimerobot.com)
@@ -34,11 +34,29 @@ The system connects building managers and energy grids through a sophisticated d
 
 ---
 
-## Functional Requirements (SRS)
+## GitHub Project Board
+[View GitHub Project Board →](https://github.com/orgs/COS301-SE-2026/projects/52)
+
+## Demo 3
+**SRS Document:**
 [Functional Requirements (SRS)](docs/SRS.md)
 
-## GitHub Project Board
-[View GitHub Project Board →](https://github.com/orgs/COS301-SE-2026/projects)
+**SAS Document:**
+[Tracebility Matrix and NFR (SAS)](docs/SAS.pdf)
+
+[Service Contracts(SAS)](docs/SAS.pdf)
+
+**Coding Standards Document:**
+[Coding Standards](docs/Coding_Standards.pdf)
+
+**User Manual:**
+[User Manual](docs/User_Manual.pdf)
+
+**Testing Policy Document:**
+[Testing Policy](docs/Testing_Policy.pdf)
+
+**Brand Style Guide:**
+[Brand Style Guide](docs/Brand_Style_Guide.pdf)
 
 ## Demo 2
 **SRS Document:**
@@ -317,6 +335,27 @@ pnpm --filter @optigrid/frontend run test
 # Backend unit tests only
 pnpm --filter @optigrid/core run test
 ```
+
+### Run Scalability Tests
+
+The isolated local Docker suite measures 50/100/150 telemetry requests per
+second and reports both the original SRS-oriented criteria and revised
+architectural capability checks. A capability pass percentage does not establish
+SRS compliance; SC01 and scale-up request failures remain reported separately.
+
+```powershell
+npm install --prefix tests/nfr/scalability --ignore-scripts
+npm run test:nfr:scalability:assessment
+npm run test:nfr:scalability:preflight
+npm run test:nfr:scalability
+```
+
+See the [setup and fixed test plan](tests/nfr/scalability/README.md),
+[fresh benchmark results](docs/testing/scalability-results-v2-2026-09-03.md),
+[preserved original results](docs/testing/scalability-results-2026-09-03-original.md),
+and [revised-criteria reassessment](docs/testing/scalability-reassessment-v2-2026-09-03.md).
+The full workload takes about 30 minutes after setup. A nonzero benchmark exit
+code still indicates at least one failing check, even when 60% of checks pass.
 
 ### Run Integration Tests
 

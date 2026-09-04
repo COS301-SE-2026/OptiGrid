@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from typing import Dict, List, Optional, Any
@@ -8,10 +10,14 @@ from datetime import datetime, timezone
 
 try:
     from backend.ingestion.src.config import *
+    from backend.ingestion.src.metrics import record_ingestion_metric
 except ModuleNotFoundError:
     from config import *
+    from metrics import record_ingestion_metric
 
 app = FastAPI(title="OptiGrid Ingestion API", version="1.0.0")
+
+INGESTION_PATHS = frozenset({"/ingest", "/api/telemetry/ingest"})
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,6 +34,22 @@ r = redis.Redis(
     decode_responses=True,
     socket_connect_timeout=5
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def track_ingestion_validation_failure(
+    request: Request,
+    exception: RequestValidationError,
+):
+    if request.url.path in INGESTION_PATHS:
+        building_id = None
+        body = exception.body
+        if isinstance(body, dict) and isinstance(body.get("building_id"), str):
+            building_id = body["building_id"]
+
+        record_ingestion_metric(r, "failed", building_id)
+
+    return await request_validation_exception_handler(request, exception)
 
 class TelemetryPoint(BaseModel):
     building_id: str = Field(..., description="Unique UUID for building mapping")
@@ -78,21 +100,24 @@ def root():
     }
 
 # accept requests on both routes to eliminate 404 errors
-@app.post("/ingest", status_code=210)
-@app.post("/api/telemetry/ingest", status_code=210)
+@app.post("/ingest", status_code=201)
+@app.post("/api/telemetry/ingest", status_code=201)
 def ingest_entry(payload: TelemetryPoint):
     try:
-        r.lpush("ingestion_queue", payload.model_dump_json())
+        queue_length = r.lpush("ingestion_queue", payload.model_dump_json())
+        record_ingestion_metric(r, "accepted", payload.building_id)
         return {
             "status": "success", 
             "message": "Data buffered", 
             "building_id": payload.building_id, 
-            "queue_length": r.llen("ingestion_queue")
+            "queue_length": queue_length
         }
-    except redis.exceptions.ConnectionError:
-        raise HTTPException(status_code=530, detail="Redis connection failed")
+    except redis.exceptions.ConnectionError as error:
+        record_ingestion_metric(r, "failed", payload.building_id)
+        raise HTTPException(status_code=530, detail="Redis connection failed") from error
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        record_ingestion_metric(r, "failed", payload.building_id)
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @app.post("/init-building", status_code=200)
 def init_building(payload: BuildingInitPayload):

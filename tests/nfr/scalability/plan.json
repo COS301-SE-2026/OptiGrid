@@ -1,0 +1,29 @@
+{
+  "assessmentVersion": "capabilities-v2",
+  "criteriaRevision": "2026-09-03: user-approved separation of SC02 horizontal effectiveness and SC05 scaling responsiveness from the SC01 SRS latency target; original-v1 outcomes and continuity diagnostics retained.",
+  "baselineRps": 50,
+  "buildingCount": 100,
+  "readRps": 2,
+  "warmupSeconds": 30,
+  "measurementSeconds": 300,
+  "burstSeconds": 60,
+  "queueDrainSeconds": 120,
+  "latencyRatioLimit": 1.10,
+  "errorRateLimit": 0.01,
+  "offeredRateTolerance": 0.01,
+  "maxScheduleP95Ms": 100,
+  "autoscaleThresholdRps": 100,
+  "autoscaleSustainSeconds": 10,
+  "autoscaleDeadlineSeconds": 60,
+  "maxReplicas": 3,
+  "notes": [
+    "W=50 means 100 buildings with one sensor reporting every two seconds; the rate was fixed before measurements.",
+    "+200% workload means 3W=150 requests per second.",
+    "SC03 exercises the frontend-to-core live telemetry API with valid nonempty InfluxDB data, not browser rendering or authenticated metadata endpoints.",
+    "All service resource limits and local images are recorded; existing unrelated containers remain running.",
+    "SC05 uses an experimental local traffic-driven controller. It does not demonstrate an existing production autoscaler.",
+    "SC02 v2 requires lower p95 at the SAME 150/s workload, valid generators and <1% errors in both trials, all three API/worker replicas participating, and accepted-point persistence in both trials.",
+    "SC05 v2 requires measured sustained-load trigger, three healthy APIs and three running workers within 60s, valid measured traffic and accepted-point persistence. The original latency criterion and all warm-up request failures are separately reported.",
+    "SC01, SC03, SC04, all workloads, durations, resource limits and the original-v1 scoring remain unchanged. Applying v2 to old measurements is a retrospective reassessment, not a new benchmark."
+  ]
+}

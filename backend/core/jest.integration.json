@@ -1,5 +1,4 @@
 {
-	"preset": "ts-jest",
 	"testEnvironment": "node",
 	"roots": ["<rootDir>/../../tests/integration/backend/core"],
 	"setupFiles": ["<rootDir>/../../tests/integration/backend/core/setup-env.ts"],

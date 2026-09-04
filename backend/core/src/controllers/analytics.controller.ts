@@ -3,6 +3,7 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma';
+import { analyticsQueue } from '../services/bullmq';
 
 type NormalizedForecastPoint = {
     timestamp: string;
@@ -65,21 +66,15 @@ export const refreshAnalyticsController = async (req: Request, res: Response) =>
         const isAuth = await authorizeBuildingAccess(req.user?.id, building_id, res);
         if (!isAuth) return;
 
-        const pythonEngineUrl = process.env.ANALYTICS_URL || 'http://localhost:5001';
-        const refreshResponse = await fetch(`${pythonEngineUrl}/refresh-building/${building_id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+        //removed prev code, added enqueing to bullmq
+        await analyticsQueue.add("refresh_building", { building_id });
+        return res.status(202).json({ 
+            status: "accepted", 
+            message: "Analytics refresh task queued, a FORECAST_READY websocket event will be sent shortly" 
         });
-
-        if (!refreshResponse.ok) {
-            throw new Error(`Analytics engine returned status ${refreshResponse.status}`);
-        }
-
-        const refreshData = await refreshResponse.json();
-        return res.status(200).json(refreshData);
     } catch (error) {
         console.error("Analytics failed:", error);
-        return res.status(500).json({ status: 'error', message: 'Failed to refresh analytics' });
+        return res.status(500).json({ status: 'error', message: 'Failed to enqueue refresh' });
     }
 };
 
@@ -128,8 +123,12 @@ export const getForecastController = async (req: Request, res: Response) => {
             };
         }).filter((point: NormalizedForecastPoint | null): point is NormalizedForecastPoint => point !== null);
 
-        const historicalKwh = horizon === 'weekly' && normalizedForecastSeries.length > 0 && analytics.todays_usage && analytics.todays_usage > normalizedForecastSeries[0].yhat * 10
-            ? normalizedForecastSeries[0].yhat
+        const nowMs = Date.now();
+        const futureForecasts = normalizedForecastSeries.filter(p => new Date(p.timestamp).getTime() >= nowMs);
+        const seriesToUse = futureForecasts.length > 0 ? futureForecasts : normalizedForecastSeries;
+
+        const historicalKwh = seriesToUse.length > 0
+            ? seriesToUse[0].yhat
             : Number(analytics.todays_usage) || 0;
 
         const synthesisedHistorical = [{
@@ -137,13 +136,24 @@ export const getForecastController = async (req: Request, res: Response) => {
             kwh: historicalKwh
         }];
 
+        let peak_kwh = Number(analytics.forecast_peak) || 0;
+        let peak_timestamp = analytics.updated_at || new Date().toISOString();
+
+        if (seriesToUse.length > 0) {
+            const peakPoint = seriesToUse.reduce((prev, current) => 
+                (prev.yhat > current.yhat) ? prev : current
+            );
+            peak_kwh = peakPoint.yhat;
+            peak_timestamp = peakPoint.timestamp;
+        }
+
         //building final response with historical data, forecast and summary metric
         const result = {
             historical: synthesisedHistorical, 
-            forecast: normalizedForecastSeries, 
+            forecast: seriesToUse, 
             summary: {
-                peak_kwh: Number(analytics.forecast_peak) || 0,
-                peak_timestamp: analytics.updated_at || new Date().toISOString(),
+                peak_kwh,
+                peak_timestamp,
                 avg_daily_kwh: Number(analytics.forecast_avg_day) || 0,
                 mape: Number(analytics.model_mape) || 0
             }

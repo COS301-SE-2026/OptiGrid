@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
+import prisma from '../lib/prisma';
 import { createBuilding, compareBuildingsService, deleteBuildingService, getAllBuildings, getBuildingEnergyConsumptionDetails, 
   getPortfolioConsumption, listBuildingsForUser, getBuildingDetails, updateBuildingService, getManagerBuildings } from '../services/building.services';
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
-import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, buildingSeriesParamsSchema, buildingSeriesQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
+import { getClientIp, recordAuditLog } from '../services/auditLog.service';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -59,6 +61,15 @@ export const createBuildingController = async (req: Request, res: Response) => {
       status: 'success',
       data: building
     };
+
+    await recordAuditLog({
+      userId,
+      buildingId: building.building_id,
+      actionType: "CREATE",
+      targetTable: "buildings",
+      newValue: building,
+      ipAddress: getClientIp(req)
+    });
     await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     res.status(201).json(successResponse);
 
@@ -89,7 +100,7 @@ export const listBuildingsController = async (req: Request, res: Response) => {
       return; 
     }
     
-    const buildings = await listBuildingsForUser(userId);
+    const buildings = await listBuildingsForUser(userId, req.user.roleType);
     
     const getUsage = await Promise.all(
       buildings.map(async (b) => {
@@ -160,7 +171,7 @@ export const getPortfolioConsumptionController = async (req: Request, res: Respo
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 
-    const portfolioConsumption = await getPortfolioConsumption(req.user.id);
+    const portfolioConsumption = await getPortfolioConsumption(req.user.id, req.user.roleType);
     return res.status(200).json({
       status: 'success',
       data: portfolioConsumption,
@@ -209,6 +220,39 @@ export const getBuildingEnergyConsumptionController = async (req: Request, res: 
     }
 
     console.error('getBuildingEnergyConsumptionController error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+export const getBuildingSeriesController = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+
+    const { building_id } = buildingSeriesParamsSchema.parse(req.params);
+    const { time_range } = buildingSeriesQuerySchema.parse(req.query);
+
+    // verify access
+    if (req.user.roleType !== "ADMIN") {
+      const accessRecord = await prisma.userBuildingAccess.findUnique({
+        where: { user_id_building_id: { user_id: req.user.id, building_id } },
+      });
+      if (!accessRecord) return res.status(403).json({ status: 'error', message: 'Access Denied' });
+    }
+
+    const { queryUsageSeries } = await import('../lib/influx.js');
+    const series = await queryUsageSeries(building_id, time_range);
+    
+    return res.status(200).json({ status: 'success', data: series });
+  } catch (error: any) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid request parameters',
+        details: error.errors,
+      });
+    }
+
+    console.error('getBuildingSeriesController Error:', error);
     return res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
@@ -304,6 +348,14 @@ export const deleteBuildingController = async (req: Request, res: Response) => {
       message: 'Building successfully deleted'
     };
 
+    await recordAuditLog({
+      userId,
+      actionType: "DELETE",
+      targetTable: "buildings",
+      oldValue: { building_id },
+      ipAddress: getClientIp(req)
+    });
+
     //store in redis cache cache before responding
     await saveIdempotencyKey(userId, idempotencyKey, successResponse);
     return res.status(200).json(successResponse);
@@ -339,6 +391,15 @@ export const updateBuildingController = async (req: Request, res: Response) => {
     const validatedPayload = updateBuildingSchema.parse(req.body);
 
     const building = await updateBuildingService(req.user.id, building_id, validatedPayload, role);
+    await recordAuditLog({
+      userId: req.user.id,
+      buildingId: building_id,
+      actionType: "UPDATE",
+      targetTable: "buildings",
+      newValue: validatedPayload,
+      ipAddress: getClientIp(req)
+    });
+
     return res.status(200).json({
       status: 'success',
       data: building,

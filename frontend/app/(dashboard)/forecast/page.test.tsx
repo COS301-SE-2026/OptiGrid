@@ -55,7 +55,7 @@ const resultData = {
 };
 
 function setupQueries() {
-    mockUseQuery.mockImplementation((options: any) => {
+    mockUseQuery.mockImplementation((options) => {
         const key = options?.queryKey?.[0];
         if (key === "buildings") {
             return { data: buildingsData };

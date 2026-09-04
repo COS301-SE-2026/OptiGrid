@@ -1,0 +1,134 @@
+name: optigrid-nfr-scalability
+x-ingestion: &ingestion
+  image: ${NFR_INGESTION_IMAGE:-ghcr.io/local/optigrid-ingestion:latest}
+  working_dir: /app
+  environment: &ingestion-env
+    PYTHONPATH: /app
+    PYTHON_DOTENV_DISABLED: "1"
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    REDIS_URL: redis://redis:6379/0
+    INFLUXDB_URL: http://influxdb:8086
+    INFLUXDB_TOKEN: optigrid-nfr-local-test-token
+    INFLUXDB_ORG: OptiGridNFR
+    INFLUXDB_BUCKET: NFRScalability
+  volumes:
+    - ../../../backend/ingestion/src:/app/backend/ingestion/src:ro
+  depends_on:
+    redis:
+      condition: service_healthy
+    influxdb:
+      condition: service_healthy
+  deploy:
+    resources:
+      limits:
+        cpus: "0.5"
+        memory: 256M
+services:
+  redis:
+    image: ${NFR_REDIS_IMAGE:-redis:7-alpine}
+    command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, noeviction]
+    ports: ["127.0.0.1:17791:6379"]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 192M
+  influxdb:
+    image: ${NFR_INFLUX_IMAGE:-influxdb:2.7-alpine}
+    ports: ["127.0.0.1:17790:8086"]
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: nfradmin
+      DOCKER_INFLUXDB_INIT_PASSWORD: local-nfr-password-only
+      DOCKER_INFLUXDB_INIT_ORG: OptiGridNFR
+      DOCKER_INFLUXDB_INIT_BUCKET: NFRScalability
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: optigrid-nfr-local-test-token
+    volumes:
+      - influx-data:/var/lib/influxdb2
+      - influx-config:/etc/influxdb2
+    healthcheck:
+      test: [CMD, influx, ping]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 768M
+  ingestion-api:
+    <<: *ingestion
+    command: [python, -m, uvicorn, backend.ingestion.src.main:app, --host, 0.0.0.0, --port, "8000", --no-access-log]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read()"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  ingestion-worker:
+    <<: *ingestion
+    command: [python, -u, -m, backend.ingestion.src.queue_worker]
+  proxy:
+    image: ${NFR_CORE_IMAGE:-ghcr.io/local/optigrid-core:latest}
+    command: [node, /nfr/proxy.mjs]
+    volumes:
+      - ./proxy.mjs:/nfr/proxy.mjs:ro
+    ports: ["127.0.0.1:17788:8080"]
+    depends_on:
+      ingestion-api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 192M
+  core:
+    image: ${NFR_CORE_IMAGE:-ghcr.io/local/optigrid-core:latest}
+    command: [node, /nfr/core-entry.cjs]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://nfr:nfr@127.0.0.1:1/nfr
+      SUPABASE_URL: http://127.0.0.1:1
+      SUPABASE_ANON_KEY: nfr-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: nfr-placeholder
+      REDIS_URL: redis://redis:6379/0
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: optigrid-nfr-local-test-token
+      INFLUXDB_ORG: OptiGridNFR
+      INFLUXDB_BUCKET: NFRScalability
+    volumes:
+      - ./core-entry.cjs:/nfr/core-entry.cjs:ro
+      - ../../../backend/core/dist:/app/backend/core/dist:ro
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+  frontend:
+    image: ${NFR_FRONTEND_IMAGE:-ghcr.io/local/optigrid-frontend:latest}
+    environment:
+      NODE_ENV: production
+      CORE_URL: http://core:4000
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports: ["127.0.0.1:17789:3000"]
+    depends_on: [core]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 384M
+volumes:
+  influx-data:
+  influx-config:

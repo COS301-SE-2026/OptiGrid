@@ -4,14 +4,13 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getLoginError, initialLoginFormData, type LoginFormData } from "./validation";
-import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../../../lib/tab-session";
+import { navigateAfterLogin } from "../../../lib/auth-navigation";
+import { getTabSessionId, TAB_SESSION_HEADER } from "../../../lib/tab-session";
+import GoogleAuthButton from "@/components/GoogleButton";
 
 export default function LoginPage() {
     const router = useRouter();
-    const [formData, setFormData] = useState<LoginFormData>(
-        initialLoginFormData
-    );
-
+    const [formData, setFormData] = useState<LoginFormData>(initialLoginFormData);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [loading, setLoading] = useState(false);
@@ -33,6 +32,9 @@ export default function LoginPage() {
                 ...previous,
                 email: previous.email || emailFromQuery,
             }));
+        }
+        if (query.get("error") === "OAuthFailed") {
+            setError("Google sign-in failed. Please try again.");
         }
     }, []);
 
@@ -64,8 +66,9 @@ export default function LoginPage() {
             const firstName = payload?.user?.firstName as string | undefined;
             setNotice(`Login successful${firstName ? `, ${firstName}` : ""}.`);
             setFormData(initialLoginFormData);
-            router.push(getTabSessionPath("/dashboard"));
-            router.refresh();
+            navigateAfterLogin((destination) => {
+                router.replace(destination);
+            });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed. Please try again.");
         } finally {
@@ -74,45 +77,36 @@ export default function LoginPage() {
     };
 
     return (
-        <main
-            className="min-h-screen"
-            style={{
-                background: "var(--brand-bg)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "48px 24px",
-            }}
-        >
+        <main className="auth-page">
             <section
-                className="card"
-                style={{ width: "min(420px, 100%)", display: "grid", gap: "24px" }}
+                className="card auth-card"
+                aria-labelledby="login-title"
             >
-                <header style={{ display: "grid", gap: "8px" }}>
+                <header className="auth-header">
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
                     <p className="landing-kicker">OptiGrid Access</p>
-                    <h1>Log in to your account</h1>
+                    <h1 id="login-title">Log in to your account</h1>
                 </header>
 
                 {notice && (
                     <div
-                        style={{
-                            border: "1px solid var(--brand-secondary)",
-                            background: "color-mix(in srgb, var(--brand-secondary) 12%, transparent)",
-                            color: "var(--brand-ink)",
-                            padding: "12px 16px",
-                            borderRadius: "var(--radius-md)",
-                            fontSize: "0.875rem",
-                        }}
+                        role="status"
+                        aria-live="polite"
+                        className="auth-notice"
                     >
                         {notice}
                     </div>
                 )}
 
-                <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-                    <div className="space-y-2">
+                <form
+                    className="auth-form"
+                    noValidate
+                    onSubmit={handleSubmit}
+                    suppressHydrationWarning
+                >
+                    <div className="auth-field">
                         <label className="label" htmlFor="email">Work email</label>
                         <input
                             id="email"
@@ -124,10 +118,12 @@ export default function LoginPage() {
                             disabled={loading}
                             className="input"
                             placeholder="you@company.io"
+                            aria-invalid={Boolean(error)}
+                            suppressHydrationWarning
                         />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="auth-field">
                         <label className="label" htmlFor="password">Password</label>
                         <input
                             id="password"
@@ -139,41 +135,43 @@ export default function LoginPage() {
                             disabled={loading}
                             className="input"
                             placeholder="Your password"
+                            aria-invalid={Boolean(error)}
+                            suppressHydrationWarning
                         />
                     </div>
 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="btn btn-primary w-full"
-                        style={{ marginTop: "24px" }}
+                        aria-disabled={loading}
+                        className="btn btn-primary auth-submit"
+                        style={{
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
+                        }}
                     >
                         {loading ? "Logging in..." : "Log in"}
                     </button>
 
+                    <GoogleAuthButton
+                        onLoading={setLoading}
+                        onError={setError}
+                    />
+
                     {error && (
                         <div
                             role="alert"
-                            style={{
-                                border: "1px solid var(--brand-danger)",
-                                background: "color-mix(in srgb, var(--brand-danger) 12%, transparent)",
-                                color: "var(--brand-danger)",
-                                padding: "12px 16px",
-                                borderRadius: "var(--radius-md)",
-                                fontSize: "0.875rem",
-                            }}
+                            aria-live="assertive"
+                            className="auth-alert"
                         >
                             {error}
                         </div>
                     )}
                 </form>
 
-                <p
-                    className="text-muted"
-                    style={{ textAlign: "center", fontSize: "0.875rem" }}
-                >
+                <p className="text-muted auth-footnote">
                     No account?{" "}
-                    <Link href="/signup" style={{ color: "var(--brand-primary)", fontWeight: 600 }}>
+                    <Link href="/signup">
                         Sign up free
                     </Link>
                 </p>

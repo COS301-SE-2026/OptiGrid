@@ -16,14 +16,18 @@ describe("Token Bucket Rate Limit Tests", () => {
     let nextFunc: NextFunction;
     let statusMock: jest.Mock;
     let json: jest.Mock;
+    const env = process.env;
 
     const mockTime = 1000000000;
     beforeEach(() => {
         jest.clearAllMocks();
+        process.env = { ...env };
+        process.env.NODE_ENV = 'production';
         jest.spyOn(Date, "now").mockReturnValue(mockTime);
         jest.spyOn(console, "error").mockImplementation(() => {});
         json = jest.fn();
         statusMock = jest.fn().mockReturnValue({ json: json});
+        process.env.DISABLE_RATE_LIMIT = "false";
 
         req = {
             ip: "192.168.1.100",

@@ -63,6 +63,14 @@ export const buildingEnergyConsumptionQuerySchema = z.object({
 
 export type BuildingEnergyConsumptionQuery = z.infer<typeof buildingEnergyConsumptionQuerySchema>;
 
+export const buildingSeriesParamsSchema = z.object({
+    building_id: z.string().uuid("building_id must be a valid UUID"),
+}).strict();
+
+export const buildingSeriesQuerySchema = z.object({
+    time_range: z.enum(['today', '1d', '7d', '30d', '90d', '1y']).default('7d'),
+}).strict();
+
 export const updateBuildingSchema = z.object({
     building_name: z.string()
         .min(2, "Building name must be at least 2 characters")

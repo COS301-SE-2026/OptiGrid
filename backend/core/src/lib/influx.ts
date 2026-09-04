@@ -12,9 +12,22 @@ const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'ener
 
 export const UTILITY_COST_ZAR_PER_KWH = 2.50;
 export const UTILITY_COST_USD_PER_KWH = 0.13;
+export const ZAR_PER_USD = UTILITY_COST_ZAR_PER_KWH / UTILITY_COST_USD_PER_KWH;
+
+// cost_usd and cost_zar are different currencies. The usd reading has to be converted before it is reported as rand rather than passed through as if it were already zar
+export const resolveCostZar = (costZar: number, costUsd: number, kwh: number): number => {
+    if (costZar > 0) {
+        return costZar;
+    }
+    if (costUsd > 0) {
+        return costUsd * ZAR_PER_USD;
+    }
+
+    return kwh * UTILITY_COST_ZAR_PER_KWH;
+};
 
 const allowedTimeRanges = new Set(['today', '1d', '7d', '30d', '90d', '1y']);
-const telemetryMeasurements = ['energy_consumption', 'building_energy_usage', 'energy_telemetry'];
+const telemetryMeasurements = ['energy_consumption', 'building_energy_usage', 'energy_telemetry_downsampled', 'energy_telemetry'];
 const usageFields = ['usage', 'usage_kwh'];
 const costFields = ['cost_usd', 'cost_zar'];
 const telemetryFields = [...usageFields, ...costFields];
@@ -48,6 +61,12 @@ function fluxStringArray(values: string[]): string {
     return `[${values.map(fluxString).join(', ')}]`;
 }
 
+function measurementFilter(): string {
+    return telemetryMeasurements
+        .map((measurement) => `r["_measurement"] == ${fluxString(measurement)}`)
+        .join(' or ');
+}
+
 function normalizeTimeRange(timeRange: string): string {
     if (!allowedTimeRanges.has(timeRange)) {
         throw new Error('Invalid time range for telemetry query');
@@ -60,7 +79,7 @@ function seriesWindowFor(timeRange: string): string {
     const windows: Record<string, string> = {
         'today': '1h',
         '1d': '1h',
-        '7d': '1d',
+        '7d': '1h',
         '30d': '1d',
         '90d': '3d',
         '1y': '1w',
@@ -94,10 +113,9 @@ async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: s
         from(bucket: ${fluxString(bucketName)})
         |> range(start: ${timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`})
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
-        |> filter(fn: (r) => r["_measurement"] == "energy_consumption" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_telemetry")
+        |> filter(fn: (r) => ${measurementFilter()})
         |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh" or r["_field"] == "cost_usd" or r["_field"] == "cost_zar")
         |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
-        |> integral(unit: 1h)
         |> group(columns: ["_field"])
         |> sum()
     `;
@@ -154,7 +172,7 @@ async function queryBucketPeakUsage(
         from(bucket: ${fluxString(bucketName)})
         |> range(start: ${timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`})
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
-        |> filter(fn: (r) => r["_measurement"] == "energy_consumption" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_telemetry")
+        |> filter(fn: (r) => ${measurementFilter()})
         |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
         |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
         |> map(fn: (r) => ({ r with _value: r._value * 1.0 }))
@@ -215,7 +233,7 @@ async function queryBucketUsageSeries(
         from(bucket: ${fluxString(bucketName)})
         |> range(start: ${timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`})
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
-        |> filter(fn: (r) => r["_measurement"] == "energy_consumption" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_telemetry")
+        |> filter(fn: (r) => ${measurementFilter()})
         |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh" or r["_field"] == "cost_usd" or r["_field"] == "cost_zar")
         |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
         |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: sum, createEmpty: false)
@@ -256,7 +274,7 @@ async function queryBucketUsageSeries(
             return {
                 timestamp,
                 kwh,
-                cost_zar: point.costZar > 0 ? point.costZar : (point.costUsd > 0 ? point.costUsd : kwh * UTILITY_COST_ZAR_PER_KWH),
+                cost_zar: resolveCostZar(point.costZar, point.costUsd, kwh),
             };
         });
 }

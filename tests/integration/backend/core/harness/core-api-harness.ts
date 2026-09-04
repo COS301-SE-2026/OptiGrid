@@ -2,6 +2,7 @@ import type { Express, RequestHandler } from 'express';
 import type { CreateAppOptions } from '../../../../../backend/core/src/app';
 import { bootstrapCoreSchema, resetCoreSchema } from './prisma-schema';
 import { startPostgresHarness, stopPostgresHarness, type StartedPostgresHarness } from './postgres-container';
+import { startRedisHarness, stopRedisHarness, type StartedRedisHarness } from './redis-container';
 import { applySupabaseMigrationAndSeed } from './integration-seed-fixtures';
 
 const SESSION_COOKIE_NAME = 'optigrid_session';
@@ -89,7 +90,13 @@ async function disconnectPrismaClient(): Promise<void> {
 
 export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}): Promise<CoreApiHarness> {
 	const postgresHarness = await startPostgresHarness();
+	const redisHarness = await startRedisHarness();
+	
 	process.env.DATABASE_URL = postgresHarness.connectionString;
+	process.env.REDIS_URL = redisHarness.url;
+	process.env.REDIS_HOST = redisHarness.host;
+	process.env.REDIS_PORT = redisHarness.port.toString();
+	
 	const prepareDatabase = options.prepareDatabase ?? applySupabaseMigrationAndSeed;
 	const resetDatabase = options.resetDatabase ?? resetCoreSchema;
 	await prepareDatabase(postgresHarness.connectionString);
@@ -106,7 +113,7 @@ export async function createCoreApiHarness(options: CoreApiHarnessOptions = {}):
 		app,
 		databaseUrl: postgresHarness.connectionString,
 		resetDatabase: async () => resetDatabase(postgresHarness.connectionString),
-		stop: async () => stopCoreApiHarness(postgresHarness),
+		stop: async () => stopCoreApiHarness(postgresHarness, redisHarness),
 	};
 }
 
@@ -117,7 +124,27 @@ export async function getAuthHeaders(
 	const sessionPayload = encodeURIComponent(JSON.stringify({ userId, email }));
 	return { Cookie: `optigrid_session=${sessionPayload}` };
 }
-async function stopCoreApiHarness(harness: StartedPostgresHarness): Promise<void> {
+async function stopCoreApiHarness(harness: StartedPostgresHarness, redisHarness: StartedRedisHarness): Promise<void> {
 	await disconnectPrismaClient();
+	
+	try {
+		const { redis } = await import('../../../../../backend/core/src/lib/redis');
+		await redis.quit();
+	} catch (e) {}
+
+	try {
+		const { analyticsQueue, analyticsEvents } = await import('../../../../../backend/core/src/services/bullmq');
+		await analyticsQueue.close();
+		if (analyticsEvents) {
+			await analyticsEvents.close();
+		}
+	} catch (e) {}
+
+	try {
+		const { shutdownTelemetry } = await import('../../../../../backend/core/src/controllers/telemetry.controller');
+		await shutdownTelemetry();
+	} catch (e) {}
+
 	await stopPostgresHarness(harness);
+	await stopRedisHarness(redisHarness);
 }

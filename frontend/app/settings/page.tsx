@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "../theme-provider";
+
 
 interface UserProfile {
   first_name: string;
@@ -76,7 +77,7 @@ export default function SettingsPage() {
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState<string>("");
+  const [showRecoverModal, setShowRecoverModal] = useState<boolean>(false);
 
   const showToastMessage = (message: string) => {
     setToastMessage(message);
@@ -122,26 +123,40 @@ export default function SettingsPage() {
     showToastMessage("Profile reset");
   };
 
-  const handleLogout = () => {
-    if (confirm("Are you sure you want to logout?")) {
+  const handleLogout = async () => {
+    if (!confirm("Are you sure you want to logout?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) {
+        showToastMessage("Unable to log out");
+        return;
+      }
+
       showToastMessage("Logged out");
       setTimeout(() => {
-        router.push("/login");
+        router.push("/login?loggedOut=1");
+        router.refresh();
       }, 500);
+    } catch (error) {
+      console.error("Failed to log out", error);
+      showToastMessage("Unable to log out");
     }
   };
 
   const handleDeleteAccount = () => {
-    if (deleteConfirmText !== "DELETE") {
-      showToastMessage('Please type "DELETE" to confirm');
-      return;
-    }
     setShowDeleteModal(false);
-    setDeleteConfirmText("");
     showToastMessage("Account deleted");
     setTimeout(() => {
       router.push("/login");
     }, 500);
+  };
+
+  const handleRecoverAccount = () => {
+    setShowRecoverModal(false);
+    showToastMessage("Account recovery initiated");
   };
 
   const handleThemeToggle = async () => {
@@ -161,7 +176,7 @@ export default function SettingsPage() {
   return (
     <div className="dashboard-page">
       <div className="dashboard-shell">
-        <div className="dashboard-main">
+        <main className="dashboard-main" role="main" aria-label="Settings main content">
           <div className="dashboard-header">
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
@@ -172,206 +187,259 @@ export default function SettingsPage() {
               <h1 className="dashboard-title" style={{ marginTop: "var(--space-3)" }}>Settings</h1>
               <div className="dashboard-subtitle">Manage your profile and account settings</div>
             </div>
-            <div className="badge badge-success" style={{ display: "inline-flex" }}>
+            <div className="badge badge-default" style={{ display: "inline-flex" }}>
               {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
             </div>
           </div>
 
-          <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-            <h2 style={{ marginBottom: "var(--space-4)" }}>Profile Information</h2>
+          <section aria-label="Profile Information">
+            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+              <h2 style={{ marginBottom: "var(--space-4)" }}>Profile Information</h2>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "var(--space-4)",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                <label className="label" htmlFor="firstName">First Name</label>
-                <input
-                  id="firstName"
-                  type="text"
-                  value={profile.first_name}
-                  onChange={(e) => {
-                    setProfile({ ...profile, first_name: e.target.value });
-                  }}
-                  className="input"
-                  placeholder="Enter first name"
-                />
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: "var(--space-4)",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                  <label className="label" htmlFor="firstName">First Name</label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    value={profile.first_name}
+                    onChange={(e) => {
+                      setProfile({ ...profile, first_name: e.target.value });
+                    }}
+                    className="input"
+                    placeholder="Enter first name"
+                  />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                  <label className="label" htmlFor="lastName">Last Name</label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    value={profile.last_name}
+                    onChange={(e) => {
+                      setProfile({ ...profile, last_name: e.target.value });
+                    }}
+                    className="input"
+                    placeholder="Enter last name"
+                  />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                  <label className="label" htmlFor="email">Email Address</label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={profile.email}
+                    onChange={(e) => {
+                      setProfile({ ...profile, email: e.target.value });
+                    }}
+                    className="input"
+                    placeholder="Enter email address"
+                  />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                  <label className="label" htmlFor="role">Role</label>
+                  <input
+                    id="role"
+                    type="text"
+                    value={profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
+                    className="input"
+                    disabled
+                    style={{
+                      backgroundColor: "var(--brand-surface-alt)",
+                    }}
+                  />
+                </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                <label className="label" htmlFor="lastName">Last Name</label>
-                <input
-                  id="lastName"
-                  type="text"
-                  value={profile.last_name}
-                  onChange={(e) => {
-                    setProfile({ ...profile, last_name: e.target.value });
-                  }}
-                  className="input"
-                  placeholder="Enter last name"
-                />
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                <label className="label" htmlFor="email">Email Address</label>
-                <input
-                  id="email"
-                  type="email"
-                  value={profile.email}
-                  onChange={(e) => {
-                    setProfile({ ...profile, email: e.target.value });
-                  }}
-                  className="input"
-                  placeholder="Enter email address"
-                />
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                <label className="label" htmlFor="role">Role</label>
-                <input
-                  id="role"
-                  type="text"
-                  value={profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
-                  className="input"
-                  disabled
+              <div
+                style={{
+                  display: "flex",
+                  gap: "var(--space-3)",
+                  marginTop: "var(--space-5)",
+                  paddingTop: "var(--space-4)",
+                  borderTop: "1px solid var(--brand-border)",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleSaveChanges}
+                  className="btn btn-primary"
                   style={{
+                    backgroundColor: "#3A6B7C",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Save Changes
+                </button>
+                <button type="button" onClick={handleResetToDefault} className="btn btn-secondary">
+                  Reset
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section aria-label="Theme settings">
+            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+              <h2 style={{ marginBottom: "var(--space-4)" }}>Theme</h2>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "var(--space-3)",
+                  backgroundColor: "var(--brand-surface-alt)",
+                  borderRadius: "var(--radius-md)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                  {theme === "light" ? <SunIcon /> : <MoonIcon />}
+                  <span style={{ fontWeight: "var(--fw-medium)" }}>
+                    {theme === "light" ? "Light Mode" : "Dark Mode"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleThemeToggle}
+                  className="btn btn-primary"
+                  style={{
+                    padding: "var(--space-2) var(--space-4)",
+                    fontSize: "var(--fs-small)",
+                    backgroundColor: "#3A6B7C",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Switch to {theme === "light" ? "Dark" : "Light"} Mode
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section aria-label="Help and contact information">
+            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+              <h2 style={{ marginBottom: "var(--space-4)" }}>Help & Contact</h2>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: "var(--space-4)",
+                }}
+              >
+                <div
+                  className="card"
+                  style={{
+                    padding: "var(--space-4)",
                     backgroundColor: "var(--brand-surface-alt)",
                   }}
-                />
+                >
+                  <h3 style={{ marginBottom: "var(--space-2)" }}>Help</h3>
+                  <p className="text-muted" style={{ marginBottom: "var(--space-3)", color: "var(--brand-ink)" }}>
+                    Get help with using the platform and FAQs.
+                  </p>
+                  <Link
+                    href="/help"
+                    className="btn btn-primary"
+                    style={{
+                      display: "inline-flex",
+                      backgroundColor: "#3A6B7C",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    View Help
+                  </Link>
+                </div>
+
+                <div
+                  className="card"
+                  style={{
+                    padding: "var(--space-4)",
+                    backgroundColor: "var(--brand-surface-alt)",
+                  }}
+                >
+                  <h3 style={{ marginBottom: "var(--space-2)" }}>Contact Us</h3>
+                  <p className="text-muted" style={{ marginBottom: "var(--space-3)", color: "var(--brand-ink)" }}>
+                    Get in touch with us for assistance.
+                  </p>
+                  <Link
+                    href="/contact"
+                    className="btn btn-primary"
+                    style={{
+                      display: "inline-flex",
+                      backgroundColor: "#3A6B7C",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    Contact
+                  </Link>
+                </div>
               </div>
             </div>
+          </section>
 
-            <div
-              style={{
-                display: "flex",
-                gap: "var(--space-3)",
-                marginTop: "var(--space-5)",
-                paddingTop: "var(--space-4)",
-                borderTop: "1px solid var(--brand-border)",
-              }}
-            >
-              <button type="button" onClick={handleSaveChanges} className="btn btn-primary">
-                Save Changes
-              </button>
-              <button type="button" onClick={handleResetToDefault} className="btn btn-secondary">
-                Reset
-              </button>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-            <h2 style={{ marginBottom: "var(--space-4)" }}>Theme</h2>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "var(--space-3)",
-                backgroundColor: "var(--brand-surface-alt)",
-                borderRadius: "var(--radius-md)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-                {theme === "light" ? <SunIcon /> : <MoonIcon />}
-                <span style={{ fontWeight: "var(--fw-medium)" }}>
-                  {theme === "light" ? "Light Mode" : "Dark Mode"}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleThemeToggle}
-                className="btn btn-primary"
-                style={{ padding: "6px 16px", fontSize: "var(--fs-small)" }}
-              >
-                Switch to {theme === "light" ? "Dark" : "Light"} Mode
-              </button>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-            <h2 style={{ marginBottom: "var(--space-4)" }}>Help & Contact</h2>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "var(--space-4)",
-              }}
-            >
-              <div
-                className="card"
-                style={{
-                  padding: "var(--space-4)",
-                  backgroundColor: "var(--brand-surface-alt)",
-                }}
-              >
-                <h3 style={{ marginBottom: "var(--space-2)" }}>Help</h3>
-                <p className="text-muted" style={{ marginBottom: "var(--space-3)" }}>
-                  Get help with using the platform and FAQs.
-                </p>
-                <Link href="/help" className="btn btn-primary" style={{ display: "inline-flex" }}>
-                  View Help
-                </Link>
-              </div>
+          <section aria-label="Account management">
+            <div className="card">
+              <h2 style={{ marginBottom: "var(--space-4)" }}>Account Management</h2>
 
               <div
-                className="card"
                 style={{
-                  padding: "var(--space-4)",
-                  backgroundColor: "var(--brand-surface-alt)",
+                  display: "flex",
+                  gap: "var(--space-3)",
+                  flexWrap: "wrap",
                 }}
               >
-                <h3 style={{ marginBottom: "var(--space-2)" }}>Contact Us</h3>
-                <p className="text-muted" style={{ marginBottom: "var(--space-3)" }}>
-                  Get in touch with for assistance.
-                </p>
-                <Link href="/contact" className="btn btn-primary" style={{ display: "inline-flex" }}>
-                  Contact
-                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="btn btn-secondary"
+                  style={{
+                    padding: "var(--space-2) var(--space-4)",
+                    fontSize: "var(--fs-small)",
+                  }}
+                >
+                  Logout
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowRecoverModal(true)}
+                  className="btn"
+                  style={{
+                    padding: "var(--space-2) var(--space-4)",
+                    fontSize: "var(--fs-small)",
+                    backgroundColor: "#8B6914",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Recover Account
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="btn btn-danger"
+                  style={{
+                    padding: "var(--space-2) var(--space-4)",
+                    fontSize: "var(--fs-small)",
+                    backgroundColor: "#8B1E3F",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Delete Account
+                </button>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="card">
-            <h2 style={{ marginBottom: "var(--space-4)" }}>Account Management</h2>
-
-            <div
-              style={{
-                display: "flex",
-                gap: "var(--space-3)",
-              }}
-            >
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="btn"
-                style={{
-                  backgroundColor: "var(--brand-warning)",
-                  color: "white",
-                  padding: "6px 16px",
-                  fontSize: "var(--fs-small)",
-                }}
-              >
-                Logout
-              </button>
-
-              {/* <button
-                type="button"
-                onClick={() => setShowDeleteModal(true)}
-                className="btn btn-danger"
-                style={{
-                  padding: "6px 16px",
-                  fontSize: "var(--fs-small)",
-                }}
-              >
-                Delete Account
-              </button> */}
-            </div>
-          </div>
-
+          
           {showDeleteModal && (
             <div
               className="modal-overlay"
@@ -386,7 +454,6 @@ export default function SettingsPage() {
               onClick={(e) => {
                 if (e.target === e.currentTarget) {
                   setShowDeleteModal(false);
-                  setDeleteConfirmText("");
                 }
               }}
               role="dialog"
@@ -394,7 +461,6 @@ export default function SettingsPage() {
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   setShowDeleteModal(false);
-                  setDeleteConfirmText("");
                 }
               }}
             >
@@ -404,27 +470,8 @@ export default function SettingsPage() {
                     Delete Account
                   </h2>
                   <p className="text-muted">
-                    All your data will be permanently deleted.
+                    All your data will be permanently deleted. This action cannot be undone.
                   </p>
-                </div>
-
-                <div style={{ marginBottom: "var(--space-4)" }}>
-                  <label className="label" htmlFor="deleteConfirm">
-                    Type <span style={{ color: "var(--brand-danger)", fontWeight: "bold" }}>DELETE</span> to confirm
-                  </label>
-                  <input
-                    id="deleteConfirm"
-                    type="text"
-                    value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    placeholder="Type DELETE here..."
-                    className="input"
-                    style={
-                      deleteConfirmText && deleteConfirmText !== "DELETE"
-                        ? { borderColor: "var(--brand-danger)" }
-                        : {}
-                    }
-                  />
                 </div>
 
                 <div style={{ display: "flex", gap: "var(--space-3)" }}>
@@ -432,7 +479,6 @@ export default function SettingsPage() {
                     type="button"
                     onClick={() => {
                       setShowDeleteModal(false);
-                      setDeleteConfirmText("");
                     }}
                     className="btn btn-secondary"
                     style={{ flex: 1 }}
@@ -446,6 +492,70 @@ export default function SettingsPage() {
                     style={{ flex: 1 }}
                   >
                     Delete Account
+                  </button>
+                </div>
+              </div>
+              </div>
+)}
+
+             
+          
+          {showRecoverModal && (
+            <div
+              className="modal-overlay"
+              style={{
+                position: "fixed",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "var(--space-4)",
+              }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setShowRecoverModal(false);
+                }
+              }}
+              role="dialog"
+              aria-modal="true"
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setShowRecoverModal(false);
+                }
+              }}
+            >
+              <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
+                <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
+                  <h2 style={{ color: "#B26B00", marginBottom: "var(--space-2)" }}>
+                    Recover Account
+                  </h2>
+                  <p className="text-muted">
+                    Are you sure you want to recover your account?
+                  </p>
+                </div>
+
+                <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRecoverModal(false);
+                    }}
+                    className="btn btn-secondary"
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRecoverAccount}
+                    className="btn"
+                    style={{
+                      flex: 1,
+                      backgroundColor: "#B26B00",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    Recover Account
                   </button>
                 </div>
               </div>
@@ -464,13 +574,17 @@ export default function SettingsPage() {
                 boxShadow: "var(--shadow-card)",
                 fontFamily: "var(--font-body)",
                 fontSize: "var(--fs-body)",
+                
               }}
               role="alert"
             >
               {toastMessage}
             </div>
           )}
-        </div>
+        
+
+        </main>
+      
       </div>
     </div>
   );

@@ -1,9 +1,12 @@
 import os
 import json
+import signal
+import threading
 import time
 from datetime import datetime, timezone
+from functools import partial
 import redis
-from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 try:
@@ -19,40 +22,57 @@ except ModuleNotFoundError:
         require_influx_config
     )
 
-def process_payload(payload: dict, write_api) -> None:
-    building_id = payload.get("building_id")
-    sensor_id = payload.get("sensor_id")
-    power_kw = payload.get("power_kw", 0.0)
-    voltage_v = payload.get("voltage_v")
-    current_a = payload.get("current_a")
-    ts_str = payload.get("timestamp")
+try:
+    from backend.ingestion.src.observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver
+    from backend.ingestion.src.audit_events import publish_failure_event
+except ModuleNotFoundError:
+    from observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver
+    from audit_events import publish_failure_event
 
-    if ts_str:
-        try:
-            time_val = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-        except Exception:
-            time_val = datetime.now(timezone.utc)
+shutdown_requested = threading.Event()
+
+
+def _publish_observer_failure(redis_client, observer, payload, error):
+    if isinstance(observer, InfluxStorageObserver):
+        operation = "write-to-influx"
+        error_code = "INFLUX_WRITE_FAILED"
+        target_table = "energy_telemetry"
+    elif isinstance(observer, AnomalyDetectorObserver):
+        operation = "detect-anomaly"
+        error_code = "ANOMALY_DETECTION_FAILED"
+        target_table = "anomalies"
     else:
-        time_val = datetime.now(timezone.utc)
+        operation = "process-telemetry-observer"
+        error_code = "TELEMETRY_OBSERVER_FAILED"
+        target_table = "energy_telemetry"
 
-    # create influx data point with queue data
-    point = (
-        Point("energy_telemetry")
-        .tag("building_id", building_id)
-        .tag("sensor_id", sensor_id)
-        .field("usage", float(power_kw))
-        .field("voltage_v", float(voltage_v) if voltage_v is not None else 230.0)
-        .field("current_a", float(current_a) if current_a is not None else 0.0)
-        .time(time_val, WritePrecision.NS)
+    publish_failure_event(
+        redis_client,
+        service="ingestion-worker",
+        operation=operation,
+        error_code=error_code,
+        error=error,
+        target_table=target_table,
+        building_id=payload.get("building_id"),
+        sensor_id=payload.get("sensor_id"),
+        request_id=payload.get("request_id"),
+        metadata={"observer": observer.__class__.__name__},
     )
 
-    # attempt to flush to influx
-    write_api.write(bucket=INFLUXDB_BUCKET, record=point)
-    print(f"[WORKER] Flushed telemetry to InfluxDB for building {building_id[:8]} ({power_kw} kW)")
+def request_shutdown(signum, _frame):
+    try:
+        signal_name = signal.Signals(signum).name
+    except ValueError:
+        signal_name = str(signum)
+    print(f"Queue Worker received {signal_name}. Shutting down.")
+    shutdown_requested.set()
 
 def run_queue_worker():
     print("Starting OptiGrid Queue Worker.")
     require_influx_config()
+
+    signal.signal(signal.SIGTERM, request_shutdown)
+    signal.signal(signal.SIGINT, request_shutdown)
 
     r = redis.Redis(
         host=REDIS_HOST,
@@ -65,23 +85,47 @@ def run_queue_worker():
     client = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
     write_api = client.write_api(write_options=SYNCHRONOUS)
 
+    # setup observers
+    subject = TelemetrySubject(
+        failure_handler=partial(_publish_observer_failure, r)
+    )
+    influx_observer = InfluxStorageObserver(write_api, INFLUXDB_BUCKET)
+    anomaly_observer = AnomalyDetectorObserver()
+    subject.attach(influx_observer)
+    subject.attach(anomaly_observer)
+
     print("Queue Worker active. Listening on Redis.")
 
-    while True:
-        try:
-            # pop from redis queue
-            item = r.brpop("ingestion_queue", timeout=5)
-            if not item:
-                continue
+    try:
+        while not shutdown_requested.is_set():
+            try:
+                # pop from redis queue
+                item = r.brpop("ingestion_queue", timeout=5)
+                if not item:
+                    continue
 
-            _, data_str = item
-            process_payload(json.loads(data_str), write_api)
+                _, data_str = item
+                subject.notify(json.loads(data_str))
 
-        except redis.exceptions.ConnectionError as e:
-            print(f"[WORKER ERROR] Redis connection error: {e}. Retrying in 5s...")
-            time.sleep(5)
-        except Exception as e:
-            print(f"[WORKER ERROR] Failed to process payload: {e}")
+            except redis.exceptions.ConnectionError as e:
+                print(f"[WORKER ERROR] Redis connection error: {e}. Retrying in 5s...")
+                shutdown_requested.wait(5)
+            except Exception as error:
+                publish_failure_event(
+                    r,
+                    service="ingestion-worker",
+                    operation="process-queue-payload",
+                    error_code="PAYLOAD_PROCESSING_FAILED",
+                    error=error,
+                    target_table="ingestion_queue",
+                )
+                print(f"[WORKER ERROR] Failed to process payload: {error}")
+    finally:
+        print("Queue Worker closing connections.")
+        write_api.close()
+        client.close()
+        r.close()
+        print("Queue Worker stopped.")
 
 if __name__ == "__main__":
     run_queue_worker()

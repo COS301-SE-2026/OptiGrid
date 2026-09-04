@@ -1,22 +1,12 @@
 "use client";
 
-import {
-    useState,
-    type ChangeEvent,
-    type FocusEvent,
-    type SubmitEvent,
-} from "react";
+import {useState, type ChangeEvent, type FocusEvent, type SubmitEvent} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-    getSubmitResult,
-    hasErrors,
-    shouldShowError,
-    type SignupErrors,
-    type SignupTouched,
-} from "./logic";
+import {getSubmitResult, hasErrors, shouldShowError, type SignupErrors, type SignupTouched } from "./logic";
 import { initialSignupFormData, type SignupFormData } from "./validation";
 import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../../../lib/tab-session";
+import GoogleAuthButton from "@/components/GoogleButton";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -88,36 +78,22 @@ export default function SignupPage() {
     };
 
     return (
-        <main
-            className="min-h-screen"
-            style={{
-                background: "var(--brand-bg)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "48px 24px",
-            }}
-        >
-            <section
-                className="card"
-                style={{ width: "min(420px, 100%)", display: "grid", gap: "24px" }}
-            >
-                <header style={{ display: "grid", gap: "8px" }}>
+        <main className="auth-page">
+            <section className="card auth-card">
+                <header className="auth-header">
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
                     <p className="landing-kicker">OptiGrid Access</p>
                     <h1>Create your account</h1>
-                    <p className="text-muted" style={{ fontSize: "0.95rem" }}>
-                        Start optimizing in minutes. Monitor energy usage, spot
-                        anomalies, and unlock optimization insights across your
-                        buildings.
+                    <p className="text-muted auth-lede">
+                        Monitor usage, catch anomalies, and start saving in minutes.
                     </p>
                 </header>
 
-                <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-                    <div className="grid gap-5 md:grid-cols-2">
-                        <div className="space-y-2">
+                <form className="auth-form" noValidate onSubmit={handleSubmit} suppressHydrationWarning>
+                    <div className="auth-row">
+                        <div className="auth-field">
                             <label className="label" htmlFor="firstName">
                                 First name
                             </label>
@@ -137,22 +113,20 @@ export default function SignupPage() {
                                 className={inputClass}
                                 style={showError("firstName") ? errorStyle : undefined}
                                 placeholder="Abdelrahman"
+                                suppressHydrationWarning
                             />
                             {showError("firstName") && (
                                 <p
                                     id="firstName-error"
                                     role="alert"
-                                    style={{
-                                        color: "var(--brand-danger)",
-                                        fontSize: "0.75rem",
-                                    }}
+                                    className="auth-field-error"
                                 >
                                     {errors.firstName}
                                 </p>
                             )}
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="auth-field">
                             <label className="label" htmlFor="lastName">
                                 Last name
                             </label>
@@ -172,15 +146,13 @@ export default function SignupPage() {
                                 className={inputClass}
                                 style={showError("lastName") ? errorStyle : undefined}
                                 placeholder="Esam"
+                                suppressHydrationWarning
                             />
                             {showError("lastName") && (
                                 <p
                                     id="lastName-error"
                                     role="alert"
-                                    style={{
-                                        color: "var(--brand-danger)",
-                                        fontSize: "0.75rem",
-                                    }}
+                                    className="auth-field-error"
                                 >
                                     {errors.lastName}
                                 </p>
@@ -188,7 +160,7 @@ export default function SignupPage() {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="auth-field">
                         <label className="label" htmlFor="email">
                             Work email
                         </label>
@@ -208,22 +180,20 @@ export default function SignupPage() {
                             className={inputClass}
                             style={showError("email") ? errorStyle : undefined}
                             placeholder="abdelrahman.esam@company.io"
+                            suppressHydrationWarning
                         />
                         {showError("email") && (
                             <p
                                 id="email-error"
                                 role="alert"
-                                style={{
-                                    color: "var(--brand-danger)",
-                                    fontSize: "0.75rem",
-                                }}
+                                className="auth-field-error"
                             >
                                 {errors.email}
                             </p>
                         )}
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="auth-field">
                         <label className="label" htmlFor="password">
                             Password
                         </label>
@@ -243,22 +213,20 @@ export default function SignupPage() {
                             className={inputClass}
                             style={showError("password") ? errorStyle : undefined}
                             placeholder="At least 8 characters"
+                            suppressHydrationWarning
                         />
                         {showError("password") && (
                             <p
                                 id="password-error"
                                 role="alert"
-                                style={{
-                                    color: "var(--brand-danger)",
-                                    fontSize: "0.75rem",
-                                }}
+                                className="auth-field-error"
                             >
                                 {errors.password}
                             </p>
                         )}
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="auth-field">
                         <label className="label" htmlFor="confirmPassword">
                             Confirm password
                         </label>
@@ -280,15 +248,13 @@ export default function SignupPage() {
                             className={inputClass}
                             style={showError("confirmPassword") ? errorStyle : undefined}
                             placeholder="Re-enter password"
+                            suppressHydrationWarning
                         />
                         {showError("confirmPassword") && (
                             <p
                                 id="confirmPassword-error"
                                 role="alert"
-                                style={{
-                                    color: "var(--brand-danger)",
-                                    fontSize: "0.75rem",
-                                }}
+                                className="auth-field-error"
                             >
                                 {errors.confirmPassword}
                             </p>
@@ -298,41 +264,27 @@ export default function SignupPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="btn btn-primary w-full"
+                        className="btn btn-primary auth-submit"
+                        style={{
+                            backgroundColor: "#3A6B7C",
+                            color: "#FFFFFF",
+                        }}
                     >
                         {loading ? "Creating account..." : "Create account"}
                     </button>
+                    
+                    <GoogleAuthButton onLoading={setLoading} onError={setApiError}/>
 
                     {apiError && (
-                        <div
-                            role="alert"
-                            style={{
-                                border: "1px solid var(--brand-danger)",
-                                background:
-                                    "color-mix(in srgb, var(--brand-danger) 12%, transparent)",
-                                color: "var(--brand-danger)",
-                                padding: "12px 16px",
-                                borderRadius: "var(--radius-md)",
-                                fontSize: "0.875rem",
-                            }}
-                        >
+                        <div role="alert" className="auth-alert">
                             {apiError}
                         </div>
                     )}
                 </form>
 
-                <p
-                    className="text-muted"
-                    style={{ textAlign: "center", fontSize: "0.875rem" }}
-                >
+                <p className="text-muted auth-footnote">
                     Have an account?{" "}
-                    <Link
-                        href="/login"
-                        style={{
-                            color: "var(--brand-primary)",
-                            fontWeight: 600,
-                        }}
-                    >
+                    <Link href="/login">
                         Log in
                     </Link>
                 </p>

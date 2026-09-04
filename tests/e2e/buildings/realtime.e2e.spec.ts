@@ -1,53 +1,227 @@
-import { test, expect } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-test.describe("OptiGrid Real-Time Dashboard E2E Tests", () => {
-    test.beforeEach(async ({ page }) => {
-        const uniqueEmail = `realtime_user_${Date.now()}_${Math.floor(Math.random() * 10000)}@example.com`;
+const CORE_BASE_URL = process.env.E2E_CORE_URL ?? "http://localhost:4000";
+const HARDWARE_API_KEY =
+  process.env.E2E_HARDWARE_API_KEY ?? "optigrid-e2e-hardware-key";
 
-        await page.goto("/signup");
-        await page.locator('input[name="firstName"]').fill("Realtime");
-        await page.locator('input[name="lastName"]').fill("Tester");
-        await page.locator('input[name="email"]').fill(uniqueEmail);
-        await page.locator('input[name="password"]').fill("SecurePassword123!");
-        
-        const confirmPasswordInput = page.locator('input[name="confirmPassword"]');
-        if (await confirmPasswordInput.count() > 0) {
-            await confirmPasswordInput.fill("SecurePassword123!");
-        }
+type E2EUser = {
+  email: string;
+  password: string;
+  name: string;
+};
 
-        await page.getByRole("button", { name: /create account|sign up/i }).click();
-        await page.waitForURL(/\/(dashboard|realtime)$/, { timeout: 15_000 });
+type TelemetryReading = {
+  powerKw: number;
+  voltageV: number;
+  currentA: number;
+};
 
-        const currentUrl = page.url();
-        const sessionMatch = currentUrl.match(/\/_sessions\/[^\/]+/);
-        const prefix = sessionMatch ? sessionMatch[0] : "";
+function uniqueSuffix(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
-        await page.goto(`${prefix}/buildings/add`);
-        await page.locator('input[name="buildingName"], input[name="building_name"]').fill("E2E Realtime Hub");
-        await page.locator('input[name="physicalAddress"], input[name="physical_address"]').fill("100 Innovation Way");
-        await page.getByRole("button", { name: /save|add|create/i }).click();
-        await page.waitForURL(/\/(dashboard|buildings)$/, { timeout: 15_000 });
+function buildUniqueUser(): E2EUser {
+  return {
+    email: `realtime-dashboard-e2e-${uniqueSuffix()}@optigrid.test`,
+    password: "StrongPass123!",
+    name: "Riley Realtime",
+  };
+}
 
-        await page.goto(`${prefix}/realtime`);
+async function createUserInCore(
+  request: APIRequestContext,
+  user: E2EUser,
+): Promise<void> {
+  const response = await request.post(`${CORE_BASE_URL}/auth/signup`, {
+    data: user,
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  expect(
+    response.ok(),
+    `Expected signup seed to succeed, got ${response.status()} with payload ${JSON.stringify(payload)}`,
+  ).toBeTruthy();
+}
+
+async function loginInCore(
+  request: APIRequestContext,
+  user: E2EUser,
+): Promise<string> {
+  const response = await request.post(`${CORE_BASE_URL}/auth/login`, {
+    data: {
+      email: user.email,
+      password: user.password,
+    },
+  });
+  const payload = (await response.json().catch(() => ({}))) as {
+    accessToken?: unknown;
+  };
+
+  expect(
+    response.ok(),
+    `Expected login seed to succeed, got ${response.status()} with payload ${JSON.stringify(payload)}`,
+  ).toBeTruthy();
+  expect(typeof payload.accessToken).toBe("string");
+
+  return payload.accessToken as string;
+}
+
+async function createBuildingInCore(
+  request: APIRequestContext,
+  accessToken: string,
+  buildingName: string,
+): Promise<string> {
+  const response = await request.post(`${CORE_BASE_URL}/api/buildings`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Idempotency-Key": `realtime-dashboard-e2e-${uniqueSuffix()}`,
+    },
+    data: {
+      building_name: buildingName,
+      building_type: "Commercial",
+      square_footage: 5000,
+      physical_address: "100 Innovation Way, Pretoria",
+      timezone: "Africa/Johannesburg",
+      max_occupancy: 200,
+    },
+  });
+  const payload = (await response.json().catch(() => ({}))) as {
+    data?: { building_id?: unknown };
+  };
+
+  expect(
+    response.ok(),
+    `Expected building seed to succeed, got ${response.status()} with payload ${JSON.stringify(payload)}`,
+  ).toBeTruthy();
+  expect(typeof payload.data?.building_id).toBe("string");
+
+  return payload.data?.building_id as string;
+}
+
+async function loginInFrontend(page: Page, user: E2EUser): Promise<string> {
+  await page.goto("/login");
+  await page.getByLabel("Work email").fill(user.email);
+  await page.getByLabel("Password").fill(user.password);
+
+  const loginResponsePromise = page.waitForResponse("**/api/auth/login");
+  await page.getByRole("button", { name: "Log in" }).click();
+  expect((await loginResponsePromise).ok()).toBeTruthy();
+  await expect(page).toHaveURL(/\/_sessions\/[0-9a-f-]+\/dashboard$/, {
+    timeout: 15_000,
+  });
+
+  const sessionPrefix = new URL(page.url()).pathname.match(
+    /^\/_sessions\/[0-9a-f-]+/,
+  )?.[0];
+  expect(sessionPrefix).toBeTruthy();
+
+  return sessionPrefix as string;
+}
+
+async function ingestTelemetry(
+  request: APIRequestContext,
+  buildingId: string,
+  reading: TelemetryReading,
+): Promise<void> {
+  const response = await request.post(`${CORE_BASE_URL}/api/telemetry/ingest`, {
+    headers: {
+      "x-sensor-key": HARDWARE_API_KEY,
+    },
+    data: {
+      building_id: buildingId,
+      sensor_id: `realtime-e2e-sensor-${buildingId}`,
+      source_type: "EMULATOR",
+      voltage_v: reading.voltageV,
+      current_a: reading.currentA,
+      power_kw: reading.powerKw,
+      timestamp: new Date().toISOString(),
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  expect(
+    response.ok(),
+    `Expected telemetry ingestion to succeed, got ${response.status()} with payload ${JSON.stringify(payload)}`,
+  ).toBeTruthy();
+}
+
+test.describe("Real-time dashboard integration", () => {
+  test.setTimeout(60_000);
+
+  test("streams portfolio readings and carries the selected building into its live detail view", async ({
+    page,
+    request,
+  }) => {
+    const user = buildUniqueUser();
+    const buildingName = `E2E Realtime Hub ${uniqueSuffix()}`;
+
+    await createUserInCore(request, user);
+    const accessToken = await loginInCore(request, user);
+    const buildingId = await createBuildingInCore(
+      request,
+      accessToken,
+      buildingName,
+    );
+    const sessionPrefix = await loginInFrontend(page, user);
+
+    const portfolioStreamPromise = page.waitForRequest(
+      (browserRequest) =>
+        new URL(browserRequest.url()).pathname ===
+        "/api/telemetry/stream/portfolio",
+    );
+    await page.goto(`${sessionPrefix}/realtime`);
+    await portfolioStreamPromise;
+    await expect(page.locator(".live-dot")).toHaveClass(/\bon\b/);
+
+    const buildingCard = page.getByRole("link", {
+      name: `View live telemetry for ${buildingName}`,
+      exact: true,
     });
+    await expect(buildingCard).toBeVisible({ timeout: 15_000 });
+    await expect(buildingCard).toContainText("--");
 
-    test("renders header, title, and filter controls", async ({ page }) => {
-        await expect(page.locator("h1.dashboard-title", { hasText: "Live readings" })).toBeVisible({ timeout: 10000 });
-        await expect(page.locator("span.live-chip", { hasText: /All/ })).toBeVisible();
+    await ingestTelemetry(request, buildingId, {
+      powerKw: 12.34,
+      voltageV: 230.5,
+      currentA: 53.6,
     });
+    await expect(buildingCard).toContainText("12.34", { timeout: 10_000 });
+    await expect(buildingCard).toContainText("Normal");
 
-    test("loads building records and populates active live telemetry metrics", async ({ page }) => {
-        await expect(page.locator("h1.dashboard-title")).toBeVisible({ timeout: 10000 });
-        const cardCount = await page.locator(".card").count();
-        expect(cardCount).toBeGreaterThan(0);
-    });
+    const buildingStreamPromise = page.waitForRequest(
+      (browserRequest) =>
+        new URL(browserRequest.url()).pathname ===
+        `/api/telemetry/stream/${buildingId}`,
+    );
+    await buildingCard.click();
+    await expect(page).toHaveURL(
+      new RegExp(`/buildings/${buildingId}/view$`),
+    );
+    await buildingStreamPromise;
 
-    test.skip("supports manual refresh action without crashing", async ({ page }) => {
-        const refreshButton = page.locator("button.btn-secondary", { hasText: "Refresh" });
-        await expect(refreshButton).toBeVisible({ timeout: 10000 });
-        await expect(refreshButton).toBeEnabled();
-        
-        await refreshButton.click();
-        await expect(page.locator(".dashboard-subtitle")).toContainText(/Last updated|Connecting/);
+    await expect(
+      page.getByRole("heading", { name: "Real-Time Telemetry" }),
+    ).toBeVisible();
+    await expect(page.getByText("Online (Waiting for reading)")).toBeVisible();
+    await expect(
+      page.getByText("Live telemetry stream connected"),
+    ).toBeVisible();
+
+    await ingestTelemetry(request, buildingId, {
+      powerKw: 18.75,
+      voltageV: 231.5,
+      currentA: 81.2,
     });
+    await expect(page.getByText("Online (Streaming)")).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByText("EMULATOR")).toBeVisible();
+    await expect(
+      page.getByText(`realtime-e2e-sensor-${buildingId}`),
+    ).toBeVisible();
+    await expect(page.getByText("18.75 kW")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("231.5 V")).toBeVisible();
+    await expect(page.getByText("81.2 A")).toBeVisible();
+    await expect(page.getByText(buildingName)).toBeVisible();
+  });
 });

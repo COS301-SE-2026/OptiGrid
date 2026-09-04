@@ -20,6 +20,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+.venv-1/
 env/
 .tox/
 
@@ -79,3 +80,4 @@ infrastructure/.data/
 infrastructure/docker/.generated/
 
 .mypy_cache/
+.coverage

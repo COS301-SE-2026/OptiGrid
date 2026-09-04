@@ -8,9 +8,10 @@ import optuna
 import pandas as pd
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 from supabase import Client, create_client
-
+import uuid
+from backend.analytics.src.recommendation_engine import RecommendationSynthesizer
 from backend.analytics.src.config import (
     INFLUXDB_BUCKET,
     INFLUXDB_ORG,
@@ -46,6 +47,11 @@ class AnalyticsEngine:
             self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         except Exception as e:
             logger.warning("Supabase client initialisation failed; analytics writes disabled: %s", e)
+            
+        self.synthesizer = RecommendationSynthesizer(self.supabase)
+        self.active_info = {}
+        self.tariffs_building = {}
+        self.anomalies_buiilding = {}
 
     def register_new_building(self, building_id: str) -> bool:
         """
@@ -81,21 +87,24 @@ class AnalyticsEngine:
             logger.exception("Error executing provisioning cycle logic for %s", clean_id)
             raise
 
-    def get_active_building_ids(self) -> List[str]:
+    def get_active_building_info(self) -> dict:
         # return empty list if SUpabase client no available
         if self.supabase is None:
-            return []
+            return {}
         try:
             # query buildings table for active buildings only
-            res = self.supabase.table("buildings").select("building_id").filter("lifecycle_state", "eq", "active").execute()
+            res = self.supabase.table("buildings").select("building_id, building_type").filter("lifecycle_state", "eq", "active").execute()
             if res.data:
                 # extract building_id fromeach row, filter out rows missing the field
-                return [row["building_id"] for row in res.data if "building_id" in row]
-            return []
+                return {row["building_id"]: row.get("building_type", "Commercial") for row in res.data if "building_id" in row}
+            return {}
         except Exception:
             # log error
             logger.exception("Failed to fetch active building list from Supabase")
-            return []
+            return {}
+
+    def get_active_building_ids(self)-> List[str]:
+        return list(self.get_active_building_info().keys())
 
     def seed_missing_influx_telemetry(self, building_id: str, days_back: int = 14):
         clean_id = str(building_id).replace("\r", "").replace("\n", "")
@@ -106,7 +115,8 @@ class AnalyticsEngine:
             start_time = end_time - timedelta(days=days_back)
             
             import hashlib
-            import random
+            import secrets
+            sr = secrets.SystemRandom()
             h = int(hashlib.sha256(clean_id.encode("utf-8")).hexdigest(), 16)
             base_kw = 12.0 + ((h % 5300) / 100.0)
             amplitude_kw = 6.0 + (((h >> 16) % 1800) / 100.0)
@@ -127,7 +137,7 @@ class AnalyticsEngine:
                 month_fraction = current_time.month + (current_time.day / 30.0)
                 seasonal_factor = 1.0 + 0.25 * np.cos(4.0 * np.pi * (month_fraction - 1.0) / 12.0)
                 
-                noise = random.gauss(0.0, max(0.8, amplitude_kw * 0.15))
+                noise = sr.gauss(0.0, max(0.8, amplitude_kw * 0.15)) # NOSONAR
                 
                 raw_usage = max(1.0, (base_kw + (amplitude_kw * (time_factor + evening_bump))) * weekend_factor * seasonal_factor + noise)
                 cost_zar = round(raw_usage * UTILITY_RATE_KWH, 2)
@@ -139,7 +149,14 @@ class AnalyticsEngine:
                     .field("cost_zar", cost_zar) \
                     .time(current_time, WritePrecision.NS)
                 
-                points_buffer.append(point)
+                point_down = Point("energy_telemetry_downsampled") \
+                    .tag("building_id", clean_id) \
+                    .field("usage", round(raw_usage, 2)) \
+                    .field("usage_kwh", round(raw_usage, 2)) \
+                    .field("cost_zar", cost_zar) \
+                    .time(current_time, WritePrecision.NS)
+
+                points_buffer.extend([point, point_down])
                 current_time += timedelta(minutes=15)
                 
                 if len(points_buffer) >= 1000:
@@ -160,8 +177,9 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -7d) 
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
-            |> aggregateWindow(every: 1d, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
         # get influx data
@@ -239,7 +257,9 @@ class AnalyticsEngine:
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
-            scores = cross_val_score(model, X, y, cv=3, scoring='neg_mean_absolute_percentage_error')
+            #chnaged metric to MAE n used timeseries
+            time_series_CV = TimeSeriesSplit(n_splits=3)
+            scores = cross_val_score(model, X, y, cv=time_series_CV, scoring='neg_mean_absolute_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
@@ -280,16 +300,13 @@ class AnalyticsEngine:
         
         # predicting each hour in the upcoming week
         forecast_series = []
-        trend_drift = 0.0
-        
+
         for i in range(1, 169):
             next_time = last_timestamp + timedelta(hours=i)
             next_features = pd.DataFrame([{'hour': next_time.hour, 'day_of_week': next_time.dayofweek, 'lag_1': current_lag}])
             pred = best_model.predict(next_features)[0]
-            
-            trend_drift += np.random.normal(0, recent_std * 0.05)  # NOSONAR
-            noise = np.random.normal(0, recent_std * 0.15)  # NOSONAR
-            pred_with_noise = max(0.1, pred + trend_drift + noise)
+
+            pred_with_noise = max(0.1, float(pred))
             
             forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred_with_noise, 2)})
             
@@ -343,7 +360,9 @@ class AnalyticsEngine:
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
-            scores = cross_val_score(model, X, y, cv=2, scoring='neg_mean_absolute_percentage_error')
+            #change metirc to MAE n use timeseries
+            time_series = TimeSeriesSplit(n_splits=2)
+            scores = cross_val_score(model, X, y, cv=time_series, scoring='neg_mean_absolute_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
@@ -383,9 +402,6 @@ class AnalyticsEngine:
         recent_std = df['usage'].tail(4).std()
         if pd.isna(recent_std) or recent_std == 0:
             recent_std = df['usage'].mean() * 0.05
-            
-        trend_drift = 0.0
-        
         forecast_series = []
         for i in range(1, 13):
             next_time = last_timestamp + timedelta(weeks=i)
@@ -400,11 +416,8 @@ class AnalyticsEngine:
                 'lag_1': current_lag
             }])
             pred = best_model.predict(next_features)[0]
-            
-            # add some noise
-            trend_drift += np.random.normal(0, recent_std * 0.1)  # NOSONAR
-            noise = np.random.normal(0, recent_std * 0.2)  # NOSONAR
-            pred_with_noise = max(0.1, pred + trend_drift + noise)
+            #removed noise
+            pred_with_noise = max(0.1, float(pred))
             
             forecast_series.append({"timestamp": next_time.isoformat(), "predicted_usage": round(pred_with_noise, 2)})
             current_lag = pred
@@ -424,14 +437,35 @@ class AnalyticsEngine:
         clean_id = str(building_id).replace("\r", "").replace("\n", "")
         logger.info("Processing single building analytics pass for building_id: %s", clean_id)
         self.register_new_building(clean_id)
+        try:
+            if self.supabase:
+                building = self.supabase("buildings").select("building_type").eq("building_id", clean_id).execute()
+                build_type = building.data[0].get("building_type", "Commercial") if building.data else "Commercial"
+                tariff = self.supabase.table("utility_tariffs").select("*").eq("building_id", clean_id).execute()
+                tariffs = tariff.data if tariff.data else []
+                anomaly = self.supabase.table("anomalies").select("*").eq("building_id", clean_id).eq("status", "Open").execute()
+                anomalies = anomaly.data if anomaly.data else []
+            else:
+                build_type = "Commercial" 
+                tariffs = []
+                anomalies = []
+        except Exception:
+            build_type = "Commercial" 
+            tariffs = []
+            anomalies = []
+
+        self.active_info[clean_id] = build_type
+        self.tariffs_building[clean_id] = tariffs
+        self.anomalies_buiilding[clean_id] = anomalies
         
         # query influx 30 days
         query_weekly = f'''
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -30d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
-            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
         
@@ -440,19 +474,20 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -180d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
-            |> aggregateWindow(every: 1d, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
 
         try:
             # execute weekly query and convert to data frame
             res_weekly = self.influx.query_api().query_data_frame(query_weekly)
-            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
+            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, (list, tuple)) else res_weekly
             
             # execute monthly query and convert to data frame
             res_monthly = self.influx.query_api().query_data_frame(query_monthly)
-            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
+            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, (list, tuple)) else res_monthly
         except Exception:
             logger.exception("Failed to query InfluxDB for building %s", clean_id)
             return
@@ -463,9 +498,9 @@ class AnalyticsEngine:
             try:
                 # retry queries after seeding
                 res_weekly = self.influx.query_api().query_data_frame(query_weekly)
-                df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
+                df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, (list, tuple)) else res_weekly
                 res_monthly = self.influx.query_api().query_data_frame(query_monthly)
-                df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
+                df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, (list, tuple)) else res_monthly
             except Exception:
                 logger.exception("Re-querying InfluxDB after seeding failed for %s", clean_id)
                 return
@@ -525,6 +560,12 @@ class AnalyticsEngine:
         # upload weekly analytics to supabase
         if weekly_payloads and self.supabase:
             self.supabase.table("building_analytics_weekly").upsert(weekly_payloads).execute()
+            
+            #send recommendations after processing
+            for payload in weekly_payloads:
+                b_id = payload["building_id"]
+                hourly_group = df_weekly[df_weekly['building_id'] == b_id].set_index('timestamp')[['usage']].resample('h').sum().fillna(0.0).reset_index()
+                self._generate_recommendations(b_id, hourly_group, payload, "weekly")
 
     def _process_monthly_batch(self, df_monthly: pd.DataFrame):
         monthly_payloads = []
@@ -555,6 +596,11 @@ class AnalyticsEngine:
         # upload monthly to supabase
         if monthly_payloads and self.supabase:
             self.supabase.table("building_analytics_monthly").upsert(monthly_payloads).execute()
+            #send reccomedations after processing
+            for payload in monthly_payloads:
+                b_id = payload["building_id"]
+                weekly_group = df_monthly[df_monthly['building_id'] == b_id].set_index('timestamp')[['usage']].resample('W').sum().ffill().fillna(0.0).reset_index()
+                self._generate_recommendations(b_id, weekly_group, payload, "monthly")
 
     def _ensure_telemetry_seeded(
         self,
@@ -576,11 +622,13 @@ class AnalyticsEngine:
             self.seed_missing_influx_telemetry(b_id)
 
         try:
+            import time
+            time.sleep(3) # Wait for InfluxDB to index newly seeded data
             # retry queries after seeding
             res_w = self.influx.query_api().query_data_frame(query_weekly)
-            df_w = pd.concat(res_w) if isinstance(res_w, list) else res_w
+            df_w = pd.concat(res_w) if isinstance(res_w, (list, tuple)) else res_w
             res_m = self.influx.query_api().query_data_frame(query_monthly)
-            df_m = pd.concat(res_m) if isinstance(res_m, list) else res_m
+            df_m = pd.concat(res_m) if isinstance(res_m, (list, tuple)) else res_m
             return df_w, df_m
         except Exception:
             logger.exception("Re-querying InfluxDB after seeding failed")
@@ -608,12 +656,30 @@ class AnalyticsEngine:
         for b_id in active_ids:
             self.register_new_building(b_id)
 
+        if self.supabase:
+            try:
+                #we put tariffs and anomailes in large amounts in engine
+                tariffs = self.supabase.table("utility_tariffs").select("*").in_("building_id", active_ids).execute()
+                if tariffs.data:
+                    for i in tariffs.data:
+                        self.tariffs_building.setdefault(i["building_id"], []).append(i)
+
+                anomalies = self.supabase.table("anomalies").select("*").in_("building_id", active_ids).execute()
+                if anomalies.data:
+                    for i in anomalies.data:
+                        self.anomalies_buiilding.setdefault(i["building_id"], []).append(i)
+            except Exception as error:
+                logger.warning("Failed to load into tariff and anomaly: ", error)
+
+        if not hasattr(self, 'active_info') or not self.active_info:
+            self.active_info = self.get_active_building_info()
         # query to fetch last 30 days usage for weekly analysis
         query_weekly = f'''
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -30d) 
             |> filter(fn: (r) => r["_field"] == "usage")
-            |> aggregateWindow(every: 1h, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> group(columns: ["building_id"])
         '''
@@ -623,7 +689,8 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -180d) 
             |> filter(fn: (r) => r["_field"] == "usage")
-            |> aggregateWindow(every: 1d, fn: (column, tables=<-) => tables |> integral(unit: 1h, column: column), createEmpty: false)
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> group(columns: ["building_id"])
         '''
@@ -631,11 +698,11 @@ class AnalyticsEngine:
         try:
             # Execute weekly query and convert to data frame
             res_weekly = self.influx.query_api().query_data_frame(query_weekly)
-            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, list) else res_weekly
+            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, (list, tuple)) else res_weekly
             
             # Execute monthly query and convert to data frame
             res_monthly = self.influx.query_api().query_data_frame(query_monthly)
-            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, list) else res_monthly
+            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, (list, tuple)) else res_monthly
         except Exception:
             logger.exception("InfluxDB batch query failed")
             df_weekly = pd.DataFrame()
@@ -645,4 +712,102 @@ class AnalyticsEngine:
         if not df_m_seeded.empty:
             df_monthly = df_m_seeded
 
+        # filter out any stale InfluxDB buildings that are no longer active in Supabase
+        if not df_weekly.empty and "building_id" in df_weekly.columns:
+            df_weekly = df_weekly[df_weekly['building_id'].isin(active_ids)]
+        if not df_monthly.empty and "building_id" in df_monthly.columns:
+            df_monthly = df_monthly[df_monthly['building_id'].isin(active_ids)]
+
         self._run_batch_analytics(df_weekly, df_monthly)
+
+    def process_building(self, building_id:str): 
+        self.register_new_building(building_id)
+        #fetches analytcis for last 30 days for weekly analysis(implemented optimisation for this query as well)
+        weekly = f'''
+        from(bucket: "{INFLUXDB_BUCKET}")
+            |> range(start: -30d)
+            |> filter(fn: (r) => r["_field"] == "usage")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["building_id"] == "{building_id}")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> group(columns: ["building_id"])
+        '''
+
+        #query for the montly analysis
+        monthly = f'''
+        from(bucket: "{INFLUXDB_BUCKET}")
+            |> range(start: -180d)
+            |> filter(fn: (r) => r["_field"] == "usage")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["building_id"] == "{building_id}")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> group(columns: ["building_id"])
+        '''
+
+        try:
+            #get data frama for weekly n monthly
+            res_weekly = self.influx.query_api().query_data_frame(weekly)
+            df_weekly = pd.concat(res_weekly) if isinstance(res_weekly, (list, tuple)) else res_weekly
+            res_monthly = self.influx.query_api().query_data_frame(monthly)
+            df_monthly = pd.concat(res_monthly) if isinstance(res_monthly, (list, tuple)) else res_monthly
+        except Exception as error:
+            logger.exception("InfluxDB building query failed")
+            df_weekly = pd.DataFrame()
+            df_monthly = pd.DataFrame()
+
+        df_weekly, monthly_seeded = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
+        if not monthly_seeded.empty: 
+            df_monthly = monthly_seeded
+        #process monthly and weekly data
+        if df_weekly is not None and not df_weekly.empty and "building_id" in df_weekly.columns:
+            df_weekly = df_weekly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+            df_weekly['timestamp'] = pd.to_datetime(df_weekly['timestamp'])
+            df_weekly['usage'] = pd.to_numeric(df_weekly['usage'], errors='coerce').fillna(0.0)
+            self._process_weekly_batch(df_weekly)
+
+        if df_monthly is not None and not df_monthly.empty and "building_id" in df_monthly.columns:
+                    df_monthly = df_monthly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
+                    df_monthly['timestamp'] = pd.to_datetime(df_monthly['timestamp'])
+                    df_monthly['usage'] = pd.to_numeric(df_monthly['usage'], errors='coerce').fillna(0.0)
+                    self._process_monthly_batch(df_monthly)
+
+    def _generate_recommendations(self, building_id: str, df: pd.DataFrame, ml_metrics: dict, time_window_type: str):
+        if not self.supabase or df.empty:
+            return
+
+        build_type = self.active_info.get(building_id, "Commercial")
+        tariffs = self.tariffs_building.get(building_id, [])
+        anomalies = self.anomalies_buiilding.get(building_id, [])
+        
+        mean_usage = df['usage'].mean()
+        std_usage = df['usage'].std()        
+        forecast_peak = ml_metrics.get("forecast_peak", 0.0) 
+        threshold_kw = mean_usage + (0.2 * std_usage)
+
+        recs_data = self.synthesizer.generate_data_driven_rec(
+            building_id=building_id,
+            building_type=build_type,
+            forecast_peak=forecast_peak,
+            thresold_kw=threshold_kw,
+            tariffs=tariffs,
+            anomalies=anomalies,
+            time_window= time_window_type
+        )
+        recs_not_data = self.synthesizer.generate_non_data_driven_recs(
+            building_id=building_id,
+            building_type=build_type,
+            tariffs=tariffs
+        )
+        recs_all = recs_data + recs_not_data
+        for i in recs_all:
+            if "recommendation_id" not in i:
+                i["recommendation_id"] = str(uuid.uuid4())
+                
+        if recs_all:
+            try:
+                self.supabase.table("optimisation_recommendations").upsert(recs_all).execute()
+            except Exception as e:
+                logger.exception("Failed to insert recommendations for: %s", building_id)
+    

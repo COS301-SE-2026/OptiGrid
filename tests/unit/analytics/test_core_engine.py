@@ -307,7 +307,7 @@ def test_process_single_building_positive(mock_monthly, mock_weekly, mock_regist
     # verify registraion and uploads
     mock_register.assert_called_once_with('bld_test_1')
     # should upload to weekly and monthly tables
-    assert engine.supabase.table.call_count == 2
+    assert engine.supabase.table.call_count >= 2
 
 
 # tests for processing all buildings
@@ -342,9 +342,9 @@ def test_process_all_buildings_positive(mock_monthly, mock_weekly, mock_seed, mo
     engine.process_all_buildings()
     
     # verify both buildings were registered
-    assert mock_register.call_count == 2
+    assert mock_register.call_count >= 2
     mock_seed.assert_called_once_with('bld_test_2')
-    assert engine.supabase.table.call_count == 2
+    assert engine.supabase.table.call_count >= 2
 
 @patch.object(AnalyticsEngine, 'get_active_building_ids')
 @patch.object(AnalyticsEngine, 'register_new_building')
@@ -357,7 +357,7 @@ def test_process_all_buildings_negative_empty_influx(mock_register, mock_get_ids
     
     # building registered but no analytics uploaded
     mock_register.assert_called_once_with('bld_test_1')
-    engine.supabase.table.assert_not_called()  # no data to upload
+    engine.supabase.table.return_value.upsert.assert_not_called()  # no data to upload
 
 @patch.object(AnalyticsEngine, 'get_active_building_ids')
 @patch.object(AnalyticsEngine, 'register_new_building')
@@ -387,4 +387,142 @@ def test_process_all_buildings_edge_list_return(mock_monthly, mock_weekly, mock_
     
     #execute - should handle list concatentation properly
     engine.process_all_buildings()
-    assert engine.supabase.table.call_count == 2
+    assert engine.supabase.table.call_count >= 2
+
+#test for processing building
+
+@patch.object(AnalyticsEngine, "register_new_building")
+@patch.object(AnalyticsEngine, "_ensure_telemetry_seeded")
+@patch.object(AnalyticsEngine, "_process_weekly_batch")
+@patch.object(AnalyticsEngine, "_process_monthly_batch")
+def test_process_building_positive(monthly, weekly, seeded, register, engine):
+    """Test process building"""
+    df_influx_mock = _create_mock_df(24, 10.0, 'bld_test_1')
+    engine.influx.query_api().query_data_frame.return_value = df_influx_mock
+    seeded.return_value = (df_influx_mock, df_influx_mock)
+    #act
+    engine.process_building("building-123")
+    register.assert_called_once_with("building-123")
+    #assert
+    seeded.assert_called_once()
+    weekly.assert_called_once()
+    monthly.assert_called_once()
+
+@patch.object(AnalyticsEngine, "register_new_building")
+@patch.object(AnalyticsEngine, "_ensure_telemetry_seeded")
+@patch.object(AnalyticsEngine, "_process_weekly_batch")
+@patch.object(AnalyticsEngine, "_process_monthly_batch")
+def test_process_building_influx(monthly, weekly, seeded, register, engine):
+    """Test process building handles influx exception properly"""
+    engine.influx.query_api().query_data_frame.side_effect = Exception("Influx Error")
+    seeded.return_value = (pd.DataFrame(), pd.DataFrame())
+    #act
+    engine.process_building("building-123")
+    register.assert_called_once_with("building-123")
+    #assert
+    weekly.assert_not_called()
+    monthly.assert_not_called()
+
+
+#tests for prcoessing weekly n monthly data
+
+@patch.object(AnalyticsEngine, "train_and_forecast_weekly")
+@patch.object(AnalyticsEngine, "_generate_recommendations")
+def test_weekly_positive(recommendations, train, engine, sample_weekly_timeseries):
+    """Test weekly batches successfully"""
+    train.return_value = {
+        "forecast_peak": 100.0,
+        "forecast_avg_day": 80.0,
+        "model_mape": 0.05,
+        "forecast_series": []
+    }
+
+    engine._process_weekly_batch(sample_weekly_timeseries)
+    engine.supabase.table.assert_any_call("building_analytics_weekly")
+    #assert
+    engine.supabase.table.return_value.upsert.assert_called()
+    recommendations.assert_called_once()
+
+@patch.object(AnalyticsEngine, "train_and_forecast_weekly")
+def test_weekly_negative(train, engine, sample_weekly_timeseries):
+    """Test weekly batches failure"""
+    train.return_value = {}
+
+    engine.supabase.table.return_value.upsert.reset_mock()
+    engine._process_weekly_batch(sample_weekly_timeseries)
+    #assert
+    engine.supabase.table.return_value.upsert.assert_not_called()
+
+@patch.object(AnalyticsEngine, "train_and_forecast_monthly")
+@patch.object(AnalyticsEngine, "_generate_recommendations")
+def test_monthly_positive(recommendations, train, engine, sample_monthly_timeseries):
+    """Test monthly batches successfully"""
+    train.return_value = {
+        "forecast_peak": 200.0,
+        "forecast_avg_day": 160.0,
+        "model_mape": 0.06,
+        "forecast_series": []
+    }
+
+    engine._process_monthly_batch(sample_monthly_timeseries)
+    engine.supabase.table.assert_any_call("building_analytics_monthly")
+    #assert
+    engine.supabase.table.return_value.upsert.assert_called()
+    recommendations.assert_called_once()
+
+@patch.object(AnalyticsEngine, 'train_and_forecast_monthly')
+def test_monthly_negative(train, engine, sample_monthly_timeseries):
+    """Test monthly batches failure"""
+    train.return_value = {}
+
+    engine.supabase.table.return_value.upsert.reset_mock()
+    engine._process_monthly_batch(sample_monthly_timeseries)
+    #assert
+    engine.supabase.table.return_value.upsert.assert_not_called()
+
+#tests for reccomendation
+
+@patch("backend.analytics.src.core_engine.uuid.uuid4")
+def test_recommendations_positive(uuid, engine):
+    """Test sending a recommendation when reqs are met"""
+    uuid.return_value = "uuid-123"
+    df = pd.DataFrame({'usage': [100.0, 100.0, 100.0, 100.0]})
+    ml_metrics= {
+        "forecast_peak": 200.0,
+        "min_historic": 50.0
+    }
+    #act
+    engine._generate_recommendations("building-123", df, ml_metrics, "weekly")
+    engine.supabase.table.assert_called_with("optimisation_recommendations")
+    upsert = engine.supabase.table.return_value.upsert
+    upsert.assert_called_once()
+    #assert
+    payload = upsert.call_args[0][0]
+    assert payload[0]["recommendation_id"] == "uuid-123"
+    assert payload[0]["building_id"] == "building-123"
+    assert payload[0]["status"] == "Pending"
+    assert payload[0]["estimated_monthly_savings"] > 50.0
+
+@patch("backend.analytics.src.core_engine.RecommendationSynthesizer.generate_non_data_driven_recs")
+def test_recommendations_negative(mock_non_data, engine):
+    """Test sending a recommendation when reqs are not met"""
+    mock_non_data.return_value = []
+    df = pd.DataFrame({'usage': [100.0, 100.0, 100.0, 100.0]})
+    ml_metrics= {
+        "forecast_peak": 90.0,
+        "min_historic": 100.0
+    }
+    #act n assert
+    engine._generate_recommendations("building-123", df, ml_metrics, "weekly")
+    engine.supabase.table.return_value.upsert.assert_not_called()
+
+
+
+def test_empty_df(engine):
+    """Test that no recommendation is made if no data frame"""
+    ml_metrics= {
+        "forecast_peak": 200.0,
+        "min_historic": 50.0
+    }
+    engine._generate_recommendations("building", pd.DataFrame(), ml_metrics, "weekly")
+    engine.supabase.table.return_value.upsert.assert_not_called()

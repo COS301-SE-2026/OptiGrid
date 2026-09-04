@@ -14,7 +14,7 @@ datasource db {
 enum TelemetrySource {
   PHYSICAL
   EMULATOR
-  
+
   @@schema("public")
 }
 
@@ -92,8 +92,18 @@ enum RecommendationStatus {
   Pending
   Implemented
   Dismissed
+  Pending_Execution
+  Expired
 
   @@map("recommendation_status")
+  @@schema("public")
+}
+
+enum RecommendationCategory {
+  DATA_DRIVEN     @map("data")
+  NON_DATA_DRIVEN @map("non_data")
+
+  @@map("recommendation_category")
   @@schema("public")
 }
 
@@ -104,6 +114,16 @@ enum NotificationChannel {
   Push
 
   @@map("notification_channel")
+  @@schema("public")
+}
+
+enum AuditSeverity {
+  INFO     @map("info")
+  WARNING  @map("warning")
+  ERROR    @map("error")
+  CRITICAL @map("critical")
+
+  @@map("audit_severity")
   @@schema("public")
 }
 
@@ -182,6 +202,7 @@ model Building {
   maintenance_windows MaintenanceWindow[]
   recommendations     OptimisationRecommendation[]
   utility_tariffs     UtilityTariff[]
+  auditLogs           AuditLog[]
 
   @@index([tenant_id])
   @@map("buildings")
@@ -228,9 +249,8 @@ model AlertThreshold {
   building_id              String?   @map("building_id") @db.Uuid
   metric_type              String    @map("metric_type") @db.VarChar
   unit                     String?   @db.VarChar
-  upper_limit_kw           Decimal?  @map("upper_limit_kw") @db.Decimal
-  lower_limit_kw           Decimal?  @map("lower_limit_kw") @db.Decimal
-  allowed_spike_percentage Decimal?  @map("allowed_spike_percentage") @db.Decimal
+  z_score_threshold        Float?    @map("z_score_threshold")
+  muted_until              DateTime? @map("muted_until") @db.Timestamptz
   is_active                Boolean?  @default(true) @map("is_active")
   created_at               DateTime? @default(now()) @map("created_at") @db.Timestamptz
   updated_at               DateTime? @default(now()) @map("updated_at") @db.Timestamptz
@@ -252,6 +272,8 @@ model Anomaly {
   severity_level      String         @map("severity_level") @db.VarChar
   description         String?
   status              AnomalyStatus? @default(Open)
+  escalation_level    Int?           @default(0) @map("escalation_level")
+  z_score_value       Float?         @map("z_score_value")
   detected_timestamp  DateTime?      @default(now()) @map("detected_timestamp") @db.Timestamptz
   resolved_timestamp  DateTime?      @map("resolved_timestamp") @db.Timestamptz
   resolved_by_user_id String?        @map("resolved_by_user_id") @db.Uuid
@@ -268,18 +290,34 @@ model Anomaly {
 }
 
 model AuditLog {
-  log_id       String    @id @default(dbgenerated("gen_random_uuid()")) @map("log_id") @db.Uuid
-  user_id      String?   @map("user_id") @db.Uuid
-  action_type  String    @map("action_type") @db.VarChar
-  target_table String    @map("target_table") @db.VarChar
-  old_value    Json?     @map("old_value")
-  new_value    Json?     @map("new_value")
-  ip_address   String?   @map("ip_address")
-  timestamp    DateTime? @default(now()) @db.Timestamptz
+  log_id       String         @id @default(dbgenerated("gen_random_uuid()")) @map("log_id") @db.Uuid
+  user_id      String?        @map("user_id") @db.Uuid
+  building_id  String?        @map("building_id") @db.Uuid
+  action_type  String         @map("action_type") @db.VarChar
+  target_table String         @map("target_table") @db.VarChar
+  service      String?        @db.VarChar(100)
+  operation    String?        @db.VarChar(100)
+  severity     AuditSeverity?
+  error_code   String?        @map("error_code") @db.VarChar(100)
+  request_id   String?        @map("request_id") @db.VarChar(128)
+  old_value    Json?          @map("old_value")
+  new_value    Json?          @map("new_value")
+  metadata     Json?
+  ip_address   String?        @map("ip_address")
+  timestamp    DateTime?      @default(now()) @db.Timestamptz
 
   // Relations
-  user User? @relation(fields: [user_id], references: [userId], onDelete: SetNull)
+  user     User?     @relation(fields: [user_id], references: [userId], onDelete: SetNull)
+  building Building? @relation(fields: [building_id], references: [building_id], onDelete: SetNull)
 
+  @@index([user_id])
+  @@index([action_type])
+  @@index([timestamp])
+  @@index([building_id])
+  @@index([user_id, timestamp])
+  @@index([building_id, timestamp])
+  @@index([service, timestamp])
+  @@index([severity, timestamp])
   @@map("audit_logs")
   @@schema("public")
 }
@@ -304,6 +342,8 @@ model Notification {
   user_id         String?              @map("user_id") @db.Uuid
   channel         NotificationChannel?
   status          String?              @db.VarChar
+  content         String?
+  error_message   String?              @map("error_message")
   sent_at         DateTime?            @default(now()) @map("sent_at") @db.Timestamptz
 
   // Relations
@@ -320,6 +360,9 @@ model OptimisationRecommendation {
   strategy_description      String                @map("strategy_description")
   estimated_monthly_savings Decimal?              @map("estimated_monthly_savings") @db.Decimal
   status                    RecommendationStatus? @default(Pending)
+  recommendation_category   RecommendationCategory?    @default(DATA_DRIVEN) @map("recommendation_category")
+  applicable_range          Json?                 @map("applicable_range")
+  expires_at                DateTime?             @map("expires_at") @db.Timestamptz
   generated_date            DateTime?             @default(now()) @map("generated_date") @db.Timestamptz
   implemented_date          DateTime?             @map("implemented_date") @db.Timestamptz
 
@@ -335,8 +378,8 @@ model UtilityTariff {
   building_id       String?   @map("building_id") @db.Uuid
   season_name       String?   @map("season_name") @db.VarChar
   day_type          String?   @map("day_type") @db.VarChar
-  peak_rate_usd     Decimal   @map("peak_rate_usd") @db.Decimal
-  off_peak_rate_usd Decimal   @map("off_peak_rate_usd") @db.Decimal
+  peak_rate_zar     Decimal   @map("peak_rate_zar") @db.Decimal
+  off_peak_rate_zar Decimal   @map("off_peak_rate_zar") @db.Decimal
   peak_start_time   DateTime? @map("peak_start_time") @db.Time
   peak_end_time     DateTime? @map("peak_end_time") @db.Time
   created_at        DateTime? @default(now()) @map("created_at") @db.Timestamptz

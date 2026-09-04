@@ -7,8 +7,11 @@ import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../lib/t
 function isSameOriginApiRequest(url: URL): boolean {
 	return url.origin === window.location.origin && url.pathname.startsWith("/api/");
 }
+let isScopedFetchInstalled = false;
 
 function installScopedFetch(tabSessionId: string): () => void {
+	if (isScopedFetchInstalled) return () => {};
+	isScopedFetchInstalled = true;
 	const nativeFetch = window.fetch.bind(window);
 	const scopedFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 		const inputUrl = input instanceof Request
@@ -70,7 +73,7 @@ export function TabSessionProvider({ children }: { children: ReactNode }) {
 				destination.origin !== window.location.origin ||
 				destination.pathname.startsWith("/_sessions/") ||
 				destination.pathname.startsWith("/api/") ||
-				["/", "/login", "/signup", "/help", "/contact", "/faqs"].includes(destination.pathname)
+				["/", "/login", "/signup"].includes(destination.pathname)
 			) {
 				return;
 			}

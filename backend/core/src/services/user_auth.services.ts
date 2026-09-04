@@ -1,12 +1,12 @@
-import prisma from '../lib/prisma';
+import { AccountStatus, Prisma, UserRole } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
-import { AccountStatus, Prisma, UserRole } from '@prisma/client';
 import {
     AccountAlreadyActiveError,
     AccountDeactivatedError,
     AccountNotFoundError,
 } from '../errors/account.errors';
+import prisma from '../lib/prisma';
 
 const USER_EXISTS_ERROR = 'User already exists, please login instead.';
 // Reused public shape returned to API callers after signup.
@@ -272,7 +272,7 @@ async function provisionOrResolveAuthUser(email: string, password: string): Prom
             return {
                 userId: authUser.userId,
                 // This auth identity predates this signup attempt; do not delete it on profile-write failure.
-                cleanup: async () => {},
+                cleanup: async () => { },
             };
         } catch (authError) {
             if (authError instanceof Error && authError.message === 'Invalid email or password') {
@@ -303,7 +303,7 @@ export const signup = async (email: string, password: string, name: string) => {
 
     // Prefer Supabase auth user id to satisfy schemas where users.user_id references auth.users.id.
     const provisionedAuthUser = await provisionOrResolveAuthUser(email, password);
-    
+
     const createData = {
         userId: provisionedAuthUser.userId,
         email,
@@ -431,14 +431,14 @@ export const getViewersService = async () => {
 
     return viewers.map(viewer => ({
         ...viewer,
-        buildingIds: viewer.buildingAccess.map( 
+        buildingIds: viewer.buildingAccess.map(
             building => building.building_id
         ),
         buildingAccess: undefined
     }));
 };
 
-export const getManagersService = async () =>{
+export const getManagersService = async () => {
     const managers = await prisma.user.findMany({
         where: {
             roleType: "BUILDING_MANAGER"
@@ -459,7 +459,7 @@ export const getManagersService = async () =>{
 
     return managers.map(manager => ({
         ...manager,
-        buildingIds: manager.buildingAccess.map( 
+        buildingIds: manager.buildingAccess.map(
             building => building.building_id
         ),
         buildingAccess: undefined
@@ -470,7 +470,7 @@ export const assignMangerToBuilding = async (
     userId: string,
     buildingId: string
 ) => {
-    try{
+    try {
         await prisma?.userBuildingAccess.create({
             data: {
                 user_id: userId,
@@ -482,10 +482,10 @@ export const assignMangerToBuilding = async (
             message: "Manger assigned to building successfully"
         };
     }
-    catch(error:any) {   
-        if(error.code === "P2002"){
+    catch (error: any) {
+        if (error.code === "P2002") {
             return {
-                success:true,
+                success: true,
                 message: "Building was already assigned to another manager"
             };
         }
@@ -497,7 +497,7 @@ export const removeAssignment = async (
     userId: string,
     buildingId: string
 ) => {
-    try{
+    try {
         await prisma?.userBuildingAccess.delete({
             where: {
                 user_id_building_id: {
@@ -511,13 +511,45 @@ export const removeAssignment = async (
             message: "Manger removed from building successfully"
         };
     }
-    catch(error:any) {   
-        if(error.code === "P2025"){//p2025 is for record not found
+    catch (error: any) {
+        if (error.code === "P2025") {//p2025 is for record not found
             return {
-                success:true,
+                success: true,
                 message: "Building was not assigned to this manager"
             };
         }
         throw error;
     }
+};
+
+export const googleAuthLogin = async (accessToken: string, email: string, firstName: string, lastName: string) => {
+    const supabase = getSupabaseAuthClient();
+    const { data, error } = await supabase.auth.getUser(accessToken);
+    if (error || !data?.user) throw new Error('Invalid or expired access token');
+
+    const userId = data.user.id;
+    const userExists = await prisma.user.findUnique({
+        where: { 
+            userId 
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            accountStatus: true,
+        },
+    });
+    if (userExists?.accountStatus === AccountStatus.DEACTIVATED) throw new AccountDeactivatedError();
+
+    const role: UserRole = "VIEWER";
+    const user = userExists ?? await createOrUpsertUser({
+        userId,
+        email: email || data.user.email || "",
+        firstName: firstName || "",
+        lastName: lastName || "",
+        roleType: role,
+    });
+    return {user,accessToken};
 };

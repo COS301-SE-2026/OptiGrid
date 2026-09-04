@@ -8,10 +8,17 @@ import { authenticateRequest } from "./middleware/auth.middleware";
 import analyticsRoutes from "./routes/analytics.routes";
 import userPreferencesRoutes from "./routes/user_preferences.routes";
 import contactRoutes from "./routes/contact.routes";
-import accountRoutes from "./routes/account.routes";
-import adminUserRoutes from "./routes/admin_user.routes";
 import { rateLimiter } from "./middleware/rateLimiter.middleware";
 import telemetryRoutes from './routes/telemetry.routes';
+import recommendationRoutes from "./routes/recommendation.routes";
+import thresholdRoutes from './routes/threshold.routes';
+import anomalyRoutes from './routes/anomaly.routes';
+import accountRoutes from "./routes/account.routes";
+import adminUserRoutes from "./routes/admin_user.routes";
+import systemHealthRoutes from "./routes/systemHealth.routes";
+import auditLogRoutes from "./routes/auditLog.routes";
+import auditEventRoutes from "./routes/auditEvent.routes";
+import reportRoutes from "./routes/report.routes";
 import cors from 'cors';
 
 export interface CreateAppOptions {
@@ -42,6 +49,107 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 						bearerFormat: "JWT",
 					},
 				},
+				schemas: {
+					AccountLifecycleUser: {
+						type: "object",
+						properties: {
+							userId: {
+								type: "string",
+								format: "uuid",
+								example: "8f66ec53-28f4-4f1d-8f6f-d3f38c17e9a2",
+							},
+							email: {
+								type: "string",
+								format: "email",
+								example: "viewer@optigrid.test",
+							},
+							firstName: {
+								type: "string",
+								nullable: true,
+								example: "Amina",
+							},
+							lastName: {
+								type: "string",
+								nullable: true,
+								example: "Mokoena",
+							},
+							roleType: {
+								type: "string",
+								enum: ["ADMIN", "BUILDING_MANAGER", "VIEWER"],
+								example: "VIEWER",
+							},
+							accountStatus: {
+								type: "string",
+								enum: ["ACTIVE", "DEACTIVATED"],
+								example: "ACTIVE",
+							},
+							deactivatedAt: {
+								type: "string",
+								format: "date-time",
+								nullable: true,
+								example: null,
+							},
+						},
+					},
+					AccountCredentials: {
+						type: "object",
+						required: ["email", "password"],
+						properties: {
+							email: {
+								type: "string",
+								format: "email",
+								example: "viewer@optigrid.test",
+							},
+							password: {
+								type: "string",
+								format: "password",
+								example: "SecurePass123!",
+							},
+						},
+					},
+					AccountRecoveryResponse: {
+						type: "object",
+						properties: {
+							message: {
+								type: "string",
+								example: "Account recovered successfully",
+							},
+							user: {
+								$ref: "#/components/schemas/AccountLifecycleUser",
+							},
+							accessToken: {
+								type: "string",
+								description: "JWT authentication token issued after account recovery.",
+								example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+							},
+						},
+					},
+					AccountDeletionResponse: {
+						type: "object",
+						properties: {
+							message: {
+								type: "string",
+								example: "Account permanently deleted",
+							},
+							user: {
+								$ref: "#/components/schemas/AccountLifecycleUser",
+							},
+						},
+					},
+					ApiError: {
+						type: "object",
+						properties: {
+							code: {
+								type: "string",
+								example: "ACCOUNT_NOT_FOUND",
+							},
+							message: {
+								type: "string",
+								example: "Account profile was not found.",
+							},
+						},
+					},
+				},
 			},
 			servers: [
 				{
@@ -62,15 +170,32 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 
 	if (options.routeMiddleware?.length) app.use(...options.routeMiddleware);
 
+	// Security Headers (NFR: Configuration and Compliance)
+	app.use((_req, res, next) => {
+		res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+		res.setHeader('Content-Security-Policy', "default-src 'self'");
+		res.setHeader('X-Frame-Options', 'DENY');
+		next();
+	});
+
 	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 	app.use("/auth", authRate, userAuthRoutes);
+	app.use("/api/accounts", normalRate, authenticateRequest, accountRoutes);
+	app.use("/api/admin/users", strictRate, authenticateRequest, adminUserRoutes);
+	app.use("/api/admin/health", normalRate, authenticateRequest, systemHealthRoutes);
+	app.use("/api/admin/audit-logs", normalRate, authenticateRequest, auditLogRoutes);
+	app.use("/api/audit-events", normalRate, authenticateRequest, auditEventRoutes);
 	app.use("/api/sensors", sensorRoutes);
-	app.use("/api/analytics", authenticateRequest, homeRate,analyticsRoutes);
-	app.use("/api/buildings", authenticateRequest, normalRate, buildingRoutes);
-	app.use("/api/preferences", authenticateRequest, normalRate, userPreferencesRoutes);
-	app.use("/api/contact", strictRate,contactRoutes);
-	app.use("/api/users",authRate, userAuthRoutes);
+	app.use("/api/analytics", homeRate, authenticateRequest, analyticsRoutes);
+	app.use("/api/buildings", normalRate, authenticateRequest, buildingRoutes);
+	app.use("/api/preferences", normalRate, authenticateRequest, userPreferencesRoutes);
+	app.use("/api/contact", strictRate, contactRoutes);
+	app.use("/api/users", authRate, userAuthRoutes);
 	app.use('/api/telemetry', telemetryRoutes);
+	app.use("/api/buildings/:building_id/recommendations", normalRate, authenticateRequest, recommendationRoutes);
+	app.use('/api/thresholds', normalRate, authenticateRequest, thresholdRoutes);
+	app.use('/api/anomalies', normalRate, authenticateRequest, anomalyRoutes);
+	app.use('/api/reports', normalRate, authenticateRequest, reportRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });
