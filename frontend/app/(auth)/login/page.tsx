@@ -7,6 +7,7 @@ import { getLoginError, initialLoginFormData, type LoginFormData } from "./valid
 import { navigateAfterLogin } from "../../../lib/auth-navigation";
 import { getTabSessionId, TAB_SESSION_HEADER } from "../../../lib/tab-session";
 import GoogleAuthButton from "@/components/GoogleButton";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -125,18 +126,15 @@ export default function LoginPage() {
 
                     <div className="auth-field">
                         <label className="label" htmlFor="password">Password</label>
-                        <input
+                        <PasswordInput
                             id="password"
                             name="password"
-                            type="password"
                             autoComplete="current-password"
                             value={formData.password}
                             onChange={handleChange}
                             disabled={loading}
-                            className="input"
                             placeholder="Your password"
-                            aria-invalid={Boolean(error)}
-                            suppressHydrationWarning
+                            ariaInvalid={Boolean(error)}
                         />
                     </div>
 
