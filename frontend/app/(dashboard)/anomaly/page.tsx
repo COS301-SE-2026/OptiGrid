@@ -50,7 +50,7 @@ export default function ManagerAnomalyPage() {
     async function fetchData() {
       try {
         const [anomaliesRes, thresholdsRes] = await Promise.all([
-          fetch("/api/anomalies/portfolio"),
+          fetch("/api/anomalies/portfolio?take=1000"),
           fetch("/api/thresholds/portfolio")
         ]);
         
@@ -516,3 +516,4 @@ export default function ManagerAnomalyPage() {
     </div>
   );
 }
+

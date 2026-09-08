@@ -10,10 +10,12 @@ export async function GET(
 		return NextResponse.json({ message: "Authentication required." }, { status: 401 });
 	}
 
-    
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
+    const backendUrl = queryString ? `${getCoreUrl()}/api/anomalies/portfolio?${queryString}` : `${getCoreUrl()}/api/anomalies/portfolio`;
 
 	try {
-		const coreResponse = await fetch(`${getCoreUrl()}/api/anomalies/portfolio`, {
+		const coreResponse = await fetch(backendUrl, {
 			method: "GET",
 			headers,
 			cache: "no-store",
