@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import { UserRole } from '@prisma/client';
 import { applyRecommendationController, viewRecommendationController, updateTariffController, dismissRecommendationController } from '../controllers/recommendation.controller';
+import { reqRole } from '../middleware/rbac.middleware';
 
 const router = Router({ mergeParams: true });
 
@@ -212,7 +214,7 @@ router.get('/', viewRecommendationController);
  *       '500':
  *         description: Internal Server Error
  */
-router.put('/tariffs', updateTariffController);
+router.put('/tariffs', reqRole([UserRole.ADMIN]), updateTariffController);
 /**
  * @swagger
  * /api/buildings/{building_id}/recommendations/{recommendation_id}/dismiss:
