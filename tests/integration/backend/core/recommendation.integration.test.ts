@@ -6,16 +6,22 @@ describe('Recommendation integration tests', () => {
 	let harness: CoreApiHarness;
 	const tenantId = "7770c655-bfa3-433b-81aa-084fc76882d9";
 	const userId = "aae48b78-438f-4ed7-9fe7-a8fc9addc187";
+	const viewerId = "aae48b78-438f-4ed7-9fe7-a8fc9addc188";
+	const unassignedAdminId = "aae48b78-438f-4ed7-9fe7-a8fc9addc189";
 	const buildingId = "bbe48b78-438f-4ed7-9fe7-a8fc9addc187";
 	const recommendationId = "cce48b78-438f-4ed7-9fe7-a8fc9addc187";
 	const dismissRecommendationId = "dde48b78-438f-4ed7-9fe7-a8fc9addc187";
-	let authHeaders: { 
-		Cookie: string 
+	let authHeaders: {
+		Cookie: string
 	};
+	let viewerAuthHeaders: { Cookie: string };
+	let unassignedAdminAuthHeaders: { Cookie: string };
 
 	beforeAll(async () => {
 		harness = await createCoreApiHarness();
 		authHeaders = await getAuthHeaders(userId);
+		viewerAuthHeaders = await getAuthHeaders(viewerId, 'tariff.viewer@optigrid.test');
+		unassignedAdminAuthHeaders = await getAuthHeaders(unassignedAdminId, 'tariff.unassigned@optigrid.test');
 	});
 	beforeEach(async () => {
 		const client = new Client({ connectionString: harness.databaseUrl });
@@ -28,8 +34,14 @@ describe('Recommendation integration tests', () => {
 			);
 			await client.query(
 				`insert into users (user_id, tenant_id, email, first_name, last_name, role_type)
-				 values ($1, $2, $3, $4, $5, $6)`,
-				[userId, tenantId, 'recommendation.integration@optigrid.test', 'Test', 'User', 'Admin']
+				 values ($1, $2, $3, $4, $5, $6),
+				        ($7, $2, $8, $4, $5, $9),
+				        ($10, $2, $11, $4, $5, $6)`,
+				[
+					userId, tenantId, 'recommendation.integration@optigrid.test', 'Test', 'User', 'Admin',
+					viewerId, 'tariff.viewer@optigrid.test', 'Viewer',
+					unassignedAdminId, 'tariff.unassigned@optigrid.test',
+				]
 			);
 			await client.query(
 				`insert into buildings (building_id, tenant_id, building_name, square_footage, timezone, max_occupancy)
@@ -144,6 +156,54 @@ describe('Recommendation integration tests', () => {
 			status: "error",
 			message: "Invalid tariff payload",
 		}));
+
+		const extraFieldResponse = await request(harness.app)
+			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
+			.set(authHeaders)
+			.send({
+				peak_rate_zar: 0.4,
+				off_peak_rate_zar: 0.2,
+				season_name: "Summer",
+				tariff_id: "attacker-controlled",
+			});
+
+		expect(extraFieldResponse.status).toBe(400);
+
+		const extremeRateResponse = await request(harness.app)
+			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
+			.set(authHeaders)
+			.send({
+				peak_rate_zar: 101,
+				off_peak_rate_zar: 0.2,
+				season_name: "Summer",
+			});
+
+		expect(extremeRateResponse.status).toBe(400);
+	});
+
+	it("should_enforce_tariff_authentication_and_authorisation", async () => {
+		const payload = {
+			peak_rate_zar: 0.4,
+			off_peak_rate_zar: 0.2,
+			season_name: "Summer",
+		};
+
+		const unauthenticatedResponse = await request(harness.app)
+			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
+			.send(payload);
+		expect(unauthenticatedResponse.status).toBe(401);
+
+		const viewerResponse = await request(harness.app)
+			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
+			.set(viewerAuthHeaders)
+			.send(payload);
+		expect(viewerResponse.status).toBe(403);
+
+		const unassignedAdminResponse = await request(harness.app)
+			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
+			.set(unassignedAdminAuthHeaders)
+			.send(payload);
+		expect(unassignedAdminResponse.status).toBe(403);
 	});
 
 	it("should_apply_a_rec", async () => {

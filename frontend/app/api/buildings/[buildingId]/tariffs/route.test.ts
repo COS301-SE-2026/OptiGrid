@@ -86,4 +86,25 @@ describe("building tariffs route", () => {
 		const response = await PUT(buildRequest(validRates), { params });
 		expect(response.status).toBe(502);
 	});
+
+	it("rejects a cross-origin browser request before calling Core", async () => {
+		const request = buildRequest(validRates);
+		request.headers.set("Origin", "https://attacker.example");
+
+		const response = await PUT(request, { params });
+
+		expect(response.status).toBe(403);
+		await expect(response.json()).resolves.toEqual({ message: "Cross-origin request denied." });
+		expect(global.fetch).not.toHaveBeenCalled();
+	});
+
+	it("allows a same-origin browser request", async () => {
+		const request = buildRequest(validRates);
+		request.headers.set("Origin", "http://localhost");
+
+		const response = await PUT(request, { params });
+
+		expect(response.status).toBe(200);
+		expect(global.fetch).toHaveBeenCalledTimes(1);
+	});
 });
