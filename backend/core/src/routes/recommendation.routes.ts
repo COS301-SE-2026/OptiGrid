@@ -151,7 +151,7 @@ router.get('/', viewRecommendationController);
  * /api/buildings/{building_id}/recommendations/tariffs:
  *   put:
  *     summary: Update Tariff Rates
- *     description: Updates the tariff rates for a building to refine recommendation savings estimates. Only allowed by admin and manager
+ *     description: Updates the tariff rates for a building to refine recommendation savings estimates. Only allowed by administrators.
  *     tags:
  *       - Recommendations
  *     security:
@@ -185,6 +185,7 @@ router.get('/', viewRecommendationController);
  *                 description: New off-peak energy rate in ZAR
  *               season_name:
  *                 type: string
+ *                 enum: [Summer, Winter]
  *                 description: Season for which the rates apply
  *     responses:
  *       '200':

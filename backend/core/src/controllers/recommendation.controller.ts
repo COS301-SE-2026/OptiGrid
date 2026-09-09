@@ -142,7 +142,8 @@ export const updateTariffController = async(req:Request, resp:Response) => {
     if(err.name == "ZodError") {
       return resp.status(400).json({
         status: "error",
-        message: err.errors
+        message: "Invalid tariff payload",
+        errors: err.issues,
       });
     }
     if(err.message.includes("Building not found")) {

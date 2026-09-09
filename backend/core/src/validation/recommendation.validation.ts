@@ -22,5 +22,11 @@ export const tariffParameterSchema = z.object({
 export const tariffQuerySchema = z.object({
     peak_rate_zar: z.number().nonnegative(),
     off_peak_rate_zar: z.number().nonnegative(),
-    season_name: z.string().min(1),
-});
+    season_name: z.enum(["Summer", "Winter"]),
+}).refine(
+    ({ peak_rate_zar, off_peak_rate_zar }) => off_peak_rate_zar <= peak_rate_zar,
+    {
+        message: "Off-peak rate cannot be higher than peak rate",
+        path: ["off_peak_rate_zar"],
+    },
+);
