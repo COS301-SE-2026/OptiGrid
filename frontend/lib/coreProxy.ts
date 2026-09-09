@@ -28,6 +28,20 @@ function readCookieValue(cookieHeader: string | null, cookieName: string): strin
 	return null;
 }
 
+function hasTrustedMutationOrigin(request: Request): boolean {
+	const origin = request.headers.get("origin");
+	if (!origin) {
+		return true;
+	}
+
+	try {
+		return new URL(origin).origin === new URL(request.url).origin;
+	}
+	catch {
+		return false;
+	}
+}
+
 export function getForwardHeaders(request: Request): Headers | null {
 	const headers = new Headers();
 	const authorization = request.headers.get("authorization");
@@ -173,6 +187,9 @@ export function buildingProxyPut(options: BuildingPutOptions) {
 		const { buildingId } = await params;
 		if (!buildingId) {
 			return NextResponse.json({ message: "Building id is required." }, { status: 400 });
+		}
+		if (!hasTrustedMutationOrigin(request)) {
+			return NextResponse.json({ message: "Cross-origin request denied." }, { status: 403 });
 		}
 
 		let received: Record<string, unknown>;
