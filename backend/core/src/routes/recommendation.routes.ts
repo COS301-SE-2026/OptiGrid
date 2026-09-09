@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import { UserRole } from '@prisma/client';
 import { applyRecommendationController, viewRecommendationController, updateTariffController, dismissRecommendationController } from '../controllers/recommendation.controller';
+import { reqRole } from '../middleware/rbac.middleware';
 
 const router = Router({ mergeParams: true });
 
@@ -151,7 +153,7 @@ router.get('/', viewRecommendationController);
  * /api/buildings/{building_id}/recommendations/tariffs:
  *   put:
  *     summary: Update Tariff Rates
- *     description: Updates the tariff rates for a building to refine recommendation savings estimates. Only allowed by admin and manager
+ *     description: Updates the tariff rates for a building to refine recommendation savings estimates. Only allowed by administrators.
  *     tags:
  *       - Recommendations
  *     security:
@@ -185,6 +187,7 @@ router.get('/', viewRecommendationController);
  *                 description: New off-peak energy rate in ZAR
  *               season_name:
  *                 type: string
+ *                 enum: [Summer, Winter]
  *                 description: Season for which the rates apply
  *     responses:
  *       '200':
@@ -211,7 +214,7 @@ router.get('/', viewRecommendationController);
  *       '500':
  *         description: Internal Server Error
  */
-router.put('/tariffs', updateTariffController);
+router.put('/tariffs', reqRole([UserRole.ADMIN]), updateTariffController);
 /**
  * @swagger
  * /api/buildings/{building_id}/recommendations/{recommendation_id}/dismiss:

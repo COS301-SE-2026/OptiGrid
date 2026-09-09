@@ -12,6 +12,12 @@ type UpdateBuildingPayload = {
 	square_footage?: number;
 	max_occupancy?: number;
 	building_type?: string;
+	nominal_voltage?: number;
+	max_current_threshold?: number;
+	lifecycle_state?: string;
+	latitude?: number;
+	longitude?: number;
+	geohash?: string;
 };
 
 const ALLOWED_BUILDING_FIELDS = [
@@ -24,6 +30,9 @@ const ALLOWED_BUILDING_FIELDS = [
 	"max_current_threshold",
 	"lifecycle_state",
 	"timezone",
+	"latitude",
+	"longitude",
+	"geohash",
 ] as const;
 
 export type ForwardHeaderOptions = {
