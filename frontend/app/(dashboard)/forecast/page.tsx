@@ -162,22 +162,35 @@ function buildChartData(result: ForecastResult | undefined) {
         }
     }
 
-    const chartData: ChartPoint[] = [
-        ...normalizedHistorical.map((p) => ({
+    const chartDataMap = new Map<string, ChartPoint>();
+
+    normalizedHistorical.forEach((p) => {
+        chartDataMap.set(p.timestamp, {
             timestamp: p.timestamp,
             kwh: p.kwh,
-        })),
-        ...connectedForecast.map((p) => ({
-            timestamp: p.timestamp,
-            yhat: p.yhat,
-            yhat_range: [p.yhat_lower, p.yhat_upper] as [number, number],
-        })),
-    ];
+        });
+    });
+
+    connectedForecast.forEach((p) => {
+        if (chartDataMap.has(p.timestamp)) {
+            const existing = chartDataMap.get(p.timestamp)!;
+            existing.yhat = p.yhat;
+            existing.yhat_range = [p.yhat_lower, p.yhat_upper];
+        } else {
+            chartDataMap.set(p.timestamp, {
+                timestamp: p.timestamp,
+                yhat: p.yhat,
+                yhat_range: [p.yhat_lower, p.yhat_upper],
+            });
+        }
+    });
+
+    const chartData = Array.from(chartDataMap.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     const nowTs = normalizedHistorical.at(-1)?.timestamp ?? null;
 
     const showActualDots = normalizedHistorical.length <= 1 ? { r: 4, strokeWidth: 0 } : false;
-    const showForecastDots = normalizedForecast.length <= 1 ? { r: 4, strokeWidth: 0 } : false;
+    const showForecastDots = chartData.filter(d => d.yhat !== undefined).length <= 1 ? { r: 4, strokeWidth: 0 } : false;
     const hasConfidenceBand = normalizedForecast.some(
         (point) => point.yhat_lower !== point.yhat_upper,
     );
@@ -327,6 +340,8 @@ function ForecastChartContainer({
             </div>
         );
     }
+    
+    console.log(`[DEBUG] horizon=${horizon} chartData.length=${chartData.length} chartData=${JSON.stringify(chartData)}`);
 
     return (
         <>
@@ -428,9 +443,9 @@ function ForecastChartContainer({
                         dataKey="kwh"
                         stroke="var(--brand-primary)"
                         strokeWidth={2}
-                        dot={showActualDots}
+                        dot={{ r: 4, strokeWidth: 0 }}
                         activeDot={{ r: 5 }}
-                        connectNulls={false}
+                        connectNulls={true}
                     />
                     <Line
                         type="monotone"
@@ -438,9 +453,9 @@ function ForecastChartContainer({
                         stroke="var(--brand-primary)"
                         strokeWidth={2}
                         strokeDasharray="4 2"
-                        dot={showForecastDots}
+                        dot={{ r: 4, strokeWidth: 0 }}
                         activeDot={{ r: 5 }}
-                        connectNulls={false}
+                        connectNulls={true}
                     />
                 </ComposedChart>
             </ResponsiveContainer>
