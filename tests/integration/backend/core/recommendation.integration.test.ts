@@ -65,6 +65,87 @@ describe('Recommendation integration tests', () => {
 		expect(resp.body.status).toBe("success");
 	});
 
+	it("should_create_then_update_a_building_tariff", async () => {
+		const createResponse = await request(harness.app)
+			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
+			.set(authHeaders)
+			.send({
+				peak_rate_zar: 0.33,
+				off_peak_rate_zar: 0.22,
+				season_name: "Summer",
+			});
+
+		expect(createResponse.status).toBe(200);
+		expect(createResponse.body).toEqual({
+			status: "success",
+			message: "Tariff rates updated successfully",
+		});
+
+		const updateResponse = await request(harness.app)
+			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
+			.set(authHeaders)
+			.send({
+				peak_rate_zar: 0.48,
+				off_peak_rate_zar: 0.27,
+				season_name: "Winter",
+			});
+
+		expect(updateResponse.status).toBe(200);
+
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+		try {
+			const result = await client.query(
+				`select peak_rate_zar, off_peak_rate_zar, season_name
+				 from utility_tariffs
+				 where building_id = $1`,
+				[buildingId],
+			);
+
+			expect(result.rowCount).toBe(1);
+			expect(result.rows[0]).toEqual({
+				peak_rate_zar: "0.48",
+				off_peak_rate_zar: "0.27",
+				season_name: "Winter",
+			});
+		}
+		finally {
+			await client.end();
+		}
+	});
+
+	it("should_reject_invalid_tariff_payloads", async () => {
+		const rateResponse = await request(harness.app)
+			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
+			.set(authHeaders)
+			.send({
+				peak_rate_zar: 0.2,
+				off_peak_rate_zar: 0.4,
+				season_name: "Summer",
+			});
+
+		expect(rateResponse.status).toBe(400);
+		expect(rateResponse.body).toEqual(expect.objectContaining({
+			status: "error",
+			message: "Invalid tariff payload",
+		}));
+
+		const seasonResponse = await request(harness.app)
+			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
+			.set(authHeaders)
+			.send({
+				peak_rate_zar: 0.4,
+				off_peak_rate_zar: 0.2,
+				season_name: "Spring",
+			});
+
+		expect(seasonResponse.status).toBe(400);
+		expect(seasonResponse.body).toEqual(expect.objectContaining({
+			status: "error",
+			message: "Invalid tariff payload",
+		}));
+	});
+
 	it("should_apply_a_rec", async () => {
 		const resp = await request(harness.app).post(`/api/buildings/${buildingId}/recommendations/${recommendationId}/apply`).set(authHeaders);
 		//assert
