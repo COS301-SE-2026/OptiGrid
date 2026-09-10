@@ -227,9 +227,11 @@ h3 {
     padding: 9px 12px;
 }
 
-.input::placeholder {
+.input::placeholder,
+.textarea::placeholder {
+    font-style: italic;
     color: var(--brand-ink-muted);
-    opacity: 0.8;
+    opacity: 0.55;
 }
 
 .input:focus-visible,
@@ -1010,6 +1012,48 @@ h3 {
     width: 100%;
     font-weight: var(--fw-semibold);
     font-size: var(--fs-body);
+}
+
+.auth-password-input {
+    padding-right: 40px;
+}
+
+.auth-password-field {
+    display: flex;
+    position: relative;
+}
+
+.auth-password-toggle {
+    background: transparent;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    color: var(--brand-ink-muted);
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+}
+
+.auth-password-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.auth-password-toggle:hover {
+    color: var(--brand-ink);
+    background: color-mix(in srgb, var(--brand-secondary) 16%, transparent);
+}
+
+.auth-password-toggle:focus-visible {
+    box-shadow: var(--focus-ring);
+    outline: none;
 }
 
 .auth-notice,

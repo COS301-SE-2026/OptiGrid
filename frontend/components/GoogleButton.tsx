@@ -21,12 +21,9 @@ export default function GoogleAuthButton({ onLoading,onError}: AuthButton) {
             if(onLoading) onLoading(false);
         }
     };
-    
-    return null;
-    /*
     return (
         <>
-        {/** google auth button * /}
+        {/* google auth button */}
             <div style={{ display: 'flex', alignItems: 'center', margin: '16px 0' }}>
                 <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--brand-secondary)' }} ></div>
                 <span style={{ padding: '0 10px', fontSize: '0.875rem', color: 'var(--brand-ink)' }}>or</span>
@@ -49,5 +46,4 @@ export default function GoogleAuthButton({ onLoading,onError}: AuthButton) {
             </button>
         </>
     );
-    */
 }

@@ -122,7 +122,7 @@ test.describe("List buildings", () => {
 
     await page.goto("/login");
     await page.getByLabel("Work email").fill(owner.email);
-    await page.getByLabel("Password").fill(owner.password);
+    await page.getByLabel("Password", { exact: true }).fill(owner.password);
     const loginResponsePromise = page.waitForResponse("**/api/auth/login");
     await page.getByRole("button", { name: "Log in" }).click();
     const loginResponse = await loginResponsePromise;

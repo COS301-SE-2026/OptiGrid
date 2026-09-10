@@ -245,7 +245,8 @@ def test_train_and_forecast_weekly_insufficient_data(engine):
     })
     
     res = engine.train_and_forecast_weekly(df_short)
-    assert res == {}  # not enough data for weekly forecast
+    assert 'forecast_peak' in res
+    assert len(res['forecast_series']) == 24
 
 
 # tests for training and forecasting monthly
@@ -282,7 +283,8 @@ def test_train_and_forecast_monthly_insufficient_data(engine):
     })
     
     res = engine.train_and_forecast_monthly(df_short)
-    assert res == {}  # not enough data for montly forecast
+    assert 'forecast_peak' in res
+    assert len(res['forecast_series']) == 12
 
 
 # tests for processing a single buidling

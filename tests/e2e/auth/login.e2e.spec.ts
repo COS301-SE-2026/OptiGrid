@@ -54,7 +54,7 @@ test.describe("Login page", () => {
   test("shows API error for invalid credentials", async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel("Work email").fill("invalid@optigrid.test");
-    await page.getByLabel("Password").fill("BadPass123!");
+    await page.getByLabel("Password", { exact: true }).fill("BadPass123!");
     await page.getByRole("button", { name: "Log in" }).click();
 
     const resp = page.waitForResponse("**/api/auth/login");
@@ -69,7 +69,7 @@ test.describe("Login page", () => {
 
     await page.goto("/login");
     await page.getByLabel("Work email").fill(user.email);
-    await page.getByLabel("Password").fill(user.password);
+    await page.getByLabel("Password", { exact: true }).fill(user.password);
     const loginResponsePromise = page.waitForResponse("**/api/auth/login");
     await page.getByRole("button", { name: "Log in" }).click();
     const loginResponse = await loginResponsePromise;

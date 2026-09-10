@@ -105,11 +105,13 @@ async function createBuildingInCore(
   return payload.data?.building_id as string;
 }
 
-test.describe.skip("Edit building", () => {
+test.describe("Edit building", () => {
   test("updates a building from the dashboard edit action", async ({
     page,
     request,
   }) => {
+    test.setTimeout(60_000);
+
     const user = buildUniqueUser();
     const originalBuilding = {
       name: `E2E Edit Original ${uniqueSuffix()}`,
@@ -123,6 +125,12 @@ test.describe.skip("Edit building", () => {
       squareFootage: "6500",
       maxOccupancy: "250",
       timezone: "Africa/Johannesburg",
+      buildingType: "Industrial",
+      nominalVoltage: "400",
+      lifecycleState: "INACTIVE",
+      latitude: "-33.9249",
+      longitude: "18.4241",
+      geohash: "k3vngp",
     };
 
     await createUserInCore(request, user);
@@ -132,7 +140,7 @@ test.describe.skip("Edit building", () => {
 
     await page.goto("/login");
     await page.getByLabel("Work email").fill(user.email);
-    await page.getByLabel("Password").fill(user.password);
+    await page.getByLabel("Password", { exact: true }).fill(user.password);
     const loginResponsePromise = page.waitForResponse("**/api/auth/login");
     await page.getByRole("button", { name: "Log in" }).click();
     const loginResponse = await loginResponsePromise;
@@ -144,9 +152,17 @@ test.describe.skip("Edit building", () => {
       hasText: originalBuilding.name,
     });
     await expect(originalRow).toBeVisible();
-      await originalRow
-        .getByRole("link", { name: "Edit", exact: true })
-        .click();
+
+    await page.getByRole("link", { name: "Manage", exact: true }).click();
+    await expect(page).toHaveURL(/\/manager$/);
+    const managedBuildingsTable = page.getByRole("table", { name: "Buildings you manage" });
+    const managedOriginalRow = managedBuildingsTable.locator("tbody tr").filter({
+      hasText: originalBuilding.name,
+    });
+    await expect(managedOriginalRow).toBeVisible();
+    await managedOriginalRow
+      .getByRole("link", { name: "Edit", exact: true })
+      .click();
 
     await expect(page).toHaveURL(/\/buildings\/[^/]+\/edit$/);
     await expect(page.getByRole("heading", { name: "Edit Building" })).toBeVisible();
@@ -157,6 +173,12 @@ test.describe.skip("Edit building", () => {
     await page.getByLabel("Square footage").fill(updatedBuilding.squareFootage);
     await page.getByLabel("Max occupancy").fill(updatedBuilding.maxOccupancy);
     await page.getByLabel("Timezone").fill(updatedBuilding.timezone);
+    await page.getByLabel("Building Type").selectOption(updatedBuilding.buildingType);
+    await page.getByLabel("Nominal Voltage").fill(updatedBuilding.nominalVoltage);
+    await page.getByLabel("Building State").selectOption(updatedBuilding.lifecycleState);
+    await page.getByLabel("Latitude").fill(updatedBuilding.latitude);
+    await page.getByLabel("Longitude").fill(updatedBuilding.longitude);
+    await page.getByLabel("Geohash").fill(updatedBuilding.geohash);
 
     const updateResponsePromise = page.waitForResponse((response) => {
       return response.url().includes("/api/buildings/") && response.request().method() === "PATCH";
@@ -176,5 +198,29 @@ test.describe.skip("Edit building", () => {
     await expect(updatedRow).toBeVisible();
     await expect(updatedRow).toContainText(updatedBuilding.address);
     await expect(buildingsTable.locator("tbody")).not.toContainText(originalBuilding.name);
+
+    await page.getByRole("link", { name: "Manage", exact: true }).click();
+    await expect(page).toHaveURL(/\/manager$/);
+    const managedUpdatedRow = page
+      .getByRole("table", { name: "Buildings you manage" })
+      .locator("tbody tr")
+      .filter({ hasText: updatedBuilding.name });
+    await expect(managedUpdatedRow).toBeVisible();
+    await managedUpdatedRow
+      .getByRole("link", { name: "Edit", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/buildings\/[^/]+\/edit$/);
+
+    await expect(page.getByLabel("Building name")).toHaveValue(updatedBuilding.name);
+    await expect(page.getByLabel("Address")).toHaveValue(updatedBuilding.address);
+    await expect(page.getByLabel("Square footage")).toHaveValue(updatedBuilding.squareFootage);
+    await expect(page.getByLabel("Max occupancy")).toHaveValue(updatedBuilding.maxOccupancy);
+    await expect(page.getByLabel("Timezone")).toHaveValue(updatedBuilding.timezone);
+    await expect(page.getByLabel("Building Type")).toHaveValue(updatedBuilding.buildingType);
+    await expect(page.getByLabel("Nominal Voltage")).toHaveValue(updatedBuilding.nominalVoltage);
+    await expect(page.getByLabel("Building State")).toHaveValue(updatedBuilding.lifecycleState);
+    await expect(page.getByLabel("Latitude")).toHaveValue(updatedBuilding.latitude);
+    await expect(page.getByLabel("Longitude")).toHaveValue(updatedBuilding.longitude);
+    await expect(page.getByLabel("Geohash")).toHaveValue(updatedBuilding.geohash);
   });
 });

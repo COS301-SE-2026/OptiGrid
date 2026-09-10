@@ -72,7 +72,7 @@ describe("buildings [buildingId] route", () => {
 		expect(headers.get("Idempotency-Key")).toBe("delete-key-from-client");
 	});
 
-	it("strips unsupported location fields before forwarding update requests", async () => {
+	it("forwards supported building fields and strips unsupported fields", async () => {
 		const request = new Request("http://localhost/api/buildings/building-789", {
 			method: "PATCH",
 			headers: {
@@ -88,6 +88,7 @@ describe("buildings [buildingId] route", () => {
 				geohash: "abc123",
 				latitude: -26.1,
 				longitude: 28.1,
+				tenant_id: "attacker-controlled",
 			}),
 		});
 
@@ -103,6 +104,9 @@ describe("buildings [buildingId] route", () => {
 			square_footage: 600,
 			max_occupancy: 60,
 			timezone: "Africa/Johannesburg",
+			geohash: "abc123",
+			latitude: -26.1,
+			longitude: 28.1,
 		});
 	});
 });

@@ -321,6 +321,32 @@ describe("Recommendation Controller Unit Tests", () => {
             }));
         });
 
+        it("should_reject_an_off_peak_rate_above_the_peak_rate", async () => {
+            req = {
+                user: {
+                    id: "user123",
+                    roleType: "ADMIN"
+                } as any,
+                params: {
+                    building_id: "550e8400-e29b-41d4-a716-446655440000"
+                },
+                body: {
+                    peak_rate_zar: 0.2,
+                    off_peak_rate_zar: 0.4,
+                    season_name: "Summer"
+                }
+            };
+
+            await updateTariffController(req as Request, resp as Response);
+
+            expect(updateTariffService).not.toHaveBeenCalled();
+            expect(mockstatus).toHaveBeenCalledWith(400);
+            expect(json).toHaveBeenCalledWith(expect.objectContaining({
+                status: "error",
+                message: "Invalid tariff payload"
+            }));
+        });
+
         it("should_return_404", async() => {
             req = {
                 user: {
