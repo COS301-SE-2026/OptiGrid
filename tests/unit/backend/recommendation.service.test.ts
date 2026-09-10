@@ -167,6 +167,29 @@ describe("Recommendation Services Unit Tests", () => {
             expect(prisma.utilityTariff.update).not.toHaveBeenCalled();
         });
 
+        it("should_update_the_existing_tariff", async () => {
+            (prisma.building.findUnique as jest.Mock).mockResolvedValue({ building_id: "building123" });
+            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue({
+                user_id: "user-123",
+                building_id: "building123"
+            });
+            (prisma.utilityTariff.findFirst as jest.Mock).mockResolvedValue({ tariff_id: "tariff-123" });
+            (prisma.utilityTariff.update as jest.Mock).mockResolvedValue(true);
+
+            const payload = {
+                peak_rate_zar: 0.42,
+                off_peak_rate_zar: 0.21,
+                season_name: "Winter"
+            };
+
+            await expect(updateTariffService("user-123", "building123", payload)).resolves.toBe(true);
+            expect(prisma.utilityTariff.update).toHaveBeenCalledWith({
+                where: { tariff_id: "tariff-123" },
+                data: payload
+            });
+            expect(prisma.utilityTariff.create).not.toHaveBeenCalled();
+        });
+
         it("should_throw_an_error_if_no_building_exists", async ()=>{
             (prisma.building.findUnique as jest.Mock).mockResolvedValue(null);
             const payload = { 

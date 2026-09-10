@@ -166,8 +166,16 @@ describe('Building integration - List and Update Buildings', () => {
 			.set(authHeaders)
 			.send({
 				building_name: 'Updated Building Name',
+				building_type: 'Industrial',
 				square_footage: 15000,
-				timezone: 'Africa/Johannesburg',
+				physical_address: '45 Complete Update Road',
+				timezone: 'Africa/Cape_Town',
+				max_occupancy: 300,
+				nominal_voltage: 400,
+				lifecycle_state: 'INACTIVE',
+				latitude: -33.9249,
+				longitude: 18.4241,
+				geohash: 'k3vngp',
 			});
 
 		expect(response.status).toBe(200);
@@ -175,8 +183,45 @@ describe('Building integration - List and Update Buildings', () => {
 		expect(response.body.data).toMatchObject({
 			building_id: buildingId,
 			building_name: 'Updated Building Name',
-			timezone: 'Africa/Johannesburg',
+			building_type: 'Industrial',
+			physical_address: '45 Complete Update Road',
+			timezone: 'Africa/Cape_Town',
+			max_occupancy: 300,
+			nominal_voltage: 400,
+			lifecycle_state: 'INACTIVE',
+			latitude: -33.9249,
+			longitude: 18.4241,
+			geohash: 'k3vngp',
 		});
+
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+		try {
+			const persisted = await client.query(
+				`select building_name, building_type, square_footage, physical_address, timezone,
+				        max_occupancy, nominal_voltage, lifecycle_state, latitude, longitude, geohash
+				 from buildings
+				 where building_id = $1`,
+				[buildingId],
+			);
+
+			expect(persisted.rows).toHaveLength(1);
+			expect(persisted.rows[0]).toMatchObject({
+				building_name: 'Updated Building Name',
+				building_type: 'Industrial',
+				square_footage: '15000',
+				physical_address: '45 Complete Update Road',
+				timezone: 'Africa/Cape_Town',
+				max_occupancy: 300,
+				nominal_voltage: 400,
+				lifecycle_state: 'inactive',
+				latitude: -33.9249,
+				longitude: 18.4241,
+				geohash: 'k3vngp',
+			});
+		} finally {
+			await client.end();
+		}
 	});
 
 	it('returns 200 when updating a building the by an admin', async () => {

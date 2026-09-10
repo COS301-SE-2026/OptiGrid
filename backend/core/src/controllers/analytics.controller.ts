@@ -105,7 +105,18 @@ export const getForecastController = async (req: Request, res: Response) => {
         }
         
         // parse and normalise forecast series data from JSON
-        const rawForecastSeries = Array.isArray(analytics.forecast_series) ? analytics.forecast_series : [];
+        // parse and normalise forecast series data from JSON
+        let parsedForecastSeries = analytics.forecast_series;
+        if (typeof parsedForecastSeries === 'string') {
+            try {
+                parsedForecastSeries = JSON.parse(parsedForecastSeries);
+            } catch (e) {
+                console.error("[Forecast] Failed to parse forecast_series string", e);
+            }
+        }
+        
+        const rawForecastSeries = Array.isArray(parsedForecastSeries) ? parsedForecastSeries : [];
+        
         const normalizedForecastSeries = rawForecastSeries.map((point: Record<string, unknown>) => {
             const yhat = toFiniteNumber(point?.yhat) ?? toFiniteNumber(point?.predicted_usage) ?? toFiniteNumber(point?.value);
             // extract predicted value from various possible field names
