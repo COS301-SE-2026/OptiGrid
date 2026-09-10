@@ -101,7 +101,7 @@ async function createBuildingInCore(
 async function loginInFrontend(page: Page, user: E2EUser): Promise<string> {
   await page.goto("/login");
   await page.getByLabel("Work email").fill(user.email);
-  await page.getByLabel("Password").fill(user.password);
+  await page.getByLabel("Password", { exact: true }).fill(user.password);
 
   const loginResponsePromise = page.waitForResponse("**/api/auth/login");
   await page.getByRole("button", { name: "Log in" }).click();
