@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { getTabSessionCookiePath, isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
 import { getCoreUrl, getForwardHeaders } from "@/lib/coreProxy";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 const SESSION_COOKIE_NAME = "optigrid_session";
 const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 const LOGOUT_REDIRECT_PATH = "/login?loggedOut=1";
 
-function buildLogoutResponse(request: Request) {
+async function buildLogoutResponse(request: Request) {
 	const requestedTabSessionId = request.headers.get(TAB_SESSION_HEADER);
 	const tabSessionId = isTabSessionId(requestedTabSessionId) ? requestedTabSessionId : null;
 	const response = new NextResponse(null, { status: 303 });
@@ -26,6 +28,31 @@ function buildLogoutResponse(request: Request) {
 		path: getTabSessionCookiePath(tabSessionId),
 		maxAge: 0,
 	});
+	const cookieStore = await cookies();
+	const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,
+		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,{
+			cookies: {
+				get(name: string) {
+					return cookieStore.get(name)?.value;
+				},
+				set(name: string, value: string, options: CookieOptions) {
+					response.cookies.set({ 
+						name, 
+						value, 
+						...options 
+					});
+				},
+				remove(name: string, options: CookieOptions){
+					response.cookies.set({ 
+						name, 
+						value: "", 
+						...options 
+					});
+				},
+			},
+		}
+	);
+	await supabase.auth.signOut();
 
 	return response;
 }
@@ -52,10 +79,10 @@ async function recordLogout(request: Request) {
 
 export async function GET(request: Request) {
 	await recordLogout(request);
-	return buildLogoutResponse(request);
+	return await buildLogoutResponse(request);
 }
 
 export async function POST(request: Request) {
 	await recordLogout(request);
-	return buildLogoutResponse(request);
+	return await buildLogoutResponse(request);
 }
