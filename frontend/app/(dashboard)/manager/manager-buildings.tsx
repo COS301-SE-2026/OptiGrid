@@ -227,19 +227,19 @@ export default function ManagerBuildings() {
                             <caption className="sr-only">Buildings you manage</caption>
                             <thead>
                                 <tr>
-                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                    <th scope="col">
                                         Building
                                     </th>
-                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                    <th scope="col">
                                         Lifecycle
                                     </th>
-                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                    <th scope="col">
                                         Energy usage (kWh)
                                     </th>
-                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                    <th scope="col">
                                         Owner
                                     </th>
-                                    <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                    <th scope="col">
                                         Actions
                                     </th>
                                 </tr>

@@ -439,52 +439,16 @@ export default function DashboardPage() {
                             <caption className="sr-only">Your buildings</caption>
                             <thead>
                                 <tr>
-                                    <th
-                                        scope="col"
-                                        style={{
-                                            color: "#CDE8E5",
-                                            fontSize: "var(--fs-small)",
-                                            fontWeight: "var(--fw-semibold)",
-                                            letterSpacing: "0.05em",
-                                            textTransform: "uppercase",
-                                        }}
-                                    >
+                                    <th scope="col">
                                         Name
                                     </th>
-                                    <th
-                                        scope="col"
-                                        style={{
-                                            color: "#CDE8E5",
-                                            fontSize: "var(--fs-small)",
-                                            fontWeight: "var(--fw-semibold)",
-                                            letterSpacing: "0.05em",
-                                            textTransform: "uppercase",
-                                        }}
-                                    >
+                                    <th scope="col">
                                         Type
                                     </th>
-                                    <th
-                                        scope="col"
-                                        style={{
-                                            color: "#CDE8E5",
-                                            fontSize: "var(--fs-small)",
-                                            fontWeight: "var(--fw-semibold)",
-                                            letterSpacing: "0.05em",
-                                            textTransform: "uppercase",
-                                        }}
-                                    >
+                                    <th scope="col">
                                         Today (kWh)
                                     </th>
-                                    <th
-                                        scope="col"
-                                        style={{
-                                            color: "#CDE8E5",
-                                            fontSize: "var(--fs-small)",
-                                            fontWeight: "var(--fw-semibold)",
-                                            letterSpacing: "0.05em",
-                                            textTransform: "uppercase",
-                                        }}
-                                    >
+                                    <th scope="col">
                                         Status
                                     </th>
                                 </tr>
