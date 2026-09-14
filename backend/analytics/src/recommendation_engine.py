@@ -216,7 +216,7 @@ class RecommendationSynthesizer:
             strategy = f"General seasonal optimisation for {context}. Monitor usage on {equipment}."
             savings = 50.0
 
-        comfort_score = self._calculate_thermal_comfort_score(0.0, 1.0) 
+        comfort_score = self._calculate_comfort_score(0.0, 1.0) 
         return {
             "building_id": building_id,
             "strategy_description": strategy,

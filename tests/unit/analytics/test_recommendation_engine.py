@@ -130,3 +130,64 @@ def test_duplciate_exception_handling(logger, mock_supabase, engine):
     out = engine._is_duplicate("building123", "Peak Shaving")
     assert out is False
     logger.warning.assert_called()
+
+#testing the comfort stuff
+@patch('backend.analytics.src.recommendation_engine.requests.get')
+def test_comfort_hot(mock_get, engine):
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.json.return_value = {
+        "current": {
+            "temperature_2m": 35.0
+        }
+    }
+    mock_get.return_value = resp
+    #assert
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=100.0)
+    assert res == 48
+
+@patch('backend.analytics.src.recommendation_engine.requests.get')
+def test_comfort_normal(mock_get, engine):
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.json.return_value = {
+        "current": {
+            "temperature_2m": 22.0
+        }
+    }
+    mock_get.return_value = resp
+    #act n assert
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=100.0)
+    assert res == 100
+
+@patch('backend.analytics.src.recommendation_engine.RecommendationSynthesizer._calculate_comfort_score')
+def test_peak_shaving_omfort(mock_comfort_score, engine):
+    mock_comfort_score.return_value = 85
+    recs = engine.generate_data_driven_rec(
+        building_id="building-123",
+        building_type="Commercial",
+        forecast_peak=150.0,
+        thresold_kw=100.0,
+        tariffs=[],
+        anomalies=[]
+    )
+    #ant n asser
+    assert len(recs) > 0
+    peak_rec = recs[0]
+    assert "predicted_comfort_score" in peak_rec["applicable_range"]
+    assert peak_rec["applicable_range"]["predicted_comfort_score"] == 85
+
+@patch('backend.analytics.src.recommendation_engine.RecommendationSynthesizer._calculate_comfort_score')
+def test_season_optimisation_injects_comfort_score(mock_comfort_score, engine):
+    mock_comfort_score.return_value = 90
+    with patch("backend.analytics.src.recommendation_engine.datetime") as mock_datetime:
+        mock_datetime.now.return_value.month = 12
+        recs = engine.generate_non_data_driven_recs(
+            building_id="B1",
+            building_type="Commercial",
+            tariffs=[]
+        )
+        #act n assert
+        assert len(recs) > 0
+        assert "predicted_comfort_score" in recs[0]["applicable_range"]
+        assert recs[0]["applicable_range"]["predicted_comfort_score"] == 90
