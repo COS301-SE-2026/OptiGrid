@@ -7,7 +7,4 @@ ALTER TABLE "audit_logs"
   ADD COLUMN "prev_hash" VARCHAR(64),
   ADD COLUMN "current_hash" VARCHAR(64);
 
-CREATE INDEX "audit_logs_chain_index_idx" ON "audit_logs"("chain_index");
-
-CREATE UNIQUE INDEX "audit_logs_chain_index_key" ON "audit_logs"("chain_index")
-  WHERE "chain_index" IS NOT NULL;
+CREATE UNIQUE INDEX "audit_logs_chain_index_key" ON "audit_logs"("chain_index");

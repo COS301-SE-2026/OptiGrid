@@ -76,6 +76,18 @@ describe('audit chain hashing', () => {
 
         expect(editedHash).not.toBe(originalHash);
     });
+
+    it('treats identifiers the same way regardless of the letter case', () => {
+        const lowerHash = computeRecordHash(baseRecord({ 
+            user_id: 'ab12cd34-0000-4000-8000-00000000abcd' 
+        }), GENESIS_HASH);
+        const upperHash = computeRecordHash(baseRecord({
+            log_id: '3F2C0F8E-6B1A-4C55-9D0E-2A7B8C9D0E1F',
+            user_id: 'AB12CD34-0000-4000-8000-00000000ABCD'
+        }), GENESIS_HASH);
+
+        expect(upperHash).toBe(lowerHash);
+    });
 });
 
 describe('appendChainedAuditLog', () => {

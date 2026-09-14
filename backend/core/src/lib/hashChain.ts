@@ -53,11 +53,13 @@ const normaliseTimestamp = (value: Date | string | null): string | null => {
     return Number.isNaN(parsedValue.getTime()) ? null : parsedValue.toISOString();
 };
 
+const normaliseIdentifier = (value: string | null): string | null => value === null ? null : value.toLowerCase();
+
 export const buildRecordPayload = (record: ChainableAuditRecord): string =>
     canonicaliseData({
-        log_id: record.log_id,
-        user_id: record.user_id ?? null,
-        building_id: record.building_id ?? null,
+        log_id: normaliseIdentifier(record.log_id),
+        user_id: normaliseIdentifier(record.user_id ?? null),
+        building_id: normaliseIdentifier(record.building_id ?? null),
         action_type: record.action_type,
         target_table: record.target_table,
         service: record.service ?? null,

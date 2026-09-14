@@ -106,6 +106,31 @@ describe('verifyAuditChain', () => {
         expect(result.broken_at).toMatchObject({ reason: 'prev_hash_mismatch' });
     });
 
+    it('verifies the entries written with uppercase identifiers after the database returns them in lowercase', async () => {
+        const rows: Row[] = [];
+        let previous = GENESIS_HASH;
+
+        for (let index = 0; index < 3; index += 1) {
+            const written = entry(index, {
+                log_id: `ABCDEF00-0000-4000-8000-00000000000${index}`,
+                building_id: 'CB430D07-ABBB-4C9D-B32A-85B47DFBC5EA'
+            });
+            const current = computeRecordHash(written as never, previous);
+            rows.push({
+                ...written,
+                log_id: String(written.log_id).toLowerCase(),
+                building_id: String(written.building_id).toLowerCase(),
+                prev_hash: previous,
+                current_hash: current
+            });
+            previous = current;
+        }
+        serveRows(rows);
+        const result = await verifyAuditChain();
+        expect(result.verified).toBe(true);
+        expect(result.records_checked).toBe(3);
+    });
+
     it('reports an empty ledger as unverified and not as verified', async () => {
         serveRows([]);
         const result = await verifyAuditChain();

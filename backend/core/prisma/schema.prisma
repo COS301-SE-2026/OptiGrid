@@ -305,7 +305,7 @@ model AuditLog {
   metadata     Json?
   ip_address   String?        @map("ip_address")
   timestamp    DateTime?      @default(now()) @db.Timestamptz
-  chain_index  BigInt?        @map("chain_index")
+  chain_index  BigInt?        @unique @map("chain_index")
   prev_hash    String?        @map("prev_hash") @db.VarChar(64)
   current_hash String?        @map("current_hash") @db.VarChar(64)
 
@@ -321,7 +321,6 @@ model AuditLog {
   @@index([building_id, timestamp])
   @@index([service, timestamp])
   @@index([severity, timestamp])
-  @@index([chain_index])
   @@map("audit_logs")
   @@schema("public")
 }
