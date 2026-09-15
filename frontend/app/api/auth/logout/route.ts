@@ -14,20 +14,31 @@ async function buildLogoutResponse(request: Request) {
 	const response = new NextResponse(null, { status: 303 });
 	response.headers.set("Location", LOGOUT_REDIRECT_PATH);
 
-	response.cookies.set(SESSION_COOKIE_NAME, "", {
+	const cookieOptions = {
 		httpOnly: true,
 		secure: process.env.NODE_ENV === "production",
-		sameSite: "lax",
-		path: getTabSessionCookiePath(tabSessionId),
+		sameSite: "lax" as const,
 		maxAge: 0,
+	};
+	response.cookies.set(SESSION_COOKIE_NAME, "", {
+		...cookieOptions,
+		path: "/"
 	});
 	response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, "", {
-		httpOnly: true,
-		secure: process.env.NODE_ENV === "production",
-		sameSite: "lax",
-		path: getTabSessionCookiePath(tabSessionId),
-		maxAge: 0,
+		...cookieOptions,
+		path: "/"
 	});
+	if (tabSessionId) {
+		const tabPath = getTabSessionCookiePath(tabSessionId);
+		response.cookies.set(SESSION_COOKIE_NAME, "", {
+			...cookieOptions,
+			path: tabPath
+		});
+		response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, "", {
+			...cookieOptions,
+			path: tabPath
+		});
+	}
 	const cookieStore = await cookies();
 	const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,
 		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,{

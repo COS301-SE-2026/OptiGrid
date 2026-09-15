@@ -14,6 +14,9 @@ export default function GoogleAuthButton({ onLoading,onError}: AuthButton) {
             provider: "google",
             options: {
                 redirectTo: `${window.location.origin}/api/auth/googleAuth`,
+                queryParams: {
+                    prompt: "select_account",
+                },
             },
         });
         if(error) {
