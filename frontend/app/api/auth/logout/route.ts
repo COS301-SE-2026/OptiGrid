@@ -14,30 +14,16 @@ async function buildLogoutResponse(request: Request) {
 	const response = new NextResponse(null, { status: 303 });
 	response.headers.set("Location", LOGOUT_REDIRECT_PATH);
 
-	const cookieOptions = {
-		httpOnly: true,
-		secure: process.env.NODE_ENV === "production",
-		sameSite: "lax" as const,
-		maxAge: 0,
+	const buildDeleteCookieString = (name: string, path: string) => {
+		const secureStr = process.env.NODE_ENV === "production" ? "; Secure" : "";
+		return `${name}=; Path=${path}; Max-Age=0; HttpOnly; SameSite=Lax${secureStr}`;
 	};
-	response.cookies.set(SESSION_COOKIE_NAME, "", {
-		...cookieOptions,
-		path: "/"
-	});
-	response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, "", {
-		...cookieOptions,
-		path: "/"
-	});
+	response.headers.append("Set-Cookie", buildDeleteCookieString(SESSION_COOKIE_NAME, "/"));
+	response.headers.append("Set-Cookie", buildDeleteCookieString(ACCESS_TOKEN_COOKIE_NAME, "/"));
 	if (tabSessionId) {
 		const tabPath = getTabSessionCookiePath(tabSessionId);
-		response.cookies.set(SESSION_COOKIE_NAME, "", {
-			...cookieOptions,
-			path: tabPath
-		});
-		response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, "", {
-			...cookieOptions,
-			path: tabPath
-		});
+		response.headers.append("Set-Cookie", buildDeleteCookieString(SESSION_COOKIE_NAME, tabPath));
+		response.headers.append("Set-Cookie", buildDeleteCookieString(ACCESS_TOKEN_COOKIE_NAME, tabPath));
 	}
 	const cookieStore = await cookies();
 	const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,
