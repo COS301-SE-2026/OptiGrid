@@ -17,6 +17,7 @@ import {
 import { AccessibleChart } from "../../../components/AccessibleChart";
 import { buildDisplayName, type SessionUser } from "../../../lib/session";
 import { getTabSessionPath } from "../../../lib/tab-session";
+import VerifyIntegrityButton, { IntegrityStatus, useIntegrityVerification } from "@/components/VerifyIntegrityButton";
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
 
@@ -276,6 +277,7 @@ function KpiCard({
 
 export default function DashboardPage() {
     const queryClient = useQueryClient();
+    const ledgerVerification = useIntegrityVerification();
     const [deleteTarget, setDeleteTarget] = useState<Building | null>(null);
     const tableRef = useRef<HTMLTableElement>(null);
 
@@ -439,52 +441,16 @@ export default function DashboardPage() {
                             <caption className="sr-only">Your buildings</caption>
                             <thead>
                                 <tr>
-                                    <th
-                                        scope="col"
-                                        style={{
-                                            color: "#CDE8E5",
-                                            fontSize: "var(--fs-small)",
-                                            fontWeight: "var(--fw-semibold)",
-                                            letterSpacing: "0.05em",
-                                            textTransform: "uppercase",
-                                        }}
-                                    >
+                                    <th scope="col">
                                         Name
                                     </th>
-                                    <th
-                                        scope="col"
-                                        style={{
-                                            color: "#CDE8E5",
-                                            fontSize: "var(--fs-small)",
-                                            fontWeight: "var(--fw-semibold)",
-                                            letterSpacing: "0.05em",
-                                            textTransform: "uppercase",
-                                        }}
-                                    >
+                                    <th scope="col">
                                         Type
                                     </th>
-                                    <th
-                                        scope="col"
-                                        style={{
-                                            color: "#CDE8E5",
-                                            fontSize: "var(--fs-small)",
-                                            fontWeight: "var(--fw-semibold)",
-                                            letterSpacing: "0.05em",
-                                            textTransform: "uppercase",
-                                        }}
-                                    >
+                                    <th scope="col">
                                         Today (kWh)
                                     </th>
-                                    <th
-                                        scope="col"
-                                        style={{
-                                            color: "#CDE8E5",
-                                            fontSize: "var(--fs-small)",
-                                            fontWeight: "var(--fw-semibold)",
-                                            letterSpacing: "0.05em",
-                                            textTransform: "uppercase",
-                                        }}
-                                    >
+                                    <th scope="col">
                                         Status
                                     </th>
                                 </tr>
@@ -642,8 +608,8 @@ export default function DashboardPage() {
                         Portfolio overview - last updated {lastUpdatedLabel}
                     </p>
                 </div>
-                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                    <a 
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                    <a
                         href={getTabSessionPath("/api/reports/summary")}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -668,8 +634,11 @@ export default function DashboardPage() {
                     >
                         + Add building
                     </Link>
+                    <VerifyIntegrityButton state={ledgerVerification.state} onVerify={ledgerVerification.run} variant="primary" />
                 </div>
             </div>
+
+            <IntegrityStatus state={ledgerVerification.state} showSignature={false} className="integrity-output-banner" />
 
             <div className="dashboard-kpi-grid" aria-label="Portfolio statistics">
                 <KpiCard
