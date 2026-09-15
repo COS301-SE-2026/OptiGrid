@@ -26,7 +26,7 @@ type ChainedStore = {
         findFirst: () => Promise<Record<string, unknown> | null>;
     };
 
-    $queryRaw: (...args: unknown[]) => Promise<unknown[]>;
+    $executeRaw: (...args: unknown[]) => Promise<number>;
     $transaction: (handler: (tx: ChainedStore) => Promise<unknown>) => Promise<unknown>;
 };
 
@@ -47,7 +47,7 @@ function chainedStore(): { store: ChainedStore; rows: Record<string, unknown>[] 
                 );
             })
         },
-        $queryRaw: jest.fn(async () => []),
+        $executeRaw: jest.fn(async () => 1),
         $transaction: jest.fn(async (handler: (tx: ChainedStore) => Promise<unknown>) => handler(store))
     };
     return { store, rows };
@@ -120,7 +120,7 @@ describe('appendChainedAuditLog', () => {
         const { store } = chainedStore();
         await appendChainedAuditLog(store, { action_type: 'LOGIN', target_table: 'users' });
 
-        expect(store.$queryRaw).toHaveBeenCalled();
+        expect(store.$executeRaw).toHaveBeenCalled();
         expect(store.$transaction).toHaveBeenCalled();
     });
 

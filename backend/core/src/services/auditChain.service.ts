@@ -12,12 +12,12 @@ interface ChainCapableStore {
     };
 
     $transaction?: (handler: (tx: any) => Promise<any>) => Promise<any>;
-    $queryRaw?: (query: any, ...values: any[]) => Promise<any>;
+    $executeRaw?: (query: any, ...values: any[]) => Promise<any>;
 }
 
 const supportsChaining = (store: ChainCapableStore): boolean =>
     typeof store.$transaction === 'function'
-    && typeof store.$queryRaw === 'function'
+    && typeof store.$executeRaw === 'function'
     && typeof store.auditLog.findFirst === 'function';
 
 const asChainableRecord = (data: AuditCreateData): ChainableAuditRecord => ({
@@ -51,7 +51,7 @@ export const appendChainedAuditLog = async (store: ChainCapableStore, data: Audi
 
     return store.$transaction!(async (tx: ChainCapableStore) => {
         const transaction = tx;
-        await transaction.$queryRaw!(Prisma.sql`SELECT pg_advisory_xact_lock(${CHAIN_LOCK_KEY})`);
+        await transaction.$executeRaw!(Prisma.sql`SELECT pg_advisory_xact_lock(${CHAIN_LOCK_KEY})`);
 
         const tip = await transaction.auditLog.findFirst!({
             where: { chain_index: { not: null } },
