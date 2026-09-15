@@ -1,11 +1,20 @@
 import prisma from '../lib/prisma';
 import { analyticsQueue } from './bullmq';
-import { RecommendationStatus } from '@prisma/client';
+import { Prisma, RecommendationStatus } from '@prisma/client';
+import { approveTradeoff, buildTradeoffProfile, readTradeoffInputs, type ApprovedTradeoff } from '../lib/comfortTradeoff';
 
 export interface UpdateTariffPayload {
   peak_rate_zar: number;
   off_peak_rate_zar: number;
   season_name:string;
+}
+
+export interface ApplySelection {
+  savings_level?: number;
+}
+
+export interface ReviewResult {
+  approvedTradeoff: ApprovedTradeoff | null;
 }
 
 const helper = async(userId: string, buildingId:string, recommendationId: string) => {
@@ -39,24 +48,41 @@ const helper = async(userId: string, buildingId:string, recommendationId: string
 };
 
 
-export const applyRecommendation = async (userId: string, buildingId: string, recommendationId: string) => {
+export const applyRecommendation = async (userId: string, buildingId: string, recommendationId: string, selection: ApplySelection = {}): Promise<ReviewResult> => {
   const rec = await helper(userId, buildingId, recommendationId);
+  const tradeoffInputs = readTradeoffInputs(rec);
+
+  if (tradeoffInputs && selection.savings_level === undefined) {
+    throw new Error("Trade-off selection required");
+  }
+
+  const approvedTradeoff = tradeoffInputs && selection.savings_level !== undefined ? approveTradeoff(tradeoffInputs, selection.savings_level, userId) : null;
+  const storedRange = (rec.applicable_range ?? {}) as Prisma.JsonObject;
+  const applicableRange = approvedTradeoff ? { ...storedRange, approved_tradeoff: { ...approvedTradeoff } } : rec.applicable_range;
+
   await prisma.optimisationRecommendation.update({
     where: {
       recommendation_id: recommendationId
     },
-    data: {
-      status: "Pending_Execution"
-    }
+    data: approvedTradeoff
+      ? {
+          status: "Pending_Execution",
+          estimated_monthly_savings: approvedTradeoff.monthly_savings,
+          applicable_range: applicableRange as Prisma.InputJsonValue
+        }
+      : {
+          status: "Pending_Execution"
+        }
   });
 
   await analyticsQueue.add("apply_recommendation", {
     building_id: buildingId,
     recommendation_id: recommendationId,
     strategy_description: rec.strategy_description,
-    applicable_range: rec.applicable_range
+    applicable_range: applicableRange,
+    ...(approvedTradeoff ? { approved_tradeoff: approvedTradeoff } : {})
   });
-  return true;
+  return { approvedTradeoff };
 };
 
 export const viewRecommendationService = async (userId:string, buildingId: string, status?:string, limit: number=10) => {
@@ -88,7 +114,11 @@ export const viewRecommendationService = async (userId:string, buildingId: strin
       applicable_range: true
     }
   });
-  return rec;
+
+  return rec.map((recommendation) => {
+    const tradeoffInputs = readTradeoffInputs(recommendation);
+    return tradeoffInputs ? { ...recommendation, tradeoff: buildTradeoffProfile(tradeoffInputs) } : recommendation;
+  });
 }
 
 export const updateTariffService = async(userId:string, buildingId: string, payload: UpdateTariffPayload) => {
@@ -136,7 +166,7 @@ export const updateTariffService = async(userId:string, buildingId: string, payl
   return true;
 }
 
-export const dismissRecommendationService = async (userId: string, buildingId: string, recommendationId: string) => {
+export const dismissRecommendationService = async (userId: string, buildingId: string, recommendationId: string): Promise<ReviewResult> => {
   await helper(userId, buildingId, recommendationId);
   await prisma.optimisationRecommendation.update({
     where: {
@@ -146,5 +176,5 @@ export const dismissRecommendationService = async (userId: string, buildingId: s
       status: "Dismissed"
     }
   });
-  return true;
+  return { approvedTradeoff: null };
 };

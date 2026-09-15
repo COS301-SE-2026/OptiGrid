@@ -13,6 +13,14 @@ export const viewQuerySchema = z.object({
     limit: z.coerce.number().int().positive().default(10),
 });
 
+export const applyBodySchema = z.object({
+    savings_level: z.number()
+        .int("Savings level must be a whole number")
+        .min(0, "Savings level cannot be below 0")
+        .max(100, "Savings level cannot exceed 100")
+        .optional(),
+}).strict();
+
 export const tariffParameterSchema = z.object({
     building_id: z.string().uuid({
         message: "Invalid building UUID"
