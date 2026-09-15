@@ -7,8 +7,13 @@ export function LogoutButton() {
 	const router = useRouter();
 
 	const handleLogout = async () => {
-		const supabase = createClient();
-		await supabase.auth.signOut();
+		try {
+			const supabase = createClient();
+			await supabase.auth.signOut();
+		} catch (err) {
+			console.warn("Supabase signout skipped or failed:", err);
+		}
+		
 		await fetch("/api/auth/logout", { method: "POST" });
 		router.push("/login?loggedOut=1");
 		router.refresh();

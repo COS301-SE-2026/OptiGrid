@@ -25,31 +25,36 @@ async function buildLogoutResponse(request: Request) {
 		response.headers.append("Set-Cookie", buildDeleteCookieString(SESSION_COOKIE_NAME, tabPath));
 		response.headers.append("Set-Cookie", buildDeleteCookieString(ACCESS_TOKEN_COOKIE_NAME, tabPath));
 	}
-	const cookieStore = await cookies();
-	const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,
-		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,{
-			cookies: {
-				get(name: string) {
-					return cookieStore.get(name)?.value;
+	try {
+		const cookieStore = await cookies();
+		const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,
+			process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,{
+				cookies: {
+					get(name: string) {
+						return cookieStore.get(name)?.value;
+					},
+					set(name: string, value: string, options: CookieOptions) {
+						response.cookies.set({ 
+							name, 
+							value, 
+							...options 
+						});
+					},
+					remove(name: string, options: CookieOptions){
+						response.cookies.set({ 
+							name, 
+							value: "", 
+							...options 
+						});
+					},
 				},
-				set(name: string, value: string, options: CookieOptions) {
-					response.cookies.set({ 
-						name, 
-						value, 
-						...options 
-					});
-				},
-				remove(name: string, options: CookieOptions){
-					response.cookies.set({ 
-						name, 
-						value: "", 
-						...options 
-					});
-				},
-			},
-		}
-	);
-	await supabase.auth.signOut();
+			}
+		);
+		await supabase.auth.signOut();
+	} 
+	catch(err) {
+		console.warn("Supabase signout skipped or failed:", err);
+	}
 
 	return response;
 }
