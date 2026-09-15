@@ -81,3 +81,4 @@ infrastructure/docker/.generated/
 
 .mypy_cache/
 .coverage
+.codex-test-results/

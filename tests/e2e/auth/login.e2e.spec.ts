@@ -95,7 +95,7 @@ test.describe("Login page before hydration", () => {
     await expect(form).toHaveAttribute("method", "post");
     await expect(submitButton).toBeDisabled();
     await page.getByLabel("Work email").fill("diagnostic@optigrid.test");
-    await page.getByLabel("Password").fill("StrongPass123!");
+    await page.getByLabel("Password", { exact: true }).fill("StrongPass123!");
     await submitButton.click({ force: true });
 
     await expect(page).toHaveURL(/\/login$/);
