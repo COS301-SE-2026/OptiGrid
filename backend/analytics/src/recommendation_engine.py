@@ -1,6 +1,7 @@
 import uuid
 import secrets
 import logging
+import requests
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any
 
@@ -130,9 +131,12 @@ class RecommendationSynthesizer:
         if self._is_duplicate(building_id, context):
             return None
 
+        comfort_score = self._calculate_comfort_score(kw_reduced, forecast_peak)
+
         strategy = (
             f"Aggregate sensors forecast a peak load of {round(forecast_peak, 2)}kW, exceeding your threshold by {round((peak_base_ratio - 1) * 100, 1)}%."
-            f"To shift load away from peak tariff hours ({peak_start} - {peak_end}), investigate likely drivers such as {equipment}."
+            f"To shift load away from peak tariff hours ({peak_start} - {peak_end}), investigate likely drivers such as {equipment}. "
+            f"Note: This aggressive load reduction may drop the building's thermal comfort score to {comfort_score}/100."
         )
 
         return {
@@ -153,7 +157,8 @@ class RecommendationSynthesizer:
                 },
                 "target_equipment": equipment,
                 "confidence_score": 0.85,
-                "context": context
+                "context": context,
+                "predicted_comfort_score": comfort_score
             },
             "generated_date": datetime.now(timezone.utc).isoformat(),
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=(7 if time_window == "weekly" else 30))).isoformat()
@@ -211,6 +216,7 @@ class RecommendationSynthesizer:
             strategy = f"General seasonal optimisation for {context}. Monitor usage on {equipment}."
             savings = 50.0
 
+        comfort_score = self._calculate_comfort_score(0.0, 1.0) 
         return {
             "building_id": building_id,
             "strategy_description": strategy,
@@ -219,12 +225,13 @@ class RecommendationSynthesizer:
             "recommendation_category": "non_data",
             "applicable_range": {
                 "target_equipment": equipment,
-                "context": context
+                "context": context,
+                "predicted_comfort_score": comfort_score
             },
             "generated_date": datetime.now(timezone.utc).isoformat(),
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
         }
-
+    
     def _is_duplicate(self, building_id:str, context: str) -> bool:
         if not self.supabase: 
             return False
@@ -248,3 +255,35 @@ class RecommendationSynthesizer:
         except Exception as error:
             logger.warning("Failed deduplication check for %s: %s", building_id, error)
             return False
+
+    def _calculate_comfort_score(self, kw_reduced: float, forecast_peak: float) -> int:
+        try:
+            #default is jhb, SA
+            lat= -26.2041
+            long = 28.0473
+            #im using free whther api to pull whether
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={long}&current=temperature_2m"
+            
+            resp = requests.get(url, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                outside_temp = data.get("current", {}).get("temperature_2m", 22.0)
+            else:
+                outside_temp = 22.0
+        except Exception as e:
+            logger.warning("Failed to fetch weather for comfort score: %s", e)
+            outside_temp = 22.0
+                
+        reduction_percentage = 0.0
+        if forecast_peak > 0:
+            reduction_percentage = kw_reduced / forecast_peak
+                
+        comfort_score = 100.0
+        temp_deviation = abs(outside_temp - 22.0)
+            
+        pen_fact = 8.0
+        pen = temp_deviation * reduction_percentage * pen_fact
+        comfort_score -= pen
+    
+        return max(0, min(100, int(comfort_score)))
+    
