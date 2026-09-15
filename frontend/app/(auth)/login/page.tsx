@@ -14,8 +14,10 @@ export default function LoginPage() {
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [loading, setLoading] = useState(false);
+    const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
+        setHydrated(true);
         const query = new URLSearchParams(window.location.search);
         const signupState = query.get("signup");
         const loggedOut = query.get("loggedOut");
@@ -102,6 +104,7 @@ export default function LoginPage() {
 
                 <form
                     className="auth-form"
+                    method="post"
                     noValidate
                     onSubmit={handleSubmit}
                     suppressHydrationWarning
@@ -142,15 +145,15 @@ export default function LoginPage() {
 
                     <button
                         type="submit"
-                        disabled={loading}
-                        aria-disabled={loading}
+                        disabled={!hydrated || loading}
+                        aria-disabled={!hydrated || loading}
                         className="btn btn-primary auth-submit"
                         style={{
                             backgroundColor: "#3A6B7C",
                             color: "#FFFFFF",
                         }}
                     >
-                        {loading ? "Logging in..." : "Log in"}
+                        {!hydrated ? "Loading..." : loading ? "Logging in..." : "Log in"}
                     </button>
 
                     <GoogleAuthButton
