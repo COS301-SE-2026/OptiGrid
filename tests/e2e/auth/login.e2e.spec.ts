@@ -82,3 +82,23 @@ test.describe("Login page", () => {
     ).toBeVisible();
   });
 });
+
+test.describe("Login page before hydration", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("does not submit credentials through a native GET request", async ({ page }) => {
+    await page.goto("/login");
+
+    const form = page.locator("form");
+    const submitButton = page.getByRole("button", { name: "Loading..." });
+
+    await expect(form).toHaveAttribute("method", "post");
+    await expect(submitButton).toBeDisabled();
+    await page.getByLabel("Work email").fill("diagnostic@optigrid.test");
+    await page.getByLabel("Password", { exact: true }).fill("StrongPass123!");
+    await submitButton.click({ force: true });
+
+    await expect(page).toHaveURL(/\/login$/);
+    expect(new URL(page.url()).search).toBe("");
+  });
+});

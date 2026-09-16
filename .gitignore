@@ -80,4 +80,3 @@ infrastructure/.data/
 infrastructure/docker/.generated/
 
 .mypy_cache/
-.coverage

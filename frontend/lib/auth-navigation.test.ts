@@ -6,12 +6,12 @@ jest.mock("./tab-session", () => ({
 }));
 
 describe("post-login navigation", () => {
-	it("replaces the current route with the tab-scoped dashboard URL", () => {
-		const replaceRoute = jest.fn();
+	it("replaces the document with the tab-scoped dashboard URL", () => {
+		const replaceLocation = jest.fn();
 
-		navigateAfterLogin(replaceRoute);
+		navigateAfterLogin(replaceLocation);
 
 		expect(getTabSessionPath).toHaveBeenCalledWith("/dashboard");
-		expect(replaceRoute).toHaveBeenCalledWith("/_sessions/test-tab-id/dashboard");
+		expect(replaceLocation).toHaveBeenCalledWith("/_sessions/test-tab-id/dashboard");
 	});
 });
