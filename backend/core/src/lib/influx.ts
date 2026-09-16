@@ -167,6 +167,25 @@ async function queryBucketTotals(queryApi: any, buildingId: string, rangeClause:
     return totals;
 }
 
+async function queryBucketReadingCount(queryApi: any, buildingId: string, rangeClause: string, bucketName: string): Promise<number> {
+    const fluxQuery = `
+        from(bucket: ${fluxString(bucketName)})
+        |> ${rangeClause}
+        |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
+        |> filter(fn: (r) => ${measurementFilter()})
+        |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+        |> group()
+        |> count(column: "_value")
+    `;
+
+    let count = 0;
+    for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
+        const value = toFiniteNumber(tableMeta.toObject(values)._value);
+        if (value !== null) count += value;
+    }
+    return Math.max(0, Math.trunc(count));
+}
+
 async function queryBucketPeakUsage(
     queryApi: any,
     buildingId: string,
@@ -344,6 +363,26 @@ export const queryUsageBetween = async (buildingId: string, start: Date, stop: D
         total_cost_usd: 0, 
         total_cost_zar: 0 
     };
+};
+
+export const queryTelemetryReadingCountBetween = async (buildingId: string, start: Date, stop: Date): Promise<number> => {
+    if (!InfluxDB) return 0;
+
+    const influxClient = new InfluxDB({ url, token });
+    const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
+    let lastError: unknown;
+
+    for (const bucketName of uniqueBuckets(buildingId)) {
+        try {
+            return await queryBucketReadingCount(queryApi, buildingId, absoluteRangeClause(start, stop), bucketName);
+        } catch (error: any) {
+            lastError = error;
+            if (!isMissingBucketError(error)) break;
+        }
+    }
+
+    console.warn(`[InfluxDB] Failed to count telemetry readings for building ${buildingId}. Returning zero. Error:`, lastError);
+    return 0;
 };
 
 export const queryUsageDetails = async (buildingId: string, timeRange: string): Promise<UsageDetails> => {
