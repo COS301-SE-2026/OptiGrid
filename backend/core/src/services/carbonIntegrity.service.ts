@@ -42,7 +42,7 @@ export interface CarbonIntegrityResult {
     verified_at: string;
 }
 
-const parseMonth = (month: string): { start: Date; endExclusive: Date; days: number } => {
+export const parseCarbonMonth = (month: string): { start: Date; endExclusive: Date; days: number } => {
     const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);
     if (!match) throw new Error('Month must use YYYY-MM format.');
     const year = Number(match[1]);
@@ -66,7 +66,7 @@ export const verifyCarbonLedgerMonth = async (
     month: string,
     store: IntegrityStore = prisma as unknown as IntegrityStore
 ): Promise<CarbonIntegrityResult> => {
-    const period = parseMonth(month);
+    const period = parseCarbonMonth(month);
     const [predecessor, rows] = await Promise.all([
         store.carbonLedgerEntry.findFirst({
             where: { building_id: buildingId, period_date: { lt: period.start } },
@@ -151,6 +151,39 @@ export const verifyCarbonLedgerMonth = async (
         broken_at: brokenAt,
         verified_at: verifiedAt.toISOString()
     };
+};
+
+export const listCarbonLedgerMonth = async (
+    buildingId: string,
+    month: string,
+    store: IntegrityStore = prisma as unknown as IntegrityStore
+): Promise<Record<string, unknown>[]> => {
+    const period = parseCarbonMonth(month);
+    const rows = await store.carbonLedgerEntry.findMany({
+        where: {
+            building_id: buildingId,
+            period_date: { gte: period.start, lt: period.endExclusive }
+        },
+        orderBy: { period_date: 'asc' }
+    });
+    return rows.map((row) => ({
+        ledger_id: row.ledger_id,
+        building_id: row.building_id,
+        period_date: dateKey(row.period_date),
+        period_start: new Date(row.period_start).toISOString(),
+        period_end: new Date(row.period_end).toISOString(),
+        total_kwh: Number(row.total_kwh),
+        emission_factor_kg_co2e_per_kwh: Number(row.emission_factor_kg_co2e_per_kwh),
+        total_kg_co2e: Number(row.total_kg_co2e),
+        reading_count: row.reading_count,
+        chain_index: BigInt(row.chain_index).toString(),
+        prev_hash: row.prev_hash,
+        current_hash: row.current_hash,
+        integrity_status: row.integrity_status,
+        tamper_reason: row.tamper_reason,
+        calculated_at: new Date(row.calculated_at).toISOString(),
+        verified_at: row.verified_at ? new Date(row.verified_at).toISOString() : null
+    }));
 };
 
 export type { IntegrityStore };
