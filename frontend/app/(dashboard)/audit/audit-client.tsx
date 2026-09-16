@@ -53,14 +53,6 @@ const SEVERITY_BADGES: Record<string, string> = {
     critical: "badge-danger"
 };
 
-const headerStyle: CSSProperties = {
-    color: "#CDE8E5",
-    letterSpacing: "0.05em",
-    textTransform: "uppercase",
-    fontSize: "var(--fs-small)",
-    fontWeight: "var(--fw-semibold)"
-};
-
 function getSeverityBadge(severity: string | null): string {
     if (severity && severity.toLowerCase() in SEVERITY_BADGES) {
         return SEVERITY_BADGES[severity.toLowerCase()];
@@ -207,11 +199,11 @@ export default function AuditClient() {
                         <caption className="sr-only">System activity, most recent first</caption>
                         <thead>
                             <tr>
-                                <th scope="col" style={headerStyle}>When</th>
-                                <th scope="col" style={headerStyle}>Action</th>
-                                <th scope="col" style={headerStyle}>User</th>
-                                <th scope="col" style={headerStyle}>Target</th>
-                                <th scope="col" style={headerStyle}>Severity</th>
+                                <th scope="col">When</th>
+                                <th scope="col">Action</th>
+                                <th scope="col">User</th>
+                                <th scope="col">Target</th>
+                                <th scope="col">Severity</th>
                             </tr>
                         </thead>
                         <tbody>{renderRows()}</tbody>

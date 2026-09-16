@@ -7,6 +7,7 @@ import {getSubmitResult, hasErrors, shouldShowError, type SignupErrors, type Sig
 import { initialSignupFormData, type SignupFormData } from "./validation";
 import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../../../lib/tab-session";
 import GoogleAuthButton from "@/components/GoogleButton";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -197,23 +198,21 @@ export default function SignupPage() {
                         <label className="label" htmlFor="password">
                             Password
                         </label>
-                        <input
+                        <PasswordInput
                             id="password"
                             name="password"
-                            type="password"
                             autoComplete="new-password"
                             value={formData.password}
                             onChange={handleChange}
                             onBlur={handleBlur}
                             disabled={loading}
-                            aria-invalid={showError("password")}
-                            aria-describedby={
+                            ariaInvalid={showError("password")}
+                            ariaDescribedBy={
                                 showError("password") ? "password-error" : undefined
                             }
                             className={inputClass}
                             style={showError("password") ? errorStyle : undefined}
                             placeholder="At least 8 characters"
-                            suppressHydrationWarning
                         />
                         {showError("password") && (
                             <p
@@ -230,17 +229,16 @@ export default function SignupPage() {
                         <label className="label" htmlFor="confirmPassword">
                             Confirm password
                         </label>
-                        <input
+                        <PasswordInput
                             id="confirmPassword"
                             name="confirmPassword"
-                            type="password"
                             autoComplete="new-password"
                             value={formData.confirmPassword}
                             onChange={handleChange}
                             onBlur={handleBlur}
                             disabled={loading}
-                            aria-invalid={showError("confirmPassword")}
-                            aria-describedby={
+                            ariaInvalid={showError("confirmPassword")}
+                            ariaDescribedBy={
                                 showError("confirmPassword")
                                     ? "confirmPassword-error"
                                     : undefined
@@ -248,7 +246,6 @@ export default function SignupPage() {
                             className={inputClass}
                             style={showError("confirmPassword") ? errorStyle : undefined}
                             placeholder="Re-enter password"
-                            suppressHydrationWarning
                         />
                         {showError("confirmPassword") && (
                             <p

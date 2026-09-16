@@ -107,11 +107,19 @@ function isMissingBucketError(error: any): boolean {
     );
 }
 
-async function queryBucketTotals(queryApi: any, buildingId: string, timeRange: string, bucketName: string) {
+function relativeRangeClause(timeRange: string): string {
+    return `range(start: ${timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`})`;
+}
+
+function absoluteRangeClause(start: Date, stop: Date): string {
+    return `range(start: time(v: ${fluxString(start.toISOString())}), stop: time(v: ${fluxString(stop.toISOString())}))`;
+}
+
+async function queryBucketTotals(queryApi: any, buildingId: string, rangeClause: string, bucketName: string) {
     const fluxQuery = `
         import "date"
         from(bucket: ${fluxString(bucketName)})
-        |> range(start: ${timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`})
+        |> ${rangeClause}
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => ${measurementFilter()})
         |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh" or r["_field"] == "cost_usd" or r["_field"] == "cost_zar")
@@ -212,7 +220,7 @@ async function queryBucketUsageDetails(
     bucketName: string,
 ): Promise<UsageDetails> {
     const [totals, peakUsageTimes] = await Promise.all([
-        queryBucketTotals(queryApi, buildingId, timeRange, bucketName),
+        queryBucketTotals(queryApi, buildingId, relativeRangeClause(timeRange), bucketName),
         queryBucketPeakUsage(queryApi, buildingId, timeRange, bucketName),
     ]);
 
@@ -293,7 +301,7 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
 
     for (const bucketName of bucketsToTry) {
         try {
-            return await queryBucketTotals(queryApi, buildingId, normalizedRange, bucketName);
+            return await queryBucketTotals(queryApi, buildingId, relativeRangeClause(normalizedRange), bucketName);
         } catch (error: any) {
             lastError = error;
             if (!isMissingBucketError(error)) {
@@ -304,6 +312,38 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
     //added to help debig whys its failing on vercel
     console.warn(`[InfluxDB] Failed to query energy usage for building ${buildingId}. Returning fallback. Error:`, lastError);
     return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 };
+};
+
+export const queryUsageBetween = async (buildingId: string, start: Date, stop: Date): Promise<UsageTotals> => {
+    if (!InfluxDB) {
+        return { 
+            total_kwh: 0, 
+            total_cost_usd: 0, 
+            total_cost_zar: 0 
+        };
+    }
+
+    const influxClient = new InfluxDB({ url, token });
+    const queryAPI = influxClient.getQueryApi(org, { timeout: 30000 });
+    let lastError: unknown;
+
+    for (const bucket of uniqueBuckets(buildingId)) {
+        try {
+            return await queryBucketTotals(queryAPI, buildingId, absoluteRangeClause(start, stop), bucket);
+        } catch (error: any) {
+            lastError = error;
+            if (!isMissingBucketError(error)) {
+                break;
+            }
+        }
+    }
+    
+    console.warn(`[InfluxDB] Failed to query energy usage between dates for building ${buildingId}. Returning fallback. Error:`, lastError);
+    return { 
+        total_kwh: 0, 
+        total_cost_usd: 0, 
+        total_cost_zar: 0 
+    };
 };
 
 export const queryUsageDetails = async (buildingId: string, timeRange: string): Promise<UsageDetails> => {

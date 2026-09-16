@@ -32,7 +32,7 @@ async function createUserInCore(request: APIRequestContext, user: E2EUser): Prom
 async function loginAndOpenSettings(page: Page, user: E2EUser): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Work email").fill(user.email);
-  await page.getByLabel("Password").fill(user.password);
+  await page.getByLabel("Password", { exact: true }).fill(user.password);
 
   const loginResponsePromise = page.waitForResponse((response) =>
     response.request().method() === "POST" &&

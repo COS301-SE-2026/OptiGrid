@@ -31,7 +31,7 @@ async function createUserInCore(request: APIRequestContext, user: E2EUser): Prom
 async function login(page: Page, user: E2EUser): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Work email").fill(user.email);
-  await page.getByLabel("Password").fill(user.password);
+  await page.getByLabel("Password", { exact: true }).fill(user.password);
   await page.getByRole("button", { name: "Log in" }).click();
 
   await expect(page).toHaveURL(/\/_sessions\/[0-9a-f-]+\/dashboard$/, { timeout: 15_000 });

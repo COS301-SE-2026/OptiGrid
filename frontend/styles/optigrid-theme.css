@@ -227,9 +227,11 @@ h3 {
     padding: 9px 12px;
 }
 
-.input::placeholder {
+.input::placeholder,
+.textarea::placeholder {
+    font-style: italic;
     color: var(--brand-ink-muted);
-    opacity: 0.8;
+    opacity: 0.55;
 }
 
 .input:focus-visible,
@@ -1010,6 +1012,174 @@ h3 {
     width: 100%;
     font-weight: var(--fw-semibold);
     font-size: var(--fs-body);
+}
+
+.auth-password-input {
+    padding-right: 40px;
+}
+
+.auth-password-field {
+    display: flex;
+    position: relative;
+}
+
+.auth-password-toggle {
+    background: transparent;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    color: var(--brand-ink-muted);
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+}
+
+.auth-password-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.integrity-status {
+    font-size: var(--fs-small);
+    max-width: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+}
+
+.integrity-button {
+    line-height: var(--lh-body);
+}
+
+.integrity-output {
+    display: block;
+}
+
+.integrity-output-banner:not(:empty) {
+    margin-bottom: var(--space-5);
+}
+
+.integrity-output-card:not(:empty) {
+    margin-top: var(--space-4);
+}
+
+.integrity-status strong {
+    font-weight: var(--fw-semibold);
+    display: block;
+}
+
+.integrity-status svg {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.integrity-status-verified {
+    background: color-mix(in srgb, var(--brand-success) 12%, transparent);
+    border-color: var(--brand-success);
+    color: var(--badge-success-text);
+}
+
+.integrity-status-broken {
+    background: color-mix(in srgb, var(--brand-danger) 12%, transparent);
+    border-color: var(--brand-danger);
+    color: var(--badge-danger-text);
+}
+
+.integrity-detail {
+    margin: 2px 0 0;
+    font-size: 0.75rem;
+    color: var(--brand-ink-muted);
+}
+
+.integrity-hash {
+    padding: 6px 8px;
+    margin: var(--space-2) 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--brand-ink);
+    word-break: break-all;
+    background: color-mix(in srgb, var(--brand-ink) 6%, transparent);
+    border-radius: var(--radius-sm);
+}
+
+.signature-label {
+    font-size: 0.7rem;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #7AB2B2;
+}
+
+.signature-value {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #FFFFFF;
+    word-break: break-all;
+    margin: 0;
+}
+
+.signature-panel {
+    background: #0B1120;
+    display: grid;
+    gap: var(--space-2);
+    border: 1px solid #1B2941;
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+}
+
+.dark .signature-panel,
+[data-theme="dark"] .signature-panel {
+    background: var(--brand-surface);
+    border-color: var(--brand-border);
+}
+
+.signature-note {
+    font-size: 0.75rem;
+    color: #A9BED4;
+    margin: 0;
+}
+
+.compliance-definition {
+    display: grid;
+    gap: 2px;
+}
+
+.compliance-definition dd {
+    margin: 0;
+    font-size: var(--fs-body);
+    font-weight: var(--fw-semibold);
+    color: var(--brand-ink);
+}
+
+.compliance-definition dt {
+    font-size: 0.7rem;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand-ink-muted);
+}
+
+
+.auth-password-toggle:hover {
+    color: var(--brand-ink);
+    background: color-mix(in srgb, var(--brand-secondary) 16%, transparent);
+}
+
+.auth-password-toggle:focus-visible {
+    box-shadow: var(--focus-ring);
+    outline: none;
 }
 
 .auth-notice,
