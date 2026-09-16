@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDateTime } from "@/lib/formatDate";
 import { PageHeading } from "@/components/PageHeading";
@@ -13,7 +13,27 @@ type Site = {
     type: string | null;
     usage_kwh: number | null;
     cost_zar: number | null;
+    carbon_kg_co2e: number | null;
     share_of_total: number | null;
+};
+
+type CarbonIntegrity = {
+    building_id: string;
+    month: string;
+    status: "VALID" | "TAMPERED" | "INCOMPLETE";
+    verified: boolean;
+    algorithm: string;
+    records_checked: number;
+    expected_days: number;
+    missing_dates: string[];
+    current_hash: string | null;
+    broken_at: {
+        ledger_id: string;
+        period_date: string;
+        chain_index: string;
+        reason: "prev_hash_mismatch" | "content_mismatch";
+    } | null;
+    verified_at: string;
 };
 
 type ComplianceReport = {
@@ -36,6 +56,12 @@ type ComplianceReport = {
         total_cost_zar: number;
         average_daily_kwh: number;
         intensity_kwh_per_sqft: number | null;
+    };
+    carbon_accounting: {
+        total_kg_co2e: number;
+        ledger_entries: number;
+        scope_status: "VALID" | "TAMPERED" | "INCOMPLETE";
+        buildings: CarbonIntegrity[];
     };
     nonconformities: {
         total: number;
@@ -102,6 +128,8 @@ function Metric({ label, value }: Readonly<{ label: string; value: string }>) {
 }
 
 export default function ComplianceClient() {
+    const [selectedBuildingId, setSelectedBuildingId] = useState("");
+    const [carbonMonth, setCarbonMonth] = useState("");
     const { data, isLoading, isError, error } = useQuery<ComplianceReport>({
         queryKey: ["compliance-report"],
         queryFn: async () => {
@@ -119,11 +147,35 @@ export default function ComplianceClient() {
         }
     });
 
+    useEffect(() => {
+        if (!data) return;
+        if (!selectedBuildingId && data.organisation.sites[0]) {
+            setSelectedBuildingId(data.organisation.sites[0].building_id);
+        }
+        if (!carbonMonth) setCarbonMonth(data.period.start.slice(0, 7));
+    }, [carbonMonth, data, selectedBuildingId]);
+
+    const carbonVerification = useQuery<CarbonIntegrity>({
+        queryKey: ["carbon-integrity", selectedBuildingId, carbonMonth],
+        enabled: false,
+        queryFn: async () => {
+            const query = new URLSearchParams({ building_id: selectedBuildingId, month: carbonMonth });
+            const response = await fetch(`/api/compliance/carbon-integrity?${query.toString()}`, {
+                method: "GET",
+                credentials: "include",
+                cache: "no-store"
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload?.message || "Unable to verify the carbon ledger.");
+            return payload.data as CarbonIntegrity;
+        }
+    });
+
     const verification = useIntegrityVerification();
 
     const renderSites = (sites: Site[]) => {
         if (sites.length === 0) {
-            return (<tr><td colSpan={5} className="dashboard-empty">No sites are in scope for this report.</td></tr>);
+            return (<tr><td colSpan={6} className="dashboard-empty">No sites are in scope for this report.</td></tr>);
         }
 
         return sites.map((site) => (
@@ -132,6 +184,7 @@ export default function ComplianceClient() {
                 <td className="text-muted">{readable(site.type)}</td>
                 <td style={{ textAlign: "right" }}>{formatNumber(site.usage_kwh)}</td>
                 <td style={{ textAlign: "right" }}>{site.cost_zar === null ? "No data" : `R ${formatNumber(site.cost_zar)}`}</td>
+                <td style={{ textAlign: "right" }}>{site.carbon_kg_co2e === null ? "No data" : formatNumber(site.carbon_kg_co2e)}</td>
                 <td style={{ textAlign: "right" }}>{site.share_of_total === null ? "No data" : `${formatNumber(site.share_of_total, 1)}%`}</td>
             </tr>
         ));
@@ -174,6 +227,11 @@ export default function ComplianceClient() {
     }
 
     const integrity = data.audit_trail.integrity;
+    const reportMonth = data.period.start.slice(0, 7);
+    const reportedBuildingIntegrity = carbonMonth === reportMonth
+        ? data.carbon_accounting.buildings.find((entry) => entry.building_id === selectedBuildingId)
+        : undefined;
+    const displayedCarbonIntegrity = carbonVerification.data ?? reportedBuildingIntegrity;
     const severityEntries = Object.entries(data.nonconformities.by_severity);
     return (
         <div>
@@ -236,6 +294,66 @@ export default function ComplianceClient() {
                         ? "No floor data"
                         : `${formatNumber(data.energy_performance.intensity_kwh_per_sqft, 4)} per sqft`}
                     />
+                    <Metric label="Carbon emissions" value={`${formatNumber(data.carbon_accounting.total_kg_co2e)} kg CO2e`} />
+                </div>
+            </section>
+
+            <section className="dashboard-section" aria-label="Carbon ledger integrity">
+                <div className="dashboard-section-header">
+                    <h2 className="dashboard-section-title">Carbon ledger integrity</h2>
+                    <span className={`badge ${data.carbon_accounting.scope_status === "VALID" ? "badge-success" : "badge-danger"}`}>
+                        {readable(data.carbon_accounting.scope_status)}
+                    </span>
+                </div>
+                <div className="card" style={{ display: "grid", gap: "var(--space-4)" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", alignItems: "end" }}>
+                        <label className="label" style={{ minWidth: 240 }}>
+                            Building
+                            <select className="input" value={selectedBuildingId} onChange={(event) => setSelectedBuildingId(event.target.value)}>
+                                {data.organisation.sites.map((site) => (
+                                    <option key={site.building_id} value={site.building_id}>{site.name}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="label">
+                            Month
+                            <input className="input" type="month" value={carbonMonth} onChange={(event) => setCarbonMonth(event.target.value)} />
+                        </label>
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            disabled={!selectedBuildingId || !carbonMonth || carbonVerification.isFetching}
+                            onClick={() => void carbonVerification.refetch()}
+                        >
+                            {carbonVerification.isFetching ? "Verifying…" : "Verify carbon ledger"}
+                        </button>
+                    </div>
+
+                    {carbonVerification.isError && (
+                        <p role="alert" style={{ color: "var(--brand-danger)", margin: 0 }}>
+                            {carbonVerification.error instanceof Error ? carbonVerification.error.message : "Verification failed."}
+                        </p>
+                    )}
+                    {displayedCarbonIntegrity && (
+                        <div style={{ display: "grid", gap: "var(--space-3)" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "var(--space-3)" }}>
+                                <Metric label="Status" value={readable(displayedCarbonIntegrity.status)} />
+                                <Metric label="Records checked" value={displayedCarbonIntegrity.records_checked.toLocaleString()} />
+                                <Metric label="Expected days" value={displayedCarbonIntegrity.expected_days.toLocaleString()} />
+                                <Metric label="Algorithm" value={displayedCarbonIntegrity.algorithm} />
+                            </div>
+                            {displayedCarbonIntegrity.broken_at && (
+                                <p role="alert" style={{ color: "var(--brand-danger)", margin: 0 }}>
+                                    Chain break detected on {displayedCarbonIntegrity.broken_at.period_date}: {readable(displayedCarbonIntegrity.broken_at.reason)}.
+                                </p>
+                            )}
+                            {displayedCarbonIntegrity.missing_dates.length > 0 && (
+                                <p role="status" className="text-muted" style={{ margin: 0 }}>
+                                    Missing ledger dates: {displayedCarbonIntegrity.missing_dates.join(", ")}.
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
             </section>
 
@@ -259,6 +377,7 @@ export default function ComplianceClient() {
                                     <th scope="col">Type</th>
                                     <th scope="col" style={numericHeaderStyle}>Consumption (kWh)</th>
                                     <th scope="col" style={numericHeaderStyle}>Cost</th>
+                                    <th scope="col" style={numericHeaderStyle}>Carbon (kg CO2e)</th>
                                     <th scope="col" style={numericHeaderStyle}>Share</th>
                                 </tr>
                             </thead>
