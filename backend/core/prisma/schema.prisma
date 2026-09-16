@@ -127,6 +127,16 @@ enum AuditSeverity {
   @@schema("public")
 }
 
+enum CarbonIntegrityStatus {
+  PENDING    @map("pending")
+  VALID      @map("valid")
+  TAMPERED   @map("tampered")
+  INCOMPLETE @map("incomplete")
+
+  @@map("carbon_integrity_status")
+  @@schema("public")
+}
+
 // ==========================================
 // MODELS
 // ==========================================
@@ -203,6 +213,7 @@ model Building {
   recommendations     OptimisationRecommendation[]
   utility_tariffs     UtilityTariff[]
   auditLogs           AuditLog[]
+  carbonLedgerEntries CarbonLedgerEntry[]
 
   @@index([tenant_id])
   @@map("buildings")
@@ -322,6 +333,35 @@ model AuditLog {
   @@index([service, timestamp])
   @@index([severity, timestamp])
   @@map("audit_logs")
+  @@schema("public")
+}
+
+model CarbonLedgerEntry {
+  ledger_id                       String                @id @default(dbgenerated("gen_random_uuid()")) @map("ledger_id") @db.Uuid
+  building_id                     String                @map("building_id") @db.Uuid
+  period_date                     DateTime              @map("period_date") @db.Date
+  period_start                    DateTime              @map("period_start") @db.Timestamptz
+  period_end                      DateTime              @map("period_end") @db.Timestamptz
+  total_kwh                       Decimal               @map("total_kwh") @db.Decimal(18, 6)
+  emission_factor_kg_co2e_per_kwh Decimal               @map("emission_factor_kg_co2e_per_kwh") @db.Decimal(18, 9)
+  total_kg_co2e                   Decimal               @map("total_kg_co2e") @db.Decimal(18, 6)
+  reading_count                   Int                   @default(0) @map("reading_count")
+  source                          String                @default("influxdb") @db.VarChar(50)
+  chain_index                     BigInt                @map("chain_index")
+  prev_hash                       String                @map("prev_hash") @db.VarChar(64)
+  current_hash                    String                @map("current_hash") @db.VarChar(64)
+  integrity_status                CarbonIntegrityStatus @default(PENDING) @map("integrity_status")
+  tamper_reason                   String?               @map("tamper_reason") @db.VarChar(100)
+  calculated_at                   DateTime              @default(now()) @map("calculated_at") @db.Timestamptz
+  verified_at                     DateTime?             @map("verified_at") @db.Timestamptz
+
+  building Building @relation(fields: [building_id], references: [building_id], onDelete: Cascade)
+
+  @@unique([building_id, period_date])
+  @@unique([building_id, chain_index])
+  @@index([building_id, integrity_status])
+  @@index([period_date])
+  @@map("carbon_ledger_entries")
   @@schema("public")
 }
 
