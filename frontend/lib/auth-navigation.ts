@@ -1,7 +1,11 @@
 import { getTabSessionPath } from "./tab-session";
 
-type ReplaceRoute = (destination: string) => void;
+type ReplaceLocation = (destination: string) => void;
 
-export function navigateAfterLogin(replaceRoute: ReplaceRoute): void {
-	replaceRoute(getTabSessionPath("/dashboard"));
+export function navigateAfterLogin(
+	replaceLocation?: ReplaceLocation,
+	tabSessionId?: string | null,
+): void {
+	const replace = replaceLocation ?? window.location.replace.bind(window.location);
+	replace(getTabSessionPath("/dashboard", tabSessionId));
 }

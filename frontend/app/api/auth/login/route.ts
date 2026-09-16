@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { getTabSessionCookiePath, isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
+import { isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
+import {
+	setAccessTokenCookie,
+	setSessionCookie,
+	shouldUseSecureCookies,
+} from "../../../../lib/authCookies";
 
 const CORE_URL = process.env.CORE_URL ?? "http://localhost:4000";
-const SESSION_COOKIE_NAME = "optigrid_session";
-const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
 type LoginBody = {
 	email?: unknown;
@@ -47,47 +49,6 @@ function getSessionUser(payload: Record<string, unknown>): SessionUser {
 	};
 }
 
-function setSessionCookie(
-	response: NextResponse,
-	user: SessionUser,
-	tabSessionId: string | null,
-): void {
-	if (!user.userId || !user.email) {
-		return;
-	}
-
-	response.cookies.set(
-		SESSION_COOKIE_NAME,
-		JSON.stringify(user),
-		{
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "lax",
-			path: getTabSessionCookiePath(tabSessionId),
-			maxAge: SESSION_MAX_AGE_SECONDS,
-		},
-	);
-}
-
-function setAccessTokenCookie(
-	response: NextResponse,
-	payload: Record<string, unknown>,
-	tabSessionId: string | null,
-): void {
-	const accessToken = getStringValue(payload.accessToken);
-	if (!accessToken) {
-		return;
-	}
-
-	response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, accessToken, {
-		httpOnly: true,
-		secure: process.env.NODE_ENV === "production",
-		sameSite: "lax",
-		path: getTabSessionCookiePath(tabSessionId),
-		maxAge: SESSION_MAX_AGE_SECONDS,
-	});
-}
-
 export async function POST(request: Request) {
 	const requestedTabSessionId = request.headers.get(TAB_SESSION_HEADER);
 	const tabSessionId = isTabSessionId(requestedTabSessionId) ? requestedTabSessionId : null;
@@ -120,8 +81,9 @@ export async function POST(request: Request) {
 
 		const response = NextResponse.json(payload, { status: coreResponse.status });
 		if (coreResponse.ok) {
-			setSessionCookie(response, getSessionUser(payload), tabSessionId);
-			setAccessTokenCookie(response, payload, tabSessionId);
+			const secure = shouldUseSecureCookies(request);
+			setSessionCookie(response, getSessionUser(payload), tabSessionId, secure);
+			setAccessTokenCookie(response, getStringValue(payload.accessToken), tabSessionId, secure);
 		}
 
 		return response;

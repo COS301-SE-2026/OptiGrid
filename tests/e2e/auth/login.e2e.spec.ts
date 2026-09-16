@@ -43,10 +43,7 @@ test.describe("Login page", () => {
     page,
   }) => {
     await page.goto("/login");
-
-    await page.locator("form").evaluate((form) => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-    });
+    await page.getByRole("button", { name: "Log in" }).click();
 
     await expect(page.getByText("Please fill in all fields")).toBeVisible();
   });
@@ -80,5 +77,25 @@ test.describe("Login page", () => {
     await expect(
       page.getByRole("heading", { name: `Welcome back, ${user.firstName}` })
     ).toBeVisible();
+  });
+});
+
+test.describe("Login page before hydration", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("does not submit credentials through a native GET request", async ({ page }) => {
+    await page.goto("/login");
+
+    const form = page.locator("form");
+    const submitButton = page.getByRole("button", { name: "Loading..." });
+
+    await expect(form).toHaveAttribute("method", "post");
+    await expect(submitButton).toBeDisabled();
+    await expect(page.getByLabel("Work email")).toBeDisabled();
+    await expect(page.getByLabel("Password", { exact: true })).toBeDisabled();
+    await submitButton.click({ force: true });
+
+    await expect(page).toHaveURL(/\/login$/);
+    expect(new URL(page.url()).search).toBe("");
   });
 });

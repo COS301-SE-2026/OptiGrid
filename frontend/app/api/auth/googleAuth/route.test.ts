@@ -9,6 +9,7 @@ jest.mock("next/headers", () => ({ cookies: jest.fn() }));
 jest.mock("../../../../lib/authCookies", () => ({
     setSessionCookie: jest.fn(),
     setAccessTokenCookie: jest.fn(),
+    shouldUseSecureCookies: jest.fn(() => false),
 }));
 
 describe("Google Authentication route integrations", () => {
