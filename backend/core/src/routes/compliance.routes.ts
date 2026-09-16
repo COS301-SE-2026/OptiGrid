@@ -1,5 +1,10 @@
 import { Router } from 'express';
 import { getComplianceReport, verifyDataIntegrity } from '../controllers/compliance.controller';
+import {
+    backfillCarbonLedgerRange,
+    getCarbonIntegrity,
+    getCarbonLedger
+} from '../controllers/carbonCompliance.controller';
 
 const router = Router();
 
@@ -65,6 +70,11 @@ const router = Router();
  *         description: Internal Server Error
  */
 router.get('/verify', verifyDataIntegrity);
+
+// Building-scoped, month-specific carbon ledger endpoints.
+router.get('/carbon-integrity', getCarbonIntegrity);
+router.get('/carbon-ledger', getCarbonLedger);
+router.post('/carbon-ledger/backfill', backfillCarbonLedgerRange);
 
 /**
  * @swagger
