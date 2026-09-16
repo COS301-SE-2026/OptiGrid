@@ -288,6 +288,12 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
             accent: palette.secondary
         },
         {
+            label: 'Carbon emissions',
+            value: `${formatNumber(report.carbon_accounting.total_kg_co2e)} kg CO2e`,
+            note: `${report.carbon_accounting.ledger_entries} signed daily entries`,
+            accent: report.carbon_accounting.scope_status === 'VALID' ? palette.success : palette.danger
+        },
+        {
             label: 'Nonconformities',
             value: `${report.nonconformities.total}`,
             note: `${report.nonconformities.open} still open`,
@@ -335,7 +341,7 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         ])
     );
 
-    drawSectionHeader('Audit trail integrity', 'Every ledger entry is chained to the one before it. Any edit or deletion breaks the chain.');
+    drawSectionHeader('Ledger integrity', 'Daily carbon entries and audit events are hash chained. Any edit or deletion breaks the affected chain.');
 
     const integrity = report.audit_trail.integrity;
     drawStatGrid([

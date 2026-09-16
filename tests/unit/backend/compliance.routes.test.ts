@@ -1,15 +1,31 @@
 import express from 'express';
 import request from 'supertest';
 import prisma from '../../../backend/core/src/lib/prisma';
-import { queryUsageBetween } from '../../../backend/core/src/lib/influx';
 import { getAllowedBuildingIds } from '../../../backend/core/src/utils/auth.utils';
 import { computeRecordHash, GENESIS_HASH } from '../../../backend/core/src/lib/hashChain';
 import complianceRoutes from '../../../backend/core/src/routes/compliance.routes';
+
+jest.mock('../../../backend/core/src/services/carbonIntegrity.service', () => ({
+    verifyCarbonLedgerMonth: jest.fn(async (buildingId: string) => ({
+        building_id: buildingId,
+        month: '2026-08',
+        status: 'VALID',
+        verified: true,
+        algorithm: 'SHA-256',
+        records_checked: 2,
+        expected_days: 31,
+        missing_dates: [],
+        current_hash: 'c'.repeat(64),
+        broken_at: null,
+        verified_at: '2026-09-14T10:00:00.000Z'
+    }))
+}));
 
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
     __esModule: true,
     default: {
         auditLog: { findMany: jest.fn(), count: jest.fn() },
+        carbonLedgerEntry: { findMany: jest.fn() },
         building: { findMany: jest.fn() },
         anomaly: { findMany: jest.fn() },
         $queryRaw: jest.fn()
@@ -17,7 +33,6 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 }));
 
 jest.mock('../../../backend/core/src/lib/influx', () => ({
-    queryUsageBetween: jest.fn(),
     resolveCostZar: (costZar: number, _costUsd: number, kwh: number) => (costZar > 0 ? costZar : kwh * 2.5)
 }));
 
@@ -88,11 +103,10 @@ function serveReportData() {
         status: 'Pending', 
         estimated_monthly_savings: 1200 
     }]);
-    (queryUsageBetween as jest.Mock).mockResolvedValue({ 
-        total_kwh: 5000, 
-        total_cost_usd: 0, 
-        total_cost_zar: 12500 
-    });
+    (prisma.carbonLedgerEntry.findMany as jest.Mock).mockResolvedValue([
+        { building_id: 'b1', total_kwh: 2400, total_kg_co2e: 2232 },
+        { building_id: 'b1', total_kwh: 2600, total_kg_co2e: 2418 }
+    ]);
 }
 
 function collectBinary(response: any, callback: (error: Error | null, body: Buffer) => void) {
@@ -161,7 +175,17 @@ describe('Compliance Routes', () => {
             end: '2026-08-31T23:59:59.999Z',
             days: 31
         });
-        expect(queryUsageBetween).toHaveBeenCalledWith('b1', new Date('2026-08-01T00:00:00.000Z'), new Date('2026-09-01T00:00:00.000Z'));
+        expect(prisma.carbonLedgerEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({
+                building_id: { in: ['b1'] },
+                period_date: {
+                    gte: new Date('2026-08-01T00:00:00.000Z'),
+                    lt: new Date('2026-09-01T00:00:00.000Z')
+                }
+            })
+        }));
+        expect(response.body.data.energy_performance.total_usage_kwh).toBe(5000);
+        expect(response.body.data.carbon_accounting.total_kg_co2e).toBe(4650);
         expect(prisma.anomaly.findMany).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
                 detected_timestamp: {
@@ -186,9 +210,9 @@ describe('Compliance Routes', () => {
         expect(keys[keys.length - 1]).toBe('digital_signature');
         expect(response.body.data.digital_signature).toMatchObject({
             algorithm: 'SHA-256',
-            value: rows[2].current_hash,
-            records_covered: 3
+            records_covered: 2
         });
+        expect(response.body.data.digital_signature.value).toMatch(/^[0-9a-f]{64}$/);
     });
 
 
