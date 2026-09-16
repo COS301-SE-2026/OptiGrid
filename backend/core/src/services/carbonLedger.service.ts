@@ -83,8 +83,11 @@ export const appendDailyCarbonEntry = async (
         const tip = await tx.carbonLedgerEntry.findFirst({
             where: { building_id: input.buildingId },
             orderBy: { chain_index: 'desc' },
-            select: { chain_index: true, current_hash: true }
+            select: { chain_index: true, current_hash: true, period_date: true }
         });
+        if (tip?.period_date && date.getTime() <= new Date(tip.period_date).getTime()) {
+            throw new Error('Carbon ledger days must be appended in chronological order.');
+        }
         const chainIndex = tip ? BigInt(tip.chain_index) + BigInt(1) : BigInt(0);
         const previousHash = tip?.current_hash ?? CARBON_GENESIS_HASH;
         const ledgerId = randomUUID();

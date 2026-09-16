@@ -96,6 +96,16 @@ describe('carbon ledger persistence', () => {
         expect(rows[0].integrity_status).toBe('INCOMPLETE');
     });
 
+    it('rejects inserting an older missing day behind the chain tip', async () => {
+        const { store } = memoryStore();
+        const first = day(1);
+        const older = day(0);
+        const base = { buildingId: 'cb430d07-abbb-4c9d-b32a-85b47dfbc5ea', totalKwh: 100, readingCount: 24 };
+        await appendDailyCarbonEntry({ ...base, periodStart: first.start, periodEnd: first.end }, store);
+        await expect(appendDailyCarbonEntry({ ...base, periodStart: older.start, periodEnd: older.end }, store))
+            .rejects.toThrow('chronological order');
+    });
+
     it('resolves the previous completed UTC day', () => {
         const period = previousUtcDay(new Date('2026-09-16T15:00:00.000Z'));
         expect(period.start.toISOString()).toBe('2026-09-15T00:00:00.000Z');
