@@ -388,7 +388,7 @@ describe("Balancing savings against the employee comfort", () => {
         const dialog = screen.getByRole("dialog", { name: /review recommendation/i });
         dragToSavingsLevel(within(dialog).getByLabelText("Savings level"), 100);
 
-        expect(within(dialog).getByRole("meter", { name: "Employee comfort" })).toHaveAttribute("aria-valuenow", "45");
+        expect(within(dialog).getByRole("meter", { name: "Employee comfort" })).toHaveAttribute("value", "45");
         expect(within(dialog).getByText("Uncomfortable")).toBeInTheDocument();
         expect(within(dialog).getByText("R 500.00")).toBeInTheDocument();
     });

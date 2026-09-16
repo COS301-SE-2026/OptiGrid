@@ -410,8 +410,7 @@ function RecommendationCard({
     const timeWindow = formatTimeWindow(range?.time_window);
     const confidence = toFiniteNumber(range?.confidence_score);
     const expired = isExpired(recommendation);
-    const tradeoffPoints = recommendation.tradeoff?.points ?? [];
-    const fullStrength = tradeoffPoints.length > 0 ? tradeoffPoints[tradeoffPoints.length - 1] : null;
+    const fullStrength = recommendation.tradeoff?.points.at(-1) ?? null;
     const sweetSpot = recommendation.tradeoff?.sweet_spot ?? null;
     const approvedTradeoff = range?.approved_tradeoff ?? null;
 

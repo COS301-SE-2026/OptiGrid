@@ -287,7 +287,7 @@ class RecommendationSynthesizer:
         shed_share = 0.0
         if forecast_peak > 0:
             shed_share = max(0.0, min(1.0, kw_reduced / forecast_peak))
-        if shed_share == 0.0:
+        if shed_share <= 0.0:
             return 100
 
         if outside_temp is None:

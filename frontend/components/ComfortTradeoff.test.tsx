@@ -26,27 +26,31 @@ function comfortGauge() {
     return screen.getByRole("meter", { name: "Employee comfort" });
 }
 
+function gaugeFill() {
+    return document.querySelector(".comfort-gauge-fill");
+}
+
 describe("ComfortTradeoff", () => {
     it("starts at maximum comfort with nothing saved and then tells the manager to choose a setting", () => {
         renderTradeoff(0, false);
         expect(screen.getByText("R 0.00")).toBeInTheDocument();
-        expect(comfortGauge()).toHaveAttribute("aria-valuenow", "100");
+        expect(comfortGauge()).toHaveAttribute("value", "100");
         expect(screen.getByText("Comfortable")).toBeInTheDocument();
         expect(screen.getByText(/drag the slider to choose how hard to shave the peak/i)).toBeInTheDocument();
     });
 
     it("shows an amber once the comfort slips under the target", () => {
         renderTradeoff(70);
-        expect(comfortGauge()).toHaveAttribute("aria-valuenow", "73");
+        expect(comfortGauge()).toHaveAttribute("value", "73");
         expect(screen.getByText("Strained")).toHaveClass("comfort-band-strained");
     });
 
     it("turns the gauge red when savings are pushed to the aggressive end", () => {
         renderTradeoff(100);
         expect(screen.getByText("R 500.00")).toBeInTheDocument();
-        expect(comfortGauge()).toHaveAttribute("aria-valuenow", "45");
+        expect(comfortGauge()).toHaveAttribute("value", "45");
         expect(screen.getByText("Uncomfortable")).toHaveClass("comfort-band-poor");
-        expect(comfortGauge().querySelector(".comfort-gauge-fill")).toHaveClass("comfort-gauge-poor");
+        expect(gaugeFill()).toHaveClass("comfort-gauge-poor");
         expect(screen.getByText(/drops below the 80\/100 target/i)).toBeInTheDocument();
     });
 
@@ -54,7 +58,7 @@ describe("ComfortTradeoff", () => {
     it("confirms the sweet spot where savings peak without breaking comfort", () => {
         renderTradeoff(61);
         expect(screen.getByText("R 305.00")).toBeInTheDocument();
-        expect(comfortGauge()).toHaveAttribute("aria-valuenow", "80");
+        expect(comfortGauge()).toHaveAttribute("value", "80");
         expect(screen.getByText("Sweet spot: R 305.00 a month while comfort holds at 80/100.")).toBeInTheDocument();
     });
 

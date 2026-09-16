@@ -105,22 +105,24 @@ function describeSetting(adjusted: boolean, point: TradeoffPoint, profile: Trade
 function ComfortGauge({ score, target }: Readonly<{ score: number; target: number }>) {
     const band = comfortBand(score, target);
     return (
-        <div
-            className="comfort-gauge"
-            role="meter"
-            aria-label="Employee comfort"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={score}
-            aria-valuetext={`${score} out of 100, ${BAND_LABELS[band].toLowerCase()}`}
-        >
+        <div className="comfort-gauge">
             <p className="dashboard-kpi-label">Employee comfort</p>
             <svg viewBox="0 0 120 68" width="168" height="95" aria-hidden="true" focusable="false">
                 <path className="comfort-gauge-track" d={GAUGE_ARC} pathLength={100} />
                 <path className={`comfort-gauge-fill comfort-gauge-${band}`} d={GAUGE_ARC} pathLength={100} strokeDasharray={`${score} 100`} />
             </svg>
-            <p className={`comfort-gauge-value comfort-band-${band}`}>{score}<span className="comfort-gauge-scale">/100</span></p>
-            <p className={`comfort-band-label comfort-band-${band}`}>{BAND_LABELS[band]}</p>
+            <meter className="sr-only" aria-label="Employee comfort" aria-valuetext={`${score} out of 100, ${BAND_LABELS[band].toLowerCase()}`}
+                low={STRAINED_FLOOR}
+                high={target}
+                min={0}
+                max={100}
+                optimum={100}
+                value={score}
+            >
+                {`${score} out of 100, ${BAND_LABELS[band].toLowerCase()}`}
+            </meter>
+            <p className={`comfort-gauge-value comfort-band-${band}`} aria-hidden="true">{score}<span className="comfort-gauge-scale">/100</span></p>
+            <p className={`comfort-band-label comfort-band-${band}`} aria-hidden="true">{BAND_LABELS[band]}</p>
         </div>
     );
 }

@@ -8,6 +8,55 @@ const REVIEWED_STATUS = {
   dismiss: "Dismissed"
 } as const;
 
+const REVIEW_ERRORS = new Map<string, { status: number; message: string }>([
+  ["Trade-off selection required", {
+    status: 400,
+    message: "Choose a savings level on the comfort trade-off before approving this recommendation."
+  }],
+  ["Recommendation not found", {
+    status: 404,
+    message: "Recommendation not found"
+  }],
+  ["Expired", {
+    status: 409,
+    message: "This recommendation has expired or building state is not within the applicable range"
+  }]
+]);
+
+const reviewErrorResponse = (error: any): { status: number; body: Record<string, unknown> } | null => {
+  if (error?.name === "ZodError") {
+    return {
+      status: 400,
+      body: {
+        status: "error",
+        message: "Invalid trade-off selection",
+        errors: error.issues
+      }
+    };
+  }
+  if (error?.message?.includes("Access Denied")) {
+    return {
+      status: 403,
+      body: {
+        status: "error",
+        message: error.message
+      }
+    };
+  }
+
+  const known = REVIEW_ERRORS.get(error?.message);
+  if (!known) {
+    return null;
+  }
+  return {
+    status: known.status,
+    body: {
+      status: "error",
+      message: known.message
+    }
+  };
+};
+
 const helperController = (action: "apply" | "dismiss",
   serviceFunc: (userId: string, buildingId: string, reccomendationId: string, selection: ApplySelection) => Promise<ReviewResult>) => {
     return async(req:Request, resp: Response) => {
@@ -51,36 +100,9 @@ const helperController = (action: "apply" | "dismiss",
         });
       }
       catch(error:any){
-        if (error?.name === "ZodError") {
-          return resp.status(400).json({
-            status: "error",
-            message: "Invalid trade-off selection",
-            errors: error.issues
-          });
-        }
-        if (error.message === "Trade-off selection required") {
-          return resp.status(400).json({
-            status: "error",
-            message: "Choose a savings level on the comfort trade-off before approving this recommendation."
-          });
-        }
-        if (error.message?.includes("Access Denied")) {
-          return resp.status(403).json({
-            status: "error",
-            message: error.message
-          });
-        }
-        if (error.message === "Recommendation not found") {
-          return resp.status(404).json({
-            status: "error",
-            message: "Recommendation not found"
-          });
-        }
-        if (error.message === "Expired") {
-          return resp.status(409).json({
-            status: "error",
-            message: "This recommendation has expired or building state is not within the applicable range"
-          });
+        const mapped = reviewErrorResponse(error);
+        if (mapped) {
+          return resp.status(mapped.status).json(mapped.body);
         }
 
         console.error(`${action}RecommendationController error:`, error);
