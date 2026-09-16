@@ -1,7 +1,9 @@
+import { createHash } from 'crypto';
 import prisma from '../lib/prisma';
 import { Prisma } from '@prisma/client';
-import { queryUsageBetween, resolveCostZar } from '../lib/influx';
+import { resolveCostZar } from '../lib/influx';
 import { computeRecordHash, GENESIS_HASH, HASH_ALGORITHM, type ChainableAuditRecord } from '../lib/hashChain';
+import { verifyCarbonLedgerMonth, type CarbonIntegrityResult } from './carbonIntegrity.service';
 
 const BATCH_SIZE = 500;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -195,8 +197,15 @@ export interface ComplianceReport {
             type: string | null;
             usage_kwh: number | null;
             cost_zar: number | null;
+            carbon_kg_co2e: number | null;
             share_of_total: number | null;
         }[];
+    };
+    carbon_accounting: {
+        total_kg_co2e: number;
+        ledger_entries: number;
+        scope_status: 'VALID' | 'TAMPERED' | 'INCOMPLETE';
+        buildings: CarbonIntegrityResult[];
     };
     energy_performance: {
         total_usage_kwh: number;
@@ -244,19 +253,27 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
         where: { building_id: { in: allowedBuildingIds } }
     });
 
-    const usageByBuilding = new Map<string, { kwh: number | null; cost: number | null }>();
-    await Promise.all(buildings.map(async (building) => {
-        try {
-            const usage = await queryUsageBetween(building.building_id, period.start, period.endExclusive);
-            const kwh = typeof usage === 'number' ? usage : usage?.total_kwh ?? null;
-            const cost = typeof usage === 'number' ? null : resolveCostZar(Number(usage?.total_cost_zar ?? 0), Number(usage?.total_cost_usd ?? 0), Number(usage?.total_kwh ?? 0));
-            usageByBuilding.set(building.building_id, { kwh, cost });
-        } 
-        catch (error) {
-            console.error(`[Compliance] usage lookup failed for ${building.building_id}:`, error);
-            usageByBuilding.set(building.building_id, { kwh: null, cost: null });
-        }
-    }));
+    const carbonRows = await prisma.carbonLedgerEntry.findMany({
+        where: {
+            building_id: { in: allowedBuildingIds },
+            period_date: { gte: period.start, lt: period.endExclusive }
+        },
+        orderBy: [{ building_id: 'asc' }, { period_date: 'asc' }]
+    });
+    const usageByBuilding = new Map<string, { kwh: number; cost: number; carbon: number }>();
+    for (const row of carbonRows) {
+        const current = usageByBuilding.get(row.building_id) ?? { kwh: 0, cost: 0, carbon: 0 };
+        const kwh = Number(row.total_kwh);
+        current.kwh += kwh;
+        current.cost += resolveCostZar(0, 0, kwh);
+        current.carbon += Number(row.total_kg_co2e);
+        usageByBuilding.set(row.building_id, current);
+    }
+
+    const monthKey = `${period.start.getUTCFullYear()}-${String(period.start.getUTCMonth() + 1).padStart(2, '0')}`;
+    const carbonIntegrity = await Promise.all(buildings.map((building) =>
+        verifyCarbonLedgerMonth(building.building_id, monthKey)
+    ));
 
     const anomalies = await prisma.anomaly.findMany({
         where: {
@@ -302,6 +319,7 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
     const integrity = await verifyAuditChain();
     const totalUsage = buildings.reduce((sum, building) => sum + (usageByBuilding.get(building.building_id)?.kwh ?? 0), 0);
     const totalCost = buildings.reduce((sum, building) => sum + (usageByBuilding.get(building.building_id)?.cost ?? 0), 0);
+    const totalCarbon = buildings.reduce((sum, building) => sum + (usageByBuilding.get(building.building_id)?.carbon ?? 0), 0);
     const totalFloorArea = buildings.reduce((sum, building) => sum + (building.square_footage ? Number(building.square_footage) : 0), 0);
 
     const shareOf = (value: number | null): number | null => {
@@ -319,6 +337,7 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
                 type: building.building_type ? String(building.building_type) : null,
                 usage_kwh: usage?.kwh ?? null,
                 cost_zar: usage?.cost ?? null,
+                carbon_kg_co2e: usage?.carbon ?? null,
                 share_of_total: shareOf(usage?.kwh ?? null)
             };
     }).sort((a, b) => (b.usage_kwh ?? -1) - (a.usage_kwh ?? -1));
@@ -341,6 +360,18 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
     const implemented = recommendations.filter((row) => statusOf(row.status) === 'implemented').length;
     const pending = recommendations.filter((row) => statusOf(row.status) === 'pending' || statusOf(row.status) === 'pending_execution').length;
     const pendingSaving = recommendations.filter((row) => statusOf(row.status) === 'pending' || statusOf(row.status) === 'pending_execution').reduce((sum, row) => sum + (Number(row.estimated_monthly_savings) || 0), 0);
+    const carbonScopeStatus = carbonIntegrity.some((entry) => entry.status === 'TAMPERED')
+        ? 'TAMPERED'
+        : carbonIntegrity.some((entry) => entry.status === 'INCOMPLETE')
+            ? 'INCOMPLETE'
+            : 'VALID';
+    const carbonHeads = carbonIntegrity
+        .filter((entry) => entry.current_hash)
+        .map((entry) => `${entry.building_id}:${entry.current_hash}`)
+        .sort();
+    const carbonSignature = carbonHeads.length > 0
+        ? createHash('sha256').update(carbonHeads.join('\n')).digest('hex')
+        : null;
 
     return {
         standard: 'ISO 50001:2018',
@@ -362,6 +393,12 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
             total_cost_zar: Number(totalCost.toFixed(2)),
             average_daily_kwh: Number((totalUsage / period.days).toFixed(2)),
             intensity_kwh_per_sqft: totalFloorArea > 0 ? Number((totalUsage / totalFloorArea).toFixed(4)) : null
+        },
+        carbon_accounting: {
+            total_kg_co2e: Number(totalCarbon.toFixed(2)),
+            ledger_entries: carbonRows.length,
+            scope_status: carbonScopeStatus,
+            buildings: carbonIntegrity
         },
         significant_energy_users: sites.slice(0, 5).map((site) => ({
             building_id: site.building_id,
@@ -388,8 +425,8 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
         },
         digital_signature: {
             algorithm: HASH_ALGORITHM,
-            value: integrity.current_hash,
-            records_covered: integrity.records_checked,
+            value: carbonSignature,
+            records_covered: carbonIntegrity.reduce((sum, entry) => sum + entry.records_checked, 0),
             signed_at: generatedAt.toISOString()
         }
     };
