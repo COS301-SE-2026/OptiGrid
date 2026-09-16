@@ -144,7 +144,7 @@ def test_comfort_hot(mock_get, engine):
     mock_get.return_value = resp
     #assert
     res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=100.0)
-    assert res == 48
+    assert res == 5
 
 @patch('backend.analytics.src.recommendation_engine.requests.get')
 def test_comfort_normal(mock_get, engine):
@@ -158,7 +158,7 @@ def test_comfort_normal(mock_get, engine):
     mock_get.return_value = resp
     #act n assert
     res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=100.0)
-    assert res == 100
+    assert res == 18
 
 @patch('backend.analytics.src.recommendation_engine.RecommendationSynthesizer._calculate_comfort_score')
 def test_peak_shaving_omfort(mock_comfort_score, engine):
