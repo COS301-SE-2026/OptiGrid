@@ -115,7 +115,7 @@ export default function LoginPage() {
                             autoComplete="email"
                             value={formData.email}
                             onChange={handleChange}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             className="input"
                             placeholder="you@company.io"
                             aria-invalid={Boolean(error)}
@@ -131,7 +131,7 @@ export default function LoginPage() {
                             autoComplete="current-password"
                             value={formData.password}
                             onChange={handleChange}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             placeholder="Your password"
                             ariaInvalid={Boolean(error)}
                         />

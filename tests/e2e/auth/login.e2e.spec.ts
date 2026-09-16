@@ -43,10 +43,7 @@ test.describe("Login page", () => {
     page,
   }) => {
     await page.goto("/login");
-
-    await page.locator("form").evaluate((form) => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-    });
+    await page.getByRole("button", { name: "Log in" }).click();
 
     await expect(page.getByText("Please fill in all fields")).toBeVisible();
   });
@@ -94,8 +91,8 @@ test.describe("Login page before hydration", () => {
 
     await expect(form).toHaveAttribute("method", "post");
     await expect(submitButton).toBeDisabled();
-    await page.getByLabel("Work email").fill("diagnostic@optigrid.test");
-    await page.getByLabel("Password", { exact: true }).fill("StrongPass123!");
+    await expect(page.getByLabel("Work email")).toBeDisabled();
+    await expect(page.getByLabel("Password", { exact: true })).toBeDisabled();
     await submitButton.click({ force: true });
 
     await expect(page).toHaveURL(/\/login$/);
