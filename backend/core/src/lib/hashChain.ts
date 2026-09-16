@@ -21,7 +21,7 @@ export interface ChainableAuditRecord {
     timestamp: Date | string | null;
 }
 
-const canonicaliseData = (value: unknown): string => {
+export const canonicaliseData = (value: unknown): string => {
     if (value === null || value === undefined) {
         return 'null';
     }
