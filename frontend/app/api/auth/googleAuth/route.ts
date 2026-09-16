@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import {isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
-import { setSessionCookie, setAccessTokenCookie } from "../../../../lib/authCookies";
+import { getTabSessionPath, isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
+import { setSessionCookie, setAccessTokenCookie, shouldUseSecureCookies } from "../../../../lib/authCookies";
 
 type SessionUser = {
     userId: string;
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
             if (!respCore.ok) return NextResponse.redirect(`${actualOrigin}/login?error=OAuthSyncFailed`);
 
             const jsonData = await respCore.json();
-            const resp = NextResponse.redirect(`${actualOrigin}${next}`);
+            const resp = NextResponse.redirect(`${actualOrigin}${getTabSessionPath(next, tabSessionId)}`);
             const sessionUser: SessionUser = {
                 userId: jsonData.user.userId,
                 email: jsonData.user.email,
@@ -73,8 +73,9 @@ export async function GET(request: Request) {
                 roleType: jsonData.user.roleType,
             };
 
-            setSessionCookie(resp, sessionUser, tabSessionId);
-            setAccessTokenCookie(resp, data.session.access_token, tabSessionId);
+            const secure = shouldUseSecureCookies(request);
+            setSessionCookie(resp, sessionUser, tabSessionId, secure);
+            setAccessTokenCookie(resp, data.session.access_token, tabSessionId, secure);
             return resp;
         }
     }

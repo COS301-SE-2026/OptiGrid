@@ -52,9 +52,10 @@ export default function LoginPage() {
         setError("");
         setLoading(true);
         try {
+            const tabSessionId = getTabSessionId();
             const res = await fetch("/api/auth/login", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", [TAB_SESSION_HEADER]: getTabSessionId() ?? "" },
+                headers: { "Content-Type": "application/json", [TAB_SESSION_HEADER]: tabSessionId ?? "" },
                 body: JSON.stringify(formData),
             });
 
@@ -67,7 +68,7 @@ export default function LoginPage() {
             const firstName = payload?.user?.firstName as string | undefined;
             setNotice(`Login successful${firstName ? `, ${firstName}` : ""}.`);
             setFormData(initialLoginFormData);
-            navigateAfterLogin();
+            navigateAfterLogin(undefined, tabSessionId);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed. Please try again.");
         } finally {

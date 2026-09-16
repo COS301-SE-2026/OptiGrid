@@ -9,9 +9,9 @@ describe("post-login navigation", () => {
 	it("replaces the document with the tab-scoped dashboard URL", () => {
 		const replaceLocation = jest.fn();
 
-		navigateAfterLogin(replaceLocation);
+		navigateAfterLogin(replaceLocation, "test-tab-id");
 
-		expect(getTabSessionPath).toHaveBeenCalledWith("/dashboard");
+		expect(getTabSessionPath).toHaveBeenCalledWith("/dashboard", "test-tab-id");
 		expect(replaceLocation).toHaveBeenCalledWith("/_sessions/test-tab-id/dashboard");
 	});
 });

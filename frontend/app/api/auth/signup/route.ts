@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import { getTabSessionCookiePath, isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
+import { isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
+import {
+    setAccessTokenCookie,
+    setSessionCookie,
+    shouldUseSecureCookies,
+} from "../../../../lib/authCookies";
+import type { SessionUser } from "../../../../lib/session";
 
 const CORE_URL = process.env.CORE_URL ?? "http://localhost:4000";
-const SESSION_COOKIE_NAME = "optigrid_session";
-const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
 type SignupBody = {
     email?: unknown;
@@ -14,36 +17,27 @@ type SignupBody = {
     lastName?: unknown;
 };
 
-function setAuthCookies(response: NextResponse, payload: Record<string, unknown>, tabSessionId: string | null) {
+function setAuthCookies(
+    response: NextResponse,
+    payload: Record<string, unknown>,
+    tabSessionId: string | null,
+    secure: boolean,
+) {
     const maybeUser = payload.user as Record<string, unknown> | undefined;
     const userId = typeof maybeUser?.userId === "string" ? maybeUser.userId : "";
     const emailValue = typeof maybeUser?.email === "string" ? maybeUser.email : "";
     const firstName = typeof maybeUser?.firstName === "string" ? maybeUser.firstName : "";
     const lastName = typeof maybeUser?.lastName === "string" ? maybeUser.lastName : "";
+    const roleType = typeof maybeUser?.roleType === "string" ? maybeUser.roleType : "VIEWER";
 
     if (userId && emailValue) {
-        response.cookies.set(
-            SESSION_COOKIE_NAME,
-            JSON.stringify({ userId, email: emailValue, firstName, lastName }),
-            {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: "lax",
-                path: getTabSessionCookiePath(tabSessionId),
-                maxAge: SESSION_MAX_AGE_SECONDS,
-            }
-        );
+        const user: SessionUser = { userId, email: emailValue, firstName, lastName, roleType };
+        setSessionCookie(response, user, tabSessionId, secure);
     }
 
     const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : "";
     if (accessToken) {
-        response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            path: getTabSessionCookiePath(tabSessionId),
-            maxAge: SESSION_MAX_AGE_SECONDS,
-        });
+        setAccessTokenCookie(response, accessToken, tabSessionId, secure);
     }
 }
 
@@ -101,7 +95,7 @@ export async function POST(request: Request) {
         const response = NextResponse.json(responsePayload, { status: responseStatus });
 
         if (loginResponse.ok) {
-            setAuthCookies(response, loginPayload, tabSessionId);
+            setAuthCookies(response, loginPayload, tabSessionId, shouldUseSecureCookies(request));
         }
 
         return response;

@@ -29,6 +29,6 @@ describe("login navigation", () => {
 		await user.type(screen.getByLabelText("Password"), "StrongPass123!");
 		await user.click(screen.getByRole("button", { name: "Log in" }));
 
-		await waitFor(() => expect(navigateAfterLogin).toHaveBeenCalledWith());
+		await waitFor(() => expect(navigateAfterLogin).toHaveBeenCalledWith(undefined, "test-tab-id"));
 	});
 });
