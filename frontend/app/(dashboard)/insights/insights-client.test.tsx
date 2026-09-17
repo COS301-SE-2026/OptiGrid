@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import InsightsClient from "./insights-client";
 
@@ -263,7 +263,7 @@ describe("Reviewing a recommendation", () => {
         const user = await openReview();
 
         const dialog = screen.getByRole("dialog", { name: /review recommendation/i });
-        await user.click(within(dialog).getByRole("button", { name: "Approve" }));
+        await user.click(within(dialog).getByRole("button", { name: "Approve Recommendation" }));
 
         expect(mutate).toHaveBeenCalledWith({ action: "apply", recommendationId: "rec-1" });
     });
@@ -289,7 +289,7 @@ describe("Reviewing a recommendation", () => {
         await user.click(within(cards[1]).getByRole("button", { name: /review/i }));
 
         const dialog = screen.getByRole("dialog", { name: /review recommendation/i });
-        expect(within(dialog).getByRole("button", { name: "Approve" })).toBeDisabled();
+        expect(within(dialog).getByRole("button", { name: "Approve Recommendation" })).toBeDisabled();
         expect(within(dialog).getByRole("button", { name: "Dismiss" })).toBeDisabled();
         expect(within(dialog).getByText(/has expired and can no longer be applied/i)).toBeInTheDocument();
     });
@@ -305,7 +305,7 @@ describe("Reviewing a recommendation", () => {
         const user = await openReview();
 
         const dialog = screen.getByRole("dialog", { name: /review recommendation/i });
-        await user.click(within(dialog).getByRole("button", { name: "Approve" }));
+        await user.click(within(dialog).getByRole("button", { name: "Approve Recommendation" }));
 
         expect(screen.getByRole("alert")).toHaveTextContent("This recommendation has expired.");
     });
@@ -319,5 +319,118 @@ describe("Reviewing a recommendation", () => {
         const dialog = screen.getByRole("dialog", { name: /review recommendation/i });
         expect(within(dialog).getByRole("button", { name: "Approving..." })).toBeDisabled();
         expect(within(dialog).getByRole("button", { name: "Close" })).toBeDisabled();
+    });
+});
+
+function buildTradeoffProfile() {
+    const points = Array.from({ length: 101 }, (_, level) => ({
+        savings_level: level,
+        monthly_savings: level * 5,
+        comfort_score: Math.round(100 - 55 * (level / 100) ** 2),
+        shed_kw: level / 2
+    }));
+    return { comfort_target: 80, full_monthly_savings: 500, sweet_spot: points[61], points };
+}
+
+const peakShavingRecommendation = {
+    recommendation_id: "rec-peak",
+    strategy_description: "Aggregate sensors forecast a peak load of 150kW, exceeding your threshold by 50%.",
+    estimated_monthly_savings: 500,
+    status: "Pending",
+    applicable_range: {
+        context: "Peak Shaving",
+        time_window: { start: "14:00", end: "18:00", timezone: "Africa/Johannesburg" },
+        load_bounds_kw: { min_expected: 100, max_allowed: 150 },
+        predicted_comfort_score: 45,
+    },
+    tradeoff: buildTradeoffProfile(),
+    expires_at: "2099-01-01T00:00:00Z",
+    generated_date: "2026-09-01T00:00:00Z",
+};
+
+function dragToSavingsLevel(slider: HTMLElement, level: number) {
+    fireEvent.change(slider, { target: { value: String(100 - level) } });
+}
+
+describe("Balancing savings against the employee comfort", () => {
+    beforeEach(() => {
+        mockUseQuery.mockReset();
+        mockUseMutation.mockReset();
+        mockInvalidateQueries.mockReset();
+        setupMutation();
+    });
+
+    it("summarises the comfort cost on the recommendation card", async () => {
+        setupQueries({ recommendations: { data: [peakShavingRecommendation] } });
+        renderPage("BUILDING_MANAGER");
+        await selectBuilding();
+        const card = within(screen.getByRole("list")).getByRole("listitem");
+
+        expect(within(card).getByText("45/100")).toBeInTheDocument();
+        expect(within(card).getByText("R 305.00 at 80/100")).toBeInTheDocument();
+    });
+
+    it("keeps approval locked until the manager picks a setting", async () => {
+        setupQueries({ recommendations: { data: [peakShavingRecommendation] } });
+        renderPage("BUILDING_MANAGER");
+        await openReview();
+        const dialog = screen.getByRole("dialog", { name: /review recommendation/i });
+        const approve = within(dialog).getByRole("button", { name: "Approve Recommendation" });
+        expect(approve).toBeDisabled();
+        dragToSavingsLevel(within(dialog).getByLabelText("Savings level"), 61);
+        expect(approve).toBeEnabled();
+    });
+
+    it("turns the comfort gauge red at aggressive savings", async () => {
+        setupQueries({ recommendations: { data: [peakShavingRecommendation] } });
+        renderPage("BUILDING_MANAGER");
+        await openReview();
+        const dialog = screen.getByRole("dialog", { name: /review recommendation/i });
+        dragToSavingsLevel(within(dialog).getByLabelText("Savings level"), 100);
+
+        expect(within(dialog).getByRole("meter", { name: "Employee comfort" })).toHaveAttribute("value", "45");
+        expect(within(dialog).getByText("Uncomfortable")).toBeInTheDocument();
+        expect(within(dialog).getByText("R 500.00")).toBeInTheDocument();
+    });
+
+    it("shows the approved setting once a trade-off has been applied", async () => {
+        const approved = {
+            ...peakShavingRecommendation,
+            status: "Pending_Execution",
+            estimated_monthly_savings: 305,
+            applicable_range: {
+                ...peakShavingRecommendation.applicable_range,
+                approved_tradeoff: {
+                    savings_level: 61,
+                    monthly_savings: 305,
+                    comfort_score: 80,
+                    shed_kw: 30.5,
+                    comfort_target: 80,
+                    meets_comfort_target: true,
+                    full_monthly_savings: 500,
+                    approved_at: "2026-09-15T10:00:00.000Z"
+                }
+            }
+        };
+        setupQueries({ recommendations: { data: [approved] } });
+        renderPage("BUILDING_MANAGER");
+        await selectBuilding();
+        const card = within(screen.getByRole("list")).getByRole("listitem");
+
+        expect(within(card).getByText("Approved setting")).toBeInTheDocument();
+        expect(within(card).getAllByText("R 305.00 at 80/100")).toHaveLength(2);
+    });
+
+    it("sends the savings level found at the sweet spot with the approval", async () => {
+        setupQueries({ recommendations: { data: [peakShavingRecommendation] } });
+        const mutate = setupMutation();
+        renderPage("BUILDING_MANAGER");
+        const user = await openReview();
+        const dialog = screen.getByRole("dialog", { name: /review recommendation/i });
+        dragToSavingsLevel(within(dialog).getByLabelText("Savings level"), 61);
+        
+        expect(within(dialog).getByText("Sweet spot: R 305.00 a month while comfort holds at 80/100.")).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Approve Recommendation" }));
+        expect(mutate).toHaveBeenCalledWith({ action: "apply", recommendationId: "rec-peak", savingsLevel: 61 });
     });
 });

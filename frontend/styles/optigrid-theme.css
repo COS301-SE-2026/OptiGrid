@@ -1171,6 +1171,216 @@ h3 {
     color: var(--brand-ink-muted);
 }
 
+.tradeoff-panel {
+    display: grid;
+    gap: var(--space-4);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+    padding: var(--space-4);
+    background: var(--brand-surface-alt);
+}
+
+.tradeoff-panel p {
+    margin: 0;
+}
+
+.tradeoff-panel .tradeoff-intro,
+.tradeoff-panel .tradeoff-subtext {
+    margin-top: var(--space-1);
+    font-size: var(--fs-small);
+}
+
+.tradeoff-panel .dashboard-kpi-value {
+    margin-top: var(--space-1);
+}
+
+.tradeoff-readouts {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    align-items: center;
+}
+
+.comfort-gauge {
+    display: grid;
+    gap: 2px;
+    justify-items: center;
+}
+
+.comfort-gauge path {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+}
+
+.comfort-gauge svg {
+    margin-top: var(--space-2);
+}
+
+.comfort-gauge-track {
+    stroke: color-mix(in srgb, var(--brand-ink) 12%, transparent);
+}
+
+.comfort-gauge-fill {
+    transition: stroke-dasharray 0.25s ease, stroke 0.25s ease;
+}
+
+.comfort-gauge-good {
+    stroke: var(--brand-success);
+}
+
+.comfort-gauge-strained {
+    stroke: var(--brand-warning);
+}
+
+.comfort-gauge-poor {
+    stroke: var(--brand-danger);
+}
+
+.tradeoff-panel .comfort-gauge-value {
+    margin-top: -38px;
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: var(--fw-semibold);
+    line-height: 1;
+}
+
+.comfort-band-label {
+    font-weight: var(--fw-semibold);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.comfort-gauge-scale {
+    margin-left: 2px;
+    font-size: var(--fs-small);
+    font-weight: var(--fw-medium);
+    color: var(--brand-ink-muted);
+}
+
+.comfort-band-good {
+    color: var(--badge-success-text);
+}
+
+.comfort-band-strained {
+    color: var(--badge-warning-text);
+}
+
+.comfort-band-poor {
+    color: var(--badge-danger-text);
+}
+
+.tradeoff-slider-block {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.tradeoff-slider {
+    width: 100%;
+    height: 8px;
+    margin: var(--space-2) 0 0;
+    border-radius: var(--radius-pill);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.tradeoff-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--brand-surface);
+    border: 3px solid var(--brand-primary-cta);
+    box-shadow: var(--shadow-card);
+}
+
+.tradeoff-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--brand-surface);
+    border: 3px solid var(--brand-primary-cta);
+    box-shadow: var(--shadow-card);
+}
+
+.tradeoff-slider::-moz-range-track {
+    background: transparent;
+}
+
+.tradeoff-slider:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.tradeoff-slider:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.tradeoff-marker-row {
+    position: relative;
+    height: 22px;
+}
+
+.tradeoff-marker {
+    position: absolute;
+    top: 0;
+    padding-top: 7px;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    font-weight: var(--fw-semibold);
+    color: var(--badge-success-text);
+    white-space: nowrap;
+}
+
+.tradeoff-marker::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 5px;
+    background: var(--brand-success);
+    transform: translateX(-50%);
+}
+
+.tradeoff-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--fs-small);
+    font-weight: var(--fw-medium);
+    color: var(--brand-ink-muted);
+}
+
+.tradeoff-hint {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font-size: var(--fs-small);
+}
+
+.tradeoff-hint-neutral {
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+    background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+    color: var(--brand-ink);
+}
+
+.tradeoff-hint-good {
+    border-color: var(--brand-success);
+    background: color-mix(in srgb, var(--brand-success) 12%, transparent);
+    color: var(--badge-success-text);
+}
+
+.tradeoff-hint-warn {
+    border-color: var(--brand-danger);
+    background: color-mix(in srgb, var(--brand-danger) 12%, transparent);
+    color: var(--badge-danger-text);
+}
+
 
 .auth-password-toggle:hover {
     color: var(--brand-ink);

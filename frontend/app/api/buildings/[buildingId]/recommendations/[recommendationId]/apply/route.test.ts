@@ -68,4 +68,42 @@ describe("Recommendation apply routes tests", () => {
 		//assert
 		expect(res.status).toBe(502);
 	});
+
+	it("should_forward_the_chosen_savings_level", async () => {
+		const reqs = new Request("http://localhost/api/buildings/building-123/recommendations/rec-1/apply", {
+			method: "POST",
+			headers: {
+				cookie: "optigrid_access_token=access-token",
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ savings_level: 61 }),
+		});
+
+		const resp = await POST(reqs, {params: Promise.resolve({
+				buildingId: "building-123",
+				recommendationId: "rec-1"
+			}),
+		});
+
+		expect(resp.status).toBe(200);
+		const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+		expect(options.body).toBe(JSON.stringify({ savings_level: 61 }));
+		expect((options.headers as Headers).get("Content-Type")).toBe("application/json");
+	});
+
+	it("should_reject_a_malformed_body", async () => {
+		const reqs = new Request("http://localhost/api/buildings/building-123/recommendations/rec-1/apply", {
+			method: "POST",
+			headers: { cookie: "optigrid_access_token=access-token" },
+			body: "{not json",
+		});
+
+		const resp = await POST(reqs, {params: Promise.resolve({
+				buildingId: "building-123",
+				recommendationId: "rec-1"
+			}),
+		});
+		expect(resp.status).toBe(400);
+		expect(global.fetch).not.toHaveBeenCalled();
+	});
 });

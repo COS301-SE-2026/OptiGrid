@@ -44,13 +44,13 @@ describe("Recommendation Services Unit Tests", () => {
         //act
         const out = await applyRecommendation("user-123", "build-123", "rec-123");
         //assert
-        expect(out).toBe(true);
+        expect(out).toEqual({ approvedTradeoff: null });
         expect(prisma.optimisationRecommendation.update).toHaveBeenCalledWith({
-            where: { 
-                recommendation_id: "rec-123" 
+            where: {
+                recommendation_id: "rec-123"
             },
-            data: { 
-                status: "Pending_Execution" 
+            data: {
+                status: "Pending_Execution"
             }
         });
         expect(analyticsQueue.add).toHaveBeenCalledWith("apply_recommendation", expect.any(Object));
@@ -83,21 +83,107 @@ describe("Recommendation Services Unit Tests", () => {
         await expect(applyRecommendation("user-123", "build-123", "rec-123")).rejects.toThrow("Expired");
         //assert
         expect(prisma.optimisationRecommendation.update).toHaveBeenCalledWith({
-            where: { 
-                recommendation_id: "rec-123" 
+            where: {
+                recommendation_id: "rec-123"
             },
-            data: { 
-                status: "Expired" 
+            data: {
+                status: "Expired"
             }
         });
         expect(analyticsQueue.add).not.toHaveBeenCalled();
     });
 
+    describe("Comfort Trade-off Unit Tests", () => {
+        const peakShavingRange = {
+            context: "Peak Shaving",
+            time_window: { start: "14:00", end: "18:00", timezone: "Africa/Johannesburg" },
+            load_bounds_kw: { min_expected: 100, max_allowed: 150 },
+            predicted_comfort_score: 45,
+            tradeoff_inputs: { outside_temp_c: 22 }
+        };
+
+        const peakShavingRecommendation = () => ({
+            recommendation_id: "rec-peak",
+            building_id: "build-123",
+            expires_at: new Date(Date.now() + 100000),
+            strategy_description: "Shave the afternoon peak",
+            estimated_monthly_savings: 500,
+            applicable_range: peakShavingRange
+        });
+
+        const allowAccessTo = (recommendation: object) => {
+            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue({ user_id: "user-123", building_id: "build-123" });
+            (prisma.optimisationRecommendation.findUnique as jest.Mock).mockResolvedValue(recommendation);
+        };
+
+        it("should_attach_a_tradeoff_profile_to_peak_shaving_recs_only", async () => {
+            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue({ user_id: "user-123", building_id: "build-123" });
+            (prisma.optimisationRecommendation.findMany as jest.Mock).mockResolvedValue([
+                peakShavingRecommendation(),
+                { recommendation_id: "rec-season", estimated_monthly_savings: 75, applicable_range: { context: "Summer Lighting" } }
+            ]);
+
+            const out = await viewRecommendationService("user-123", "build-123");
+
+            expect((out[0] as any).tradeoff.sweet_spot).toEqual({ savings_level: 61, monthly_savings: 305, comfort_score: 80, shed_kw: 30.5 });
+            expect((out[0] as any).tradeoff.points).toHaveLength(101);
+            expect(out[1]).not.toHaveProperty("tradeoff");
+        });
+
+        it("should_record_the_approved_tradeoff_and_its_savings", async () => {
+            allowAccessTo(peakShavingRecommendation());
+            const out = await applyRecommendation("user-123", "build-123", "rec-peak", { savings_level: 61 });
+
+            expect(out.approvedTradeoff).toMatchObject({
+                savings_level: 61,
+                monthly_savings: 305,
+                comfort_score: 80,
+                shed_kw: 30.5,
+                comfort_target: 80,
+                meets_comfort_target: true,
+                full_monthly_savings: 500,
+                approved_by: "user-123"
+            });
+
+            expect(prisma.optimisationRecommendation.update).toHaveBeenCalledWith({
+                where: { recommendation_id: "rec-peak" },
+                data: {
+                    status: "Pending_Execution",
+                    estimated_monthly_savings: 305,
+                    applicable_range: expect.objectContaining({
+                        context: "Peak Shaving",
+                        tradeoff_inputs: { outside_temp_c: 22 },
+                        approved_tradeoff: expect.objectContaining({ savings_level: 61, comfort_score: 80 })
+                    })
+                }
+            });
+
+            expect(analyticsQueue.add).toHaveBeenCalledWith("apply_recommendation", expect.objectContaining({
+                recommendation_id: "rec-peak",
+                approved_tradeoff: expect.objectContaining({ savings_level: 61, monthly_savings: 305 })
+            }));
+        });
+
+        it("should_refuse_to_apply_peak_shaving_without_a_savings_level", async () => {
+            allowAccessTo(peakShavingRecommendation());
+
+            await expect(applyRecommendation("user-123", "build-123", "rec-peak")).rejects.toThrow("Trade-off selection required");
+            expect(prisma.optimisationRecommendation.update).not.toHaveBeenCalled();
+            expect(analyticsQueue.add).not.toHaveBeenCalled();
+        });
+
+        it("should_flag_a_setting_that_breaks_the_comfort_target", async () => {
+            allowAccessTo(peakShavingRecommendation());
+            const out = await applyRecommendation("user-123", "build-123", "rec-peak", { savings_level: 100 });
+            expect(out.approvedTradeoff).toMatchObject({ monthly_savings: 500, comfort_score: 45, meets_comfort_target: false });
+        });
+    });
+
     describe("View Recommendation Unit Tests",  () => {
         it("should_return_rec", async () => {
-            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue({ 
-                user_id: "user123", 
-                building_id: "building-123" 
+            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue({
+                user_id: "user123",
+                building_id: "building-123"
             });
             (prisma.optimisationRecommendation.findMany as jest.Mock).mockResolvedValue([
                 {
@@ -139,18 +225,18 @@ describe("Recommendation Services Unit Tests", () => {
     describe("Update Tariff Rates Unit Tests", () => {
         it("shiuld_create_tariff_if_noy_exist", async () => {
             (prisma.building.findUnique as jest.Mock).mockResolvedValue({ building_id: "building123" });
-            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue({ 
-                user_id: "user-123", 
-                building_id: "building123" 
+            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue({
+                user_id: "user-123",
+                building_id: "building123"
             });
 
             (prisma.utilityTariff.findFirst as jest.Mock).mockResolvedValue(null);
             (prisma.utilityTariff.create as jest.Mock).mockResolvedValue(true);
 
-            const payload = { 
-                peak_rate_zar: 0.15, 
-                off_peak_rate_zar: 0.08, 
-                season_name: "Summer" 
+            const payload = {
+                peak_rate_zar: 0.15,
+                off_peak_rate_zar: 0.08,
+                season_name: "Summer"
             };
             //act
             const out = await updateTariffService("user-123", "building123", payload);
@@ -159,8 +245,8 @@ describe("Recommendation Services Unit Tests", () => {
             expect(prisma.utilityTariff.create).toHaveBeenCalledWith({
                 data: {
                     building_id: "building123",
-                    peak_rate_zar: 0.15, 
-                    off_peak_rate_zar: 0.08, 
+                    peak_rate_zar: 0.15,
+                    off_peak_rate_zar: 0.08,
                     season_name: "Summer"
                 }
             });
@@ -192,10 +278,10 @@ describe("Recommendation Services Unit Tests", () => {
 
         it("should_throw_an_error_if_no_building_exists", async ()=>{
             (prisma.building.findUnique as jest.Mock).mockResolvedValue(null);
-            const payload = { 
-                peak_rate_zar: 0.15, 
-                off_peak_rate_zar: 0.08, 
-                season_name: "Summer" 
+            const payload = {
+                peak_rate_zar: 0.15,
+                off_peak_rate_zar: 0.08,
+                season_name: "Summer"
             };
             //act n assert
             await expect(updateTariffService("user-123", "building123", payload))
@@ -206,10 +292,10 @@ describe("Recommendation Services Unit Tests", () => {
         it("should_throw_error_if_no_access", async ( ) => {
             (prisma.building.findUnique as jest.Mock).mockResolvedValue({ building_id: "building123" });
             (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue(null);
-            const payload = { 
-                peak_rate_zar: 0.15, 
-                off_peak_rate_zar: 0.08, 
-                season_name: "Summer" 
+            const payload = {
+                peak_rate_zar: 0.15,
+                off_peak_rate_zar: 0.08,
+                season_name: "Summer"
             };
             //act n assert
             await expect(updateTariffService("user-123", "build-123", payload))

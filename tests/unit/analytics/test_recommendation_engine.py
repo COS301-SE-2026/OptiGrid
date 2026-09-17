@@ -144,7 +144,7 @@ def test_comfort_hot(mock_get, engine):
     mock_get.return_value = resp
     #assert
     res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=100.0)
-    assert res == 48
+    assert res == 5
 
 @patch('backend.analytics.src.recommendation_engine.requests.get')
 def test_comfort_normal(mock_get, engine):
@@ -158,7 +158,7 @@ def test_comfort_normal(mock_get, engine):
     mock_get.return_value = resp
     #act n assert
     res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=100.0)
-    assert res == 100
+    assert res == 18
 
 @patch('backend.analytics.src.recommendation_engine.RecommendationSynthesizer._calculate_comfort_score')
 def test_peak_shaving_omfort(mock_comfort_score, engine):
@@ -191,3 +191,38 @@ def test_season_optimisation_injects_comfort_score(mock_comfort_score, engine):
         assert len(recs) > 0
         assert "predicted_comfort_score" in recs[0]["applicable_range"]
         assert recs[0]["applicable_range"]["predicted_comfort_score"] == 90
+
+def test_comfort_without_shed_skips_weather_lookup(engine):
+    with patch('backend.analytics.src.recommendation_engine.requests.get') as mock_get:
+        res = engine._calculate_comfort_score(kw_reduced=0.0, forecast_peak=1.0)
+        assert res == 100
+        mock_get.assert_not_called()
+
+def test_comfort_costs_points_even_in_mild_weather(engine):
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=150.0, outside_temp=22.0)
+    assert res == 45
+
+def test_comfort_heat_amplifies_the_penalty(engine):
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=150.0, outside_temp=35.0)
+    assert res == 9
+
+@patch('backend.analytics.src.recommendation_engine.requests.get')
+def test_comfort_falls_back_to_neutral_temperature(mock_get, engine):
+    mock_get.side_effect = Exception("offline")
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=150.0)
+    assert res == 45
+
+@patch('backend.analytics.src.recommendation_engine.RecommendationSynthesizer._fetch_outside_temperature')
+def test_peak_shaving_stores_the_weather_behind_its_comfort_score(mock_temperature, engine):
+    mock_temperature.return_value = 30.0
+    recs = engine.generate_data_driven_rec(
+        building_id="building-123",
+        building_type="Commercial",
+        forecast_peak=150.0,
+        thresold_kw=100.0,
+        tariffs=[],
+        anomalies=[]
+    )
+    peak_rec = recs[0]
+    assert peak_rec["applicable_range"]["tradeoff_inputs"] == {"outside_temp_c": 30.0}
+    assert peak_rec["applicable_range"]["predicted_comfort_score"] == 23

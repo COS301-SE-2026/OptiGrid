@@ -1,19 +1,25 @@
+import math
 import uuid
 import secrets
 import logging
 import requests
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+NEUTRAL_TEMP_C = 22.0
+WEATHER_AMPLIFIER = 0.05
+SHED_PENALTY_SCALE = 165.0
+MAX_COMFORT_PENALTY = 95.0
 
 class RecommendationSynthesizer:
     def __init__(self, client):
         self.supabase = client
 
     def generate_data_driven_rec(
-        self, 
+        self,
         building_id:str,
         building_type: str,
         forecast_peak:float,
@@ -44,9 +50,9 @@ class RecommendationSynthesizer:
                         recs.append(anomaly_rec)
 
         return recs
-        
+
     def generate_non_data_driven_recs(
-        self, 
+        self,
         building_id:str,
         building_type: str,
         tariffs: List[Dict[str, Any]]
@@ -67,19 +73,19 @@ class RecommendationSynthesizer:
         #optimise whether its summer/winter
         if is_summer:
             rec = self._calculate_season_optimisation(building_id, building_type, "Summer Lighting")
-            if rec: 
+            if rec:
                 recs.append(rec)
         elif is_winter:
             rec = self._calculate_season_optimisation(building_id, building_type, "Winter Heating")
-            if rec: 
+            if rec:
                 recs.append(rec)
         elif is_spring:
             rec = self._calculate_season_optimisation(building_id, building_type, "Spring HVAC Optimisation")
-            if rec: 
+            if rec:
                 recs.append(rec)
         elif is_autumn:
             rec = self._calculate_season_optimisation(building_id, building_type, "Autumn Lighting")
-            if rec: 
+            if rec:
                 recs.append(rec)
 
         return recs
@@ -131,10 +137,11 @@ class RecommendationSynthesizer:
         if self._is_duplicate(building_id, context):
             return None
 
-        comfort_score = self._calculate_comfort_score(kw_reduced, forecast_peak)
+        outside_temp = self._fetch_outside_temperature()
+        comfort_score = self._calculate_comfort_score(kw_reduced, forecast_peak, outside_temp)
 
         strategy = (
-            f"Aggregate sensors forecast a peak load of {round(forecast_peak, 2)}kW, exceeding your threshold by {round((peak_base_ratio - 1) * 100, 1)}%."
+            f"Aggregate sensors forecast a peak load of {round(forecast_peak, 2)}kW, exceeding your threshold by {round((peak_base_ratio - 1) * 100, 1)}%. "
             f"To shift load away from peak tariff hours ({peak_start} - {peak_end}), investigate likely drivers such as {equipment}. "
             f"Note: This aggressive load reduction may drop the building's thermal comfort score to {comfort_score}/100."
         )
@@ -147,7 +154,7 @@ class RecommendationSynthesizer:
             "recommendation_category": "data",
             "applicable_range": {
                 "time_window":{
-                    "start": peak_start, 
+                    "start": peak_start,
                     "end": peak_end,
                     "timezone": "Africa/Johannesburg"
                 },
@@ -158,7 +165,10 @@ class RecommendationSynthesizer:
                 "target_equipment": equipment,
                 "confidence_score": 0.85,
                 "context": context,
-                "predicted_comfort_score": comfort_score
+                "predicted_comfort_score": comfort_score,
+                "tradeoff_inputs": {
+                    "outside_temp_c": round(outside_temp, 1)
+                }
             },
             "generated_date": datetime.now(timezone.utc).isoformat(),
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=(7 if time_window == "weekly" else 30))).isoformat()
@@ -216,7 +226,7 @@ class RecommendationSynthesizer:
             strategy = f"General seasonal optimisation for {context}. Monitor usage on {equipment}."
             savings = 50.0
 
-        comfort_score = self._calculate_comfort_score(0.0, 1.0) 
+        comfort_score = self._calculate_comfort_score(0.0, 1.0)
         return {
             "building_id": building_id,
             "strategy_description": strategy,
@@ -231,9 +241,9 @@ class RecommendationSynthesizer:
             "generated_date": datetime.now(timezone.utc).isoformat(),
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
         }
-    
+
     def _is_duplicate(self, building_id:str, context: str) -> bool:
-        if not self.supabase: 
+        if not self.supabase:
             return False
 
         try:
@@ -256,34 +266,35 @@ class RecommendationSynthesizer:
             logger.warning("Failed deduplication check for %s: %s", building_id, error)
             return False
 
-    def _calculate_comfort_score(self, kw_reduced: float, forecast_peak: float) -> int:
+    def _fetch_outside_temperature(self) -> float:
         try:
             #default is jhb, SA
             lat= -26.2041
             long = 28.0473
             #im using free whther api to pull whether
             url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={long}&current=temperature_2m"
-            
+
             resp = requests.get(url, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
-                outside_temp = data.get("current", {}).get("temperature_2m", 22.0)
-            else:
-                outside_temp = 22.0
+                return float(data.get("current", {}).get("temperature_2m", NEUTRAL_TEMP_C))
+            return NEUTRAL_TEMP_C
         except Exception as e:
             logger.warning("Failed to fetch weather for comfort score: %s", e)
-            outside_temp = 22.0
-                
-        reduction_percentage = 0.0
+            return NEUTRAL_TEMP_C
+
+    def _calculate_comfort_score(self, kw_reduced: float, forecast_peak: float, outside_temp: Optional[float] = None) -> int:
+        shed_share = 0.0
         if forecast_peak > 0:
-            reduction_percentage = kw_reduced / forecast_peak
-                
-        comfort_score = 100.0
-        temp_deviation = abs(outside_temp - 22.0)
-            
-        pen_fact = 8.0
-        pen = temp_deviation * reduction_percentage * pen_fact
-        comfort_score -= pen
-    
-        return max(0, min(100, int(comfort_score)))
-    
+            shed_share = max(0.0, min(1.0, kw_reduced / forecast_peak))
+        if shed_share <= 0.0:
+            return 100
+
+        if outside_temp is None:
+            outside_temp = self._fetch_outside_temperature()
+
+        weather_stress = 1.0 + WEATHER_AMPLIFIER * abs(outside_temp - NEUTRAL_TEMP_C)
+        penalty = min(MAX_COMFORT_PENALTY, SHED_PENALTY_SCALE * shed_share * weather_stress)
+        comfort_score = math.floor(100.0 - penalty + 0.5)
+
+        return max(0, min(100, comfort_score))
