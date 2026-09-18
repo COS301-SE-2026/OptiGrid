@@ -19,6 +19,7 @@ import systemHealthRoutes from "./routes/systemHealth.routes";
 import auditLogRoutes from "./routes/auditLog.routes";
 import auditEventRoutes from "./routes/auditEvent.routes";
 import reportRoutes from "./routes/report.routes";
+import esgRoutes from "./routes/esg.routes";
 import cors from 'cors';
 
 export interface CreateAppOptions {
@@ -196,6 +197,7 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use('/api/thresholds', normalRate, authenticateRequest, thresholdRoutes);
 	app.use('/api/anomalies', normalRate, authenticateRequest, anomalyRoutes);
 	app.use('/api/reports', normalRate, authenticateRequest, reportRoutes);
+	app.use('/api/buildings/:building_id/esg', normalRate, authenticateRequest, esgRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });

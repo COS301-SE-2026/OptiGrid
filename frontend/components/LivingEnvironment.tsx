@@ -1,7 +1,8 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchEsgHealthScore, simulateEsgScenario } from '@/lib/esg';
 
 type EcosystemState = 'thriving' | 'healthy' | 'declining' | 'critical';
 
@@ -126,6 +127,28 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
   const [renewables, setRenewables] = useState(55 + ((seed >> 3) % 45));
   const [hvacLoad, setHvacLoad] = useState(55 + ((seed >> 6) % 40));
   const [lighting, setLighting] = useState(60 + ((seed >> 9) % 40));
+  const [impact, setImpact] = useState<{ totalCarbonAvoided: number, equivalentTrees: number } | null>(null);
+
+  useEffect(() => {
+    fetchEsgHealthScore(buildingId)
+      .then((data) => {
+        const getScore = (dim: string) => data.dimensions.find((d: { dimension: string; score: number }) => d.dimension === dim)?.score || 60;
+        setEnergyEfficiency(getScore('energy_efficiency'));
+        setRenewables(getScore('renewables'));
+        setHvacLoad(getScore('hvacLoad'));
+        setLighting(getScore('lighting'));
+      })
+      .catch(console.error);
+  }, [buildingId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      simulateEsgScenario(buildingId, { energyEfficiency, renewables, hvacLoad, lighting })
+        .then((res) => setImpact(res.impact))
+        .catch(console.error);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [buildingId, energyEfficiency, renewables, hvacLoad, lighting]);
 
   const healthScore = useMemo(() => {
     const raw =
@@ -194,7 +217,7 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gridTemplateColumns: impact ? 'repeat(5, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
               gap: 'var(--space-3)',
               padding: 'var(--space-4) var(--space-5) var(--space-5)',
               borderTop: '1px solid var(--brand-border)',
@@ -215,6 +238,20 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
               value={`${config.flowerCount}/8`}
               accent={config.badgeClass}
             />
+            {impact && (
+              <>
+                <TreeStat
+                  label="CO2 Saved"
+                  value={`${impact.totalCarbonAvoided}kg`}
+                  accent="badge-success"
+                />
+                <TreeStat
+                  label="Trees Eq"
+                  value={`${impact.equivalentTrees}`}
+                  accent="badge-success"
+                />
+              </>
+            )}
           </div>
         </section>
 
@@ -370,7 +407,6 @@ function WhatIsAffectingPanel({
   state: EcosystemState;
 }) {
   const weakest = drivers[0];
-  const strongest = drivers[drivers.length - 1];
 
   return (
     <section className="card" aria-labelledby="affecting-heading">
