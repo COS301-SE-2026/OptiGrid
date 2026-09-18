@@ -9,6 +9,7 @@ const navigation = [
     { label: "Live", href: "/realtime" },
     { label: "Forecast", href: "/forecast" },
     { label: "Insights", href: "/insights" },
+    { label: "ESG", href:"/esg"},
     { label: "Admin", href: "/admin", roles: ["ADMIN"] },
     { label: "Tariff rates", href: "/billing", roles: ["ADMIN"] },
     { label: "Audit", href: "/audit", roles: ["ADMIN"] },

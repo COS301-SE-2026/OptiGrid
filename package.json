@@ -108,7 +108,8 @@
 	},
 	"dependencies": {
 		"cors": "^2.8.6",
-		"multer": "^2.4.0",
+		"framer-motion": "^13.4.0",
+		"multer": "^2.2.0",
 		"node-cron": "^3.0.3",
 		"requirements.txt": "link:backend/analytics/src/requirements.txt",
 		"resend": "^6.28.0",
