@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type EcosystemState = 'thriving' | 'healthy' | 'declining' | 'critical';
@@ -12,63 +12,94 @@ function getEcosystemState(score: number): EcosystemState {
   return 'critical';
 }
 
+
 const stateConfig: Record<
   EcosystemState,
   {
     label: string;
-    color: string;
+    badgeClass: string;
     bgFrom: string;
     bgTo: string;
     trunkColor: string;
+    trunkHighlight: string;
     leafColors: [string, string, string];
+    flowerColor: string;
+    flowerCenter: string;
+    grassColor: string;
+    grassHighlight: string;
+    sunColor: string;
+    sunGlow: string;
     leafCount: number;
     flowerCount: number;
-    grassColor: string;
   }
 > = {
   thriving: {
     label: 'Thriving',
-    color: 'text-emerald-600',
-    bgFrom: '#ecfdf5',
-    bgTo: '#d1fae5',
-    trunkColor: '#78350f',
-    leafColors: ['#10b981', '#34d399', '#6ee7b7'],
+    badgeClass: 'badge-success',
+    bgFrom: '#EEF7FF',
+    bgTo: '#CDE8E5',
+    trunkColor: '#3D6C7E',
+    trunkHighlight: '#4D869C',
+    leafColors: ['#2F7D5D', '#4D869C', '#7AB2B2'],
+    flowerColor: '#7AB2B2',
+    flowerCenter: '#EEF7FF',
+    grassColor: '#2F7D5D',
+    grassHighlight: '#7AB2B2',
+    sunColor: '#F4C95D',
+    sunGlow: 'rgba(244, 201, 93, 0.55)',
     leafCount: 24,
     flowerCount: 8,
-    grassColor: '#22c55e',
   },
   healthy: {
     label: 'Healthy',
-    color: 'text-green-600',
-    bgFrom: '#f0fdf4',
-    bgTo: '#dcfce7',
-    trunkColor: '#854d0e',
-    leafColors: ['#22c55e', '#4ade80', '#86efac'],
+    badgeClass: 'badge-default',
+    bgFrom: '#EEF7FF',
+    bgTo: '#DDE9F2',
+    trunkColor: '#4D869C',
+    trunkHighlight: '#7AB2B2',
+    leafColors: ['#4D869C', '#7AB2B2', '#A8D0D0'],
+    flowerColor: '#7AB2B2',
+    flowerCenter: '#EEF7FF',
+    grassColor: '#4D869C',
+    grassHighlight: '#7AB2B2',
+    sunColor: '#EBCB72',
+    sunGlow: 'rgba(235, 203, 114, 0.45)',
     leafCount: 18,
     flowerCount: 4,
-    grassColor: '#4ade80',
   },
   declining: {
     label: 'Declining',
-    color: 'text-amber-600',
-    bgFrom: '#fffbeb',
-    bgTo: '#fef3c7',
-    trunkColor: '#92400e',
-    leafColors: ['#d97706', '#f59e0b', '#fbbf24'],
+    badgeClass: 'badge-warning',
+    bgFrom: '#FBF6EA',
+    bgTo: '#F0E1C4',
+    trunkColor: '#8A6A3B',
+    trunkHighlight: '#B26B00',
+    leafColors: ['#B26B00', '#C68B3A', '#D9B679'],
+    flowerColor: '#D9B679',
+    flowerCenter: '#FBF6EA',
+    grassColor: '#8A6A3B',
+    grassHighlight: '#C68B3A',
+    sunColor: '#E0A24A',
+    sunGlow: 'rgba(224, 162, 74, 0.4)',
     leafCount: 10,
     flowerCount: 1,
-    grassColor: '#a3a300',
   },
   critical: {
     label: 'Critical',
-    color: 'text-red-600',
-    bgFrom: '#fef2f2',
-    bgTo: '#fee2e2',
-    trunkColor: '#78350f',
-    leafColors: ['#b45309', '#92400e', '#78716c'],
+    badgeClass: 'badge-danger',
+    bgFrom: '#FBE9E9',
+    bgTo: '#E7C9C9',
+    trunkColor: '#5C3A2E',
+    trunkHighlight: '#8A5343',
+    leafColors: ['#8A5343', '#B03A3A', '#7A4A3E'],
+    flowerColor: '#B03A3A',
+    flowerCenter: '#FBE9E9',
+    grassColor: '#8A6A3B',
+    grassHighlight: '#B03A3A',
+    sunColor: '#B03A3A',
+    sunGlow: 'rgba(176, 58, 58, 0.35)',
     leafCount: 4,
     flowerCount: 0,
-    grassColor: '#a16207',
   },
 };
 
@@ -84,10 +115,18 @@ interface LivingEnvironmentProps {
 }
 
 export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
-  const [energyEfficiency, setEnergyEfficiency] = useState(85);
-  const [renewables, setRenewables] = useState(70);
-  const [hvacLoad, setHvacLoad] = useState(60);
-  const [lighting, setLighting] = useState(80);
+  const seed = useMemo(() => {
+    let h = 0;
+    for (let i = 0; i < buildingId.length; i++) {
+      h = (h * 31 + buildingId.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h);
+  }, [buildingId]);
+
+  const [energyEfficiency, setEnergyEfficiency] = useState(60 + (seed % 40));
+  const [renewables, setRenewables] = useState(55 + ((seed >> 3) % 45));
+  const [hvacLoad, setHvacLoad] = useState(55 + ((seed >> 6) % 40));
+  const [lighting, setLighting] = useState(60 + ((seed >> 9) % 40));
 
   const healthScore = useMemo(() => {
     const raw =
@@ -102,74 +141,130 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
   const config = stateConfig[state];
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)',
+        gap: 'var(--space-5)',
+      }}
+      className="esg-grid"
+    >
       
-      <div className="lg:col-span-3">
-        <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-lg shadow-emerald-100/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
-          <div className="flex items-center justify-between px-5 pt-4">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Living Environment
-            </h2>
+      <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div
+          className="dashboard-section-header"
+          style={{
+            padding: 'var(--space-4) var(--space-5) 0',
+            marginBottom: 0,
+          }}
+        >
+          <div>
+            <h2 className="dashboard-section-title">Living Environment</h2>
+            <p className="dashboard-section-meta">
+              Building <span className="metric">{buildingId}</span>
+            </p>
+          </div>
+          <span className={`badge ${config.badgeClass}`}>
             <span
-              className={`rounded-full border border-current/30 bg-white/70 px-3 py-1 text-xs font-medium backdrop-blur-sm dark:bg-slate-900/70 ${config.color}`}
-            >
-              {config.label}
-            </span>
-          </div>
-
-          <div className="relative">
-            <EcosystemVisual state={state} config={config} />
-
-            <div className="absolute bottom-4 left-4 rounded-xl bg-white/80 px-4 py-2 backdrop-blur-sm dark:bg-slate-900/80">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Health Score
-              </p>
-              <p className={`text-2xl font-bold tabular-nums ${config.color}`}>
-                {healthScore}
-              </p>
-            </div>
-          </div>
+              aria-hidden
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 999,
+                background: 'currentColor',
+                display: 'inline-block',
+              }}
+            />
+            {config.label}
+          </span>
         </div>
-      </div>
+
+        <EcosystemVisual
+          state={state}
+          config={config}
+          buildingId={buildingId}
+        />
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 'var(--space-3)',
+            padding: 'var(--space-4) var(--space-5) var(--space-5)',
+            borderTop: '1px solid var(--brand-border)',
+          }}
+        >
+          <TreeStat
+            label="Health Score"
+            value={`${healthScore}`}
+            accent={config.badgeClass}
+          />
+          <TreeStat
+            label="Leaves"
+            value={`${config.leafCount}/24`}
+            accent={config.badgeClass}
+          />
+          <TreeStat
+            label="Bloom"
+            value={`${config.flowerCount}/8`}
+            accent={config.badgeClass}
+          />
+        </div>
+      </section>
 
       
-      <div className="lg:col-span-2">
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-lg shadow-emerald-100/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
-          <h2 className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Building Performance
-          </h2>
-          <p className="mb-5 text-xs text-slate-500 dark:text-slate-400">
-            Adjust the controls and watch the tree respond.
-          </p>
-
-          <div className="space-y-6">
-            <ControlSlider
-              label="Energy Efficiency"
-              value={energyEfficiency}
-              onChange={setEnergyEfficiency}
-              accent="emerald"
-            />
-            <ControlSlider
-              label="Renewable Energy"
-              value={renewables}
-              onChange={setRenewables}
-              accent="sky"
-            />
-            <ControlSlider
-              label="HVAC Optimization"
-              value={hvacLoad}
-              onChange={setHvacLoad}
-              accent="amber"
-            />
-            <ControlSlider
-              label="Lighting Optimization"
-              value={lighting}
-              onChange={setLighting}
-              accent="violet"
-            />
+      <section className="card">
+        <header
+          className="dashboard-section-header"
+          style={{ marginBottom: 'var(--space-4)' }}
+        >
+          <div>
+            <h2 className="dashboard-section-title">Building Performance</h2>
+            <p className="dashboard-section-meta">
+              Move a slider — the tree responds instantly.
+            </p>
           </div>
+        </header>
+
+        <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
+          <ControlSlider
+            label="Energy Efficiency"
+            value={energyEfficiency}
+            onChange={setEnergyEfficiency}
+            accent="--brand-primary"
+          />
+          <ControlSlider
+            label="Renewable Energy"
+            value={renewables}
+            onChange={setRenewables}
+            accent="--brand-secondary"
+          />
+          <ControlSlider
+            label="HVAC Optimization"
+            value={hvacLoad}
+            onChange={setHvacLoad}
+            accent="--brand-success"
+          />
+          <ControlSlider
+            label="Lighting Optimization"
+            value={lighting}
+            onChange={setLighting}
+            accent="--brand-primary"
+          />
         </div>
-      </div>
+
+        <div
+          className="dashboard-section-meta"
+          style={{
+            marginTop: 'var(--space-5)',
+            paddingTop: 'var(--space-3)',
+            borderTop: '1px solid var(--brand-border)',
+          }}
+        >
+          Weighted blend — efficiency 35% · renewables 30% · HVAC 20% ·
+          lighting 15%.
+        </div>
+      </section>
     </div>
   );
 }
@@ -179,90 +274,142 @@ interface ControlSliderProps {
   label: string;
   value: number;
   onChange: (v: number) => void;
-  accent: 'emerald' | 'sky' | 'amber' | 'violet';
+  accent: string; 
 }
 
-const accentClasses: Record<
-  ControlSliderProps['accent'],
-  { thumbBorder: string; badge: string; fill: string }
-> = {
-  emerald: {
-    thumbBorder: 'border-emerald-500',
-    badge:
-      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
-    fill: 'from-emerald-400 to-emerald-500',
-  },
-  sky: {
-    thumbBorder: 'border-sky-500',
-    badge: 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300',
-    fill: 'from-sky-400 to-sky-500',
-  },
-  amber: {
-    thumbBorder: 'border-amber-500',
-    badge:
-      'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
-    fill: 'from-amber-400 to-amber-500',
-  },
-  violet: {
-    thumbBorder: 'border-violet-500',
-    badge:
-      'bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300',
-    fill: 'from-violet-400 to-violet-500',
-  },
-};
-
-function ControlSlider({
-  label,
-  value,
-  onChange,
-  accent,
-}: ControlSliderProps) {
-  const colors = accentClasses[accent];
-
+function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
+  const id = useId();
   return (
-    <div className="space-y-2.5">
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: 6,
+        }}
+      >
+        <label className="label" htmlFor={id} style={{ marginBottom: 0 }}>
           {label}
         </label>
         <span
-          className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${colors.badge}`}
+          className="metric"
+          style={{
+            fontSize: 'var(--fs-small)',
+            color: `var(${accent})`,
+            fontWeight: 'var(--fw-semibold)',
+          }}
         >
           {value}%
         </span>
       </div>
 
-      <div className="relative flex h-5 items-center">
-        <div className="absolute inset-x-0 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700" />
+      <div style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center' }}>
         <div
-          className={`absolute h-1.5 rounded-full bg-gradient-to-r ${colors.fill}`}
-          style={{ width: `${value}%` }}
+          style={{
+            position: 'absolute',
+            inset: '9px 0',
+            borderRadius: 999,
+            background: 'color-mix(in srgb, var(--brand-secondary) 22%, transparent)',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            top: 9,
+            bottom: 9,
+            left: 0,
+            width: `${value}%`,
+            borderRadius: 999,
+            background: `var(${accent})`,
+            transition: 'width 0.1s linear',
+          }}
         />
         <input
+          id={id}
           type="range"
           min={0}
           max={100}
           step={1}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className={`relative z-10 h-5 w-full cursor-pointer appearance-none bg-transparent
-            [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4
-            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full
-            [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:bg-white
-            [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:transition-transform
-            [&::-webkit-slider-thumb]:hover:scale-110
-            ${colors.thumbBorder}
-            [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4
-            [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2
-            [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md
-            [&::-moz-range-thumb]:transition-transform
-            [&::-moz-range-thumb]:hover:scale-110
-            [&::-moz-range-thumb]:border-current
-          `}
-          style={{ color: 'transparent' }}
           aria-label={label}
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            width: '100%',
+            height: 20,
+            appearance: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            margin: 0,
+          }}
+          className="esg-slider"
         />
       </div>
+
+      <style jsx>{`
+        .esg-slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 999px;
+          background: var(--brand-surface);
+          border: 2px solid var(${accent});
+          box-shadow: var(--shadow-card);
+          transition: transform 0.15s ease;
+        }
+        .esg-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.15);
+        }
+        .esg-slider::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          border-radius: 999px;
+          background: var(--brand-surface);
+          border: 2px solid var(${accent});
+          box-shadow: var(--shadow-card);
+        }
+        .esg-slider:focus-visible {
+          outline: none;
+        }
+        .esg-slider:focus-visible::-webkit-slider-thumb {
+          box-shadow: var(--focus-ring);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+
+function TreeStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent: string;
+}) {
+  return (
+    <div
+      style={{
+        background: 'var(--brand-surface-alt)',
+        borderRadius: 'var(--radius-md)',
+        padding: 'var(--space-3)',
+        display: 'grid',
+        gap: 2,
+      }}
+    >
+      <span
+        className="dashboard-kpi-label"
+        style={{ fontSize: '0.62rem' }}
+      >
+        {label}
+      </span>
+      <span className={`metric badge ${accent}`} style={{ background: 'transparent', padding: 0, fontSize: '1.15rem' }}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -271,9 +418,10 @@ function ControlSlider({
 interface EcosystemVisualProps {
   state: EcosystemState;
   config: (typeof stateConfig)[EcosystemState];
+  buildingId: string;
 }
 
-function EcosystemVisual({ state, config }: EcosystemVisualProps) {
+function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
   const leaves = Array.from({ length: 24 }, (_, i) => {
     const angle = (i / 24) * Math.PI * 2;
     const radius = 38 + (i % 3) * 12;
@@ -297,87 +445,124 @@ function EcosystemVisual({ state, config }: EcosystemVisualProps) {
 
   const trunkDroop = state === 'critical' ? 8 : state === 'declining' ? 3 : 0;
 
+  const description = `Living environment for building ${buildingId}. State: ${config.label}. ${config.leafCount} of 24 leaves visible, ${config.flowerCount} of 8 blooms.`;
+
   return (
-    <div className="relative h-80 w-full overflow-hidden">
+    <div
+      style={{
+        position: 'relative',
+        padding: 'var(--space-5)',
+        background: `linear-gradient(180deg, ${config.bgFrom} 0%, ${config.bgTo} 100%)`,
+        transition: 'background 1.2s ease',
+      }}
+    >
+      
+      <p className="sr-only">{description}</p>
+
+      
+      <div
+        style={{
+          position: 'absolute',
+          top: 'var(--space-4)',
+          left: 'var(--space-4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '4px 10px',
+          borderRadius: 'var(--radius-pill)',
+          background: 'color-mix(in srgb, var(--brand-surface) 88%, transparent)',
+          border: '1px solid var(--brand-border)',
+          fontSize: 11,
+          fontWeight: 'var(--fw-semibold)',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--brand-ink-muted)',
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: 999,
+            background: config.grassColor,
+            display: 'inline-block',
+          }}
+        />
+        Tree of Life
+      </div>
+
       <motion.svg
         viewBox="0 0 300 240"
-        className="h-full w-full"
+        role="img"
+        aria-label={description}
+        style={{ width: '100%', height: 'auto', display: 'block', maxHeight: 340 }}
         initial={false}
-        animate={{ backgroundColor: config.bgFrom }}
-        transition={{ duration: 1.2, ease: 'easeInOut' }}
-        style={{ backgroundColor: config.bgFrom }}
+        transition={{ duration: 1.2 }}
       >
         <defs>
           <radialGradient id="sunGlow" cx="50%" cy="50%">
-            <stop offset="0%" stopColor="#fef08a" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#fef08a" stopOpacity="0" />
+            <stop offset="0%" stopColor={config.sunGlow} stopOpacity="1" />
+            <stop offset="100%" stopColor={config.sunGlow} stopOpacity="0" />
           </radialGradient>
+          <linearGradient id="trunkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={config.trunkHighlight} />
+            <stop offset="100%" stopColor={config.trunkColor} />
+          </linearGradient>
+          <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={config.grassHighlight} stopOpacity="0.55" />
+            <stop offset="100%" stopColor={config.grassColor} stopOpacity="0.15" />
+          </linearGradient>
         </defs>
 
-        <motion.rect
-          width="300"
-          height="240"
-          initial={false}
-          animate={{ fill: config.bgTo, opacity: 0.4 }}
-          transition={{ duration: 1.2 }}
-        />
-
+        
         <motion.circle
           cx="250"
           cy="45"
-          r="30"
+          r="34"
           fill="url(#sunGlow)"
           initial={false}
           animate={{
             opacity:
-              state === 'critical' ? 0.3 : state === 'declining' ? 0.6 : 1,
-            r: state === 'thriving' ? 32 : 28,
+              state === 'critical' ? 0.35 : state === 'declining' ? 0.65 : 1,
           }}
           transition={{ duration: 1 }}
         />
         <motion.circle
           cx="250"
           cy="45"
-          r="12"
+          r="13"
           initial={false}
-          animate={{
-            fill:
-              state === 'critical'
-                ? '#a8a29e'
-                : state === 'declining'
-                  ? '#fbbf24'
-                  : '#facc15',
-          }}
+          animate={{ fill: config.sunColor }}
           transition={{ duration: 1 }}
         />
 
-        <motion.ellipse
+        
+        <ellipse cx="150" cy="212" rx="160" ry="32" fill="url(#groundGrad)" />
+
+        
+        <ellipse
           cx="150"
-          cy="215"
-          rx="160"
-          ry="30"
-          initial={false}
-          animate={{ fill: config.grassColor }}
-          transition={{ duration: 1 }}
-          opacity={0.35}
+          cy="212"
+          rx="26"
+          ry="4"
+          fill="var(--brand-ink)"
+          opacity="0.08"
         />
 
+        
         <motion.path
           d="M150 210 Q145 180 148 150 Q150 120 150 100"
-          stroke={config.trunkColor}
-          strokeWidth="10"
+          stroke="url(#trunkGrad)"
+          strokeWidth={state === 'thriving' ? 12 : state === 'healthy' ? 11 : 8}
           strokeLinecap="round"
           fill="none"
           initial={false}
-          animate={{
-            stroke: config.trunkColor,
-            strokeWidth:
-              state === 'thriving' ? 11 : state === 'healthy' ? 10 : 8,
-            y: trunkDroop,
-          }}
+          animate={{ y: trunkDroop }}
           transition={{ duration: 1 }}
         />
 
+        
         <motion.path
           d="M149 140 Q120 120 105 105"
           stroke={config.trunkColor}
@@ -385,7 +570,7 @@ function EcosystemVisual({ state, config }: EcosystemVisualProps) {
           strokeLinecap="round"
           fill="none"
           initial={false}
-          animate={{ opacity: state === 'critical' ? 0.3 : 1, y: trunkDroop }}
+          animate={{ opacity: state === 'critical' ? 0.35 : 1, y: trunkDroop }}
           transition={{ duration: 1 }}
         />
         <motion.path
@@ -395,10 +580,11 @@ function EcosystemVisual({ state, config }: EcosystemVisualProps) {
           strokeLinecap="round"
           fill="none"
           initial={false}
-          animate={{ opacity: state === 'critical' ? 0.3 : 1, y: trunkDroop }}
+          animate={{ opacity: state === 'critical' ? 0.35 : 1, y: trunkDroop }}
           transition={{ duration: 1 }}
         />
 
+        
         <AnimatePresence>
           {leaves.map((leaf) => (
             <motion.circle
@@ -408,9 +594,9 @@ function EcosystemVisual({ state, config }: EcosystemVisualProps) {
               r={9}
               initial={false}
               animate={{
-                opacity: leaf.isVisible ? 0.9 : 0,
+                opacity: leaf.isVisible ? 0.95 : 0,
                 scale: leaf.isVisible ? 1 : 0.3,
-                fill: leaf.isVisible ? leaf.color : '#a8a29e',
+                fill: leaf.isVisible ? leaf.color : 'var(--brand-secondary)',
                 cx: leaf.x,
                 cy: leaf.y,
               }}
@@ -423,6 +609,7 @@ function EcosystemVisual({ state, config }: EcosystemVisualProps) {
           ))}
         </AnimatePresence>
 
+        
         <AnimatePresence>
           {flowers.map((flower) => (
             <motion.g
@@ -435,14 +622,15 @@ function EcosystemVisual({ state, config }: EcosystemVisualProps) {
               transition={{ duration: 0.6, delay: flower.i * 0.05 }}
               style={{ transformOrigin: `${flower.x}px ${flower.y}px` }}
             >
-              <circle cx={flower.x} cy={flower.y} r="3" fill="#f472b6" />
-              <circle cx={flower.x - 3} cy={flower.y - 2} r="2.5" fill="#fb7185" />
-              <circle cx={flower.x + 3} cy={flower.y - 2} r="2.5" fill="#fb7185" />
-              <circle cx={flower.x} cy={flower.y + 3} r="2.5" fill="#fb7185" />
+              <circle cx={flower.x} cy={flower.y} r="3.2" fill={config.flowerCenter} />
+              <circle cx={flower.x - 3} cy={flower.y - 2} r="2.6" fill={config.flowerColor} />
+              <circle cx={flower.x + 3} cy={flower.y - 2} r="2.6" fill={config.flowerColor} />
+              <circle cx={flower.x} cy={flower.y + 3} r="2.6" fill={config.flowerColor} />
             </motion.g>
           ))}
         </AnimatePresence>
 
+        
         {state === 'critical' &&
           [0, 1, 2].map((i) => (
             <motion.circle
@@ -450,10 +638,10 @@ function EcosystemVisual({ state, config }: EcosystemVisualProps) {
               cx={130 + i * 20}
               cy={160}
               r="4"
-              fill="#a16207"
+              fill={config.leafColors[0]}
               initial={{ opacity: 0, y: 0 }}
               animate={{
-                opacity: [0, 0.7, 0],
+                opacity: [0, 0.75, 0],
                 y: [0, 40, 60],
                 x: [0, i % 2 === 0 ? 8 : -8, i % 2 === 0 ? 12 : -12],
               }}
