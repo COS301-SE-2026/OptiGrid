@@ -4,6 +4,7 @@ import {
     setAccessTokenCookie,
     setSessionCookie,
     shouldUseSecureCookies,
+    clearUnscopedAuthCookies,
 } from "./authCookies";
 
 const user = {
@@ -36,5 +37,24 @@ describe("authentication cookies", () => {
         setSessionCookie(response, user, null, shouldUseSecureCookies(request));
 
         expect(response.headers.getSetCookie()[0]).toContain("Secure");
+    });
+
+    it("expires obsolete root cookies before setting tab-scoped cookies", () => {
+        const request = new Request("http://localhost:3000/api/auth/login");
+        const response = NextResponse.json({ ok: true });
+        const tabId = "00000000-0000-4000-8000-000000000001";
+
+        setSessionCookie(response, user, tabId, shouldUseSecureCookies(request));
+        setAccessTokenCookie(response, "token", tabId, shouldUseSecureCookies(request));
+        clearUnscopedAuthCookies(response, tabId, shouldUseSecureCookies(request));
+
+        const cookies = response.headers.getSetCookie();
+        expect(cookies).toHaveLength(4);
+        expect(cookies).toEqual(expect.arrayContaining([
+            expect.stringMatching(/^optigrid_session=;.*Path=\/;.*Max-Age=0/),
+            expect.stringMatching(new RegExp(`^optigrid_session=.*Path=/_sessions/${tabId}`)),
+            expect.stringMatching(/^optigrid_access_token=;.*Path=\/;.*Max-Age=0/),
+            expect.stringMatching(new RegExp(`^optigrid_access_token=token;.*Path=/_sessions/${tabId}`)),
+        ]));
     });
 });

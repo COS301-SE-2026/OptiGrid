@@ -2,7 +2,7 @@
 import { GET } from "./route";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { setSessionCookie } from "../../../../lib/authCookies";
+import { clearUnscopedAuthCookies, setSessionCookie } from "../../../../lib/authCookies";
 
 jest.mock("@supabase/ssr", () => ({ createServerClient: jest.fn() }));
 jest.mock("next/headers", () => ({ cookies: jest.fn() }));
@@ -10,6 +10,7 @@ jest.mock("../../../../lib/authCookies", () => ({
     setSessionCookie: jest.fn(),
     setAccessTokenCookie: jest.fn(),
     shouldUseSecureCookies: jest.fn(() => false),
+    clearUnscopedAuthCookies: jest.fn(),
 }));
 
 describe("Google Authentication route integrations", () => {
@@ -73,7 +74,7 @@ describe("Google Authentication route integrations", () => {
         expect(resp.status).toBe(307);
         expect(resp.headers.get("Location")).toBe("http://localhost/dashboard");
         expect(setSessionCookie).toHaveBeenCalled();
-        expect(setSessionCookie).toHaveBeenCalled();
+        expect(clearUnscopedAuthCookies).toHaveBeenCalled();
     });
 
     it("should_redirect_to_login_error", async () => {

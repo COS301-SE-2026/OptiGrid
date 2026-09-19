@@ -5,6 +5,24 @@ import { SessionUser, SESSION_COOKIE_NAME } from "./session";
 export const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
+function clearRootCookie(resp: NextResponse, name: string, secure: boolean): void {
+    const secureAttribute = secure ? "; Secure" : "";
+    resp.headers.append(
+        "Set-Cookie",
+        `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secureAttribute}`,
+    );
+}
+
+export function clearUnscopedAuthCookies(
+    resp: NextResponse,
+    tabId: string | null,
+    secure = false,
+): void {
+    if (!tabId) return;
+    clearRootCookie(resp, SESSION_COOKIE_NAME, secure);
+    clearRootCookie(resp, ACCESS_TOKEN_COOKIE_NAME, secure);
+}
+
 export function shouldUseSecureCookies(request: Request): boolean {
     const forwardedProtocol = request.headers.get("x-forwarded-proto")
         ?.split(",")[0]

@@ -62,6 +62,12 @@ test.describe("Login page", () => {
 
   test("routes to dashboard when login succeeds", async ({ page, request }) => {
     const user = buildUniqueUser();
+    const hydrationErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error" && message.text().toLowerCase().includes("hydrated")) {
+        hydrationErrors.push(message.text());
+      }
+    });
     await createUserInCore(request, user);
 
     await page.goto("/login");
@@ -77,6 +83,38 @@ test.describe("Login page", () => {
     await expect(
       page.getByRole("heading", { name: `Welcome back, ${user.firstName}` })
     ).toBeVisible();
+    expect(hydrationErrors).toEqual([]);
+  });
+
+  test("replaces stale root cookies when login succeeds", async ({ page, request }) => {
+    const user = buildUniqueUser();
+    const appOrigin = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+    await createUserInCore(request, user);
+
+    await page.context().addCookies([
+      {
+        name: "optigrid_session",
+        value: encodeURIComponent(JSON.stringify({ userId: "stale-user", email: "stale@example.com" })),
+        url: appOrigin,
+      },
+      {
+        name: "optigrid_access_token",
+        value: "stale-token",
+        url: appOrigin,
+      },
+    ]);
+
+    await page.goto("/login");
+    await page.getByLabel("Work email").fill(user.email);
+    await page.getByLabel("Password", { exact: true }).fill(user.password);
+    await page.getByRole("button", { name: "Log in" }).click();
+
+    await expect(page).toHaveURL(/\/_sessions\/[^/]+\/dashboard$/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: `Welcome back, ${user.firstName}` })).toBeVisible();
+
+    const rootCookies = (await page.context().cookies(appOrigin))
+      .filter((cookie) => cookie.path === "/" && ["optigrid_session", "optigrid_access_token"].includes(cookie.name));
+    expect(rootCookies).toEqual([]);
   });
 });
 

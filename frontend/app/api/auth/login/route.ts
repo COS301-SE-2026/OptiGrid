@@ -4,6 +4,7 @@ import {
 	setAccessTokenCookie,
 	setSessionCookie,
 	shouldUseSecureCookies,
+	clearUnscopedAuthCookies,
 } from "../../../../lib/authCookies";
 
 const CORE_URL = process.env.CORE_URL ?? "http://localhost:4000";
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
 			const secure = shouldUseSecureCookies(request);
 			setSessionCookie(response, getSessionUser(payload), tabSessionId, secure);
 			setAccessTokenCookie(response, getStringValue(payload.accessToken), tabSessionId, secure);
+			clearUnscopedAuthCookies(response, tabSessionId, secure);
 		}
 
 		return response;

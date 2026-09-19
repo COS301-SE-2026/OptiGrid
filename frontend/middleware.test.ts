@@ -62,4 +62,25 @@ describe("middleware", () => {
 		expect(callArgs[0].pathname).toBe("/dashboard");
 		expect(callArgs[1].request.headers.get("x-optigrid-tab-id")).toBe("tab123");
 	});
+
+	it("preserves the tab-scoped auth cookies when stale root cookies are also present", () => {
+		const mockClone = { pathname: "/_sessions/tab123/dashboard" };
+		const req = {
+			nextUrl: {
+				pathname: "/_sessions/tab123/dashboard",
+				clone: jest.fn().mockReturnValue(mockClone),
+			},
+			headers: new Headers([[
+				"cookie",
+				"optigrid_session=scoped-session; optigrid_access_token=scoped-token; optigrid_session=stale-root-session; optigrid_access_token=stale-root-token; theme=dark",
+			]]),
+		} as unknown as NextRequest;
+
+		middleware(req);
+
+		const callArgs = (NextResponse.rewrite as jest.Mock).mock.calls[0];
+		expect(callArgs[1].request.headers.get("cookie")).toBe(
+			"optigrid_session=scoped-session; optigrid_access_token=scoped-token; theme=dark",
+		);
+	});
 });

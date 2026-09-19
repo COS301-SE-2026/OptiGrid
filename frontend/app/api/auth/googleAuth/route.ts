@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getTabSessionPath, isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
-import { setSessionCookie, setAccessTokenCookie, shouldUseSecureCookies } from "../../../../lib/authCookies";
+import { clearUnscopedAuthCookies, setSessionCookie, setAccessTokenCookie, shouldUseSecureCookies } from "../../../../lib/authCookies";
 
 type SessionUser = {
     userId: string;
@@ -76,6 +76,7 @@ export async function GET(request: Request) {
             const secure = shouldUseSecureCookies(request);
             setSessionCookie(resp, sessionUser, tabSessionId, secure);
             setAccessTokenCookie(resp, data.session.access_token, tabSessionId, secure);
+            clearUnscopedAuthCookies(resp, tabSessionId, secure);
             return resp;
         }
     }

@@ -4,6 +4,7 @@ import {
     setAccessTokenCookie,
     setSessionCookie,
     shouldUseSecureCookies,
+    clearUnscopedAuthCookies,
 } from "../../../../lib/authCookies";
 import type { SessionUser } from "../../../../lib/session";
 
@@ -39,6 +40,8 @@ function setAuthCookies(
     if (accessToken) {
         setAccessTokenCookie(response, accessToken, tabSessionId, secure);
     }
+
+    clearUnscopedAuthCookies(response, tabSessionId, secure);
 }
 
 export async function POST(request: Request) {
