@@ -8,6 +8,15 @@ jest.mock("@/lib/useTelemetryStream", () => ({
     useTelemetryStream: jest.fn(),
 }));
 
+jest.mock("@/components/digital-twin/DigitalTwin", () => ({
+  __esModule: true,
+  default: ({ building }: { building: { building_id: string; square_footage?: number } }) => (
+    <section aria-label="Digital twin preview">
+      Twin of {building.building_id} covering {building.square_footage} square metres
+    </section>
+  ),
+}));
+
 jest.mock("next/link", () => ({
   __esModule: true,
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -217,5 +226,13 @@ describe("ViewBuildingPage", () => {
     render(<ViewBuildingPage params={makeParams("111")} />);
 
     expect(await screen.findByText("Building not found.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Digital twin preview" })).not.toBeInTheDocument();
+  });
+
+  it("provides the loaded building to the digital twin", async () => {
+    mockFetchOk();
+    render(<ViewBuildingPage params={makeParams("111")} />);
+    const twin = await screen.findByRole("region", { name: "Digital twin preview" });
+    expect(twin).toHaveTextContent("Twin of 111 covering 5000 square metres");
   });
 });
