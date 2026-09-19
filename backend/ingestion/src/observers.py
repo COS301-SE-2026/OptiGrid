@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from influxdb_client import Point, WritePrecision
+import json
 import logging
 import os
 import redis
@@ -84,6 +85,39 @@ class InfluxStorageObserver(Observer):
         # attempt to flush to influx
         self.write_api.write(bucket=self.bucket, record=point)
         print(f"[WORKER] Flushed telemetry to InfluxDB for building {str(building_id)[:8]} ({power_kw} kW)")
+
+
+class LiveBroadcastObserver(Observer):
+    def __init__(self, redis_client, ttl_seconds: int = 900):
+        self.redis = redis_client
+        self.ttl_seconds = ttl_seconds
+
+    def update(self, payload: dict):
+        building_id = payload.get("building_id")
+        sensor_id = payload.get("sensor_id")
+        if not building_id or not sensor_id:
+            return
+
+        reading = {
+            "building_id": building_id,
+            "sensor_id": sensor_id,
+            "power_kw": float(payload.get("power_kw", 0.0)),
+            "voltage_v": float(payload["voltage_v"]) if payload.get("voltage_v") is not None else None,
+            "current_a": float(payload["current_a"]) if payload.get("current_a") is not None else None,
+            "timestamp": payload.get("timestamp") or datetime.now(timezone.utc).isoformat(),
+            "source_type": payload.get("source_type"),
+        }
+        encoded_reading = json.dumps(reading)
+
+        self.redis.set(
+            f"sensor:last:{sensor_id}",
+            encoded_reading,
+            ex=self.ttl_seconds,
+        )
+        building_sensor_key = f"building:sensors:{building_id}"
+        self.redis.sadd(building_sensor_key, sensor_id)
+        self.redis.expire(building_sensor_key, self.ttl_seconds)
+        self.redis.publish("telemetry_channel", encoded_reading)
 
 # Concrete Observer
 class AnomalyDetectorObserver(Observer):
