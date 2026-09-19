@@ -1,29 +1,34 @@
 import React from "react";
-import { render, screen, fireEvent} from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { LivingEnvironment } from "./LivingEnvironment";
 
-
-
 jest.mock("framer-motion", () => {
-  const React = require("react");
-  const Motion = ({ children, ...props }: any) => {
-    const { animate, initial, transition, whileHover, ...rest } = props;
-    return React.createElement("div", rest, children);
-  };
   return {
     motion: new Proxy({}, {
       get: (_, tag: string) => {
-        const React = require("react");
-        return React.forwardRef(({ children, animate, initial, transition, whileHover, whileTap, ...rest }: any, ref: any) =>
-          React.createElement(tag, { ...rest, ref }, children)
+        const Component = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
+          ({ children, ...rest }, ref) => {
+           
+            const {
+              animate: _animate,
+              initial: _initial,
+              transition: _transition,
+              whileHover: _whileHover,
+              whileTap: _whileTap,
+              ...domProps
+            } = rest as Record<string, unknown>;
+
+            return React.createElement(tag, { ...domProps, ref }, children);
+          }
         );
+        Component.displayName = `MotionProxy(${tag})`;
+        return Component;
       },
     }),
-    AnimatePresence: ({ children }: any) => children,
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
   };
 });
-
 
 const renderEnv = (buildingId = "building-1") =>
   render(<LivingEnvironment buildingId={buildingId} />);
@@ -31,9 +36,9 @@ const renderEnv = (buildingId = "building-1") =>
 const getSlider = (label: RegExp) =>
   screen.getByRole("slider", { name: label }) as HTMLInputElement;
 
-const setSlider = (label: RegExp, value: number) =>
-  fireEvent.change(getSlider(label), { target: { value: String(value) } });
 
+export const setSlider = (label: RegExp, value: number) =>
+  fireEvent.change(getSlider(label), { target: { value: String(value) } });
 
 describe("LivingEnvironment", () => {
 
@@ -53,16 +58,13 @@ describe("LivingEnvironment", () => {
       expect(screen.getByRole("heading", { name: /affecting the tree/i })).toBeInTheDocument();
     });
 
-
     it("renders a health score", () => {
       renderEnv();
       expect(screen.getByText(/health score/i)).toBeInTheDocument();
     });
-
-    
   });
 
-  describe("Sliders — initial values", () => {
+  describe("Sliders", () => {
     it("renders Energy Efficiency slider", () => {
       renderEnv();
       expect(getSlider(/energy efficiency/i)).toBeInTheDocument();
@@ -82,7 +84,6 @@ describe("LivingEnvironment", () => {
       renderEnv();
       expect(getSlider(/lighting optimization/i)).toBeInTheDocument();
     });
-
   });
 
   describe("Tree stat cards", () => {
@@ -95,7 +96,6 @@ describe("LivingEnvironment", () => {
       renderEnv();
       expect(screen.getByText("Bloom")).toBeInTheDocument();
     });
-
   });
 
   describe("Weightage note", () => {
