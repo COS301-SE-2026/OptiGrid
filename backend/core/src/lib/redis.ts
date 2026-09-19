@@ -7,7 +7,7 @@ if (process.env.NODE_ENV === 'test') {
     redisInstance = {
         on: () => {},
         get: async (k: string) => store.get(k) || null,
-        mget: async (keys: string[]) => keys.map((key) => store.get(key) || null),
+        mget: async (...keys: string[]) => keys.map((key) => store.get(key) || null),
         set: async (k: string, v: string) => { store.set(k, v); return "OK"; },
         keys: async (pattern: string) => Array.from(store.keys()),
         del: async (...keys: string[]) => {
