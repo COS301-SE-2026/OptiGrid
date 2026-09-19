@@ -277,21 +277,11 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
             borderTop: '1px solid var(--brand-border)',
           }}
         >
-          Weightage - efficiency 35% · renewables 30% · HVAC 20% ·
+          Weightage - efficiency 35%  renewables 30%  HVAC 20%  
           lighting 15%.
         </div>
       </section>
 
-      <style jsx>{`
-        @media (max-width: 980px) {
-          .esg-layout {
-            grid-template-columns: 1fr !important;
-          }
-          .esg-layout > section.card {
-            position: static !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
@@ -422,197 +412,6 @@ function WhatIsAffectingPanel({
 
 
 
-
-
-function CascadeRow({ driver, isLast }: { driver: Driver; isLast: boolean }) {
-  const tone = toneStyle[driver.tone];
-  const pct = Math.round(driver.value);
-
-  return (
-    <li
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '20px 1fr',
-        gap: 'var(--space-3)',
-        alignItems: 'start',
-      }}
-    >
-      
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          paddingTop: 4,
-          height: '100%',
-        }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: 999,
-            background: tone.barColor,
-            boxShadow: `0 0 0 3px color-mix(in srgb, ${tone.barColor} 20%, transparent)`,
-            flexShrink: 0,
-          }}
-        />
-        {!isLast && (
-          <span
-            aria-hidden
-            style={{
-              width: 1,
-              flex: 1,
-              minHeight: 18,
-              background: 'var(--brand-border)',
-              marginTop: 4,
-            }}
-          />
-        )}
-      </div>
-
-      <div style={{ display: 'grid', gap: 4, paddingBottom: 4 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            gap: 'var(--space-3)',
-          }}
-        >
-          <span
-            style={{
-              fontWeight: 'var(--fw-semibold)',
-              fontSize: '0.9rem',
-              color: 'var(--brand-ink)',
-            }}
-          >
-            {driver.label}
-          </span>
-          <span
-            className="metric"
-            style={{
-              fontSize: '0.9rem',
-              color: tone.barColor,
-              fontWeight: 'var(--fw-semibold)',
-            }}
-          >
-            {pct}%
-          </span>
-        </div>
-
-        <div
-          style={{
-            height: 4,
-            borderRadius: 999,
-            background:
-              'color-mix(in srgb, var(--brand-secondary) 18%, transparent)',
-            overflow: 'hidden',
-            maxWidth: '100%',
-          }}
-        >
-          <motion.div
-            initial={false}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-            style={{
-              height: '100%',
-              background: tone.barColor,
-            }}
-          />
-        </div>
-
-        <span
-          className="dashboard-section-meta"
-          style={{ fontSize: '0.72rem', lineHeight: 1.5 }}
-        >
-          {driver.explanation}
-        </span>
-      </div>
-    </li>
-  );
-}
-
-function DriverTile({ driver }: { driver: Driver }) {
-  const tone = toneStyle[driver.tone];
-  const pct = Math.round(driver.value);
-  const R = 22;
-  const C = 2 * Math.PI * R;
-  const dash = (pct / 100) * C;
-
-  return (
-    <div
-      style={{
-        padding: 'var(--space-3)',
-        border: '1px solid var(--brand-border)',
-        borderRadius: 'var(--radius-md)',
-        background: 'var(--brand-surface)',
-        display: 'grid',
-        gridTemplateColumns: 'auto 1fr',
-        gap: 'var(--space-3)',
-        alignItems: 'center',
-      }}
-    >
-      
-      <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden>
-        <circle
-          cx="28"
-          cy="28"
-          r={R}
-          fill="none"
-          stroke="color-mix(in srgb, var(--brand-secondary) 22%, transparent)"
-          strokeWidth="4"
-        />
-        <motion.circle
-          cx="28"
-          cy="28"
-          r={R}
-          fill="none"
-          stroke={tone.barColor}
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeDasharray={C}
-          initial={false}
-          animate={{ strokeDashoffset: C - dash }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          transform="rotate(-90 28 28)"
-        />
-        <text
-          x="28"
-          y="32"
-          textAnchor="middle"
-          fontFamily="var(--font-mono)"
-          fontSize="12"
-          fontWeight="600"
-          fill="var(--brand-ink)"
-        >
-          {pct}
-        </text>
-      </svg>
-
-      
-      <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-        <span
-          style={{
-            fontWeight: 'var(--fw-semibold)',
-            fontSize: '0.85rem',
-            color: 'var(--brand-ink)',
-          }}
-        >
-          {driver.label}
-        </span>
-        <span
-          className={`badge ${tone.badge}`}
-          style={{ justifySelf: 'start', marginTop: 2 }}
-        >
-          {tone.verb}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 function DriverBar({ driver, rank }: { driver: Driver; rank: number }) {
   const tone = toneStyle[driver.tone];
   const pct = Math.round(driver.value);
@@ -726,91 +525,7 @@ const toneStyle: Record<
   },
 };
 
-function DriverRow({ driver }: { driver: Driver }) {
-  const tone = toneStyle[driver.tone];
-  const pct = Math.round(driver.value);
 
-  return (
-    <div
-      style={{
-        padding: 'var(--space-3)',
-        border: '1px solid var(--brand-border)',
-        borderRadius: 'var(--radius-md)',
-        background: 'var(--brand-surface)',
-        display: 'grid',
-        gap: 6,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 'var(--space-3)',
-        }}
-      >
-        <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-          <span
-            style={{
-              fontWeight: 'var(--fw-semibold)',
-              fontSize: '0.9rem',
-              color: 'var(--brand-ink)',
-            }}
-          >
-            {driver.label}
-          </span>
-          <span
-            className="dashboard-section-meta"
-            style={{ fontSize: '0.75rem' }}
-          >
-            {driver.explanation}
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexShrink: 0,
-          }}
-        >
-          <span className="metric" style={{ fontSize: '0.9rem' }}>
-            {pct}%
-          </span>
-          <span className={`badge ${tone.badge}`}>{tone.verb}</span>
-        </div>
-      </div>
-
-      <div
-        role="meter"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={pct}
-        aria-label={`${driver.label} at ${pct}%`}
-        style={{
-          position: 'relative',
-          height: 6,
-          borderRadius: 999,
-          background:
-            'color-mix(in srgb, var(--brand-secondary) 22%, transparent)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            inset: '0 auto 0 0',
-            width: `${pct}%`,
-            background: tone.barColor,
-            borderRadius: 999,
-            transition: 'width 0.3s ease, background 0.3s ease',
-          }}
-        />
-      </div>
-    </div>
-  );
-}
 
 
 interface ControlSliderProps {
@@ -822,6 +537,11 @@ interface ControlSliderProps {
 
 function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
   const id = useId();
+
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+
   return (
     <div>
       <div
@@ -876,6 +596,26 @@ function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
             transition: 'width 0.1s linear',
           }}
         />
+
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: `${value}%`,
+            transform: `translate(-50%, -50%) scale(${hovered ? 1.15 : 1})`,
+            width: 16,
+            height: 16,
+            borderRadius: 999,
+            background: 'var(--brand-surface)',
+            border: `2px solid var(${accent})`,
+            boxShadow: focused ? 'var(--focus-ring)' : 'var(--shadow-card)',
+            pointerEvents: 'none',
+            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+          }}
+        />
+
+
         <input
           id={id}
           type="range"
@@ -885,6 +625,12 @@ function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
           aria-label={label}
+
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+
           style={{
             position: 'relative',
             zIndex: 2,
@@ -894,40 +640,12 @@ function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
             background: 'transparent',
             cursor: 'pointer',
             margin: 0,
+            opacity:1,
+            outline:'none',
           }}
-          className="esg-slider"
+          
         />
       </div>
-
-      <style jsx>{`
-        .esg-slider::-webkit-slider-thumb {
-          appearance: none;
-          width: 16px;
-          height: 16px;
-          border-radius: 999px;
-          background: var(--brand-surface);
-          border: 2px solid var(${accent});
-          box-shadow: var(--shadow-card);
-          transition: transform 0.15s ease;
-        }
-        .esg-slider::-webkit-slider-thumb:hover {
-          transform: scale(1.15);
-        }
-        .esg-slider::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
-          border-radius: 999px;
-          background: var(--brand-surface);
-          border: 2px solid var(${accent});
-          box-shadow: var(--shadow-card);
-        }
-        .esg-slider:focus-visible {
-          outline: none;
-        }
-        .esg-slider:focus-visible::-webkit-slider-thumb {
-          box-shadow: var(--focus-ring);
-        }
-      `}</style>
     </div>
   );
 }
