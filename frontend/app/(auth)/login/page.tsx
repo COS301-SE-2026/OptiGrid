@@ -67,8 +67,8 @@ export default function LoginPage() {
 
             const firstName = payload?.user?.firstName as string | undefined;
             setNotice(`Login successful${firstName ? `, ${firstName}` : ""}.`);
+            await navigateAfterLogin(undefined, tabSessionId);
             setFormData(initialLoginFormData);
-            navigateAfterLogin(undefined, tabSessionId);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed. Please try again.");
         } finally {

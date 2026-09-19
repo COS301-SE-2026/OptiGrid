@@ -19,6 +19,7 @@ describe("login navigation", () => {
 			ok: true,
 			json: async () => ({ user: { firstName: "Avery" } }),
 		} as Response);
+		jest.mocked(navigateAfterLogin).mockResolvedValue(undefined);
 	});
 
 	it("starts a full dashboard navigation after authentication succeeds", async () => {

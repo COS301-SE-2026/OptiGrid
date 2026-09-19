@@ -52,7 +52,6 @@ test.describe("Login page", () => {
     await page.goto("/login");
     await page.getByLabel("Work email").fill("invalid@optigrid.test");
     await page.getByLabel("Password", { exact: true }).fill("BadPass123!");
-    await page.getByRole("button", { name: "Log in" }).click();
 
     const resp = page.waitForResponse("**/api/auth/login");
     await page.getByRole("button", { name: "Log in"}).click();
