@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDateTime } from "@/lib/formatDate";
 import { PageHeading } from "@/components/PageHeading";
 import { getTabSessionPath } from "../../../lib/tab-session";
+import { useTabSessionId } from "../../../lib/use-tab-session-id";
 import VerifyIntegrityButton, { IntegrityStatus, useIntegrityVerification } from "@/components/VerifyIntegrityButton";
 
 type Site = {
@@ -102,6 +103,7 @@ function Metric({ label, value }: Readonly<{ label: string; value: string }>) {
 }
 
 export default function ComplianceClient() {
+    const tabSessionId = useTabSessionId();
     const { data, isLoading, isError, error } = useQuery<ComplianceReport>({
         queryKey: ["compliance-report"],
         queryFn: async () => {
@@ -199,10 +201,10 @@ export default function ComplianceClient() {
                             Both formats close with the ledger signature, so a reviewer can recompute it and confirm the report matches the records it was drawn from.
                         </p>
                         <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-                            <a href={getTabSessionPath("/api/compliance/report?format=pdf")} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                            <a href={getTabSessionPath("/api/compliance/report?format=pdf", tabSessionId)} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
                                 Download PDF
                             </a>
-                            <a href={getTabSessionPath("/api/compliance/report?format=json&download=1")} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
+                            <a href={getTabSessionPath("/api/compliance/report?format=json&download=1", tabSessionId)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
                                 Download JSON
                             </a>
                         </div>

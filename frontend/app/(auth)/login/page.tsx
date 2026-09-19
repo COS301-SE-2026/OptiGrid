@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { getLoginError, initialLoginFormData, type LoginFormData } from "./validation";
 import { navigateAfterLogin } from "../../../lib/auth-navigation";
 import { getTabSessionId, TAB_SESSION_HEADER } from "../../../lib/tab-session";
@@ -10,13 +9,14 @@ import GoogleAuthButton from "@/components/GoogleButton";
 import PasswordInput from "@/components/PasswordInput";
 
 export default function LoginPage() {
-    const router = useRouter();
     const [formData, setFormData] = useState<LoginFormData>(initialLoginFormData);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [loading, setLoading] = useState(false);
+    const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
+        setHydrated(true);
         const query = new URLSearchParams(window.location.search);
         const signupState = query.get("signup");
         const loggedOut = query.get("loggedOut");
@@ -52,9 +52,10 @@ export default function LoginPage() {
         setError("");
         setLoading(true);
         try {
+            const tabSessionId = getTabSessionId();
             const res = await fetch("/api/auth/login", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", [TAB_SESSION_HEADER]: getTabSessionId() ?? "" },
+                headers: { "Content-Type": "application/json", [TAB_SESSION_HEADER]: tabSessionId ?? "" },
                 body: JSON.stringify(formData),
             });
 
@@ -66,10 +67,8 @@ export default function LoginPage() {
 
             const firstName = payload?.user?.firstName as string | undefined;
             setNotice(`Login successful${firstName ? `, ${firstName}` : ""}.`);
+            await navigateAfterLogin(undefined, tabSessionId);
             setFormData(initialLoginFormData);
-            navigateAfterLogin((destination) => {
-                router.replace(destination);
-            });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed. Please try again.");
         } finally {
@@ -103,6 +102,7 @@ export default function LoginPage() {
 
                 <form
                     className="auth-form"
+                    method="post"
                     noValidate
                     onSubmit={handleSubmit}
                     suppressHydrationWarning
@@ -116,7 +116,7 @@ export default function LoginPage() {
                             autoComplete="email"
                             value={formData.email}
                             onChange={handleChange}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             className="input"
                             placeholder="you@company.io"
                             aria-invalid={Boolean(error)}
@@ -132,7 +132,7 @@ export default function LoginPage() {
                             autoComplete="current-password"
                             value={formData.password}
                             onChange={handleChange}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             placeholder="Your password"
                             ariaInvalid={Boolean(error)}
                         />
@@ -140,15 +140,15 @@ export default function LoginPage() {
 
                     <button
                         type="submit"
-                        disabled={loading}
-                        aria-disabled={loading}
+                        disabled={!hydrated || loading}
+                        aria-disabled={!hydrated || loading}
                         className="btn btn-primary auth-submit"
                         style={{
                             backgroundColor: "#3A6B7C",
                             color: "#FFFFFF",
                         }}
                     >
-                        {loading ? "Logging in..." : "Log in"}
+                        {!hydrated ? "Loading..." : loading ? "Logging in..." : "Log in"}
                     </button>
 
                     <GoogleAuthButton

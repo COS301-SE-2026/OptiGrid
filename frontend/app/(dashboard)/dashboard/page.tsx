@@ -17,6 +17,7 @@ import {
 import { AccessibleChart } from "../../../components/AccessibleChart";
 import { buildDisplayName, type SessionUser } from "../../../lib/session";
 import { getTabSessionPath } from "../../../lib/tab-session";
+import { useTabSessionId } from "../../../lib/use-tab-session-id";
 import VerifyIntegrityButton, { IntegrityStatus, useIntegrityVerification } from "@/components/VerifyIntegrityButton";
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
@@ -278,6 +279,7 @@ function KpiCard({
 export default function DashboardPage() {
     const queryClient = useQueryClient();
     const ledgerVerification = useIntegrityVerification();
+    const tabSessionId = useTabSessionId();
     const [deleteTarget, setDeleteTarget] = useState<Building | null>(null);
     const tableRef = useRef<HTMLTableElement>(null);
 
@@ -464,7 +466,7 @@ export default function DashboardPage() {
                                     >
                                         <td>
                                             <Link
-                                                href={getTabSessionPath(`/buildings/${building.id}/view`)}
+                                                href={getTabSessionPath(`/buildings/${building.id}/view`, tabSessionId)}
                                                 style={{
                                                     fontWeight: 600,
                                                     color: "inherit",
@@ -610,7 +612,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <a
-                        href={getTabSessionPath("/api/reports/summary")}
+                        href={getTabSessionPath("/api/reports/summary", tabSessionId)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-primary"

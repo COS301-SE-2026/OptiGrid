@@ -1,6 +1,8 @@
 /** @jest-environment node */
 import {POST} from "./route";
 
+const TAB_ID = "f647d7d3-56fe-4679-9d60-28d2dd7f0f9c";
+
 describe("SignUp route for integration", () => {
     beforeEach(() => {
         process.env.CORE_URL = "http://core.test"
@@ -28,6 +30,7 @@ describe("SignUp route for integration", () => {
             method:"POST",
             headers: {
                 "Content-Type": "application/json",
+                "x-optigrid-tab-id": TAB_ID,
             },
             body: JSON.stringify({
                 email: "test@test.com",
@@ -43,6 +46,10 @@ describe("SignUp route for integration", () => {
         expect(data.accessToken).toBe("token1234");
         expect(global.fetch).toHaveBeenCalledTimes(1);
         expect(url).toContain("/auth/login");
+        expect(resp.headers.getSetCookie()).toEqual(expect.arrayContaining([
+            expect.stringContaining(`Path=/_sessions/${TAB_ID}`),
+        ]));
+        expect(resp.headers.getSetCookie().every((cookie) => !cookie.includes("Secure"))).toBe(true);
     });
 
     it("should_return_400_if_missing_stuff", async () => {

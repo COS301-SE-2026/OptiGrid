@@ -20,14 +20,20 @@ describe("TabSessionProvider", () => {
   });
 
   it("uses client-side navigation when scoping an internal link", () => {
+    const unscopedClick = jest.fn();
     render(
       <TabSessionProvider>
-        <a href="/buildings/add">Add building</a>
+        <a href="/buildings/add" onClick={unscopedClick}>Add building</a>
       </TabSessionProvider>,
     );
 
     fireEvent.click(screen.getByRole("link", { name: "Add building" }));
 
     expect(mockPush).toHaveBeenCalledWith("/_sessions/00000000-0000-4000-8000-000000000001/buildings/add");
+    expect(unscopedClick).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "Add building" }).closest("[data-tab-session-ready]")).toHaveAttribute(
+      "data-tab-session-ready",
+      "true",
+    );
   });
 });
