@@ -128,18 +128,35 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
   const [hvacLoad, setHvacLoad] = useState(55 + ((seed >> 6) % 40));
   const [lighting, setLighting] = useState(60 + ((seed >> 9) % 40));
   const [impact, setImpact] = useState<{ totalCarbonAvoided: number, equivalentTrees: number } | null>(null);
+  const [baseline, setBaseline] = useState<{ energyEfficiency: number, renewables: number, hvacLoad: number, lighting: number } | null>(null);
 
   useEffect(() => {
     fetchEsgHealthScore(buildingId)
       .then((data) => {
         const getScore = (dim: string) => data.dimensions.find((d: { dimension: string; score: number }) => d.dimension === dim)?.score || 60;
-        setEnergyEfficiency(getScore('energy_efficiency'));
-        setRenewables(getScore('renewables'));
-        setHvacLoad(getScore('hvacLoad'));
-        setLighting(getScore('lighting'));
+        const base = {
+          energyEfficiency: getScore('energy_efficiency'),
+          renewables: getScore('renewables'),
+          hvacLoad: getScore('hvacLoad'),
+          lighting: getScore('lighting'),
+        };
+        setBaseline(base);
+        setEnergyEfficiency(base.energyEfficiency);
+        setRenewables(base.renewables);
+        setHvacLoad(base.hvacLoad);
+        setLighting(base.lighting);
       })
       .catch(console.error);
   }, [buildingId]);
+
+  const handleReset = () => {
+    if (baseline) {
+      setEnergyEfficiency(baseline.energyEfficiency);
+      setRenewables(baseline.renewables);
+      setHvacLoad(baseline.hvacLoad);
+      setLighting(baseline.lighting);
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -269,7 +286,12 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
       >
         <header
           className="dashboard-section-header"
-          style={{ marginBottom: 'var(--space-4)' }}
+          style={{ 
+            marginBottom: 'var(--space-4)', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'flex-start' 
+          }}
         >
           <div>
             <h2 className="dashboard-section-title">Building Performance</h2>
@@ -277,6 +299,19 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
               Move a slider, the tree responds instantly.
             </p>
           </div>
+          <button 
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleReset}
+            disabled={!baseline || (energyEfficiency === baseline.energyEfficiency && renewables === baseline.renewables && hvacLoad === baseline.hvacLoad && lighting === baseline.lighting)}
+            style={{
+              padding: 'var(--space-2) var(--space-3)',
+              fontSize: '12px',
+              opacity: (!baseline || (energyEfficiency === baseline.energyEfficiency && renewables === baseline.renewables && hvacLoad === baseline.hvacLoad && lighting === baseline.lighting)) ? 0.5 : 1
+            }}
+          >
+            Reset to Baseline
+          </button>
         </header>
 
         <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
