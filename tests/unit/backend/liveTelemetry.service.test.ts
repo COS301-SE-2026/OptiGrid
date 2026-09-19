@@ -51,10 +51,10 @@ describe('live telemetry service', () => {
         await expect(getLiveSensorReadings('user-1', buildingId, 'VIEWER'))
             .resolves.toEqual([first, second]);
 
-        expect(mockMget).toHaveBeenCalledWith([
+        expect(mockMget).toHaveBeenCalledWith(
             `sensor:last:${firstSensorId}`,
             `sensor:last:${secondSensorId}`,
-        ]);
+        );
         expect(mockQueryRows).not.toHaveBeenCalled();
     });
 

@@ -103,7 +103,8 @@ export async function getLiveSensorReadings(
     const sensorIds = sensors.map(sensor => sensor.sensor_id);
     let cachedValues: Array<string | null>;
     try {
-        cachedValues = await redis.mget(sensorIds.map(sensorId => `sensor:last:${sensorId}`));
+        const keys = sensorIds.map(sensorId => `sensor:last:${sensorId}`);
+        cachedValues = await redis.mget(...keys);
     } catch (error) {
         console.warn('[LiveTelemetry] Redis snapshot lookup failed, using InfluxDB:', error);
         cachedValues = sensorIds.map(() => null);
