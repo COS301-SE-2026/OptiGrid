@@ -10,6 +10,7 @@ const navigation = [
     { label: "Forecast", href: "/forecast" },
     { label: "Insights", href: "/insights" },
     { label: "ESG", href:"/esg"},
+    { label: "Compliance", href: "/compliance" },
     { label: "Admin", href: "/admin", roles: ["ADMIN"] },
     { label: "Tariff rates", href: "/billing", roles: ["ADMIN"] },
     { label: "Audit", href: "/audit", roles: ["ADMIN"] },

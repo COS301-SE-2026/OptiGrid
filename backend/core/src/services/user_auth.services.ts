@@ -543,12 +543,12 @@ export const googleAuthLogin = async (accessToken: string, email: string, firstN
     });
     if (userExists?.accountStatus === AccountStatus.DEACTIVATED) throw new AccountDeactivatedError();
 
-    const role: UserRole = "VIEWER";
-    const user = userExists ?? await createOrUpsertUser({
+    const role: UserRole = userExists?.roleType ?? "VIEWER";
+    const user = await createOrUpsertUser({
         userId,
-        email: email || data.user.email || "",
-        firstName: firstName || "",
-        lastName: lastName || "",
+        email: email || data.user.email || userExists?.email || "",
+        firstName: firstName || userExists?.firstName || "",
+        lastName: lastName || userExists?.lastName || "",
         roleType: role,
     });
     return {user,accessToken};

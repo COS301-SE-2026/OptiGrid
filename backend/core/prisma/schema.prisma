@@ -305,6 +305,9 @@ model AuditLog {
   metadata     Json?
   ip_address   String?        @map("ip_address")
   timestamp    DateTime?      @default(now()) @db.Timestamptz
+  chain_index  BigInt?        @unique @map("chain_index")
+  prev_hash    String?        @map("prev_hash") @db.VarChar(64)
+  current_hash String?        @map("current_hash") @db.VarChar(64)
 
   // Relations
   user     User?     @relation(fields: [user_id], references: [userId], onDelete: SetNull)
