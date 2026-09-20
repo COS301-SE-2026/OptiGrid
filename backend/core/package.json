@@ -32,14 +32,15 @@
 		"express-validator": "^7.2.1",
 		"ioredis": "^5.6.1",
 		"jsonwebtoken": "^9.0.3",
+		"ngeohash": "^0.6.4",
+		"node-cron": "^3.0.3",
+		"pdfkit": "^0.20.2",
 		"pg": "^8.16.0",
 		"redis": "^4.7.0",
 		"resend": "^6.12.4",
 		"swagger-jsdoc": "^6.2.8",
 		"swagger-ui-express": "^5.0.1",
 		"ws": "^8.16.0",
-		"node-cron": "^3.0.3",
-		"pdfkit": "^0.20.2",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
@@ -49,7 +50,10 @@
 		"@types/express": "^4.17.20",
 		"@types/jest": "^29.5.14",
 		"@types/jsonwebtoken": "^9.0.10",
+		"@types/ngeohash": "^0.6.8",
 		"@types/node": "^22.19.17",
+		"@types/node-cron": "^3.0.11",
+		"@types/pdfkit": "^0.17.6",
 		"@types/pg": "^8.20.0",
 		"@types/supertest": "^6.0.3",
 		"@types/swagger-jsdoc": "^6.0.4",
@@ -64,8 +68,6 @@
 		"testcontainers": "^10.21.0",
 		"ts-jest": "^29.4.9",
 		"tsx": "^4.19.3",
-		"@types/node-cron": "^3.0.11",
-		"@types/pdfkit": "^0.17.6",
 		"typescript": "^5.8.3"
 	}
 }

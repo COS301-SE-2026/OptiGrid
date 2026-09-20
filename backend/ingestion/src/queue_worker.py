@@ -23,10 +23,10 @@ except ModuleNotFoundError:
     )
 
 try:
-    from backend.ingestion.src.observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver
+    from backend.ingestion.src.observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver, LiveTelemetryObserver
     from backend.ingestion.src.audit_events import publish_failure_event
 except ModuleNotFoundError:
-    from observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver
+    from observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver, LiveTelemetryObserver
     from audit_events import publish_failure_event
 
 shutdown_requested = threading.Event()
@@ -91,8 +91,10 @@ def run_queue_worker():
     )
     influx_observer = InfluxStorageObserver(write_api, INFLUXDB_BUCKET)
     anomaly_observer = AnomalyDetectorObserver()
+    live_telemetry_observer = LiveTelemetryObserver()
     subject.attach(influx_observer)
     subject.attach(anomaly_observer)
+    subject.attach(live_telemetry_observer)
 
     print("Queue Worker active. Listening on Redis.")
 

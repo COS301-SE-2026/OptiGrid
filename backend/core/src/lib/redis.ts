@@ -7,6 +7,7 @@ if (process.env.NODE_ENV === 'test') {
     redisInstance = {
         on: () => {},
         get: async (k: string) => store.get(k) || null,
+        mget: async (...keys: string[]) => keys.map(k => store.get(k) || null),
         set: async (k: string, v: string) => { store.set(k, v); return "OK"; },
         keys: async (pattern: string) => Array.from(store.keys()),
         del: async (...keys: string[]) => {
@@ -20,7 +21,7 @@ if (process.env.NODE_ENV === 'test') {
                     for (const key of keys) store.delete(key);
                     return p;
                 },
-                set: (key: string, value: string) => {
+                set: (key: string, value: string, ...opts: any[]) => {
                     store.set(key, value);
                     return p;
                 },

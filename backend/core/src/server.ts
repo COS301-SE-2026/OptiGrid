@@ -11,6 +11,7 @@ import { startEscalationWorker } from './workers/escalation.worker';
 import { AuditEventWorker } from './workers/auditEvent.worker';
 import { redis } from './lib/redis';
 import prisma from './lib/prisma';
+import { startTelemetry } from './services/telemetryPubSub.service';
 
 export function startServer(port = Number(process.env.PORT ?? 4000)): Server {
     const app = createApp(port);
@@ -23,6 +24,8 @@ export function startServer(port = Number(process.env.PORT ?? 4000)): Server {
         syncThresholdsToRedis().catch(console.error);
         startAnomalySubscriber().catch(console.error);
         startEscalationWorker();
+        startTelemetry();
+        
         if (process.env.NODE_ENV !== 'test') {
             auditEventWorker = new AuditEventWorker(redis.duplicate(), prisma);
             auditEventWorker.start().catch(error => {
