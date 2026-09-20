@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { getTabSessionId, getTabSessionPath, TAB_SESSION_HEADER } from "../lib/tab-session";
 
@@ -45,6 +45,7 @@ function installScopedFetch(tabSessionId: string): () => void {
 export function TabSessionProvider({ children }: { children: ReactNode }) {
 	const router = useRouter();
 	const cleanupFetchRef = useRef<(() => void) | null>(null);
+	const [navigationReady, setNavigationReady] = useState(false);
 	if (typeof window !== "undefined" && cleanupFetchRef.current === null) {
 		const tabSessionId = getTabSessionId();
 		if (tabSessionId) {
@@ -55,6 +56,7 @@ export function TabSessionProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const tabSessionId = getTabSessionId();
 		if (!tabSessionId) {
+			setNavigationReady(true);
 			return;
 		}
 
@@ -79,14 +81,24 @@ export function TabSessionProvider({ children }: { children: ReactNode }) {
 			}
 
 			event.preventDefault();
+			event.stopPropagation();
 			router.push(getTabSessionPath(`${destination.pathname}${destination.search}${destination.hash}`, tabSessionId));
 		};
 
 		document.addEventListener("click", scopeInternalNavigation, true);
+		setNavigationReady(true);
 		return () => {
 			document.removeEventListener("click", scopeInternalNavigation, true);
 		};
 	}, [router]);
 
-	return children;
+	return (
+		<div
+			inert={!navigationReady}
+			data-tab-session-ready={navigationReady ? "true" : "false"}
+			style={{ display: "contents" }}
+		>
+			{children}
+		</div>
+	);
 }
