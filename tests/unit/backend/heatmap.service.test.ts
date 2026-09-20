@@ -109,8 +109,9 @@ describe("Heatmap Service Unit Tests", () => {
         //act
         const out = await getHeatmapDataService("user-1", "live");
         //assert
-        expect(out.points).toHaveLength(1);
+        expect(out.points).toHaveLength(2);
         expect(out.points[0].kwh_value).toBe(75.5);
+        expect(out.points[1].kwh_value).toBeNull();
         expect(redis.pipeline).toHaveBeenCalled();
     });
 
@@ -124,7 +125,8 @@ describe("Heatmap Service Unit Tests", () => {
         //act
         const out = await getHeatmapDataService("user-1", "-7d");
         //assert
-        expect(out.points).toHaveLength(0);
+        expect(out.points).toHaveLength(1);
+        expect(out.points[0].kwh_value).toBeNull();
         expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("fetchTelemetry error for -7d"), expect.any(Error));
     });
 });

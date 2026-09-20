@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import maplibregl, { type ExpressionSpecification, type GeoJSONSource, type MapLayerMouseEvent, type MapMouseEvent, type PaddingOptions, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { colourStops, parseColour, type Bounds, type HeatPalette, type HeatmapFeatureCollection } from "@/lib/heatmap";
+import { colourStops, parseColour, type Bounds, type HeatPalette, type HeatmapFeatureCollection, type TowerFeatureCollection } from "@/lib/heatmap";
 
 export type MapPalette = HeatPalette & {
     primary: string;
@@ -19,12 +19,14 @@ export type FlyTarget = {
 
 export type MapCanvasProps = {
     collection: HeatmapFeatureCollection;
+    towers: TowerFeatureCollection;
     palette: MapPalette;
     dark: boolean;
     selectedId: string | null;
     fitTo: { bounds: Bounds; token: number } | null;
     flyTo: FlyTarget | null;
     placing: boolean;
+    tilted: boolean;
     reducedMotion: boolean;
     active: boolean;
     onSelect: (buildingId: string | null) => void;
@@ -34,7 +36,12 @@ export type MapCanvasProps = {
 };
 
 const SOURCE = "buildings";
-const DATA_LAYERS = ["heat", "pulse", "halo", "points"];
+const TOWER_SOURCE = "towers";
+const DATA_LAYERS = ["heat", "towers", "pulse", "halo", "points"];
+const PICK_LAYERS = ["points", "towers"];
+const FLAT_LAYERS = ["points", "pulse"];
+const TILT_PITCH = 55;
+const TILT_BEARING = -18;
 const DEFAULT_CENTRE: [number, number] = [28.19, -25.75];
 const HOT_STRESS = 0.8;
 const STYLE_TIMEOUT_MS = 10000;
@@ -69,6 +76,27 @@ function pointColour(palette: MapPalette): ExpressionSpecification {
     ] as ExpressionSpecification;
 }
 
+function towerColour(palette: MapPalette): ExpressionSpecification {
+    return [
+        "case",
+        ["==", ["get", "reporting"], 0],
+        palette.idle,
+        ["interpolate", ["linear"], ["get", "stress"], ...colourStops(palette)],
+    ] as ExpressionSpecification;
+}
+
+function applyMode(map: maplibregl.Map, tilted: boolean) {
+    if (!map.getLayer("towers")) {
+        return;
+    }
+    map.setLayoutProperty("towers", "visibility", tilted ? "visible" : "none");
+    for (const id of FLAT_LAYERS) {
+        if (map.getLayer(id)) {
+            map.setLayoutProperty(id, "visibility", tilted ? "none" : "visible");
+        }
+    }
+}
+
 function heatColour(palette: MapPalette): ExpressionSpecification {
     return [
         "interpolate",
@@ -99,9 +127,12 @@ function fitPadding(container: HTMLElement): PaddingOptions {
     };
 }
 
-function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection, palette: MapPalette, dark: boolean) {
+function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection, towers: TowerFeatureCollection, palette: MapPalette, dark: boolean, tilted: boolean) {
     if (!map.getSource(SOURCE)) {
         map.addSource(SOURCE, { type: "geojson", data: collection });
+    }
+    if (!map.getSource(TOWER_SOURCE)) {
+        map.addSource(TOWER_SOURCE, { type: "geojson", data: towers });
     }
 
     map.addLayer({
@@ -114,6 +145,20 @@ function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection
             "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 3, 34, 6, 58, 10, 80, 14, 110],
             "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 10, 0.85, 16, 0.35],
             "heatmap-color": heatColour(palette),
+        },
+    });
+
+    map.addLayer({
+        id: "towers",
+        type: "fill-extrusion",
+        source: TOWER_SOURCE,
+        layout: { visibility: tilted ? "visible" : "none" },
+        paint: {
+            "fill-extrusion-color": towerColour(palette),
+            "fill-extrusion-height": ["get", "height"],
+            "fill-extrusion-base": 0,
+            "fill-extrusion-opacity": 0.82,
+            "fill-extrusion-height-transition": { duration: 700 },
         },
     });
 
@@ -163,7 +208,7 @@ function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection
 }
 
 export default function MapCanvas(props: Readonly<MapCanvasProps>) {
-    const { collection, palette, dark, selectedId, fitTo, flyTo, placing, reducedMotion, active } = props;
+    const { collection, towers, palette, dark, selectedId, fitTo, flyTo, placing, tilted, reducedMotion, active } = props;
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const readyRef = useRef(false);
@@ -219,9 +264,13 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
         map.on("style.load", () => {
             clearTimeout(styleTimer);
             const current = latest.current;
-            addDataLayers(map, current.collection, current.palette, current.dark);
+            addDataLayers(map, current.collection, current.towers, current.palette, current.dark, current.tilted);
+            applyMode(map, current.tilted);
             map.setFilter("halo", ["==", ["get", "buildingId"], current.selectedId ?? ""]);
             readyRef.current = true;
+            if (current.tilted) {
+                map.jumpTo({ pitch: TILT_PITCH, bearing: TILT_BEARING });
+            }
             if (firstStyle && current.flyTo) {
                 map.jumpTo({ center: [current.flyTo.longitude, current.flyTo.latitude], zoom: 13 });
             } else if (firstStyle && current.fitTo) {
@@ -241,38 +290,40 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
             }
         });
 
-        map.on("click", "points", (event: MapLayerMouseEvent) => {
-            if (latest.current.placing) {
-                return;
-            }
-            const buildingId = event.features?.[0]?.properties?.buildingId;
-            if (typeof buildingId === "string") {
-                latest.current.onSelect(buildingId);
-            }
-        });
+        for (const layer of PICK_LAYERS) {
+            map.on("click", layer, (event: MapLayerMouseEvent) => {
+                if (latest.current.placing) {
+                    return;
+                }
+                const buildingId = event.features?.[0]?.properties?.buildingId;
+                if (typeof buildingId === "string") {
+                    latest.current.onSelect(buildingId);
+                }
+            });
+
+            map.on("mousemove", layer, (event: MapLayerMouseEvent) => {
+                const buildingId = event.features?.[0]?.properties?.buildingId;
+                if (typeof buildingId === "string" && !latest.current.placing) {
+                    map.getCanvas().style.cursor = "pointer";
+                    latest.current.onHover({ buildingId, x: event.point.x, y: event.point.y });
+                }
+            });
+
+            map.on("mouseleave", layer, () => {
+                map.getCanvas().style.cursor = latest.current.placing ? "crosshair" : "";
+                latest.current.onHover(null);
+            });
+        }
 
         map.on("click", (event: MapMouseEvent) => {
             if (latest.current.placing) {
                 latest.current.onPlace({ longitude: event.lngLat.lng, latitude: event.lngLat.lat });
                 return;
             }
-            const hits = readyRef.current ? map.queryRenderedFeatures(event.point, { layers: ["points"] }) : [];
+            const hits = readyRef.current ? map.queryRenderedFeatures(event.point, { layers: PICK_LAYERS.filter((layer) => map.getLayer(layer)) }) : [];
             if (hits.length === 0) {
                 latest.current.onSelect(null);
             }
-        });
-
-        map.on("mousemove", "points", (event: MapLayerMouseEvent) => {
-            const buildingId = event.features?.[0]?.properties?.buildingId;
-            if (typeof buildingId === "string" && !latest.current.placing) {
-                map.getCanvas().style.cursor = "pointer";
-                latest.current.onHover({ buildingId, x: event.point.x, y: event.point.y });
-            }
-        });
-
-        map.on("mouseleave", "points", () => {
-            map.getCanvas().style.cursor = latest.current.placing ? "crosshair" : "";
-            latest.current.onHover(null);
         });
 
         const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => map.resize());
@@ -306,10 +357,37 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
 
     useEffect(() => {
         const map = mapRef.current;
+        if (map && readyRef.current) {
+            (map.getSource(TOWER_SOURCE) as GeoJSONSource | undefined)?.setData(towers);
+        }
+    }, [towers]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !readyRef.current) {
+            return;
+        }
+        applyMode(map, tilted);
+        if (tilted) {
+            map.dragRotate.enable();
+        }
+        else {
+            map.dragRotate.disable();
+        }
+        map.easeTo({
+            pitch: tilted ? TILT_PITCH : 0,
+            bearing: tilted ? TILT_BEARING : 0,
+            duration: reducedMotion ? 0 : 700,
+        });
+    }, [tilted, reducedMotion]);
+
+    useEffect(() => {
+        const map = mapRef.current;
         if (!map || !readyRef.current || !DATA_LAYERS.every((id) => map.getLayer(id))) {
             return;
         }
         map.setPaintProperty("points", "circle-color", pointColour(palette));
+        map.setPaintProperty("towers", "fill-extrusion-color", towerColour(palette));
         map.setPaintProperty("points", "circle-stroke-color", dark ? "#0B1120" : "#FFFFFF");
         map.setPaintProperty("heat", "heatmap-color", heatColour(palette));
         map.setPaintProperty("pulse", "circle-color", palette.high);

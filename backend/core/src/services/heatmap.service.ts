@@ -8,6 +8,11 @@ const token = process.env.INFLUXDB_TOKEN || process.env.INFLUX_TOKEN || "dummy";
 const org = process.env.INFLUXDB_ORG || process.env.INFLUX_ORG || "OptiGrid";
 const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || "EnergyData";
 
+const MEASUREMENT = "energy_telemetry";
+const FIELD = "usage";
+const NO_DATA = "none";
+const MISS_TTL = 60;
+
 const influx = new InfluxDB({
     url,
     token
@@ -17,7 +22,13 @@ type HeatmapPoint = {
     building_id: string;
     latitude: number;
     longitude: number;
-    kwh_value: number;
+    kwh_value: number | null;
+    updated_at?: string;
+};
+
+type Reading = {
+    value: number;
+    updatedAt?: string;
 };
 
 const getTTLForTimeframe = (timeframe: HeatmapTimeframe): number => {
@@ -27,14 +38,18 @@ const getTTLForTimeframe = (timeframe: HeatmapTimeframe): number => {
     return 1800;
 };
 
-export const getHeatmapDataService = async (userId: string, timeframe: HeatmapTimeframe) => {
+const emptySnapshot = (timeframe: HeatmapTimeframe) => ({
+    timeframe,
+    unit: timeframe === "live" ? "kW" : "kWh/day",
+    generated_at: new Date().toISOString(),
+    points: [] as HeatmapPoint[]
+});
+
+export const getHeatmapDataService = async (userId: string, timeframe: HeatmapTimeframe, role?: string) => {
+    const scope = role === "ADMIN" ? {} : { authorized_users: { some: { user_id: userId } } };
     const userBuildings = await prisma.building.findMany({
         where: {
-            authorized_users: {
-                some: {
-                    user_id: userId
-                }
-            },
+            ...scope,
             latitude: {
                 not: null
             },
@@ -50,51 +65,57 @@ export const getHeatmapDataService = async (userId: string, timeframe: HeatmapTi
     });
 
     if(userBuildings.length === 0) {
-        return {
-            timeframe,
-            unit: "kWh" + (timeframe === "live" ? "" : "/day"),
-            generated_at: new Date().toISOString(),
-            points: []
-        };
+        return emptySnapshot(timeframe);
     }
 
     const buildings = userBuildings.map(b => b.building_id);
     const cacheKeys = buildings.map(id => `heatmap:${timeframe}:${id}`);
     const cachedValues = await redis.mget(...cacheKeys);
-    const resMap = new Map<string, number>();
+    const resMap = new Map<string, Reading | null>();
     const missingBuildings: string[] = [];
 
     for(let i = 0; i < buildings.length; i++) {
-        if(cachedValues[i] != null) resMap.set(buildings[i], parseFloat(cachedValues[i]!));
-        else missingBuildings.push(buildings[i]);
+        const cached = cachedValues[i];
+        if(cached === NO_DATA){
+            resMap.set(buildings[i], null);
+        }
+        else if(cached != null) {
+            resMap.set(buildings[i], { value: parseFloat(cached) });
+        }
+        else {
+            missingBuildings.push(buildings[i]);
+        }
     }
 
     if(missingBuildings.length > 0) {
-        let newValues = new Map<string, number>();
-        if(missingBuildings.length > 0) {
-            newValues = await fetchTelemetryForTimeframe(missingBuildings, timeframe);
-        }
-        //need to chache the values here for redis, including data that is missing as 0
+        const newValues = await fetchTelemetryForTimeframe(missingBuildings, timeframe);
+        //cache both the readings we found and the ones that came back empty so a quiet building does not trigger a fresh query on every request
         const ttl = getTTLForTimeframe(timeframe);
         const pipeline = redis.pipeline();
-        for(const [bId, val] of newValues.entries()) {
-            resMap.set(bId, val);
-            pipeline.set(`heatmap:${timeframe}:${bId}`, val.toString(), "EX", ttl);
-        }
         for(const bId of missingBuildings) {
-            if(!newValues.has(bId)) {
-                resMap.set(bId, 0);
-                pipeline.set(`heatmap:${timeframe}:${bId}`, "0", "EX", ttl);
+            const reading = newValues.get(bId);
+            if(reading) {
+                resMap.set(bId, reading);
+                pipeline.set(`heatmap:${timeframe}:${bId}`, reading.value.toString(), "EX", ttl);
+            }
+            else {
+                resMap.set(bId, null);
+                pipeline.set(`heatmap:${timeframe}:${bId}`, NO_DATA, "EX", Math.min(ttl, MISS_TTL));
             }
         }
         await pipeline.exec();
     }
-    const points: HeatmapPoint[] = userBuildings.map(b => ({
-        building_id: b.building_id,
-        latitude: b.latitude as number,
-        longitude: b.longitude as number,
-        kwh_value: resMap.get(b.building_id) || 0
-    })).filter(p => p.kwh_value > 0);
+
+    const points: HeatmapPoint[] = userBuildings.map(b => {
+        const reading = resMap.get(b.building_id) ?? null;
+        return {
+            building_id: b.building_id,
+            latitude: b.latitude as number,
+            longitude: b.longitude as number,
+            kwh_value: reading ? reading.value : null,
+            ...(reading?.updatedAt ? { updated_at: reading.updatedAt } : {})
+        };
+    });
 
     return {
         timeframe,
@@ -104,38 +125,47 @@ export const getHeatmapDataService = async (userId: string, timeframe: HeatmapTi
     };
 };
 
-async function fetchTelemetryForTimeframe(buildingIds: string[], timeframe: HeatmapTimeframe): Promise<Map<string, number>> {
-    const resMap = new Map<string, number>();
-    if(timeframe === "live" || timeframe.startsWith("-")) {
-        const idFilter = buildingIds.map(id => `r["building_id"] == "${id}"`).join(" or ");
-        const isLive = timeframe === "live";
-        const timeFilter = isLive ? `|> range(start: -5m)` : `|> range(start: ${timeframe})`;
-        let groupAndSum = `|> group(columns: ["building_id", "sensor_id"])\n
-        |> last()\n
-        |> group(columns: ["building_id"])\n
-        |> sum()`;
-        
-        if(!isLive) {
-            const days = parseInt(timeframe.replace("-", "").replace("d", ""), 10);
-            groupAndSum = `|> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n
-            |> group(columns: ["building_id"])\n
-            |> sum()\n
-            |> map(fn: (r) => ({ r with _value: r._value / ${days}.0 }))`;
-        }
-        const query = `
-            from(bucket: "${bucket}")
-                ${timeFilter}
-                |> filter(fn: (r) => r["_measurement"] == "energy_telemetry" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_consumption")
-                |> filter(fn: (r) => r["_field"] == "power_kw" or r["_field"] == "usage" or r["_field"] == "usage_kwh")
-                |> filter(fn: (r) => ${idFilter})
-                ${groupAndSum}
-        `;
+function buildFluxQuery(buildingIds: string[], timeframe: HeatmapTimeframe): string {
+    const idSet = `[${buildingIds.map(id => JSON.stringify(id)).join(", ")}]`;
+    const isLive = timeframe === "live";
+    const range = isLive ? "-5m" : timeframe;
 
+
+    let shape = `|> group(columns: ["building_id", "sensor_id"])
+                |> last()
+                |> group(columns: ["building_id"])
+                |> sum()`;
+
+    if(!isLive) {
+        const days = parseInt(timeframe.replace("-", "").replace("d", ""), 10);
+        shape = `|> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+                |> group(columns: ["building_id"])
+                |> sum()
+                |> map(fn: (r) => ({ r with _value: r._value / ${days}.0 }))`;
+    }
+
+    return `
+        from(bucket: ${JSON.stringify(bucket)})
+            |> range(start: ${range})
+            |> filter(fn: (r) => r["_measurement"] == ${JSON.stringify(MEASUREMENT)})
+            |> filter(fn: (r) => r["_field"] == ${JSON.stringify(FIELD)})
+            |> filter(fn: (r) => contains(value: r["building_id"], set: ${idSet}))
+            ${shape}
+    `;
+}
+
+async function fetchTelemetryForTimeframe(buildingIds: string[], timeframe: HeatmapTimeframe): Promise<Map<string, Reading>> {
+    const resMap = new Map<string, Reading>();
+    if(timeframe === "live" || timeframe.startsWith("-")) {
+        const query = buildFluxQuery(buildingIds, timeframe);
         const queryApi = influx.getQueryApi(org);
         try{
             for await(const { values, tableMeta } of queryApi.iterateRows(query)) {
                 const rowObject = tableMeta.toObject(values);
-                if(rowObject.building_id && rowObject._value != null) resMap.set(rowObject.building_id, Number(rowObject._value));
+                const value = Number(rowObject._value);
+                if(rowObject.building_id && rowObject._value != null && Number.isFinite(value) && value > 0) {
+                    resMap.set(rowObject.building_id, { value });
+                }
             }
         } 
         catch(err) {
@@ -144,16 +174,18 @@ async function fetchTelemetryForTimeframe(buildingIds: string[], timeframe: Heat
     }
     else if(timeframe.startsWith("+")) {
         const isWeekly = timeframe === "+7d";
+        const select = {
+            building_id: true,
+            forecast_avg_day: true,
+            updated_at: true
+        };
         const data = isWeekly? await prisma.buildingAnalyticsWeekly.findMany({
             where: {
                 building_id: {
                     in: buildingIds
                 }
             },
-            select: {
-                building_id: true,
-                forecast_avg_day: true
-            }
+            select
         })
         : await prisma.buildingAnalyticsMonthly.findMany({
             where: {
@@ -161,13 +193,16 @@ async function fetchTelemetryForTimeframe(buildingIds: string[], timeframe: Heat
                     in: buildingIds
                 }
             },
-            select:{
-                building_id: true,
-                forecast_avg_day: true
-            }
+            select
         });
         for(const row of data) {
-            if(row.forecast_avg_day) resMap.set(row.building_id, Number(row.forecast_avg_day));
+            const value = Number(row.forecast_avg_day);
+            if(row.forecast_avg_day && Number.isFinite(value) && value > 0) {
+                resMap.set(row.building_id, {
+                    value,
+                    ...(row.updated_at ? { updatedAt: new Date(row.updated_at).toISOString() } : {})
+                });
+            }
         }
     }
     return resMap;

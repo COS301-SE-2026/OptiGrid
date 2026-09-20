@@ -12,6 +12,7 @@ export type SnapshotRequest = {
 type EndpointPoint = {
     building_id?: unknown;
     value?: unknown;
+    kwh_value?: unknown;
     updated_at?: unknown;
     model_updated_at?: unknown;
 };
@@ -60,13 +61,14 @@ async function fetchFromEndpoint(request: SnapshotRequest): Promise<Map<string, 
 
     const payload = (await readJson(response)) as EndpointPayload;
     const points = Array.isArray(payload.data?.points) ? payload.data.points : [];
+    const generatedAt = typeof payload.data?.generated_at === "string" ? payload.data.generated_at : null;
     const values = new Map<string, { value: number | null; updatedAt: string | null }>();
     for (const point of points) {
         if (typeof point?.building_id === "string") {
             const stamp = request.timeframe.kind === "future" ? point.model_updated_at ?? point.updated_at : point.updated_at;
             values.set(point.building_id, {
-                value: toFiniteNumber(point.value),
-                updatedAt: typeof stamp === "string" ? stamp : null,
+                value: toFiniteNumber(point.value ?? point.kwh_value),
+                updatedAt: typeof stamp === "string" ? stamp : generatedAt,
             });
         }
     }

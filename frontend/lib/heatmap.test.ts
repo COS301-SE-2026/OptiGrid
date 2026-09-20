@@ -1,34 +1,4 @@
-import {
-    LIVE_INDEX,
-    STALE_READING_MS,
-    TIMEFRAMES,
-    boundsOf,
-    buildPoint,
-    changeAgainst,
-    colourStops,
-    coordinatesOf,
-    createPortfolioStore,
-    describeTimeframe,
-    formatChange,
-    formatEnergy,
-    formatIntensity,
-    isPlaced,
-    mixColours,
-    parseColour,
-    portfolioTotals,
-    rankPoints,
-    scaleOf,
-    stressBand,
-    stressColour,
-    stressGradient,
-    stressOf,
-    timeframeAt,
-    timeframeById,
-    timeframeTarget,
-    toFeatureCollection,
-    type HeatmapBuilding,
-    type HeatmapPoint,
-} from "./heatmap";
+import { boundsOf, buildPoint, changeAgainst, colourStops, coordinatesOf, createPortfolioStore, describeTimeframe, formatChange, formatEnergy, formatIntensity, hexagonAround, isPlaced, LIVE_INDEX, mixColours, parseColour, portfolioTotals, rankPoints, scaleOf, STALE_READING_MS, stressBand, stressColour, stressGradient, stressOf, timeframeAt, timeframeById, TIMEFRAMES, timeframeTarget, toFeatureCollection, toTowerCollection, towerScale, type HeatmapBuilding, type HeatmapPoint } from "./heatmap";
 
 const NOW = Date.parse("2026-09-18T10:00:00.000Z");
 const DAY = 86400000;
@@ -271,5 +241,69 @@ describe("createPortfolioStore", () => {
         const store = createPortfolioStore();
         store.replace("b1", 20, NOW);
         expect(store.totals(NOW + 4 * STALE_READING_MS + 1).has("b1")).toBe(false);
+    });
+});
+describe("tower geometry", () => {
+    const scaleFor = (points: HeatmapPoint[]) => scaleOf(points, "total");
+
+    it("closes the hexagon ring and also keeps it centred", () => {
+        const ring = hexagonAround(28.23, -25.75, 500);
+        expect(ring).toHaveLength(7);
+        expect(ring[0]).toEqual(ring[6]);
+        const lons = ring.map(([lon]) => lon);
+        const lats = ring.map(([, lat]) => lat);
+        expect((Math.min(...lons) + Math.max(...lons)) / 2).toBeCloseTo(28.23, 6);
+        expect((Math.min(...lats) + Math.max(...lats)) / 2).toBeCloseTo(-25.75, 6);
+    });
+
+    it("amkes the footprint wider as the portfolio spreads out", () => {
+        const campus = towerScale([
+            { latitude: -25.75, longitude: 28.23 },
+            { latitude: -25.755, longitude: 28.235 },
+        ]);
+        const country = towerScale([
+            { latitude: -25.75, longitude: 28.23 },
+            { latitude: -33.92, longitude: 18.42 },
+        ]);
+        expect(country.radius).toBeGreaterThan(campus.radius);
+        expect(campus.radius).toBeGreaterThanOrEqual(70);
+        expect(country.radius).toBeLessThanOrEqual(5000);
+    });
+
+    it("gives the hottest building the tallest tower and flags the quiet ones", () => {
+        const points = [
+            buildPoint({ building_id: "b1", building_name: "Hot", latitude: -25.75, longitude: 28.23 }, 900, "kWh/day"),
+            buildPoint({ building_id: "b2", building_name: "Mild", latitude: -25.76, longitude: 28.24 }, 200, "kWh/day"),
+            buildPoint({ building_id: "b3", building_name: "Silent", latitude: -25.77, longitude: 28.25 }, null, "kWh/day"),
+        ].filter((point): point is HeatmapPoint => point !== null);
+
+        const towers = toTowerCollection(points, "total", scaleFor(points));
+
+        expect(towers.features).toHaveLength(3);
+        const [hot, mild, silent] = towers.features;
+        expect(hot.properties.height).toBeGreaterThan(mild.properties.height);
+        expect(mild.properties.height).toBeGreaterThan(silent.properties.height);
+        expect(silent.properties.reporting).toBe(0);
+        expect(hot.properties.reporting).toBe(1);
+        expect(hot.geometry.coordinates[0]).toHaveLength(7);
+    });
+
+    it("falls back to a fixed footprint for a single building", () => {
+        const single = towerScale([{ latitude: -25.75, longitude: 28.23 }]);
+        expect(single.radius).toBe(140);
+        expect(towerScale([])).toEqual(single);
+    });
+
+    it("keeps every tower above the ground so nothing vanishes", () => {
+        const points = [
+            buildPoint({ building_id: "b1", building_name: "Peak", latitude: -25.75, longitude: 28.23 }, 5000, "kWh/day"),
+            buildPoint({ building_id: "b2", building_name: "Trace", latitude: -25.76, longitude: 28.24 }, 0.4, "kWh/day"),
+        ].filter((point): point is HeatmapPoint => point !== null);
+
+        const towers = toTowerCollection(points, "total", scaleFor(points));
+
+        for (const feature of towers.features) {
+            expect(feature.properties.height).toBeGreaterThan(0);
+        }
     });
 });

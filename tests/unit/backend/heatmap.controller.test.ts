@@ -21,7 +21,8 @@ describe("Heatmap Controller Unit Tests", () => {
         });
         req = {
             user: {
-                userId: "user-123"
+                id: "user-123",
+                roleType: "BUILDING_MANAGER"
             } as any,
             query: {
                 timeframe: "live"
@@ -45,7 +46,7 @@ describe("Heatmap Controller Unit Tests", () => {
         //act
         await getHeatmapController(req as Request, resp as Response);
         //assert
-        expect(heatmapService.getHeatmapDataService).toHaveBeenCalledWith("user-123", "live");
+        expect(heatmapService.getHeatmapDataService).toHaveBeenCalledWith("user-123", "live", "BUILDING_MANAGER");
         expect(statusMock).toHaveBeenCalledWith(200);
         expect(jsonMock).toHaveBeenCalledWith({
             status: "success",

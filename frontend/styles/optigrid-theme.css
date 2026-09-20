@@ -2839,6 +2839,76 @@ h3 {
     opacity: 0.5;
 }
 
+.heat-toggle {
+    color: var(--brand-ink-muted);
+    font-family: var(--font-body);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-semibold);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-pill);
+    background: var(--brand-surface);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.heat-toggle:hover:not(:disabled) {
+    border-color: var(--brand-primary);
+    color: var(--brand-ink);
+}
+
+.heat-toggle.is-active {
+    border-color: var(--brand-primary-cta);
+    background: var(--brand-primary-cta);
+    color: var(--brand-on-primary);
+}
+
+.heat-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.heat-toggle:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+
+
+.heat-row-track {
+    margin-top: 5px;
+    height: 3px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--brand-ink) 9%, transparent);
+    overflow: hidden;
+}
+
+.heat-bulk {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.heat-bulk-action {
+    padding: 6px 14px;
+    font-size: 0.78rem;
+}
+
+.heat-bulk-progress {
+    font-size: 0.75rem;
+    color: var(--brand-ink-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .heat-row-fill {
+        transition: none;
+    }
+}
+
 @media (max-width: 640px) {
     .heat-stage {
         height: 600px;

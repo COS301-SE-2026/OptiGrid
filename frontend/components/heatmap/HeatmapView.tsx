@@ -30,6 +30,7 @@ import {
     stressOf,
     timeframeAt,
     toFeatureCollection,
+    toTowerCollection,
     type HeatmapBuilding,
     type HeatmapMetric,
     type HeatmapPoint,
@@ -246,6 +247,8 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [hover, setHover] = useState<{ buildingId: string; x: number; y: number } | null>(null);
     const [playing, setPlaying] = useState(false);
+    const [tilted, setTilted] = useState(false);
+    const [bulkPlacing, setBulkPlacing] = useState<{ placed: number; failed: number } | null>(null);
     const [placement, setPlacement] = useState<Placement | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
     const [mapFailure, setMapFailure] = useState<string | null>(null);
@@ -347,6 +350,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
 
     const scale = useMemo(() => scaleOf(points, metric), [points, metric]);
     const collection = useMemo(() => toFeatureCollection(points, metric, scale), [points, metric, scale]);
+    const towers = useMemo(() => toTowerCollection(points, metric, scale), [points, metric, scale]);
     const ranked = useMemo(() => rankPoints(points, metric), [points, metric]);
     const totals = useMemo(() => portfolioTotals(points, metric, showingFrame.unit), [points, metric, showingFrame.unit]);
     const changes = useMemo(() => {
@@ -416,6 +420,34 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
         }
     }, [onScreen]);
 
+    useEffect(() => {
+        if (!onScreen || placement) {
+            return;
+        }
+        const onKey = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+                return;
+            }
+            if (event.key === "ArrowLeft" && index > 0) {
+                event.preventDefault();
+                setPlaying(false);
+                setIndex(index - 1);
+            }
+            else if (event.key === "ArrowRight" && index < TIMEFRAMES.length - 1) {
+                event.preventDefault();
+                setPlaying(false);
+                setIndex(index + 1);
+            }
+            else if (event.key === " ") {
+                event.preventDefault();
+                setPlaying((value) => (index >= TIMEFRAMES.length - 1 ? false : !value));
+            }
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [onScreen, placement, index]);
+
     const togglePlay = () => {
         if (playing) {
             setPlaying(false);
@@ -484,6 +516,47 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
         }
     }, [placement, queryClient]);
 
+    const placeEveryAddress = useCallback(async () => {
+        let placed = 0;
+        let failed = 0;
+        setBulkPlacing({ placed, failed });
+        try {
+            for (let round = 0; round < 40; round += 1) {
+                const response = await fetch("/api/heatmap/place", { method: "POST" });
+                const payload = (await response.json().catch(() => ({}))) as { message?: string; data?: { placed?: number; failed?: number } };
+                if (!response.ok) {
+                    throw new Error(payload.message ?? "The buildings could not be placed.");
+                }
+                const roundPlaced = Number(payload.data?.placed) || 0;
+
+                failed += Number(payload.data?.failed) || 0;
+                placed += roundPlaced;
+                setBulkPlacing({ placed, failed });
+                //a round that places nothing means every address left is one the lookup cannot resolve
+                if (roundPlaced === 0) {
+                    break;
+                }
+                await queryClient.invalidateQueries({ queryKey: ["heatmap", "buildings"] });
+            }
+            await queryClient.invalidateQueries({ queryKey: ["heatmap", "buildings"] });
+            if (placed === 0) {
+                setNotice(failed > 0 ? "No address could be matched to a location. Place those buildings by hand." : "There was nothing left to place.");
+            }
+            
+            else {
+                setNotice(failed > 0
+                    ? `Placed ${placed} building${placed === 1 ? "" : "s"}. ${failed} address${failed === 1 ? "" : "es"} could not be matched.`
+                    : `Placed ${placed} building${placed === 1 ? "" : "s"} from their addresses.`);
+            }
+        }
+        catch (error) {
+            setNotice(error instanceof Error ? error.message : "The buildings could not be placed.");
+        }
+        finally {
+            setBulkPlacing(null);
+        }
+    }, [queryClient]);
+
     const handleSelect = useCallback((buildingId: string | null) => {
         setSelectedId(buildingId);
     }, []);
@@ -516,12 +589,14 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
         stage = (
             <MapCanvas
                 collection={collection}
+                towers={towers}
                 palette={palette ?? readPalette()}
                 dark={dark}
                 selectedId={selectedId}
                 fitTo={fitTo}
                 flyTo={flyTo}
                 placing={placement !== null}
+                tilted={tilted}
                 reducedMotion={reducedMotion}
                 active={onScreen}
                 onSelect={handleSelect}
@@ -559,6 +634,13 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                 </div>
                 <button type="button" className="btn btn-secondary" onClick={() => setFitToken((token) => token + 1)} disabled={points.length === 0}>
                     Show all buildings
+                </button>
+                <button type="button" className={tilted ? "heat-toggle is-active" : "heat-toggle"} aria-pressed={tilted} disabled={points.length === 0 || Boolean(mapFailure)} onClick={() => setTilted((value) => !value)}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 3 21 8v8l-9 5-9-5V8z" />
+                        <path d="M12 12 21 8M12 12v9M12 12 3 8" />
+                    </svg>
+                    Towers
                 </button>
                 <span className={isConnected ? "heat-stream is-live" : "heat-stream"}>
                     <span className="heat-stream-dot" aria-hidden="true" />
@@ -698,6 +780,8 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                                 const stress = stressOf(point, metric, scale);
                                 const colour = stress !== null && palette ? stressColour(stress, palette) : palette?.idle;
                                 const change = formatChange(changes.get(point.buildingId));
+                                const reading = metricValue(point, metric);
+                                const share = reading !== null && scale.peak > 0 ? Math.max(0.03, reading / scale.peak) : 0;
                                 return (
                                     <li key={point.buildingId}>
                                         <button
@@ -710,6 +794,9 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                                             <span className="heat-row-main">
                                                 <span className="heat-row-name">{point.name}</span>
                                                 <span className="heat-row-meta">{change ?? (point.type ? point.type.replace(/_/g, " ") : "Building")}</span>
+                                                <span className="heat-row-track" aria-hidden="true">
+                                                    <span className="heat-row-fill" style={{ width: `${Math.round(share * 100)}%`, background: colour }} />
+                                                </span>
                                             </span>
                                             <span className="heat-row-value metric">{metricValue(point, metric) === null ? "No data" : formatMetric(point, metric)}</span>
                                         </button>
@@ -734,9 +821,27 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                             <h3 className="heat-unplaced-title">Not on the map ({unplacedBuildings.length})</h3>
                             <p className="text-muted heat-unplaced-note">
                                 {canPlace
-                                    ? "These buildings have no coordinates yet. Place each one to add it to the heatmap."
+                                    ? "These buildings have no coordinates yet. Look them up from their street address or place any one by hand."
                                     : "These buildings have no coordinates yet."}
                             </p>
+                            {canPlace && (
+                                <div className="heat-bulk">
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary heat-bulk-action"
+                                        disabled={bulkPlacing !== null || Boolean(mapFailure)}
+                                        onClick={() => void placeEveryAddress()}
+                                    >
+                                        {bulkPlacing ? "Looking up addresses..." : "Place from address"}
+                                    </button>
+                                    {bulkPlacing && (
+                                        <span className="heat-bulk-progress" role="status">
+                                            {`${bulkPlacing.placed} placed`}
+                                            {bulkPlacing.failed > 0 ? `, ${bulkPlacing.failed} not matched` : ""}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                             <ul className="heat-unplaced-list">
                                 {unplacedBuildings.map((building) => (
                                     <li key={building.building_id}>

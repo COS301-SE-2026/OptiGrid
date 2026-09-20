@@ -22,6 +22,8 @@ jest.mock("./MapCanvas", () => ({
             <div data-testid="map">
                 <span>{`${props.collection.features.length} on map, selected ${props.selectedId ?? "none"}, placing ${String(props.placing)}`}</span>
                 <span data-testid="map-values">{props.collection.features.map((feature) => `${feature.properties.buildingId}=${feature.properties.value}`).join(" ")}</span>
+                <span data-testid="map-mode">{`tilted ${String(props.tilted)}`}</span>
+                <span data-testid="map-towers">{props.towers.features.map((feature) => `${feature.properties.buildingId}=${Math.round(feature.properties.height)}`).join(" ")}</span>
                 <button type="button" onClick={() => props.onSelect(first)}>Map pick</button>
                 <button type="button" onClick={() => props.onPlace({ longitude: 28.23111149, latitude: -25.75555549 })}>Map place</button>
                 <button type="button" onClick={() => first && props.onHover({ buildingId: first, x: 20, y: 30 })}>Map hover</button>
@@ -41,26 +43,36 @@ const BUILDINGS = [
 ];
 
 type Snapshot = Record<string, number | null>;
+type PlaceRound = { placed: number; failed: number; remaining: number };
 
 type ApiOptions = {
     buildings?: typeof BUILDINGS;
+    place?: PlaceRound[];
     heatmap?: Record<string, Snapshot> | null;
     live?: Array<{ building_id: string; current_kw: number }>;
     patchStatus?: number;
 };
 
 let patchBodies: unknown[];
+let placeCalls: number;
 
 function respond(status: number, body: unknown) {
     return Promise.resolve({ ok: status >= 200 && status < 300, status, json: async () => body });
 }
 
-function mockApi({ buildings = BUILDINGS, heatmap = { live: { b1: 42, b2: 13 } }, live = [], patchStatus = 200 }: ApiOptions = {}) {
+function mockApi({ buildings = BUILDINGS, heatmap = { live: { b1: 42, b2: 13 } }, live = [], patchStatus = 200, place = [] }: ApiOptions = {}) {
     patchBodies = [];
+    placeCalls = 0;
+    const placeQueue = [...place];
     global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         if (url === "/api/buildings") {
             return respond(200, { data: buildings });
+        }
+        if (url === "/api/heatmap/place") {
+            placeCalls += 1;
+            const round = placeQueue.shift() ?? { placed: 0, failed: 0, remaining: 0 };
+            return respond(200, { status: "success", data: round });
         }
         if (url.startsWith("/api/heatmap")) {
             const timeframe = decodeURIComponent(url.split("timeframe=")[1] ?? "");
@@ -328,5 +340,102 @@ describe("HeatmapView", () => {
 
         await user.click(screen.getByRole("button", { name: "Pause the timeline" }));
         expect(screen.getByRole("button", { name: /play the timeline/i })).toHaveAttribute("aria-pressed", "false");
+    });
+});
+
+describe("tower view", () => {
+
+    it("makes the busier building the taller tower", async () => {
+        mockApi({ heatmap: { live: { b1: 90, b2: 10 } } });
+        renderView();
+        await screen.findByTestId("map");
+
+        await waitFor(() => expect(screen.getByTestId("map-towers")).toHaveTextContent("b1="));
+
+        const readings = screen.getByTestId("map-towers").textContent ?? "";
+        const heights = Object.fromEntries(readings.split(" ").map((entry) => entry.split("=")).map(([id, height]) => [id, Number(height)]));
+        expect(heights.b1).toBeGreaterThan(heights.b2);
+    });
+
+    it("provides the map a tower for every point and flips into the tilted view", async () => {
+        mockApi();
+        renderView();
+        await screen.findByTestId("map");
+
+        await waitFor(() => expect(screen.getByTestId("map-towers")).toHaveTextContent("b1="));
+        expect(screen.getByTestId("map-towers")).toHaveTextContent("b2=");
+        expect(screen.getByTestId("map-mode")).toHaveTextContent("tilted false");
+        await userEvent.click(screen.getByRole("button", { name: /towers/i }));
+        expect(screen.getByTestId("map-mode")).toHaveTextContent("tilted true");
+    });
+});
+
+describe("placing every building from its address", () => {
+    it("keeps asking until a round places nothing. It then reloads the buildings", async () => {
+        mockApi({ place: [{ placed: 2, failed: 0, remaining: 1 }, { placed: 1, failed: 0, remaining: 0 }] });
+        renderView();
+        await screen.findByTestId("map");
+
+        await userEvent.click(screen.getByRole("button", { name: /place from address/i }));
+
+        await waitFor(() => expect(screen.getByText(/Placed 3 buildings from their addresses/i)).toBeInTheDocument());
+        expect(placeCalls).toBe(3);
+    });
+
+    it("indicates when no address could be matched", async () => {
+        mockApi({ place: [{ placed: 0, failed: 2, remaining: 2 }] });
+        renderView();
+        await screen.findByTestId("map");
+
+        await userEvent.click(screen.getByRole("button", { name: /place from address/i }));
+
+        await waitFor(() => expect(screen.getByText(/No address could be matched/i)).toBeInTheDocument());
+        expect(placeCalls).toBe(1);
+    });
+
+    it("stays hidden for a viewer", async () => {
+        mockApi();
+        renderView("VIEWER");
+        await screen.findByTestId("map");
+
+        expect(screen.queryByRole("button", { name: /place from address/i })).not.toBeInTheDocument();
+    });
+});
+
+describe("keyboard control", () => {
+    it("steps through the timeline with the arrow keys", async () => {
+        mockApi();
+        renderView();
+        await screen.findByTestId("map");
+
+        const slider = screen.getByRole("slider", { name: /time on the heatmap/i });
+        expect(slider).toHaveValue("3");
+
+        await userEvent.keyboard("{ArrowRight}");
+        await waitFor(() => expect(screen.getByRole("slider", { name: /time on the heatmap/i })).toHaveValue("4"));
+
+        await userEvent.keyboard("{ArrowLeft}{ArrowLeft}");
+        await waitFor(() => expect(screen.getByRole("slider", { name: /time on the heatmap/i })).toHaveValue("2"));
+    });
+
+    it("leaves the arrow keys to the cursor while the filter has focus", async () => {
+        const many = Array.from({ length: 9 }, (_, slot) => ({
+            building_id: `k${slot}`,
+            building_name: `Site ${slot}`,
+            building_type: "Commercial",
+            latitude: -25.75 - slot / 100,
+            longitude: 28.23 + slot / 100,
+            square_footage: 1000,
+        }));
+        const readings = Object.fromEntries(many.map((building, slot) => [building.building_id, 10 + slot]));
+        mockApi({ buildings: many, heatmap: { live: readings } });
+        renderView();
+        await screen.findByTestId("map");
+
+        const filter = await screen.findByRole("searchbox", { name: /filter buildings/i });
+        await userEvent.click(filter);
+        await userEvent.keyboard("{ArrowRight}{ArrowRight}");
+
+        expect(screen.getByRole("slider", { name: /time on the heatmap/i })).toHaveValue("3");
     });
 });

@@ -42,6 +42,19 @@ describe("fetchHeatmapSnapshot", () => {
         expect(snapshot.missing).toEqual(["b2"]);
     });
 
+    it("reads the core service payload shape", async () => {
+        mockFetch((url) => (url.startsWith("/api/heatmap")
+            ? { status: 200, body: { status: "success", data: { timeframe: "-7d", unit: "kWh/day", generated_at: "2026-09-18T10:00:00.000Z", points: [{ building_id: "b1", latitude: -25.75, longitude: 28.23, kwh_value: 420 }] } } }
+            : undefined));
+
+        const snapshot = await fetchHeatmapSnapshot({ timeframe: timeframeById("-7d"), buildings, now: NOW });
+
+        expect(snapshot.source).toBe("endpoint");
+        expect(snapshot.points[0].value).toBe(420);
+        expect(snapshot.points[0].updatedAt).toBe("2026-09-18T10:00:00.000Z");
+        expect(snapshot.missing).toEqual(["b2"]);
+    });
+
     it("dates forecast points by their model latest run", async () => {
         mockFetch((url) => (url.startsWith("/api/heatmap")
             ? { status: 200, body: { data: { points: [{ building_id: "b1", value: 500, updated_at: "2026-09-18T09:00:00Z", model_updated_at: "2026-09-17T02:00:00Z" }] } } }
