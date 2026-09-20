@@ -110,14 +110,14 @@ const WEIGHTS = {
 };
 
 interface LivingEnvironmentProps {
-  buildingId: string;
+  readonly buildingId: string;
 }
 
 export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
   const seed = useMemo(() => {
     let h = 0;
     for (let i = 0; i < buildingId.length; i++) {
-      h = (h * 31 + buildingId.charCodeAt(i)) | 0;
+      h = (h * 31 + (buildingId.charCodeAt(i) ?? 0));
     }
     return Math.abs(h);
   }, [buildingId]);
@@ -355,12 +355,12 @@ function WhatIsAffectingPanel({
   healthScore,
   state,
 }: {
-  drivers: Driver[];
-  healthScore: number;
-  state: EcosystemState;
+  readonly drivers: Driver[];
+  readonly healthScore: number;
+  readonly state: EcosystemState;
 }) {
   const weakest = drivers[0];
-  const strongest = drivers[drivers.length - 1];
+  
 
   return (
     <section className="card" aria-labelledby="affecting-heading">
@@ -398,7 +398,7 @@ function WhatIsAffectingPanel({
         }}
       >
         <span className="dashboard-section-meta">
-          Score <span className="metric">{healthScore}</span> <div className=""></div> tree is{' '}
+          Score <span className="metric">{healthScore}</span>  tree is{' '}
           <strong>{state}</strong>
         </span>
         <span className="dashboard-section-meta">
@@ -412,7 +412,7 @@ function WhatIsAffectingPanel({
 
 
 
-function DriverBar({ driver, rank }: { driver: Driver; rank: number }) {
+function DriverBar({ driver, rank }: { readonly driver: Driver;readonly rank: number }) {
   const tone = toneStyle[driver.tone];
   const pct = Math.round(driver.value);
 
@@ -529,10 +529,10 @@ const toneStyle: Record<
 
 
 interface ControlSliderProps {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  accent: string;
+  readonly label: string;
+  readonly value: number;
+  readonly onChange: (v: number) => void;
+  readonly accent: string;
 }
 
 function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
@@ -656,9 +656,9 @@ function TreeStat({
   value,
   accent,
 }: {
-  label: string;
-  value: string;
-  accent: string;
+  readonly label: string;
+  readonly value: string;
+  readonly accent: string;
 }) {
   return (
     <div
@@ -689,9 +689,9 @@ function TreeStat({
 
 
 interface EcosystemVisualProps {
-  state: EcosystemState;
-  config: (typeof stateConfig)[EcosystemState];
-  buildingId: string;
+  readonly state: EcosystemState;
+  readonly config: (typeof stateConfig)[EcosystemState];
+  readonly buildingId: string;
 }
 
 function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
@@ -716,7 +716,27 @@ function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
     };
   });
 
-  const trunkDroop = state === 'critical' ? 8 : state === 'declining' ? 3 : 0;
+const trunkDroop = getTrunkDroop(state);
+
+function getTrunkDroop(state: EcosystemState): number {
+  if (state === 'critical') return 8;
+  if (state === 'declining') return 3;
+  return 0;
+}
+
+
+  function getTrunkWidth(state: EcosystemState): number {
+  if (state === 'thriving') return 12;
+  if (state === 'healthy') return 11;
+  return 8;
+}
+
+function getSunOpacity(state: EcosystemState): number {
+  if (state === 'critical') return 0.35;
+  if (state === 'declining') return 0.65;
+  return 1;
+}
+
   const description = `Living environment for building ${buildingId}. State: ${config.label}. ${config.leafCount} of 24 leaves visible, ${config.flowerCount} of 8 blooms.`;
 
   return (
@@ -806,8 +826,7 @@ function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
           fill="url(#sunGlow)"
           initial={false}
           animate={{
-            opacity:
-              state === 'critical' ? 0.35 : state === 'declining' ? 0.65 : 1,
+           opacity: getSunOpacity(state)
           }}
           transition={{ duration: 1 }}
         />
@@ -833,13 +852,17 @@ function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
         <motion.path
           d="M150 210 Q145 180 148 150 Q150 120 150 100"
           stroke="url(#trunkGrad)"
-          strokeWidth={state === 'thriving' ? 12 : state === 'healthy' ? 11 : 8}
+          
+
+          strokeWidth={getTrunkWidth(state)}
           strokeLinecap="round"
           fill="none"
           initial={false}
           animate={{ y: trunkDroop }}
           transition={{ duration: 1 }}
         />
+
+
 
         <motion.path
           d="M149 140 Q120 120 105 105"
