@@ -9,6 +9,7 @@ import {
   getPortfolioConsumptionController,
   listBuildingsController,
   updateBuildingController, getManagerBuildingsController, getBuildingSeriesController,
+  getLiveSensorReadingsController,
 } from '../controllers/building.controller';
 
 const router = Router();
@@ -380,6 +381,7 @@ router.get('/portfolio-consumption', getPortfolioConsumptionController);
  *         description: Building not found
  */
 router.get('/:building_id', getBuildingDetailsController);
+router.get('/:building_id/sensors/live', getLiveSensorReadingsController);
 /**
  * @swagger
  * /api/buildings/{building_id}/energy-consumption:

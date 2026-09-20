@@ -4,13 +4,16 @@ import type { CoreApiHarness } from "./harness/core-api-harness";
 import { startInfluxHarness, stopInfluxHarness } from "./harness/influx-container";
 import type { StartedInfluxHarness } from "./harness/influx-container";
 import { InfluxDB, Point } from "@influxdata/influxdb-client";
+import { Client } from "pg";
+import { insertIntegrationUsers } from "./harness/user-fixtures";
 
 describe("Telemetry Integration Tests", () => {
     let harness: CoreApiHarness;
     let influxHarness: StartedInfluxHarness;
     let authHeaders: { Cookie: string };
-    const userId = "bbe48b78-438f-4ed7-9fe7-a8fc9addc187";
-    const buildingId = "bld-integration-1";
+    const userId = "33333333-3333-3333-3333-333333333333";
+    const tenantId = "44444444-4444-4444-8444-444444444440";
+    const buildingId = "44444444-4444-4444-8444-444444444441";
 
     beforeAll(async () => {
         influxHarness = await startInfluxHarness();
@@ -23,6 +26,38 @@ describe("Telemetry Integration Tests", () => {
         harness = await createCoreApiHarness();
         authHeaders = await getAuthHeaders(userId);
     }, 120000);
+
+    beforeEach(async () => {
+        const client = new Client({ connectionString: harness.databaseUrl });
+        await client.connect();
+        try {
+            await client.query(
+                `insert into tenants (tenant_id, company_name)
+                 values ($1, $2)
+                 on conflict (tenant_id) do nothing`,
+                [tenantId, "Telemetry Integration Tenant"],
+            );
+            await insertIntegrationUsers(client, [{
+                userId,
+                tenantId,
+                email: "telemetry.integration@optigrid.test",
+            }]);
+            await client.query(
+                `insert into buildings (building_id, tenant_id, building_name)
+                 values ($1, $2, $3)
+                 on conflict (building_id) do nothing`,
+                [buildingId, tenantId, "Telemetry Integration Building"],
+            );
+            await client.query(
+                `insert into user_building_access (user_id, building_id)
+                 values ($1, $2)
+                 on conflict (user_id, building_id) do nothing`,
+                [userId, buildingId],
+            );
+        } finally {
+            await client.end();
+        }
+    });
 
     afterAll(async () => {
         if (harness) await harness.stop();
