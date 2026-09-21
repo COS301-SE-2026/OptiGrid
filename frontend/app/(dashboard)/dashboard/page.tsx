@@ -596,12 +596,26 @@ export default function DashboardPage() {
 
     return (
         <div>
+        
             <div className="dashboard-topbar">
-                <div className="dashboard-user">
+                  <Link
+    href="/settings"
+    className="dashboard-user"
+    
+    style={{
+      textDecoration: 'none',
+      color: 'inherit',
+      cursor: 'pointer',
+    }}
+  >
+
+                
                     <div className="dashboard-avatar" aria-hidden="true">{initials}</div>
                     <span>{fullName}</span>
+                    </Link>
                 </div>
-            </div>
+
+            
 
             <div className="dashboard-header">
                 <div>
