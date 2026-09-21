@@ -62,6 +62,7 @@
 		"lint:fix": "pnpm -w exec eslint . --fix --ignore-pattern .gitignore"
 	},
 	"devDependencies": {
+		"@influxdata/influxdb-client": "^1.35.0",
 		"@playwright/test": "^1.60.0",
 		"@types/cors": "^2.8.19",
 		"@types/express": "4.17.21",

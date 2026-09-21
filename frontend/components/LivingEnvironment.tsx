@@ -1,7 +1,8 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchEsgHealthScore } from '@/lib/esg';
 
 type EcosystemState = 'thriving' | 'healthy' | 'declining' | 'critical';
 
@@ -114,18 +115,31 @@ interface LivingEnvironmentProps {
 }
 
 export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
-  const seed = useMemo(() => {
-    let h = 0;
-    for (let i = 0; i < buildingId.length; i++) {
-      h = (h * 31 + (buildingId.charCodeAt(i) ?? 0));
-    }
-    return Math.abs(h);
-  }, [buildingId]);
+  const [baseline, setBaseline] = useState<{ energyEfficiency: number; renewables: number; hvacLoad: number; lighting: number } | null>(null);
 
-  const [energyEfficiency, setEnergyEfficiency] = useState(60 + (seed % 40));
-  const [renewables, setRenewables] = useState(55 + ((seed >> 3) % 45));
-  const [hvacLoad, setHvacLoad] = useState(55 + ((seed >> 6) % 40));
-  const [lighting, setLighting] = useState(60 + ((seed >> 9) % 40));
+  const [energyEfficiency, setEnergyEfficiency] = useState(60);
+  const [renewables, setRenewables] = useState(55);
+  const [hvacLoad, setHvacLoad] = useState(55);
+  const [lighting, setLighting] = useState(60);
+
+  useEffect(() => {
+    fetchEsgHealthScore(buildingId)
+      .then((data) => {
+        const getScore = (dim: string) => data.dimensions.find((d: { dimension: string; score: number }) => d.dimension === dim)?.score || 60;
+        const base = {
+          energyEfficiency: getScore('energy_efficiency'),
+          renewables: getScore('renewables'),
+          hvacLoad: getScore('hvacLoad'),
+          lighting: getScore('lighting'),
+        };
+        setBaseline(base);
+        setEnergyEfficiency(base.energyEfficiency);
+        setRenewables(base.renewables);
+        setHvacLoad(base.hvacLoad);
+        setLighting(base.lighting);
+      })
+      .catch(console.error);
+  }, [buildingId]);
 
   const healthScore = useMemo(() => {
     const raw =
@@ -235,11 +249,36 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
           style={{ marginBottom: 'var(--space-4)' }}
         >
           <div>
-            <h2 className="dashboard-section-title">Building Performance</h2>
-            <p className="dashboard-section-meta">
+            <h2 className="dashboard-section-title" style={{ marginBottom: 'var(--space-1)' }}>
+              Scenario Performance
+            </h2>
+            <p className="dashboard-section-meta" style={{ margin: 0 }}>
               Move a slider, the tree responds instantly.
             </p>
           </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            style={{ flexShrink: 0 }}
+            disabled={
+              !baseline ||
+              (energyEfficiency === baseline.energyEfficiency &&
+                renewables === baseline.renewables &&
+                hvacLoad === baseline.hvacLoad &&
+                lighting === baseline.lighting)
+            }
+            onClick={(e) => {
+              e.preventDefault();
+              if (baseline) {
+                setEnergyEfficiency(baseline.energyEfficiency);
+                setRenewables(baseline.renewables);
+                setHvacLoad(baseline.hvacLoad);
+                setLighting(baseline.lighting);
+              }
+            }}
+          >
+            <span className="icon">↺</span> Reset to Baseline
+          </button>
         </header>
 
         <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
@@ -343,8 +382,12 @@ function buildDrivers(inputs: SliderInputs): Driver[] {
   return rows
     .map((r) => {
       const impact = r.value * r.weight;
-      const tone: Driver['tone'] =
-        r.value >= 70 ? 'positive' : r.value >= 45 ? 'neutral' : 'negative';
+      let tone: Driver['tone'] = 'negative';
+      if (r.value >= 70) {
+        tone = 'positive';
+      } else if (r.value >= 45) {
+        tone = 'neutral';
+      }
       return { ...r, impact, tone };
     })
     .sort((a, b) => a.value - b.value);
@@ -467,11 +510,10 @@ function DriverBar({ driver, rank }: { readonly driver: Driver;readonly rank: nu
         </div>
       </div>
 
-      <div
-        role="meter"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={pct}
+      <meter
+        min={0}
+        max={100}
+        value={pct}
         aria-label={`${driver.label} at ${pct}%`}
         style={{
           position: 'relative',
@@ -480,10 +522,14 @@ function DriverBar({ driver, rank }: { readonly driver: Driver;readonly rank: nu
           background:
             'color-mix(in srgb, var(--brand-secondary) 18%, transparent)',
           overflow: 'hidden',
+          display: 'block',
+          width: '100%',
+          appearance: 'none',
+          border: 'none',
         }}
       >
         <motion.div
-          initial={false}
+          initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.35, ease: 'easeOut' }}
           style={{
@@ -493,7 +539,7 @@ function DriverBar({ driver, rank }: { readonly driver: Driver;readonly rank: nu
             borderRadius: 999,
           }}
         />
-      </div>
+      </meter>
 
       <span
         className="dashboard-section-meta"
@@ -694,6 +740,24 @@ interface EcosystemVisualProps {
   readonly buildingId: string;
 }
 
+function getTrunkDroop(state: EcosystemState): number {
+  if (state === 'critical') return 8;
+  if (state === 'declining') return 3;
+  return 0;
+}
+
+function getTrunkWidth(state: EcosystemState): number {
+  if (state === 'thriving') return 12;
+  if (state === 'healthy') return 11;
+  return 8;
+}
+
+function getSunOpacity(state: EcosystemState): number {
+  if (state === 'critical') return 0.35;
+  if (state === 'declining') return 0.65;
+  return 1;
+}
+
 function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
   const leaves = Array.from({ length: 24 }, (_, i) => {
     const angle = (i / 24) * Math.PI * 2;
@@ -716,26 +780,7 @@ function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
     };
   });
 
-const trunkDroop = getTrunkDroop(state);
-
-function getTrunkDroop(state: EcosystemState): number {
-  if (state === 'critical') return 8;
-  if (state === 'declining') return 3;
-  return 0;
-}
-
-
-  function getTrunkWidth(state: EcosystemState): number {
-  if (state === 'thriving') return 12;
-  if (state === 'healthy') return 11;
-  return 8;
-}
-
-function getSunOpacity(state: EcosystemState): number {
-  if (state === 'critical') return 0.35;
-  if (state === 'declining') return 0.65;
-  return 1;
-}
+  const trunkDroop = getTrunkDroop(state);
 
   const description = `Living environment for building ${buildingId}. State: ${config.label}. ${config.leafCount} of 24 leaves visible, ${config.flowerCount} of 8 blooms.`;
 
@@ -779,8 +824,7 @@ function getSunOpacity(state: EcosystemState): number {
             background: config.grassColor,
             display: 'inline-block',
           }}
-        />
-        Tree of Life
+        />{' '}Tree of Life
       </div>
 
       <motion.svg
