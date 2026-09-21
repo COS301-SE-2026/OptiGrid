@@ -565,7 +565,7 @@ export const updateBuildingService = async (
     flong ??= exists.longitude ?? undefined;
   }
 
-  if(flat !== undefined && flong !== undefined) {
+  if(payload.geohash === undefined && flat !== undefined && flong !== undefined) {
     if (payload.latitude !== undefined || payload.longitude !== undefined || payload.physical_address !== undefined) {
        fhash = computeGeohash(flat, flong);
     }
