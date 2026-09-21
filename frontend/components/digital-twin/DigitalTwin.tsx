@@ -9,6 +9,8 @@ import {
     STALE_AFTER_MS,
     buildTwinLayout,
     createReadingStore,
+    describeBuilding,
+    solarPanelCount,
     describeSensor,
     formatAge,
     formatKw,
@@ -652,6 +654,7 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
                     active={onScreen}
                     reducedMotion={reducedMotion}
                     resetToken={resetToken}
+                    solarPanels={solarPanelCount(building)}
                     onContextLost={handleContextLost}
                 />
             </div>
@@ -721,8 +724,13 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
                 <div>
                     <p className="twin-eyebrow">Digital twin</p>
                     <h2 id={headingId} className="twin-title">{building.building_name?.trim() || "Building"} in 3D</h2>
+                    <ul className="twin-facts">
+                        {describeBuilding(building, layout).map((fact) => (
+                            <li key={fact} className="twin-fact">{fact}</li>
+                        ))}
+                    </ul>
                     <p className="text-muted twin-subtitle">
-                        Each sensor sits in its zone and glows with its live load. Power flows in from the grid as readings arrive.
+                        The model is shaped from the building type, size and floor count. Each sensor sits in its zone and glows with its live load.
                     </p>
                 </div>
                 <div className="twin-actions">

@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Html, OrbitControls, PerformanceMonitor } from "@react-three/drei";
 import * as THREE from "three";
+import BuildingDetail from "./BuildingDetail";
 import {
     cameraFraming,
     describeSensor,
@@ -18,8 +19,11 @@ import {
     type SensorPlacement,
     type SensorState,
     type StressPalette,
+    type FacadeStyle,
+    type MassingBlock,
     type TwinLayout,
     type TwinLimits,
+    type TwinMassing,
 } from "@/lib/digitalTwin";
 
 export type ScenePalette = StressPalette & {
@@ -45,6 +49,7 @@ export type TwinSceneProps = {
     reducedMotion: boolean;
     resetToken: number;
     onContextLost: () => void;
+    solarPanels?: number;
 };
 
 type ControlsHandle = ComponentRef<typeof OrbitControls>;
@@ -265,55 +270,205 @@ function Ground({ layout, palette, dark }: Readonly<{ layout: TwinLayout; palett
     );
 }
 
+type ShellCell = {
+    floor: number;
+    x: number;
+    z: number;
+    width: number;
+    depth: number;
+};
+
+type SlabCell = {
+    y: number;
+    x: number;
+    z: number;
+    width: number;
+    depth: number;
+    top: boolean;
+};
+
+function floorCells(massing: TwinMassing): ShellCell[] {
+    const cells: ShellCell[] = [];
+    for (const block of massing.blocks) {
+        for (let step = 0; step < block.floors; step += 1) {
+            cells.push({
+                floor: block.baseFloor + step,
+                x: block.centreX,
+                z: block.centreZ,
+                width: block.width,
+                depth: block.depth,
+            });
+        }
+    }
+    return cells;
+}
+
+function slabCells(massing: TwinMassing, floorHeight: number): SlabCell[] {
+    const cells: SlabCell[] = [];
+    for (const block of massing.blocks) {
+        for (let level = 0; level <= block.floors; level += 1) {
+            cells.push({
+                y: (block.baseFloor + level) * floorHeight,
+                x: block.centreX,
+                z: block.centreZ,
+                width: block.width,
+                depth: block.depth,
+                top: level === block.floors,
+            });
+        }
+    }
+    return cells;
+}
+
+function mullionCells(blocks: MassingBlock[], floorHeight: number): Array<[number, number, number, number]> {
+    const posts: Array<[number, number, number, number]> = [];
+    for (const block of blocks) {
+        const halfWidth = block.width / 2;
+        const halfDepth = block.depth / 2;
+        const alongWidth = Math.max(2, Math.round(block.width / 2.1));
+        const alongDepth = Math.max(2, Math.round(block.depth / 2.1));
+        const base = block.baseFloor * floorHeight;
+        const span = block.floors * floorHeight;
+        for (let index = 0; index <= alongWidth; index += 1) {
+            const x = block.centreX - halfWidth + (index * block.width) / alongWidth;
+            posts.push([x, block.centreZ + halfDepth, base, span], [x, block.centreZ - halfDepth, base, span]);
+        }
+        for (let index = 1; index < alongDepth; index += 1) {
+            const z = block.centreZ - halfDepth + (index * block.depth) / alongDepth;
+            posts.push([block.centreX + halfWidth, z, base, span], [block.centreX - halfWidth, z, base, span]);
+        }
+    }
+    return posts;
+}
+
+function topBlockOf(massing: TwinMassing): MassingBlock {
+    return massing.blocks.reduce((highest, block) => (
+        block.baseFloor + block.floors >= highest.baseFloor + highest.floors ? block : highest
+    ), massing.blocks[0]);
+}
+
+function Roof({ layout, palette, dark }: Readonly<{ layout: TwinLayout; palette: ScenePalette; dark: boolean }>) {
+    const { massing, floorHeight } = layout;
+    const block = topBlockOf(massing);
+    const crown = (block.baseFloor + block.floors) * floorHeight;
+    const colour = dark ? palette.surfaceAlt : palette.surface;
+    const bayWidth = block.width / Math.max(1, massing.bays);
+
+    const gable = useMemo(() => {
+        const shape = new THREE.Shape();
+        const eaves = block.width / 2 + 0.2;
+        shape.moveTo(-eaves, 0);
+        shape.lineTo(eaves, 0);
+        shape.lineTo(0, massing.roofRise);
+        shape.closePath();
+        return shape;
+    }, [block.width, massing.roofRise]);
+
+    const tooth = useMemo(() => {
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 0);
+        shape.lineTo(bayWidth, 0);
+        shape.lineTo(bayWidth, massing.roofRise);
+        shape.closePath();
+        return shape;
+    }, [bayWidth, massing.roofRise]);
+
+    if (massing.roof === "pitched") {
+        return (
+            <mesh position={[block.centreX, crown, block.centreZ - block.depth / 2 - 0.2]}>
+                <extrudeGeometry args={[gable, { depth: block.depth + 0.4, bevelEnabled: false }]} />
+                <meshStandardMaterial color={colour} roughness={0.8} metalness={0.02} flatShading />
+            </mesh>
+        );
+    }
+
+    if (massing.roof === "vaulted") {
+        const radius = block.depth / 2;
+        //the arc keeps the full span of the plan but only lifts as far as the roof rise
+        const squash = Math.max(0.08, massing.roofRise / radius);
+        return (
+            <mesh position={[block.centreX, crown, block.centreZ]} rotation-z={Math.PI / 2} scale={[squash, 1, 1]}>
+                <cylinderGeometry args={[radius, radius, block.width, 24, 1, true, 0, Math.PI]} />
+                <meshStandardMaterial color={colour} roughness={0.55} metalness={0.15} side={THREE.DoubleSide} />
+            </mesh>
+        );
+    }
+
+    if (massing.roof === "sawtooth") {
+        return (
+            <group position={[block.centreX - block.width / 2, crown, block.centreZ - block.depth / 2]}>
+                {Array.from({ length: massing.bays }, (_, bay) => (
+                    <group key={`bay-${bay}`} position={[bayWidth * bay, 0, 0]}>
+                        <mesh>
+                            <extrudeGeometry args={[tooth, { depth: block.depth, bevelEnabled: false }]} />
+                            <meshStandardMaterial color={colour} roughness={0.85} metalness={0.02} flatShading />
+                        </mesh>
+                        <mesh position={[bayWidth - 0.02, massing.roofRise / 2, block.depth / 2]} rotation-y={Math.PI / 2}>
+                            <planeGeometry args={[block.depth * 0.9, massing.roofRise * 0.86]} />
+                            <meshBasicMaterial color={palette.primary} transparent opacity={dark ? 0.34 : 0.26} side={THREE.DoubleSide} toneMapped={false} />
+                        </mesh>
+                    </group>
+                ))}
+            </group>
+        );
+    }
+
+    return null;
+}
+
 function BuildingShell({ layout, palette, dark }: Readonly<{ layout: TwinLayout; palette: ScenePalette; dark: boolean }>) {
-    const { width, depth, height, floors, floorHeight } = layout;
+    const { height, floorHeight, massing } = layout;
     const slabRef = useRef<THREE.InstancedMesh>(null);
     const mullionRef = useRef<THREE.InstancedMesh>(null);
     const slabColour = dark ? palette.surfaceAlt : palette.surface;
-    const mullions = useMemo(() => {
-        const positions: Array<[number, number]> = [];
-        const alongWidth = Math.max(2, Math.round(width / 2.1));
-        const alongDepth = Math.max(2, Math.round(depth / 2.1));
-        for (let index = 0; index <= alongWidth; index += 1) {
-            const x = -width / 2 + (index * width) / alongWidth;
-            positions.push([x, depth / 2], [x, -depth / 2]);
-        }
-        for (let index = 1; index < alongDepth; index += 1) {
-            const z = -depth / 2 + (index * depth) / alongDepth;
-            positions.push([width / 2, z], [-width / 2, z]);
-        }
-        return positions;
-    }, [width, depth]);
+    const slabs = useMemo(() => slabCells(massing, floorHeight), [massing, floorHeight]);
+    const mullions = useMemo(() => mullionCells(massing.blocks, floorHeight), [massing.blocks, floorHeight]);
 
-    const outline = useMemo(
-        () => new THREE.EdgesGeometry(new THREE.BoxGeometry(width + 0.3, height + 0.2, depth + 0.3)),
-        [width, height, depth],
-    );
+    const outline = useMemo(() => {
+        const merged = new THREE.BufferGeometry();
+        const chunks: THREE.BufferGeometry[] = [];
+        for (const block of massing.blocks) {
+            const box = new THREE.BoxGeometry(block.width + 0.3, block.floors * floorHeight + 0.2, block.depth + 0.3);
+            box.translate(block.centreX, (block.baseFloor + block.floors / 2) * floorHeight + 0.05, block.centreZ);
+            const edges = new THREE.EdgesGeometry(box);
+            box.dispose();
+            chunks.push(edges);
+        }
+        const positions: number[] = [];
+        for (const chunk of chunks) {
+            const array = chunk.getAttribute("position").array;
+            for (const value of array) {
+                positions.push(value);
+            }
+            chunk.dispose();
+        }
+        merged.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        return merged;
+    }, [massing.blocks, floorHeight]);
     useEffect(() => () => outline.dispose(), [outline]);
 
     useLayoutEffect(() => {
-        const slabs = slabRef.current;
+        const slabMesh = slabRef.current;
         const posts = mullionRef.current;
-        if (!slabs || !posts) {
+        if (!slabMesh || !posts) {
             return;
         }
-        for (let level = 0; level <= floors; level += 1) {
-            const thickness = level === floors ? 0.2 : 0.12;
-            scratchMatrix.makeScale(width + 0.3, thickness, depth + 0.3).setPosition(0, level * floorHeight + thickness / 2, 0);
-            slabs.setMatrixAt(level, scratchMatrix);
-        }
-        mullions.forEach(([x, z], index) => {
-            scratchMatrix.makeScale(0.05, height, 0.05).setPosition(x, height / 2, z);
+        slabs.forEach((cell, index) => {
+            const thickness = cell.top ? 0.2 : 0.12;
+            scratchMatrix.makeScale(cell.width + 0.3, thickness, cell.depth + 0.3).setPosition(cell.x, cell.y + thickness / 2, cell.z);
+            slabMesh.setMatrixAt(index, scratchMatrix);
+        });
+        mullions.forEach(([x, z, base, span], index) => {
+            scratchMatrix.makeScale(0.05, span, 0.05).setPosition(x, base + span / 2, z);
             posts.setMatrixAt(index, scratchMatrix);
         });
-        slabs.instanceMatrix.needsUpdate = true;
+        slabMesh.instanceMatrix.needsUpdate = true;
         posts.instanceMatrix.needsUpdate = true;
-    }, [floors, floorHeight, width, depth, height, mullions]);
+    }, [slabs, mullions]);
 
-    const plantY = height + 0.2;
     return (
         <group>
-            <instancedMesh key={`slabs-${floors}`} ref={slabRef} args={[undefined, undefined, floors + 1]} frustumCulled={false}>
+            <instancedMesh key={`slabs-${slabs.length}`} ref={slabRef} args={[undefined, undefined, slabs.length]} frustumCulled={false}>
                 <boxGeometry />
                 <meshStandardMaterial color={slabColour} roughness={0.7} metalness={0.05} />
             </instancedMesh>
@@ -321,23 +476,29 @@ function BuildingShell({ layout, palette, dark }: Readonly<{ layout: TwinLayout;
                 <boxGeometry />
                 <meshStandardMaterial color={palette.secondary} roughness={0.5} metalness={0.3} />
             </instancedMesh>
-            <lineSegments geometry={outline} position={[0, height / 2 + 0.05, 0]}>
+            <lineSegments geometry={outline}>
                 <lineBasicMaterial color={palette.primary} transparent opacity={dark ? 0.55 : 0.45} />
             </lineSegments>
             <mesh position={[0, height / 2, 0]}>
                 <cylinderGeometry args={[0.07, 0.07, height, 12]} />
                 <meshBasicMaterial color={palette.primary} transparent opacity={0.55} toneMapped={false} />
             </mesh>
-            <mesh position={[-width * 0.2, plantY + 0.25, -depth * 0.16]}>
-                <boxGeometry args={[width * 0.2, 0.5, depth * 0.22]} />
-                <meshStandardMaterial color={slabColour} roughness={0.6} />
-            </mesh>
-            <mesh position={[width * 0.18, plantY + 0.18, depth * 0.12]}>
-                <boxGeometry args={[width * 0.14, 0.36, depth * 0.14]} />
-                <meshStandardMaterial color={slabColour} roughness={0.6} />
-            </mesh>
+            <Roof layout={layout} palette={palette} dark={dark} />
         </group>
     );
+}
+
+function glassOpacity(facade: FacadeStyle, dark: boolean): number | null {
+    if (facade === "frame") {
+        return null;
+    }
+    if (facade === "punched") {
+        return dark ? 0.09 : 0.11;
+    }
+    if (facade === "panel") {
+        return dark ? 0.06 : 0.08;
+    }
+    return dark ? 0.12 : 0.14;
 }
 
 function FloorBands({
@@ -347,13 +508,16 @@ function FloorBands({
     dark,
     reducedMotion,
 }: Readonly<{ layout: TwinLayout; source: VisualSource; palette: ScenePalette; dark: boolean; reducedMotion: boolean }>) {
-    const { floors, floorHeight, width, depth, height } = layout;
+    const { floorHeight, massing } = layout;
     const glassRef = useRef<THREE.InstancedMesh>(null);
     const bandRef = useRef<THREE.InstancedMesh>(null);
+    const cells = useMemo(() => floorCells(massing), [massing]);
+    const rims = useMemo(() => slabCells(massing, floorHeight), [massing, floorHeight]);
+    const opacity = glassOpacity(massing.facade, dark);
     const shown = useMemo(() => ({
-        bands: Array.from({ length: floors + 1 }, () => new THREE.Color()),
-        glass: Array.from({ length: floors }, () => new THREE.Color()),
-    }), [floors]);
+        bands: rims.map(() => new THREE.Color()),
+        glass: cells.map(() => new THREE.Color()),
+    }), [rims, cells]);
     const tones = useMemo(() => {
         const base = new THREE.Color(palette.primary);
         return {
@@ -363,34 +527,45 @@ function FloorBands({
         };
     }, [palette.primary, palette.background, dark]);
 
+    const rimFloor = useCallback((index: number) => {
+        const rim = rims[index];
+        return Math.max(0, Math.round(rim.y / floorHeight) - (rim.top ? 1 : 0));
+    }, [rims, floorHeight]);
+
     useLayoutEffect(() => {
         const glass = glassRef.current;
         const bands = bandRef.current;
-        if (!glass || !bands) {
+        if (!bands) {
             return;
         }
-        for (let floor = 0; floor < floors; floor += 1) {
-            scratchMatrix.makeScale(width, floorHeight - 0.12, depth).setPosition(0, floor * floorHeight + (floorHeight + 0.12) / 2, 0);
-            glass.setMatrixAt(floor, scratchMatrix);
-            glass.setColorAt(floor, shown.glass[floor].copy(tones.base));
+        cells.forEach((cell, index) => {
+            if (!glass) {
+                return;
+            }
+            scratchMatrix
+                .makeScale(cell.width, floorHeight - 0.12, cell.depth)
+                .setPosition(cell.x, cell.floor * floorHeight + (floorHeight + 0.12) / 2, cell.z);
+            glass.setMatrixAt(index, scratchMatrix);
+            glass.setColorAt(index, shown.glass[index].copy(tones.base));
+        });
+        rims.forEach((rim, index) => {
+            scratchMatrix.makeScale(rim.width + 0.36, 0.06, rim.depth + 0.36).setPosition(rim.x, rim.y + (rim.top ? 0.1 : 0.06), rim.z);
+            bands.setMatrixAt(index, scratchMatrix);
+            bands.setColorAt(index, shown.bands[index].copy(tones.dim));
+        });
+        if (glass) {
+            glass.instanceMatrix.needsUpdate = true;
+            if (glass.instanceColor) glass.instanceColor.needsUpdate = true;
         }
-        for (let level = 0; level <= floors; level += 1) {
-            const y = level === floors ? height + 0.1 : level * floorHeight + 0.06;
-            scratchMatrix.makeScale(width + 0.36, 0.06, depth + 0.36).setPosition(0, y, 0);
-            bands.setMatrixAt(level, scratchMatrix);
-            bands.setColorAt(level, shown.bands[level].copy(tones.dim));
-        }
-        glass.instanceMatrix.needsUpdate = true;
         bands.instanceMatrix.needsUpdate = true;
-        if (glass.instanceColor) glass.instanceColor.needsUpdate = true;
         if (bands.instanceColor) bands.instanceColor.needsUpdate = true;
-    }, [floors, floorHeight, width, depth, height, shown, tones]);
+    }, [cells, rims, floorHeight, shown, tones]);
 
     useFrame((frame, delta) => {
         source.refresh(frame.clock.elapsedTime);
         const glass = glassRef.current;
         const bands = bandRef.current;
-        if (!glass || !bands) {
+        if (!bands) {
             return;
         }
         const time = frame.clock.elapsedTime;
@@ -398,28 +573,33 @@ function FloorBands({
         const { floorStress, floorColours } = source.state;
         let moving = false;
 
-        for (let level = 0; level <= floors; level += 1) {
-            const stress = floorStress[level];
+        rims.forEach((rim, index) => {
+            const floor = rimFloor(index);
+            const stress = floorStress[floor] ?? -1;
             if (stress >= 0) {
-                const breath = reducedMotion ? 1 : 0.82 + 0.18 * Math.sin(time * (1.3 + stress * 4) + level * 0.9);
-                tones.target.copy(tones.dim).lerp(floorColours[level], breath);
+                const breath = reducedMotion ? 1 : 0.82 + 0.18 * Math.sin(time * (1.3 + stress * 4) + floor * 0.9);
+                tones.target.copy(tones.dim).lerp(floorColours[floor], breath);
             } else {
                 tones.target.copy(tones.dim);
             }
-            moving = approachColour(shown.bands[level], tones.target, ease) || moving;
-            bands.setColorAt(level, shown.bands[level]);
+            moving = approachColour(shown.bands[index], tones.target, ease) || moving;
+            bands.setColorAt(index, shown.bands[index]);
+        });
 
-            if (level < floors) {
+        if (glass) {
+            cells.forEach((cell, index) => {
+                const stress = floorStress[cell.floor] ?? -1;
                 tones.target.copy(tones.base);
                 if (stress >= 0) {
-                    tones.target.lerp(floorColours[level], 0.6);
+                    tones.target.lerp(floorColours[cell.floor], 0.6);
                 }
-                moving = approachColour(shown.glass[level], tones.target, ease) || moving;
-                glass.setColorAt(level, shown.glass[level]);
-            }
+                moving = approachColour(shown.glass[index], tones.target, ease) || moving;
+                glass.setColorAt(index, shown.glass[index]);
+            });
+            if (glass.instanceColor) glass.instanceColor.needsUpdate = true;
         }
+
         if (bands.instanceColor) bands.instanceColor.needsUpdate = true;
-        if (glass.instanceColor) glass.instanceColor.needsUpdate = true;
         if (moving) {
             frame.invalidate();
         }
@@ -427,11 +607,13 @@ function FloorBands({
 
     return (
         <group>
-            <instancedMesh key={`glass-${floors}`} ref={glassRef} args={[undefined, undefined, floors]} frustumCulled={false} renderOrder={1}>
-                <boxGeometry />
-                <meshBasicMaterial transparent opacity={dark ? 0.12 : 0.14} depthWrite={false} toneMapped={false} />
-            </instancedMesh>
-            <instancedMesh key={`bands-${floors}`} ref={bandRef} args={[undefined, undefined, floors + 1]} frustumCulled={false}>
+            {opacity !== null && (
+                <instancedMesh key={`glass-${cells.length}`} ref={glassRef} args={[undefined, undefined, cells.length]} frustumCulled={false} renderOrder={1}>
+                    <boxGeometry />
+                    <meshBasicMaterial transparent opacity={opacity} depthWrite={false} toneMapped={false} />
+                </instancedMesh>
+            )}
+            <instancedMesh key={`bands-${rims.length}`} ref={bandRef} args={[undefined, undefined, rims.length]} frustumCulled={false}>
                 <boxGeometry />
                 <meshBasicMaterial toneMapped={false} />
             </instancedMesh>
@@ -942,6 +1124,7 @@ function SceneContents({
     resetToken,
     framing,
     lowQuality,
+    solarPanels = 0,
 }: Readonly<Omit<TwinSceneProps, "active" | "onContextLost"> & { framing: CameraFraming; lowQuality: boolean }>) {
     const source = useVisualSource(layout, store, lens, limits, palette);
     const [hoveredIndex, setHoveredIndex] = useState(-1);
@@ -973,6 +1156,7 @@ function SceneContents({
             <StoreInvalidator store={store} />
             <Ground layout={layout} palette={palette} dark={dark} />
             <BuildingShell layout={layout} palette={palette} dark={dark} />
+            <BuildingDetail layout={layout} palette={palette} dark={dark} solarPanels={solarPanels} />
             <FloorBands layout={layout} source={source} palette={palette} dark={dark} reducedMotion={reducedMotion} />
             <GridConnection layout={layout} palette={palette} dark={dark} />
             <EnergyFlows layout={layout} source={source} palette={palette} dark={dark} reducedMotion={reducedMotion} lowQuality={lowQuality} />

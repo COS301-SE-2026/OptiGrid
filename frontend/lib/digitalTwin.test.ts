@@ -1,4 +1,4 @@
-import { BASELINE_WARMUP, STALE_AFTER_MS, buildTwinLayout, cameraFraming, classifyZone, createReadingStore, deviationStress, describeSensor, formatAge, formatKw,
+import { BASELINE_WARMUP, MAX_PANELS, STALE_AFTER_MS, buildMassing, buildTwinLayout, buildingTypeLabel, describeBuilding, solarPanelCount, windowSpacingFor, cameraFraming, footprintAtFloor, classifyZone, createReadingStore, deviationStress, describeSensor, formatAge, formatKw,
     measurePath, mixColours, parseColour, resolveLimits, stressBand, stressColour, stressGradient, summariseSensors, writePointAlongPath, type TwinBuilding, type TwinSensor
 } from "./digitalTwin";
 
@@ -440,5 +440,222 @@ describe("formatting", () => {
         expect(formatKw(12.345)).toBe("12.3 kW");
         expect(formatKw(0)).toBe("0.0 kW");
         expect(formatKw(150.4)).toBe("150 kW");
+    });
+});
+
+describe("building massing", () => {
+    const sensorsFor = (zones: string[]): TwinSensor[] =>
+        zones.map((zone, index) => ({ sensor_id: `s${index}`, location_zone: zone, status: "Active" as const }));
+
+    const layoutFor = (type: string, area: number, zones: string[] = ["Main incomer", "Floor 1"]) =>
+        buildTwinLayout({ building_id: "b", building_name: type, building_type: type, square_footage: area }, sensorsFor(zones));
+
+    it("gives an office a podium with a narrower tower above it", () => {
+        const massing = buildMassing("podium", 12, 10, 9, 1.3);
+        expect(massing.blocks.map((block) => block.id)).toEqual(["podium", "tower"]);
+        const [podium, tower] = massing.blocks;
+        expect(tower.width).toBeLessThan(podium.width);
+        expect(tower.baseFloor).toBe(podium.floors);
+        expect(podium.baseFloor + podium.floors + tower.floors).toBe(9 + podium.baseFloor);
+        expect(massing.facade).toBe("glass");
+    });
+
+    it("leaves a short office as one volume", () => {
+        const massing = buildMassing("podium", 12, 10, 3, 1.3);
+        expect(massing.blocks).toHaveLength(1);
+        expect(massing.form).toBe("tower");
+    });
+
+    it("pitches the roof of a low block of flats but not a tall one", () => {
+        expect(buildMassing("slab", 9, 11, 4, 1.15).roof).toBe("pitched");
+        expect(buildMassing("slab", 9, 11, 9, 1.15).roof).toBe("flat");
+    });
+
+    
+    it("gives a warehouse a sawtooth roof and no glass", () => {
+        const massing = buildMassing("shed", 14, 9, 1, 2.6);
+        expect(massing.roof).toBe("sawtooth");
+        expect(massing.facade).toBe("panel");
+        expect(massing.bays).toBeGreaterThanOrEqual(3);
+        expect(massing.roofRise).toBeGreaterThan(0);
+    });
+
+    it("spreads a hospital into a core with two wings", () => {
+        const massing = buildMassing("wings", 14, 10, 5, 1.4);
+        expect(massing.blocks.map((block) => block.id)).toEqual(["core", "wing-west", "wing-east"]);
+        const [, west, east] = massing.blocks;
+        expect(west.centreX).toBeCloseTo(-east.centreX, 5);
+        expect(west.floors).toBeLessThan(massing.blocks[0].floors);
+    });
+
+    it("arches the roof of a shopping centre", () => {
+        expect(buildMassing("mall", 16, 11, 2, 1.8).roof).toBe("vaulted");
+    });
+
+    it("keeps a construction site as a bare frame", () => {
+        const massing = buildMassing("frame", 10, 10, 4, 1.3);
+        expect(massing.facade).toBe("frame");
+        expect(massing.plant).toBe(false);
+    });
+
+    it("reads the footprint of whatever stands at a level", () => {
+        const massing = buildMassing("podium", 12, 10, 9, 1.3);
+        const low = footprintAtFloor(massing, 0);
+        const high = footprintAtFloor(massing, 8);
+        expect(low.width).toBeGreaterThan(high.width);
+        expect(footprintAtFloor(massing, 99).width).toBe(high.width);
+    });
+
+    it("covers the whole plan of a hospital at ground level", () => {
+        const massing = buildMassing("wings", 14, 10, 5, 1.4);
+        const ground = footprintAtFloor(massing, 0);
+        expect(ground.width).toBeGreaterThan(massing.blocks[0].width);
+        expect(ground.centreX).toBeCloseTo(0, 5);
+    });
+
+    it("builds a different shape for each kind of building", () => {
+        const office = layoutFor("Commercial", 6000);
+        const works = layoutFor("Industrial", 6000);
+        const flats = layoutFor("Residential", 6000);
+        const hospital = layoutFor("Healthcare", 6000);
+
+        expect(office.massing.form).toBe("podium");
+        expect(works.massing.roof).toBe("sawtooth");
+        expect(flats.massing.facade).toBe("punched");
+        expect(hospital.massing.blocks).toHaveLength(3);
+        expect(works.floors).toBeLessThan(flats.floors);
+        expect(works.width).toBeGreaterThan(flats.width);
+    });
+
+    it("places a sensor inside the volume that stands at its level", () => {
+        const layout = layoutFor("Commercial", 9000, ["Main incomer", "Floor 1", "Floor 7"]);
+        const high = layout.placements.find((placement) => placement.floor === 7);
+        const low = layout.placements.find((placement) => placement.kind === "floor" && placement.floor === 1);
+        expect(high).toBeDefined();
+        expect(low).toBeDefined();
+        const towerHalf = layout.massing.blocks[layout.massing.blocks.length - 1].width / 2;
+        expect(Math.abs(high!.position[0])).toBeLessThanOrEqual(towerHalf + 0.5);
+    });
+});
+
+describe("building description", () => {
+    it("reads a stored type as plain words", () => {
+        expect(buildingTypeLabel("ShoppingCentre")).toBe("Shopping centre");
+        expect(buildingTypeLabel("Mixed_Use")).toBe("Mixed use");
+        expect(buildingTypeLabel("Commercial")).toBe("Commercial");
+        expect(buildingTypeLabel(null)).toBe("Building");
+        expect(buildingTypeLabel("   ")).toBe("Building");
+    });
+
+    it("lists what the model was built from", () => {
+        const building = { building_id: "b", building_type: "Industrial", square_footage: 4200 };
+        const layout = buildTwinLayout(building, [{ sensor_id: "s", location_zone: "Main incomer" }]);
+        expect(describeBuilding(building, layout)).toEqual(["Industrial", `${layout.floors === 1 ? "1 floor" : `${layout.floors} floors`}`, "4,200 m\u00B2"]);
+    });
+
+    it("leaves the area out when it is unknown", () => {
+        const building = { building_id: "b", building_type: "Commercial" };
+        const layout = buildTwinLayout(building, []);
+        expect(describeBuilding(building, layout)).toHaveLength(2);
+    });
+});
+
+describe("building detail", () => {
+    it("fits an office with shading fins, a canopy and rooftop plant", () => {
+        const detail = buildMassing("podium", 12, 10, 9, 1.3).detail;
+        expect(detail.entrance).toBe("canopy");
+        expect(detail.fins).toBe(true);
+        expect(detail.parapet).toBe(true);
+        expect(detail.plantUnits).toBeGreaterThan(0);
+        expect(detail.windows).toBe(false);
+    });
+
+    it("keeps balconies off a two storey block", () => {
+        expect(buildMassing("slab", 9, 11, 2, 1.15).detail.balconies).toBe(false);
+    });
+
+    it("gives flats windows and balconies but no shading fins", () => {
+        const detail = buildMassing("slab", 9, 11, 4, 1.15).detail;
+        expect(detail.windows).toBe(true);
+        expect(detail.balconies).toBe(true);
+        expect(detail.fins).toBe(false);
+    });
+
+
+    it("gives a warehouse loading bays instead of a front door", () => {
+        const detail = buildMassing("shed", 14, 9, 1, 2.6).detail;
+        expect(detail.entrance).toBe("dock");
+        expect(detail.docks).toBeGreaterThanOrEqual(2);
+        expect(detail.windows).toBe(false);
+        expect(detail.parapet).toBe(false);
+    });
+
+    it("fronts a shopping centre with glazing", () => {
+        expect(buildMassing("mall", 16, 11, 2, 1.8).detail.entrance).toBe("shopfront");
+    });
+
+    it("leaves a construction site bare", () => {
+        const detail = buildMassing("frame", 10, 10, 4, 1.3).detail;
+        expect(detail.entrance).toBe("none");
+        expect(detail.plantUnits).toBe(0);
+        expect(detail.parapet).toBe(false);
+    });
+
+    it("carries detail through a built layout", () => {
+        const layout = buildTwinLayout(
+            { building_id: "b", building_type: "Healthcare", square_footage: 6000 },
+            [{ sensor_id: "s", location_zone: "Main incomer" }],
+        );
+        expect(layout.massing.detail.windows).toBe(true);
+        expect(layout.massing.detail.entrance).toBe("canopy");
+    });
+});
+
+describe("recorded building facts", () => {
+    const sensors: TwinSensor[] = [{ sensor_id: "s", location_zone: "Main incomer" }];
+
+    it("trusts a recorded storey count over one guessed from area", () => {
+        const guessed = buildTwinLayout({ building_id: "b", building_type: "Commercial", square_footage: 6000 }, sensors);
+        const stated = buildTwinLayout(
+            { building_id: "b", building_type: "Commercial", square_footage: 6000, floors_above_ground: 4 },
+            sensors,
+        );
+        expect(guessed.floors).not.toBe(4);
+        expect(stated.floors).toBe(4);
+    });
+
+    it("ignores a storey count which makes no sense", () => {
+        const layout = buildTwinLayout(
+            { building_id: "b", building_type: "Commercial", square_footage: 6000, floors_above_ground: 0 },
+            sensors,
+        );
+        expect(layout.floors).toBeGreaterThan(0);
+    });
+
+    it("still leaves room for a sensor named on a higher floor", () => {
+        const layout = buildTwinLayout(
+            { building_id: "b", building_type: "Commercial", floors_above_ground: 2 },
+            [{ sensor_id: "s", location_zone: "Floor 6" }],
+        );
+        expect(layout.floors).toBe(7);
+    });
+
+    it("counts rooftop panels from the declared capacity", () => {
+        expect(solarPanelCount({ building_id: "b" })).toBe(0);
+        expect(solarPanelCount({ building_id: "b", solar_capacity_kw: 0 })).toBe(0);
+        expect(solarPanelCount({ building_id: "b", solar_capacity_kw: 9 })).toBe(20);
+        expect(solarPanelCount({ building_id: "b", solar_capacity_kw: "4.5" })).toBe(10);
+    });
+
+    it("keeps a very large array readable", () => {
+        expect(solarPanelCount({ building_id: "b", solar_capacity_kw: 5000 })).toBe(MAX_PANELS);
+    });
+
+    it("tightens the window rhythm as a floor gets busier", () => {
+        const sparse = windowSpacingFor({ building_id: "b", max_occupancy: 10 }, 1000);
+        const packed = windowSpacingFor({ building_id: "b", max_occupancy: 400 }, 1000);
+        expect(packed).toBeLessThan(sparse);
+        expect(windowSpacingFor({ building_id: "b" }, 1000)).toBe(1.35);
+        expect(packed).toBeGreaterThanOrEqual(0.95);
     });
 });

@@ -1970,6 +1970,26 @@ h3 {
     font-weight: var(--fw-bold);
 }
 
+.twin-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.twin-fact {
+    color: var(--brand-ink-muted);
+    padding: 2px 10px;
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-pill);
+    background: var(--brand-surface-alt);
+    font-size: 0.74rem;
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+}
+
 .twin-subtitle {
     max-width: 56ch;
     margin: var(--space-2) 0 0;
