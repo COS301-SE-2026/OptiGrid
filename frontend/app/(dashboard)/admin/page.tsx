@@ -287,7 +287,7 @@ export default function AdminPage() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
                 gap: "var(--space-4)",
                 marginBottom: "var(--space-5)",
               }}
@@ -315,7 +315,7 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">PROVISIONING_FAILED</div>
+                <div className="dashboard-kpi-label" style={{ whiteSpace: 'normal', lineHeight: 1.3 }}>PROVISIONING_FAILED</div>
                 <div className="dashboard-kpi-value" style={{ color: "var(--brand-danger)" }}>
                   {stats.provisioning_failed}
                 </div>
