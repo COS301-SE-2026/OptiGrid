@@ -412,13 +412,13 @@ export default function UserManagementPage() {
                   <caption className="sr-only">Viewers and their assigned buildings</caption>
                   <thead>
                     <tr>
-                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <th scope="col">
                         User
                       </th>
-                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <th scope="col">
                         Email
                       </th>
-                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <th scope="col">
                         Buildings
                       </th>
                     </tr>
@@ -487,16 +487,16 @@ export default function UserManagementPage() {
                   <caption className="sr-only">Managers and their assigned buildings</caption>
                   <thead>
                     <tr>
-                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <th scope="col">
                         Manager
                       </th>
-                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <th scope="col">
                         Email
                       </th>
-                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <th scope="col">
                         Assigned Buildings
                       </th>
-                      <th scope="col" style={{ color: "#CDE8E5", fontSize: "var(--fs-small)", fontWeight: "var(--fw-semibold)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <th scope="col">
                         Actions
                       </th>
                     </tr>

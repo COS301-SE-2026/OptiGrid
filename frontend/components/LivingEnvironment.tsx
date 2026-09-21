@@ -1,8 +1,7 @@
 'use client';
 
-import { useId, useMemo, useState, useEffect } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchEsgHealthScore, simulateEsgScenario } from '@/lib/esg';
 
 type EcosystemState = 'thriving' | 'healthy' | 'declining' | 'critical';
 
@@ -111,14 +110,14 @@ const WEIGHTS = {
 };
 
 interface LivingEnvironmentProps {
-  buildingId: string;
+  readonly buildingId: string;
 }
 
 export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
   const seed = useMemo(() => {
     let h = 0;
     for (let i = 0; i < buildingId.length; i++) {
-      h = (h * 31 + buildingId.charCodeAt(i)) | 0;
+      h = (h * 31 + (buildingId.charCodeAt(i) ?? 0));
     }
     return Math.abs(h);
   }, [buildingId]);
@@ -127,45 +126,6 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
   const [renewables, setRenewables] = useState(55 + ((seed >> 3) % 45));
   const [hvacLoad, setHvacLoad] = useState(55 + ((seed >> 6) % 40));
   const [lighting, setLighting] = useState(60 + ((seed >> 9) % 40));
-  const [impact, setImpact] = useState<{ totalCarbonAvoided: number, equivalentTrees: number } | null>(null);
-  const [baseline, setBaseline] = useState<{ energyEfficiency: number, renewables: number, hvacLoad: number, lighting: number } | null>(null);
-
-  useEffect(() => {
-    fetchEsgHealthScore(buildingId)
-      .then((data) => {
-        const getScore = (dim: string) => data.dimensions.find((d: { dimension: string; score: number }) => d.dimension === dim)?.score || 60;
-        const base = {
-          energyEfficiency: getScore('energy_efficiency'),
-          renewables: getScore('renewables'),
-          hvacLoad: getScore('hvacLoad'),
-          lighting: getScore('lighting'),
-        };
-        setBaseline(base);
-        setEnergyEfficiency(base.energyEfficiency);
-        setRenewables(base.renewables);
-        setHvacLoad(base.hvacLoad);
-        setLighting(base.lighting);
-      })
-      .catch(console.error);
-  }, [buildingId]);
-
-  const handleReset = () => {
-    if (baseline) {
-      setEnergyEfficiency(baseline.energyEfficiency);
-      setRenewables(baseline.renewables);
-      setHvacLoad(baseline.hvacLoad);
-      setLighting(baseline.lighting);
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      simulateEsgScenario(buildingId, { energyEfficiency, renewables, hvacLoad, lighting })
-        .then((res) => setImpact(res.impact))
-        .catch(console.error);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [buildingId, energyEfficiency, renewables, hvacLoad, lighting]);
 
   const healthScore = useMemo(() => {
     const raw =
@@ -234,7 +194,7 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: impact ? 'repeat(5, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
               gap: 'var(--space-3)',
               padding: 'var(--space-4) var(--space-5) var(--space-5)',
               borderTop: '1px solid var(--brand-border)',
@@ -255,20 +215,6 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
               value={`${config.flowerCount}/8`}
               accent={config.badgeClass}
             />
-            {impact && (
-              <>
-                <TreeStat
-                  label="CO2 Saved"
-                  value={`${impact.totalCarbonAvoided}kg`}
-                  accent="badge-success"
-                />
-                <TreeStat
-                  label="Trees Eq"
-                  value={`${impact.equivalentTrees}`}
-                  accent="badge-success"
-                />
-              </>
-            )}
           </div>
         </section>
 
@@ -286,12 +232,7 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
       >
         <header
           className="dashboard-section-header"
-          style={{ 
-            marginBottom: 'var(--space-4)', 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'flex-start' 
-          }}
+          style={{ marginBottom: 'var(--space-4)' }}
         >
           <div>
             <h2 className="dashboard-section-title">Building Performance</h2>
@@ -299,19 +240,6 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
               Move a slider, the tree responds instantly.
             </p>
           </div>
-          <button 
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleReset}
-            disabled={!baseline || (energyEfficiency === baseline.energyEfficiency && renewables === baseline.renewables && hvacLoad === baseline.hvacLoad && lighting === baseline.lighting)}
-            style={{
-              padding: 'var(--space-2) var(--space-3)',
-              fontSize: '12px',
-              opacity: (!baseline || (energyEfficiency === baseline.energyEfficiency && renewables === baseline.renewables && hvacLoad === baseline.hvacLoad && lighting === baseline.lighting)) ? 0.5 : 1
-            }}
-          >
-            Reset to Baseline
-          </button>
         </header>
 
         <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
@@ -349,21 +277,11 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
             borderTop: '1px solid var(--brand-border)',
           }}
         >
-          Weightage - efficiency 35% · renewables 30% · HVAC 20% ·
+          Weightage - efficiency 35%  renewables 30%  HVAC 20%  
           lighting 15%.
         </div>
       </section>
 
-      <style jsx>{`
-        @media (max-width: 980px) {
-          .esg-layout {
-            grid-template-columns: 1fr !important;
-          }
-          .esg-layout > section.card {
-            position: static !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
@@ -437,11 +355,12 @@ function WhatIsAffectingPanel({
   healthScore,
   state,
 }: {
-  drivers: Driver[];
-  healthScore: number;
-  state: EcosystemState;
+  readonly drivers: Driver[];
+  readonly healthScore: number;
+  readonly state: EcosystemState;
 }) {
   const weakest = drivers[0];
+  
 
   return (
     <section className="card" aria-labelledby="affecting-heading">
@@ -479,7 +398,7 @@ function WhatIsAffectingPanel({
         }}
       >
         <span className="dashboard-section-meta">
-          Score <span className="metric">{healthScore}</span> <div className=""></div> tree is{' '}
+          Score <span className="metric">{healthScore}</span>  tree is{' '}
           <strong>{state}</strong>
         </span>
         <span className="dashboard-section-meta">
@@ -493,198 +412,7 @@ function WhatIsAffectingPanel({
 
 
 
-
-
-function CascadeRow({ driver, isLast }: { driver: Driver; isLast: boolean }) {
-  const tone = toneStyle[driver.tone];
-  const pct = Math.round(driver.value);
-
-  return (
-    <li
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '20px 1fr',
-        gap: 'var(--space-3)',
-        alignItems: 'start',
-      }}
-    >
-      
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          paddingTop: 4,
-          height: '100%',
-        }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: 999,
-            background: tone.barColor,
-            boxShadow: `0 0 0 3px color-mix(in srgb, ${tone.barColor} 20%, transparent)`,
-            flexShrink: 0,
-          }}
-        />
-        {!isLast && (
-          <span
-            aria-hidden
-            style={{
-              width: 1,
-              flex: 1,
-              minHeight: 18,
-              background: 'var(--brand-border)',
-              marginTop: 4,
-            }}
-          />
-        )}
-      </div>
-
-      <div style={{ display: 'grid', gap: 4, paddingBottom: 4 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            gap: 'var(--space-3)',
-          }}
-        >
-          <span
-            style={{
-              fontWeight: 'var(--fw-semibold)',
-              fontSize: '0.9rem',
-              color: 'var(--brand-ink)',
-            }}
-          >
-            {driver.label}
-          </span>
-          <span
-            className="metric"
-            style={{
-              fontSize: '0.9rem',
-              color: tone.barColor,
-              fontWeight: 'var(--fw-semibold)',
-            }}
-          >
-            {pct}%
-          </span>
-        </div>
-
-        <div
-          style={{
-            height: 4,
-            borderRadius: 999,
-            background:
-              'color-mix(in srgb, var(--brand-secondary) 18%, transparent)',
-            overflow: 'hidden',
-            maxWidth: '100%',
-          }}
-        >
-          <motion.div
-            initial={false}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-            style={{
-              height: '100%',
-              background: tone.barColor,
-            }}
-          />
-        </div>
-
-        <span
-          className="dashboard-section-meta"
-          style={{ fontSize: '0.72rem', lineHeight: 1.5 }}
-        >
-          {driver.explanation}
-        </span>
-      </div>
-    </li>
-  );
-}
-
-function DriverTile({ driver }: { driver: Driver }) {
-  const tone = toneStyle[driver.tone];
-  const pct = Math.round(driver.value);
-  const R = 22;
-  const C = 2 * Math.PI * R;
-  const dash = (pct / 100) * C;
-
-  return (
-    <div
-      style={{
-        padding: 'var(--space-3)',
-        border: '1px solid var(--brand-border)',
-        borderRadius: 'var(--radius-md)',
-        background: 'var(--brand-surface)',
-        display: 'grid',
-        gridTemplateColumns: 'auto 1fr',
-        gap: 'var(--space-3)',
-        alignItems: 'center',
-      }}
-    >
-      
-      <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden>
-        <circle
-          cx="28"
-          cy="28"
-          r={R}
-          fill="none"
-          stroke="color-mix(in srgb, var(--brand-secondary) 22%, transparent)"
-          strokeWidth="4"
-        />
-        <motion.circle
-          cx="28"
-          cy="28"
-          r={R}
-          fill="none"
-          stroke={tone.barColor}
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeDasharray={C}
-          initial={false}
-          animate={{ strokeDashoffset: C - dash }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          transform="rotate(-90 28 28)"
-        />
-        <text
-          x="28"
-          y="32"
-          textAnchor="middle"
-          fontFamily="var(--font-mono)"
-          fontSize="12"
-          fontWeight="600"
-          fill="var(--brand-ink)"
-        >
-          {pct}
-        </text>
-      </svg>
-
-      
-      <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-        <span
-          style={{
-            fontWeight: 'var(--fw-semibold)',
-            fontSize: '0.85rem',
-            color: 'var(--brand-ink)',
-          }}
-        >
-          {driver.label}
-        </span>
-        <span
-          className={`badge ${tone.badge}`}
-          style={{ justifySelf: 'start', marginTop: 2 }}
-        >
-          {tone.verb}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function DriverBar({ driver, rank }: { driver: Driver; rank: number }) {
+function DriverBar({ driver, rank }: { readonly driver: Driver;readonly rank: number }) {
   const tone = toneStyle[driver.tone];
   const pct = Math.round(driver.value);
 
@@ -797,102 +525,23 @@ const toneStyle: Record<
   },
 };
 
-function DriverRow({ driver }: { driver: Driver }) {
-  const tone = toneStyle[driver.tone];
-  const pct = Math.round(driver.value);
 
-  return (
-    <div
-      style={{
-        padding: 'var(--space-3)',
-        border: '1px solid var(--brand-border)',
-        borderRadius: 'var(--radius-md)',
-        background: 'var(--brand-surface)',
-        display: 'grid',
-        gap: 6,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 'var(--space-3)',
-        }}
-      >
-        <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-          <span
-            style={{
-              fontWeight: 'var(--fw-semibold)',
-              fontSize: '0.9rem',
-              color: 'var(--brand-ink)',
-            }}
-          >
-            {driver.label}
-          </span>
-          <span
-            className="dashboard-section-meta"
-            style={{ fontSize: '0.75rem' }}
-          >
-            {driver.explanation}
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexShrink: 0,
-          }}
-        >
-          <span className="metric" style={{ fontSize: '0.9rem' }}>
-            {pct}%
-          </span>
-          <span className={`badge ${tone.badge}`}>{tone.verb}</span>
-        </div>
-      </div>
-
-      <div
-        role="meter"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={pct}
-        aria-label={`${driver.label} at ${pct}%`}
-        style={{
-          position: 'relative',
-          height: 6,
-          borderRadius: 999,
-          background:
-            'color-mix(in srgb, var(--brand-secondary) 22%, transparent)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            inset: '0 auto 0 0',
-            width: `${pct}%`,
-            background: tone.barColor,
-            borderRadius: 999,
-            transition: 'width 0.3s ease, background 0.3s ease',
-          }}
-        />
-      </div>
-    </div>
-  );
-}
 
 
 interface ControlSliderProps {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  accent: string;
+  readonly label: string;
+  readonly value: number;
+  readonly onChange: (v: number) => void;
+  readonly accent: string;
 }
 
 function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
   const id = useId();
+
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+
   return (
     <div>
       <div
@@ -947,6 +596,26 @@ function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
             transition: 'width 0.1s linear',
           }}
         />
+
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: `${value}%`,
+            transform: `translate(-50%, -50%) scale(${hovered ? 1.15 : 1})`,
+            width: 16,
+            height: 16,
+            borderRadius: 999,
+            background: 'var(--brand-surface)',
+            border: `2px solid var(${accent})`,
+            boxShadow: focused ? 'var(--focus-ring)' : 'var(--shadow-card)',
+            pointerEvents: 'none',
+            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+          }}
+        />
+
+
         <input
           id={id}
           type="range"
@@ -956,6 +625,12 @@ function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
           aria-label={label}
+
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+
           style={{
             position: 'relative',
             zIndex: 2,
@@ -965,40 +640,12 @@ function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
             background: 'transparent',
             cursor: 'pointer',
             margin: 0,
+            opacity:1,
+            outline:'none',
           }}
-          className="esg-slider"
+          
         />
       </div>
-
-      <style jsx>{`
-        .esg-slider::-webkit-slider-thumb {
-          appearance: none;
-          width: 16px;
-          height: 16px;
-          border-radius: 999px;
-          background: var(--brand-surface);
-          border: 2px solid var(${accent});
-          box-shadow: var(--shadow-card);
-          transition: transform 0.15s ease;
-        }
-        .esg-slider::-webkit-slider-thumb:hover {
-          transform: scale(1.15);
-        }
-        .esg-slider::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
-          border-radius: 999px;
-          background: var(--brand-surface);
-          border: 2px solid var(${accent});
-          box-shadow: var(--shadow-card);
-        }
-        .esg-slider:focus-visible {
-          outline: none;
-        }
-        .esg-slider:focus-visible::-webkit-slider-thumb {
-          box-shadow: var(--focus-ring);
-        }
-      `}</style>
     </div>
   );
 }
@@ -1009,9 +656,9 @@ function TreeStat({
   value,
   accent,
 }: {
-  label: string;
-  value: string;
-  accent: string;
+  readonly label: string;
+  readonly value: string;
+  readonly accent: string;
 }) {
   return (
     <div
@@ -1042,9 +689,9 @@ function TreeStat({
 
 
 interface EcosystemVisualProps {
-  state: EcosystemState;
-  config: (typeof stateConfig)[EcosystemState];
-  buildingId: string;
+  readonly state: EcosystemState;
+  readonly config: (typeof stateConfig)[EcosystemState];
+  readonly buildingId: string;
 }
 
 function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
@@ -1069,7 +716,27 @@ function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
     };
   });
 
-  const trunkDroop = state === 'critical' ? 8 : state === 'declining' ? 3 : 0;
+const trunkDroop = getTrunkDroop(state);
+
+function getTrunkDroop(state: EcosystemState): number {
+  if (state === 'critical') return 8;
+  if (state === 'declining') return 3;
+  return 0;
+}
+
+
+  function getTrunkWidth(state: EcosystemState): number {
+  if (state === 'thriving') return 12;
+  if (state === 'healthy') return 11;
+  return 8;
+}
+
+function getSunOpacity(state: EcosystemState): number {
+  if (state === 'critical') return 0.35;
+  if (state === 'declining') return 0.65;
+  return 1;
+}
+
   const description = `Living environment for building ${buildingId}. State: ${config.label}. ${config.leafCount} of 24 leaves visible, ${config.flowerCount} of 8 blooms.`;
 
   return (
@@ -1159,8 +826,7 @@ function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
           fill="url(#sunGlow)"
           initial={false}
           animate={{
-            opacity:
-              state === 'critical' ? 0.35 : state === 'declining' ? 0.65 : 1,
+           opacity: getSunOpacity(state)
           }}
           transition={{ duration: 1 }}
         />
@@ -1186,13 +852,17 @@ function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
         <motion.path
           d="M150 210 Q145 180 148 150 Q150 120 150 100"
           stroke="url(#trunkGrad)"
-          strokeWidth={state === 'thriving' ? 12 : state === 'healthy' ? 11 : 8}
+          
+
+          strokeWidth={getTrunkWidth(state)}
           strokeLinecap="round"
           fill="none"
           initial={false}
           animate={{ y: trunkDroop }}
           transition={{ duration: 1 }}
         />
+
+
 
         <motion.path
           d="M149 140 Q120 120 105 105"

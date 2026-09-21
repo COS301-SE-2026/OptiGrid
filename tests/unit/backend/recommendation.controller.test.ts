@@ -1,11 +1,13 @@
 if (!process.env.DATABASE_URL) {
     process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/optigrid_test?schema=public";
 }
-import { applyRecommendationController, viewRecommendationController, updateTariffController } from "../../../backend/core/src/controllers/recommendation.controller";
-import { applyRecommendation, viewRecommendationService, updateTariffService } from "../../../backend/core/src/services/recommendation.service";
+import { applyRecommendationController, dismissRecommendationController, viewRecommendationController, updateTariffController } from "../../../backend/core/src/controllers/recommendation.controller";
+import { applyRecommendation, dismissRecommendationService, viewRecommendationService, updateTariffService } from "../../../backend/core/src/services/recommendation.service";
+import { recordAuditLog } from "../../../backend/core/src/services/auditLog.service";
 import { Request, Response } from "express";
 
 jest.mock("../../../backend/core/src/services/recommendation.service");
+jest.mock("../../../backend/core/src/services/auditLog.service");
 
 describe("Recommendation Controller Unit Tests", () => {
     let req: Partial<Request>;
@@ -24,25 +26,32 @@ describe("Recommendation Controller Unit Tests", () => {
 
     it("should_return_200_when_recommendation_applied_successfully", async () => {
         req = {
-            user: { 
-                id: "user-123", 
-                roleType: "ADMIN" 
+            user: {
+                id: "user-123",
+                roleType: "ADMIN"
             } as any,
             params: {
                 building_id: "build-123",
                 recommendation_id: "rec-123"
             }
         };
-        (applyRecommendation as jest.Mock).mockResolvedValue(true);
+        (applyRecommendation as jest.Mock).mockResolvedValue({ approvedTradeoff: null });
         //act
         await applyRecommendationController(req as Request, resp as Response);
         //assert
-        expect(applyRecommendation).toHaveBeenCalledWith("user-123", "build-123", "rec-123");
+        expect(applyRecommendation).toHaveBeenCalledWith("user-123", "build-123", "rec-123", {});
         expect(mockstatus).toHaveBeenCalledWith(200);
         expect(json).toHaveBeenCalledWith({
             status: "success",
             message: "Recommendation applied successfully"
         });
+        expect(recordAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+            userId: "user-123",
+            buildingId: "build-123",
+            actionType: "UPDATE",
+            targetTable: "optimisation_recommendations",
+            newValue: { recommendation_id: "rec-123", status: "Pending_Execution" }
+        }));
     });
 
     it("should_return_401_if_user_not_authenticated", async () => {
@@ -58,17 +67,17 @@ describe("Recommendation Controller Unit Tests", () => {
         //assert
         expect(applyRecommendation).not.toHaveBeenCalled();
         expect(mockstatus).toHaveBeenCalledWith(401);
-        expect(json).toHaveBeenCalledWith(expect.objectContaining({ 
-            status: "error", 
-            message: "Unauthorised" 
+        expect(json).toHaveBeenCalledWith(expect.objectContaining({
+            status: "error",
+            message: "Unauthorised"
         }));
     });
 
     it("should_return_403_if_user_is_viewer", async () => {
         req = {
-            user: { 
-                id: "user-123", 
-                roleType: "VIEWER" 
+            user: {
+                id: "user-123",
+                roleType: "VIEWER"
             } as any,
             params: {
                 building_id: "build-123",
@@ -85,9 +94,9 @@ describe("Recommendation Controller Unit Tests", () => {
 
     it("should_return_404_when_recommendation_not_found", async () => {
         req = {
-            user: { 
-                id: "user-123", 
-                roleType: "BUILDING_MANAGER" 
+            user: {
+                id: "user-123",
+                roleType: "BUILDING_MANAGER"
             } as any,
             params: {
                 building_id: "build-123",
@@ -99,17 +108,17 @@ describe("Recommendation Controller Unit Tests", () => {
         await applyRecommendationController(req as Request, resp as Response);
         //assert
         expect(mockstatus).toHaveBeenCalledWith(404);
-        expect(json).toHaveBeenCalledWith(expect.objectContaining({ 
-            status: "error", 
-            message: "Recommendation not found" 
+        expect(json).toHaveBeenCalledWith(expect.objectContaining({
+            status: "error",
+            message: "Recommendation not found"
         }));
     });
 
     it("should_return_409_when_recommendation_expired", async () => {
         req = {
-            user: { 
-                id: "user-123", 
-                roleType: "ADMIN" 
+            user: {
+                id: "user-123",
+                roleType: "ADMIN"
             } as any,
             params: {
                 building_id: "build-123",
@@ -126,9 +135,9 @@ describe("Recommendation Controller Unit Tests", () => {
 
     it("should_return_500_on_internal_server_error", async () => {
         req = {
-            user: { 
-                id: "user-123", 
-                roleType: "ADMIN" 
+            user: {
+                id: "user-123",
+                roleType: "ADMIN"
             } as any,
             params: {
                 building_id: "build-123",
@@ -140,10 +149,97 @@ describe("Recommendation Controller Unit Tests", () => {
         await applyRecommendationController(req as Request, resp as Response);
         //assert
         expect(mockstatus).toHaveBeenCalledWith(500);
-        expect(json).toHaveBeenCalledWith(expect.objectContaining({ 
-            status: "error", 
-            message: "Internal server error" 
+        expect(json).toHaveBeenCalledWith(expect.objectContaining({
+            status: "error",
+            message: "Internal server error"
         }));
+    });
+
+    describe("Comfort Trade-off Approval Unit Tests", () => {
+        const approvedTradeoff = {
+            savings_level: 61,
+            monthly_savings: 305,
+            comfort_score: 80,
+            shed_kw: 30.5,
+            comfort_target: 80,
+            meets_comfort_target: true,
+            full_monthly_savings: 500,
+            approved_by: "user-123",
+            approved_at: "2026-09-15T10:00:00.000Z"
+        };
+
+        it("should_forward_the_chosen_savings_level_and_return_the_approved_tradeoff", async () => {
+            req = {
+                user: { id: "user-123", roleType: "BUILDING_MANAGER" } as any,
+                params: { building_id: "build-123", recommendation_id: "rec-123" },
+                body: { savings_level: 61 }
+            };
+            (applyRecommendation as jest.Mock).mockResolvedValue({ approvedTradeoff });
+
+            await applyRecommendationController(req as Request, resp as Response);
+
+            expect(applyRecommendation).toHaveBeenCalledWith("user-123", "build-123", "rec-123", { savings_level: 61 });
+            expect(mockstatus).toHaveBeenCalledWith(200);
+            expect(json).toHaveBeenCalledWith({
+                status: "success",
+                message: "Recommendation applied successfully",
+                data: { approved_tradeoff: approvedTradeoff }
+            });
+            expect(recordAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+                actionType: "UPDATE",
+                targetTable: "optimisation_recommendations",
+                newValue: { recommendation_id: "rec-123", status: "Pending_Execution", approved_tradeoff: approvedTradeoff }
+            }));
+        });
+
+        it("should_return_400_for_a_savings_level_outside_the_scale", async () => {
+            req = {
+                user: { id: "user-123", roleType: "ADMIN" } as any,
+                params: { building_id: "build-123", recommendation_id: "rec-123" },
+                body: { savings_level: 150 }
+            };
+            await applyRecommendationController(req as Request, resp as Response);
+
+            expect(applyRecommendation).not.toHaveBeenCalled();
+            expect(mockstatus).toHaveBeenCalledWith(400);
+            expect(json).toHaveBeenCalledWith(expect.objectContaining({
+                status: "error",
+                message: "Invalid trade-off selection"
+            }));
+        });
+
+        it("should_return_400_when_a_peak_shaving_rec_is_approved_without_a_level", async () => {
+            req = {
+                user: { id: "user-123", roleType: "ADMIN" } as any,
+                params: { building_id: "build-123", recommendation_id: "rec-123" }
+            };
+            (applyRecommendation as jest.Mock).mockRejectedValue(new Error("Trade-off selection required"));
+
+            await applyRecommendationController(req as Request, resp as Response);
+            expect(mockstatus).toHaveBeenCalledWith(400);
+            expect(json).toHaveBeenCalledWith({
+                status: "error",
+                message: "Choose a savings level on the comfort trade-off before approving this recommendation."
+            });
+            expect(recordAuditLog).not.toHaveBeenCalled();
+        });
+
+        it("should_record_a_dismissal_in_the_audit_trail_and_ignore_any_level", async () => {
+            req = {
+                user: { id: "user-123", roleType: "ADMIN" } as any,
+                params: { building_id: "build-123", recommendation_id: "rec-123" },
+                body: { savings_level: 61 }
+            };
+            (dismissRecommendationService as jest.Mock).mockResolvedValue({ approvedTradeoff: null });
+
+            await dismissRecommendationController(req as Request, resp as Response);
+
+            expect(dismissRecommendationService).toHaveBeenCalledWith("user-123", "build-123", "rec-123", {});
+            expect(mockstatus).toHaveBeenCalledWith(200);
+            expect(recordAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+                newValue: { recommendation_id: "rec-123", status: "Dismissed" }
+            }));
+        });
     });
 
     describe("View Recommendation Controller Unit Tests", () => {
@@ -256,8 +352,8 @@ describe("Recommendation Controller Unit Tests", () => {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
                 body: {
-                    peak_rate_zar: 0.15, 
-                    off_peak_rate_zar: 0.08, 
+                    peak_rate_zar: 0.15,
+                    off_peak_rate_zar: 0.08,
                     season_name: "Summer"
                 }
             };
@@ -269,8 +365,8 @@ describe("Recommendation Controller Unit Tests", () => {
                 "user123",
                 "550e8400-e29b-41d4-a716-446655440000",
                 {
-                    peak_rate_zar: 0.15, 
-                    off_peak_rate_zar: 0.08, 
+                    peak_rate_zar: 0.15,
+                    off_peak_rate_zar: 0.08,
                     season_name: "Summer"
                 }
             );
@@ -357,8 +453,8 @@ describe("Recommendation Controller Unit Tests", () => {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
                 body: {
-                    peak_rate_zar: 0.15, 
-                    off_peak_rate_zar: 0.08, 
+                    peak_rate_zar: 0.15,
+                    off_peak_rate_zar: 0.08,
                     season_name: "Summer"
                 }
             };
@@ -383,8 +479,8 @@ describe("Recommendation Controller Unit Tests", () => {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
                 body: {
-                    peak_rate_zar: 0.15, 
-                    off_peak_rate_zar: 0.08, 
+                    peak_rate_zar: 0.15,
+                    off_peak_rate_zar: 0.08,
                     season_name: "Summer"
                 }
             };

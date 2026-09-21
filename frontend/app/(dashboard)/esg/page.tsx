@@ -30,7 +30,7 @@ export default function EsgDashboardPage() {
         <main className="dashboard-main">
           <header className="dashboard-header">
             <div>
-              <p className="landing-kicker">Environmental · Social · Governance</p>
+              <p className="landing-kicker">Environmental</p>
               <h1 className="dashboard-title">ESG Dashboard</h1>
               <p className="dashboard-subtitle">
                 Select a building to see its living environment respond in real
