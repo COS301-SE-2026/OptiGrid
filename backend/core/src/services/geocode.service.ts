@@ -41,10 +41,10 @@ export const resolveCoordinates = async (address: string): Promise<Coordinates |
     const data = await resp.json();
     if (Array.isArray(data) && data.length > 0) {
       const res = data[0];
-      const latitude = parseFloat(res.lat);
-      const longitude = parseFloat(res.lon);
+      const latitude = Number.parseFloat(res.lat);
+      const longitude = Number.parseFloat(res.lon);
 
-      if (!isNaN(latitude) && !isNaN(longitude)) {
+      if (!Number.isNaN(latitude) && !Number.isNaN(longitude)) {
         return { 
           latitude, 
           longitude 

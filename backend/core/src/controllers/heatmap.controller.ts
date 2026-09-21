@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { HeatmapTimeframeSchema, HeatmapTimeframe } from "../validation/heatmap.validation";
+import { HeatmapTimeframeSchema } from "../validation/heatmap.validation";
 import { getHeatmapDataService } from "../services/heatmap.service";
 import { placeBuildingsFromAddress } from "../services/placement.service";
 

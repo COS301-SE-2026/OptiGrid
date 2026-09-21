@@ -561,8 +561,8 @@ export const updateBuildingService = async (
     }
   }
   else {
-    if(flat === undefined) flat = exists.latitude ?? undefined;
-    if(flong === undefined) flong = exists.longitude ?? undefined;
+    flat ??= exists.latitude ?? undefined;
+    flong ??= exists.longitude ?? undefined;
   }
 
   if(flat !== undefined && flong !== undefined) {

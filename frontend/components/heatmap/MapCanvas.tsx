@@ -76,15 +76,6 @@ function pointColour(palette: MapPalette): ExpressionSpecification {
     ] as ExpressionSpecification;
 }
 
-function towerColour(palette: MapPalette): ExpressionSpecification {
-    return [
-        "case",
-        ["==", ["get", "reporting"], 0],
-        palette.idle,
-        ["interpolate", ["linear"], ["get", "stress"], ...colourStops(palette)],
-    ] as ExpressionSpecification;
-}
-
 function applyMode(map: maplibregl.Map, tilted: boolean) {
     if (!map.getLayer("towers")) {
         return;
@@ -154,7 +145,7 @@ function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection
         source: TOWER_SOURCE,
         layout: { visibility: tilted ? "visible" : "none" },
         paint: {
-            "fill-extrusion-color": towerColour(palette),
+            "fill-extrusion-color": pointColour(palette),
             "fill-extrusion-height": ["get", "height"],
             "fill-extrusion-base": 0,
             "fill-extrusion-opacity": 0.82,
@@ -387,7 +378,7 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
             return;
         }
         map.setPaintProperty("points", "circle-color", pointColour(palette));
-        map.setPaintProperty("towers", "fill-extrusion-color", towerColour(palette));
+        map.setPaintProperty("towers", "fill-extrusion-color", pointColour(palette));
         map.setPaintProperty("points", "circle-stroke-color", dark ? "#0B1120" : "#FFFFFF");
         map.setPaintProperty("heat", "heatmap-color", heatColour(palette));
         map.setPaintProperty("pulse", "circle-color", palette.high);

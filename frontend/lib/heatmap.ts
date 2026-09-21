@@ -153,7 +153,7 @@ export function scaleOf(points: HeatmapPoint[], metric: HeatmapMetric): HeatmapS
         return { ceiling: 1, peak: 0, total: 0, reporting: 0 };
     }
 
-    const peak = values[values.length - 1];
+    const peak = values.at(-1) ?? 0;
     const upper = values[Math.floor((values.length - 1) * 0.9)];
     return {
         ceiling: Math.max(upper, peak * 0.6, 0.0001),

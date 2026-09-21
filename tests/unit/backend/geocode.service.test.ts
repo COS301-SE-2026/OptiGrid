@@ -71,6 +71,6 @@ describe("Geocode Service Unit Tests ", () => {
   it("should_allow_custom_precision", () => {
     const hash = computeGeohash(-25.7478676, 28.2292712, 5);
     //assert
-    expect(hash.length).toBe(5);
+    expect(hash).toHaveLength(5);
   });
 });

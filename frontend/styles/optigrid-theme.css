@@ -2123,6 +2123,10 @@ h3 {
 }
 
 .heat-stats {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
@@ -2671,6 +2675,7 @@ h3 {
 
 .heat-filter {
     width: 100%;
+    max-width: 360px;
 }
 
 .heat-list,
@@ -2683,9 +2688,6 @@ h3 {
     list-style: none;
 }
 
-.heat-filter {
-    max-width: 360px;
-}
 
 .heat-row {
     display: grid;

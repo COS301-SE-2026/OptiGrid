@@ -80,7 +80,7 @@ export const getHeatmapDataService = async (userId: string, timeframe: HeatmapTi
             resMap.set(buildings[i], null);
         }
         else if(cached != null) {
-            resMap.set(buildings[i], { value: parseFloat(cached) });
+            resMap.set(buildings[i], { value: Number.parseFloat(cached) });
         }
         else {
             missingBuildings.push(buildings[i]);
@@ -137,7 +137,7 @@ function buildFluxQuery(buildingIds: string[], timeframe: HeatmapTimeframe): str
                 |> sum()`;
 
     if(!isLive) {
-        const days = parseInt(timeframe.replace("-", "").replace("d", ""), 10);
+        const days = Number.parseInt(timeframe.replace("-", "").replace("d", ""), 10);
         shape = `|> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
                 |> group(columns: ["building_id"])
                 |> sum()
@@ -154,56 +154,62 @@ function buildFluxQuery(buildingIds: string[], timeframe: HeatmapTimeframe): str
     `;
 }
 
-async function fetchTelemetryForTimeframe(buildingIds: string[], timeframe: HeatmapTimeframe): Promise<Map<string, Reading>> {
+const readInfluxRow = (rowObject: any): { id: string; value: number } | null => {
+    const value = Number(rowObject?._value);
+    if (!rowObject?.building_id || !Number.isFinite(value) || value <= 0) {
+        return null;
+    }
+    return { id: rowObject.building_id, value };
+};
+
+async function fetchFromInflux(buildingIds: string[], timeframe: HeatmapTimeframe): Promise<Map<string, Reading>> {
     const resMap = new Map<string, Reading>();
-    if(timeframe === "live" || timeframe.startsWith("-")) {
-        const query = buildFluxQuery(buildingIds, timeframe);
-        const queryApi = influx.getQueryApi(org);
-        try{
-            for await(const { values, tableMeta } of queryApi.iterateRows(query)) {
-                const rowObject = tableMeta.toObject(values);
-                const value = Number(rowObject._value);
-                if(rowObject.building_id && rowObject._value != null && Number.isFinite(value) && value > 0) {
-                    resMap.set(rowObject.building_id, { value });
-                }
+    const query = buildFluxQuery(buildingIds, timeframe);
+    const queryApi = influx.getQueryApi(org);
+    try {
+        for await (const { values, tableMeta } of queryApi.iterateRows(query)) {
+            const row = readInfluxRow(tableMeta.toObject(values));
+            if (row) {
+                resMap.set(row.id, { value: row.value });
             }
-        } 
-        catch(err) {
-            console.error(`fetchTelemetry error for ${timeframe}`, err);
         }
     }
-    else if(timeframe.startsWith("+")) {
-        const isWeekly = timeframe === "+7d";
-        const select = {
-            building_id: true,
-            forecast_avg_day: true,
-            updated_at: true
-        };
-        const data = isWeekly? await prisma.buildingAnalyticsWeekly.findMany({
-            where: {
-                building_id: {
-                    in: buildingIds
-                }
-            },
-            select
-        })
-        : await prisma.buildingAnalyticsMonthly.findMany({
-            where: {
-                building_id: {
-                    in: buildingIds
-                }
-            },
-            select
-        });
-        for(const row of data) {
-            const value = Number(row.forecast_avg_day);
-            if(row.forecast_avg_day && Number.isFinite(value) && value > 0) {
-                resMap.set(row.building_id, {
-                    value,
-                    ...(row.updated_at ? { updatedAt: new Date(row.updated_at).toISOString() } : {})
-                });
-            }
+    catch (err) {
+        console.error(`fetchTelemetry error for ${timeframe}`, err);
+    }
+    return resMap;
+}
+
+async function fetchFromForecast(buildingIds: string[], timeframe: HeatmapTimeframe): Promise<Map<string, Reading>> {
+    const resMap = new Map<string, Reading>();
+    const where = { building_id: { in: buildingIds } };
+    const select = {
+        building_id: true,
+        forecast_avg_day: true,
+        updated_at: true
+    };
+    const data = timeframe === "+7d"
+        ? await prisma.buildingAnalyticsWeekly.findMany({ where, select })
+        : await prisma.buildingAnalyticsMonthly.findMany({ where, select });
+
+    for (const row of data) {
+        const value = Number(row.forecast_avg_day);
+        if (Number.isFinite(value) && value > 0) {
+            resMap.set(row.building_id, {
+                value,
+                ...(row.updated_at ? { updatedAt: new Date(row.updated_at).toISOString() } : {})
+            });
         }
     }
     return resMap;
+}
+
+async function fetchTelemetryForTimeframe(buildingIds: string[], timeframe: HeatmapTimeframe): Promise<Map<string, Reading>> {
+    if (timeframe === "live" || timeframe.startsWith("-")) {
+        return fetchFromInflux(buildingIds, timeframe);
+    }
+    if (timeframe.startsWith("+")) {
+        return fetchFromForecast(buildingIds, timeframe);
+    }
+    return new Map<string, Reading>();
 }

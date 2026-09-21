@@ -59,7 +59,7 @@ export default function TimelineScrubber({
                     <span className="heat-timeline-label">{frame.label}</span>
                     <span className="heat-timeline-range">{describeTimeframe(frame, now)}</span>
                 </div>
-                {busy && <span className="heat-timeline-busy" role="status">Loading</span>}
+                {busy && <output className="heat-timeline-busy">Loading</output>}
             </div>
 
             <div className="heat-timeline-track">

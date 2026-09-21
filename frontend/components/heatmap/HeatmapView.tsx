@@ -107,6 +107,22 @@ function formatMetric(point: HeatmapPoint, metric: HeatmapMetric): string {
     return metric === "intensity" ? formatIntensity(point.intensity) : formatEnergy(point.value, point.unit);
 }
 
+function countOf(count: number, one: string, many: string): string {
+    return `${count} ${count === 1 ? one : many}`;
+}
+
+function describePlacement(placed: number, failed: number): string {
+    if (placed === 0) {
+        return failed > 0
+            ? "No address could be matched to a location. Place those buildings by hand."
+            : "There was nothing left to place.";
+    }
+    if (failed === 0) {
+        return `Placed ${countOf(placed, "building", "buildings")} from their addresses.`;
+    }
+    return `Placed ${countOf(placed, "building", "buildings")}. ${countOf(failed, "address", "addresses")} could not be matched.`;
+}
+
 function placementSignature(buildings: HeatmapBuilding[]): string {
     return buildings
         .map((building) => {
@@ -114,19 +130,24 @@ function placementSignature(buildings: HeatmapBuilding[]): string {
             return coordinates ? `${building.building_id}:${coordinates.latitude}:${coordinates.longitude}` : "";
         })
         .filter(Boolean)
-        .sort()
+        .sort((left, right) => left.localeCompare(right))
         .join("|");
 }
 
 function StageNote({ title, body, loading = false, children }: Readonly<{ title: string; body?: string; loading?: boolean; children?: ReactNode }>) {
-    return (
-        <div className="heat-stage-note" role={loading ? "status" : undefined}>
+    const inside = (
+        <>
             {loading && <span className="heat-spinner" aria-hidden="true" />}
             <p className="heat-stage-title">{title}</p>
             {body && <p className="text-muted heat-stage-body">{body}</p>}
             {children}
-        </div>
+        </>
     );
+
+    if (loading) {
+        return <output className="heat-stage-note">{inside}</output>;
+    }
+    return <div className="heat-stage-note">{inside}</div>;
 }
 
 function Legend({ palette, caption }: Readonly<{ palette: MapPalette | null; caption: string }>) {
@@ -141,7 +162,8 @@ function Legend({ palette, caption }: Readonly<{ palette: MapPalette | null; cap
             </div>
             <p className="heat-legend-note">
                 <span className="heat-legend-swatch" style={{ background: palette?.idle }} aria-hidden="true" />
-                No data, scale relative to the busiest building
+                {" "}
+                <span>No data, scale relative to the busiest building</span>
             </p>
         </div>
     );
@@ -539,15 +561,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                 await queryClient.invalidateQueries({ queryKey: ["heatmap", "buildings"] });
             }
             await queryClient.invalidateQueries({ queryKey: ["heatmap", "buildings"] });
-            if (placed === 0) {
-                setNotice(failed > 0 ? "No address could be matched to a location. Place those buildings by hand." : "There was nothing left to place.");
-            }
-            
-            else {
-                setNotice(failed > 0
-                    ? `Placed ${placed} building${placed === 1 ? "" : "s"}. ${failed} address${failed === 1 ? "" : "es"} could not be matched.`
-                    : `Placed ${placed} building${placed === 1 ? "" : "s"} from their addresses.`);
-            }
+            setNotice(describePlacement(placed, failed));
         }
         catch (error) {
             setNotice(error instanceof Error ? error.message : "The buildings could not be placed.");
@@ -654,7 +668,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
 
                     {canShowOverlay && (
                         <div className="heat-overlay heat-overlay-top">
-                            <div className="heat-stats" role="group" aria-label="Portfolio summary for the selected period">
+                            <fieldset className="heat-stats" aria-label="Portfolio summary for the selected period">
                                 <div className="heat-stat">
                                     <span className="heat-stat-label">Portfolio</span>
                                     <span className="heat-stat-value metric">
@@ -669,7 +683,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                                     <span className="heat-stat-label">Hottest</span>
                                     <span className="heat-stat-value">{hottestLabel}</span>
                                 </div>
-                            </div>
+                            </fieldset>
                             <Legend palette={palette} caption={unitCaption(showingFrame, metric)} />
                         </div>
                     )}
@@ -705,7 +719,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                     )}
 
                     {placement && (
-                        <div className="heat-placing" role="status">
+                        <output className="heat-placing">
                             <p>
                                 {placement.saving
                                     ? `Saving the pin for ${placement.building.building_name}...`
@@ -713,7 +727,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                             </p>
                             {placement.error && <p className="heat-placing-error">{placement.error}</p>}
                             <button type="button" className="btn btn-secondary" onClick={() => setPlacement(null)}>Cancel</button>
-                        </div>
+                        </output>
                     )}
 
                     {canShowOverlay && !mapFailure && placedBuildings.length === 0 && !placement && buildings.length > 0 && (
@@ -749,14 +763,14 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                     </div>
 
                     {notice && (
-                        <p className="heat-notice" role="status">
+                        <output className="heat-notice">
                             {notice}
                             <button type="button" className="heat-notice-close" aria-label="Dismiss" onClick={() => setNotice(null)}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
                                     <path d="M6 6l12 12M18 6L6 18" />
                                 </svg>
                             </button>
-                        </p>
+                        </output>
                     )}
 
                     {snapshotQuery.isError && (
@@ -835,10 +849,10 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                                         {bulkPlacing ? "Looking up addresses..." : "Place from address"}
                                     </button>
                                     {bulkPlacing && (
-                                        <span className="heat-bulk-progress" role="status">
+                                        <output className="heat-bulk-progress">
                                             {`${bulkPlacing.placed} placed`}
                                             {bulkPlacing.failed > 0 ? `, ${bulkPlacing.failed} not matched` : ""}
-                                        </span>
+                                        </output>
                                     )}
                                 </div>
                             )}
