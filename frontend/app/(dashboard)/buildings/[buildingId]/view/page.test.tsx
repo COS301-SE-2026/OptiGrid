@@ -218,6 +218,12 @@ describe("ViewBuildingPage", () => {
     });
   });
 
+  it("links the building to its place on the energy heatmap", async () => {
+    mockFetchOk();
+    render(<ViewBuildingPage params={makeParams("111")} />);
+    expect(await screen.findByRole("link", { name: "View on map" })).toHaveAttribute("href", "/heatmap?building=111");
+  });
+
   it("shows a backend error", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

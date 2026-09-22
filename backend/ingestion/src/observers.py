@@ -217,3 +217,22 @@ class AnomalyDetectorObserver(Observer):
             print(f"[ANOMALY DETECTOR] Published {metric} anomaly for {building_id[:8]} ({value})")
         except Exception as e:
             logging.exception(f"Failed to publish anomaly: {e}")
+
+#this is needed for the heatmap to display live readings, fetching from the db every 2 sec is gonna make our stuff slow
+class LiveTelemetryObserver(Observer):
+    def __init__(self, redis_url=None):
+        try:
+            from backend.ingestion.src.config import REDIS_HOST, REDIS_PORT, REDIS_DB
+        except ModuleNotFoundError:
+            from config import REDIS_HOST, REDIS_PORT, REDIS_DB
+            
+        redis_url = redis_url or os.getenv("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
+        self.redis = redis.Redis.from_url(redis_url, decode_responses=True)
+
+    def update(self, payload: dict):
+        import json, logging
+        try:
+            self.redis.publish("live_telemetry", json.dumps(payload))
+        except Exception as err:
+            logging.exception(f"Failed to publish live telemetry to Redis: {err}")
+

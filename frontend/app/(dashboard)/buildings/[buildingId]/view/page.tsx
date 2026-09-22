@@ -253,6 +253,9 @@ export default function ViewBuildingPage({
                             Sensors
                         </Link>
                     )}
+                    {building.building_id && (
+                        <Link href={`/heatmap?building=${encodeURIComponent(building.building_id)}`} className="btn btn-secondary">View on map</Link>
+                    )}
                     <Link href="/dashboard" className="btn btn-secondary">
                         Back
                     </Link>

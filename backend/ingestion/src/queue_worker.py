@@ -28,10 +28,17 @@ try:
         InfluxStorageObserver,
         AnomalyDetectorObserver,
         LiveBroadcastObserver,
+        LiveTelemetryObserver,
     )
     from backend.ingestion.src.audit_events import publish_failure_event
 except ModuleNotFoundError:
-    from observers import TelemetrySubject, InfluxStorageObserver, AnomalyDetectorObserver, LiveBroadcastObserver
+    from observers import (
+        TelemetrySubject,
+        InfluxStorageObserver,
+        AnomalyDetectorObserver,
+        LiveBroadcastObserver,
+        LiveTelemetryObserver,
+    )
     from audit_events import publish_failure_event
 
 shutdown_requested = threading.Event()
@@ -100,10 +107,14 @@ def run_queue_worker():
     )
     influx_observer = InfluxStorageObserver(write_api, INFLUXDB_BUCKET)
     anomaly_observer = AnomalyDetectorObserver()
+    # the twin reads telemetry_channel and the sensor:last keys, the heatmap reads
+    # live_telemetry, so both relays stay attached
     live_observer = LiveBroadcastObserver(r)
+    live_telemetry_observer = LiveTelemetryObserver()
     subject.attach(influx_observer)
     subject.attach(anomaly_observer)
     subject.attach(live_observer)
+    subject.attach(live_telemetry_observer)
 
     print("Queue Worker active. Listening on Redis.")
 
