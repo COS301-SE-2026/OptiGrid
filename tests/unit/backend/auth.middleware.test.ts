@@ -119,4 +119,25 @@ describe('authenticateRequest account lifecycle guard', () => {
         expect(response.status).toHaveBeenCalledWith(401);
         expect(next).not.toHaveBeenCalled();
     });
+
+    it('returns unauthorized when Supabase lookup throws', async () => {
+        process.env = { ...originalEnv, SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon-key' };
+        const { createClient } = require('@supabase/supabase-js') as { createClient: jest.Mock };
+        createClient.mockReturnValue({ auth: {
+            getUser: jest.fn().mockRejectedValue(new Error('Supabase unavailable')),
+        } });
+        const { authenticateRequest } = require('../../../backend/core/src/middleware/auth.middleware') as typeof import('../../../backend/core/src/middleware/auth.middleware');
+        const request = { header: jest.fn().mockReturnValue('Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature') } as unknown as Request;
+        const response = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
+        const next = jest.fn();
+        const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            await authenticateRequest(request, response, next);
+        } finally {
+            errorLog.mockRestore();
+        }
+        expect(response.status).toHaveBeenCalledWith(401);
+        expect(response.json).toHaveBeenCalledWith({ status: 'error', message: 'Unauthorized' });
+        expect(next).not.toHaveBeenCalled();
+    });
 });
