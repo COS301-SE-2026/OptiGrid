@@ -135,20 +135,37 @@ describe('Summary report PDF output', () => {
   });
 
   it('renders populated anomaly and recommendation sections', async () => {
-    db.anomaly.findMany.mockResolvedValue([{
-      building_id: buildingId,
-      anomaly_type: 'VOLTAGE_SPIKE',
-      severity_level: 'critical',
-      status: 'open',
-      detected_timestamp: '2026-07-13T10:00:00Z',
-    }]);
-    db.$queryRaw
-      .mockResolvedValueOnce([{
+    db.anomaly.findMany.mockResolvedValue([
+      {
         building_id: buildingId,
-        status: 'pending',
-        strategy_description: 'Reduce peak load',
-        estimated_monthly_savings: 125,
-      }])
+        anomaly_type: 'VOLTAGE_SPIKE',
+        severity_level: 'critical',
+        status: 'open',
+        detected_timestamp: '2026-07-13T10:00:00Z',
+      },
+      {
+        building_id: buildingId,
+        anomaly_type: 'POWER_DROP',
+        severity_level: 'high',
+        status: 'in_progress',
+        detected_timestamp: '2026-07-14T09:00:00Z',
+      },
+    ]);
+    db.$queryRaw
+      .mockResolvedValueOnce([
+        {
+          building_id: buildingId,
+          status: 'pending',
+          strategy_description: 'Reduce peak load',
+          estimated_monthly_savings: 125,
+        },
+        {
+          building_id: buildingId,
+          status: 'implemented',
+          strategy_description: 'Tune HVAC schedule',
+          estimated_monthly_savings: 50,
+        },
+      ])
       .mockResolvedValueOnce([{
         forecast_avg_day: 12,
         forecast_peak: 18,
@@ -166,7 +183,9 @@ describe('Summary report PDF output', () => {
       expect(labels).toContain('Main Office');
       expect(labels).toContain('Anomalies');
       expect(labels).toContain('Voltage spike');
+      expect(labels).toContain('Power drop');
       expect(labels).toContain('Reduce peak load');
+      expect(labels).toContain('Tune HVAC schedule');
       expect(labels).toContain('R 125.00');
     } finally {
       textSpy.mockRestore();
@@ -177,10 +196,16 @@ describe('Summary report PDF output', () => {
     const buildings = Array.from({ length: 16 }, (_, index) => ({
       ...building,
       building_id: `bld_${index}`,
-      building_name: `Office ${index}`,
+      building_name: index === 0
+        ? `Office ${'with an intentionally long portfolio display name '.repeat(8)}`
+        : `Office ${index}`,
     }));
     allowed.mockResolvedValue(buildings.map((item) => item.building_id));
     db.building.findMany.mockResolvedValue(buildings);
+    usage.mockImplementation(async (id: string) => {
+      const index = Number(id.replace('bld_', ''));
+      return index < 2 ? 1 : index + 1;
+    });
     const textSpy = jest.spyOn(PDFDocument.prototype, 'text');
     const { res, chunks } = pdfResponse();
     const done = finished(res);
