@@ -17,6 +17,7 @@ module.exports = {
     },
     // DYNAMIC RESOLUTION: Finds the root repo node_modules regardless of where you execute the command
     moduleNameMapper: {
+        '^(\\.{1,2}/.*)\\.js$': '$1',
         '^supertest$': path.resolve(__dirname, '../../node_modules/supertest'),
         '^@types/supertest$': path.resolve(__dirname, '../../node_modules/@types/supertest')
     },
