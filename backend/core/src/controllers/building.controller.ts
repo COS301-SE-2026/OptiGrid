@@ -5,6 +5,7 @@ import { createBuilding, compareBuildingsService, deleteBuildingService, getAllB
 import { checkIdempotencyKey, saveIdempotencyKey } from '../services/idempotency.services';
 import { adminBuildingsSchema, buildingDetailsParamsSchema, buildingEnergyConsumptionParamsSchema, buildingEnergyConsumptionQuerySchema, buildingSeriesParamsSchema, buildingSeriesQuerySchema, compareBuildingsSchema, createBuildingSchema, deleteBuildingSchema, updateBuildingSchema } from '../validation/building.validation';
 import { getClientIp, recordAuditLog } from '../services/auditLog.service';
+import { getLiveSensorReadings } from '../services/liveTelemetry.service';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -161,6 +162,31 @@ export const getBuildingDetailsController = async (req: Request, res: Response) 
     }
 
     console.error('getBuildingDetailsController error:', error);
+    return res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+export const getLiveSensorReadingsController = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    }
+
+    const { building_id } = buildingDetailsParamsSchema.parse(req.params);
+    const readings = await getLiveSensorReadings(req.user.id, building_id, req.user.roleType);
+    return res.status(200).json({ status: 'success', data: readings });
+  } catch (error: any) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ status: 'error', message: 'Invalid request parameters' });
+    }
+    if (error.message?.includes('Access Denied')) {
+      return res.status(403).json({ status: 'error', message: error.message });
+    }
+    if (error.message === 'Building not found') {
+      return res.status(404).json({ status: 'error', message: error.message });
+    }
+
+    console.error('getLiveSensorReadingsController error:', error);
     return res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };

@@ -160,6 +160,8 @@ export interface buildingPayload {
   longitude?: number;
   lifecycle_state?: LifecycleState;
   geohash?: string;
+  floors_above_ground?: number;
+  solar_capacity_kw?: number;
 }
 
 export interface updateBuildingPayload {
@@ -176,6 +178,8 @@ export interface updateBuildingPayload {
   metadata?: Record<string, unknown>;
   lifecycle_state?: LifecycleState;
   geohash?: string;
+  floors_above_ground?: number;
+  solar_capacity_kw?: number;
 }
 
 export interface BuildingEnergyConsumptionDetails {
@@ -248,6 +252,8 @@ export const createBuilding = async (
         physical_address: payload.physical_address,
         timezone: payload.timezone || 'UTC',
         max_occupancy: payload.max_occupancy,
+        floors_above_ground: payload.floors_above_ground,
+        solar_capacity_kw: payload.solar_capacity_kw,
         latitude: lat,
         longitude: long,
         geohash: hash,
@@ -582,6 +588,8 @@ export const updateBuildingService = async (
       ...(payload.physical_address !== undefined ? { physical_address: payload.physical_address } : {}),
       ...(payload.timezone !== undefined ? { timezone: payload.timezone } : {}),
       ...(payload.max_occupancy !== undefined ? { max_occupancy: payload.max_occupancy } : {}),
+      ...(payload.floors_above_ground !== undefined ? { floors_above_ground: payload.floors_above_ground } : {}),
+      ...(payload.solar_capacity_kw !== undefined ? { solar_capacity_kw: payload.solar_capacity_kw } : {}),
       ...(payload.latitude !== undefined ? { latitude: payload.latitude } : {}),
       ...(payload.longitude !== undefined ? { longitude: payload.longitude } : {}),
       ...(payload.nominal_voltage !== undefined ? { nominal_voltage: payload.nominal_voltage } : {}),
