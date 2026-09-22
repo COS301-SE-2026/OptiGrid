@@ -4,6 +4,8 @@ import type { CoreApiHarness } from "./harness/core-api-harness";
 import { startInfluxHarness, stopInfluxHarness } from "./harness/influx-container";
 import type { StartedInfluxHarness } from "./harness/influx-container";
 import { InfluxDB, Point } from "@influxdata/influxdb-client";
+import { Client } from "pg";
+import { randomUUID } from "node:crypto";
 
 describe("Telemetry Integration Tests", () => {
     let harness: CoreApiHarness;
@@ -11,6 +13,8 @@ describe("Telemetry Integration Tests", () => {
     let authHeaders: { Cookie: string };
     const userId = "bbe48b78-438f-4ed7-9fe7-a8fc9addc187";
     const buildingId = "bld-integration-1";
+    const ingestBuildingId = randomUUID();
+    const originalHardwareApiKey = process.env.HARDWARE_API_KEY;
 
     beforeAll(async () => {
         influxHarness = await startInfluxHarness();
@@ -19,6 +23,7 @@ describe("Telemetry Integration Tests", () => {
         process.env.INFLUXDB_TOKEN = influxHarness.token;
         process.env.INFLUXDB_ORG = influxHarness.org;
         process.env.INFLUXDB_BUCKET = influxHarness.bucket;
+        process.env.HARDWARE_API_KEY = "integration-sensor-key";
 
         harness = await createCoreApiHarness();
         authHeaders = await getAuthHeaders(userId);
@@ -27,6 +32,8 @@ describe("Telemetry Integration Tests", () => {
     afterAll(async () => {
         if (harness) await harness.stop();
         if (influxHarness) await stopInfluxHarness(influxHarness);
+		if (originalHardwareApiKey === undefined) delete process.env.HARDWARE_API_KEY;
+		else process.env.HARDWARE_API_KEY = originalHardwareApiKey;
         
         try {
             const { shutdownTelemetry } = await import("../../../../backend/core/src/controllers/telemetry.controller");
@@ -35,6 +42,101 @@ describe("Telemetry Integration Tests", () => {
             console.error("Failed to shutdown telemetry", e);
         }
     });
+
+	describe("POST /api/telemetry/ingest", () => {
+		async function seedBuilding(source: "PHYSICAL" | "EMULATOR" = "PHYSICAL") {
+			const client = new Client({ connectionString: harness.databaseUrl });
+			await client.connect();
+			try {
+				await client.query(
+					`INSERT INTO buildings (building_id, building_name, telemetry_source)
+					 VALUES ($1, $2, $3)`,
+					[ingestBuildingId, "Telemetry Ingest Building", source],
+				);
+			} finally {
+				await client.end();
+			}
+		}
+
+		const payload = () => ({
+			building_id: ingestBuildingId,
+			sensor_id: "sensor-integration-01",
+			source_type: "PHYSICAL",
+			voltage_v: 230,
+			current_a: 6,
+			power_kw: 1.38,
+			timestamp: new Date().toISOString(),
+		});
+
+		it("writes authenticated telemetry to InfluxDB", async () => {
+			await seedBuilding();
+
+			const response = await request(harness.app)
+				.post("/api/telemetry/ingest")
+				.set("x-sensor-key", "integration-sensor-key")
+				.send(payload());
+
+			expect(response.status).toBe(200);
+			expect(response.body).toEqual({ status: "success" });
+
+			const queryApi = new InfluxDB({ url: influxHarness.url, token: influxHarness.token })
+				.getQueryApi(influxHarness.org);
+			const fluxQuery = `
+				from(bucket: "${influxHarness.bucket}")
+					|> range(start: -5m)
+					|> filter(fn: (r) => r._measurement == "energy_telemetry")
+					|> filter(fn: (r) => r.building_id == "${ingestBuildingId}")
+					|> filter(fn: (r) => r._field == "power_kw")
+			`;
+			let rows: Record<string, unknown>[] = [];
+			for (let attempt = 0; attempt < 20 && rows.length === 0; attempt += 1) {
+				await new Promise(resolve => setTimeout(resolve, 100));
+				rows = await queryApi.collectRows<Record<string, unknown>>(fluxQuery);
+			}
+			expect(rows).toEqual(expect.arrayContaining([
+				expect.objectContaining({
+					building_id: ingestBuildingId,
+					sensor_id: "sensor-integration-01",
+					source_type: "PHYSICAL",
+					_value: 1.38,
+				}),
+			]));
+		});
+
+		it("rejects an invalid sensor key before accepting telemetry", async () => {
+			await seedBuilding();
+
+			const response = await request(harness.app)
+				.post("/api/telemetry/ingest")
+				.set("x-sensor-key", "wrong-key")
+				.send(payload());
+
+			expect(response.status).toBe(401);
+			expect(response.body.message).toBe("Unauthorized sensor.");
+		});
+
+		it("rejects telemetry whose source conflicts with the building configuration", async () => {
+			await seedBuilding("EMULATOR");
+
+			const response = await request(harness.app)
+				.post("/api/telemetry/ingest")
+				.set("x-sensor-key", "integration-sensor-key")
+				.send(payload());
+
+			expect(response.status).toBe(422);
+			expect(response.body.message).toContain("configured for EMULATOR");
+		});
+
+		it("returns 404 when the telemetry building does not exist", async () => {
+			const response = await request(harness.app)
+				.post("/api/telemetry/ingest")
+				.set("x-sensor-key", "integration-sensor-key")
+				.send(payload());
+
+			expect(response.status).toBe(404);
+			expect(response.body.message).toBe("Building not found.");
+		});
+	});
 
     afterEach(async () => {
         if (harness) await harness.resetDatabase();
