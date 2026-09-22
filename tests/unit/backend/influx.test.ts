@@ -170,4 +170,46 @@ describe('Influx usage queries', () => {
         }
         expect(iterateRows).toHaveBeenCalledTimes(1);
     });
+
+    it('returns zero totals on a non-bucket usage failure without retrying', async () => {
+        iterateRows.mockImplementationOnce(() => { throw new Error('permission denied'); });
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const { queryUsage } = await import('../../../backend/core/src/lib/influx');
+        try {
+            await expect(queryUsage('abc', '30d')).resolves.toEqual({
+                total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0,
+            });
+        } finally {
+            warn.mockRestore();
+        }
+        expect(iterateRows).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns zero totals when an absolute-range query fails', async () => {
+        iterateRows.mockImplementationOnce(() => { throw new Error('permission denied'); });
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const { queryUsageBetween } = await import('../../../backend/core/src/lib/influx');
+        try {
+            await expect(queryUsageBetween(
+                'abc', new Date('2026-07-01T00:00:00Z'), new Date('2026-07-02T00:00:00Z'),
+            )).resolves.toEqual({ total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 });
+        } finally {
+            warn.mockRestore();
+        }
+        expect(iterateRows).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns empty details on a non-bucket query failure', async () => {
+        iterateRows.mockImplementationOnce(() => { throw new Error('permission denied'); });
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const { queryUsageDetails } = await import('../../../backend/core/src/lib/influx');
+        try {
+            await expect(queryUsageDetails('abc', '7d')).resolves.toEqual({
+                total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [],
+            });
+        } finally {
+            warn.mockRestore();
+        }
+        expect(iterateRows).toHaveBeenCalledTimes(2);
+    });
 });
