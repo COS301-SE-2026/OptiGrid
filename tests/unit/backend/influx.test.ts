@@ -137,4 +137,37 @@ describe('Influx usage queries', () => {
         expect(iterateRows.mock.calls[0][0]).toContain('"energy_telemetry"');
         expect(iterateRows.mock.calls[0][0]).toContain('aggregateWindow(every: 1d');
     });
+
+    it('queries an absolute date range and falls back when the building bucket is missing', async () => {
+        iterateRows
+            .mockImplementationOnce(() => { throw new Error('could not find bucket building-abc'); })
+            .mockImplementationOnce(async function* () {
+                yield {
+                    values: [],
+                    tableMeta: { toObject: () => ({ _field: 'usage_kwh', _value: 12 }) },
+                };
+            });
+        const { queryUsageBetween } = await import('../../../backend/core/src/lib/influx');
+        const start = new Date('2026-07-01T00:00:00Z');
+        const stop = new Date('2026-07-02T00:00:00Z');
+
+        await expect(queryUsageBetween('abc', start, stop)).resolves.toEqual({
+            total_kwh: 12, total_cost_usd: 0, total_cost_zar: 0,
+        });
+        expect(iterateRows).toHaveBeenCalledTimes(2);
+        expect(iterateRows.mock.calls[1][0]).toContain('2026-07-01T00:00:00.000Z');
+        expect(iterateRows.mock.calls[1][0]).toContain('from(bucket: "EnergyData")');
+    });
+
+    it('returns an empty series on a non-bucket query failure without retrying', async () => {
+        iterateRows.mockImplementationOnce(() => { throw new Error('permission denied'); });
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const { queryUsageSeries } = await import('../../../backend/core/src/lib/influx');
+        try {
+            await expect(queryUsageSeries('abc', '7d')).resolves.toEqual([]);
+        } finally {
+            warn.mockRestore();
+        }
+        expect(iterateRows).toHaveBeenCalledTimes(1);
+    });
 });

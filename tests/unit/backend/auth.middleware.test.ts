@@ -65,4 +65,58 @@ describe('authenticateRequest account lifecycle guard', () => {
         }));
         expect(next).not.toHaveBeenCalled();
     });
+
+    it('rejects missing, malformed, and unsigned bearer tokens before Supabase lookup', async () => {
+        const { authenticateRequest } = require('../../../backend/core/src/middleware/auth.middleware') as typeof import('../../../backend/core/src/middleware/auth.middleware');
+        const response = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
+        const next = jest.fn();
+        for (const header of [undefined, 'Basic abc', 'Bearer broken', 'Bearer eyJhbGciOiJub25lIn0.payload.signature']) {
+            const request = { header: jest.fn().mockReturnValue(header) } as unknown as Request;
+            await authenticateRequest(request, response, next);
+        }
+        expect(response.status).toHaveBeenCalledTimes(4);
+        expect(response.status).toHaveBeenCalledWith(401);
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it('uses the database role and tenant for an active user', async () => {
+        process.env = { ...originalEnv, SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon-key' };
+        const { createClient } = require('@supabase/supabase-js') as { createClient: jest.Mock };
+        const getUser = jest.fn().mockResolvedValue({
+            data: { user: { id: 'user-1', user_metadata: { tenant_id: 'forged', roleType: 'ADMIN' } } },
+            error: null,
+        });
+        createClient.mockReturnValue({ auth: { getUser } });
+        const prisma = require('../../../backend/core/src/lib/prisma').default as { user: { findUnique: jest.Mock } };
+        prisma.user.findUnique.mockResolvedValue({ tenantId: 'trusted-tenant', roleType: 'VIEWER', accountStatus: 'ACTIVE' });
+        const { authenticateRequest } = require('../../../backend/core/src/middleware/auth.middleware') as typeof import('../../../backend/core/src/middleware/auth.middleware');
+        const request = { header: jest.fn().mockReturnValue('Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature') } as unknown as Request;
+        const response = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
+        const next = jest.fn();
+
+        await authenticateRequest(request, response, next);
+
+        expect(getUser).toHaveBeenCalledTimes(1);
+        expect(request.user).toEqual(expect.objectContaining({
+            id: 'user-1', roleType: 'VIEWER',
+            user_metadata: expect.objectContaining({ tenant_id: 'trusted-tenant' }),
+        }));
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(response.status).not.toHaveBeenCalled();
+    });
+
+    it('rejects a valid Supabase user without a local profile', async () => {
+        process.env = { ...originalEnv, SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon-key' };
+        const { createClient } = require('@supabase/supabase-js') as { createClient: jest.Mock };
+        createClient.mockReturnValue({ auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }) } });
+        const prisma = require('../../../backend/core/src/lib/prisma').default as { user: { findUnique: jest.Mock } };
+        prisma.user.findUnique.mockResolvedValue(null);
+        const { authenticateRequest } = require('../../../backend/core/src/middleware/auth.middleware') as typeof import('../../../backend/core/src/middleware/auth.middleware');
+        const request = { header: jest.fn().mockReturnValue('Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature') } as unknown as Request;
+        const response = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
+        const next = jest.fn();
+        await authenticateRequest(request, response, next);
+        expect(response.status).toHaveBeenCalledWith(401);
+        expect(next).not.toHaveBeenCalled();
+    });
 });
