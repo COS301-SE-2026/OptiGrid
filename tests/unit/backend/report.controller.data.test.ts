@@ -1,6 +1,7 @@
 import { Writable } from 'node:stream';
 import { finished } from 'node:stream/promises';
 import type { Request, Response } from 'express';
+import PDFDocument from 'pdfkit';
 
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
   __esModule: true,
@@ -118,5 +119,109 @@ describe('Summary report data assembly', () => {
     expect(db.$queryRaw).toHaveBeenCalledTimes(3);
     expect(res.status).not.toHaveBeenCalledWith(500);
     expect(Buffer.concat(chunks).subarray(0, 5).toString()).toBe('%PDF-');
+  });
+});
+
+describe('Summary report PDF output', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    allowed.mockResolvedValue([buildingId]);
+    db.building.findMany.mockResolvedValue([building]);
+    db.anomaly.findMany.mockResolvedValue([]);
+    db.sensor.groupBy.mockResolvedValue([]);
+    db.user.findUnique.mockResolvedValue(null);
+    db.$queryRaw.mockResolvedValue([]);
+    usage.mockResolvedValue(10);
+  });
+
+  it('renders populated anomaly and recommendation sections', async () => {
+    db.anomaly.findMany.mockResolvedValue([{
+      building_id: buildingId,
+      anomaly_type: 'VOLTAGE_SPIKE',
+      severity_level: 'critical',
+      status: 'open',
+      detected_timestamp: '2026-07-13T10:00:00Z',
+    }]);
+    db.$queryRaw
+      .mockResolvedValueOnce([{
+        building_id: buildingId,
+        status: 'pending',
+        strategy_description: 'Reduce peak load',
+        estimated_monthly_savings: 125,
+      }])
+      .mockResolvedValueOnce([{
+        forecast_avg_day: 12,
+        forecast_peak: 18,
+        model_mape: 4,
+        todays_usage: 10,
+      }]);
+    db.sensor.groupBy.mockResolvedValue([{ building_id: buildingId, _count: { sensor_id: 3 } }]);
+    const textSpy = jest.spyOn(PDFDocument.prototype, 'text');
+    const { res } = pdfResponse();
+    const done = finished(res);
+    try {
+      await getSummaryReport({ user: { id: 'user-1' } } as Request, res);
+      await done;
+      const labels = textSpy.mock.calls.map(([value]) => String(value));
+      expect(labels).toContain('Main Office');
+      expect(labels).toContain('Anomalies');
+      expect(labels).toContain('Voltage spike');
+      expect(labels).toContain('Reduce peak load');
+      expect(labels).toContain('R 125.00');
+    } finally {
+      textSpy.mockRestore();
+    }
+  });
+
+  it('paginates a long portfolio and numbers every page', async () => {
+    const buildings = Array.from({ length: 16 }, (_, index) => ({
+      ...building,
+      building_id: `bld_${index}`,
+      building_name: `Office ${index}`,
+    }));
+    allowed.mockResolvedValue(buildings.map((item) => item.building_id));
+    db.building.findMany.mockResolvedValue(buildings);
+    const textSpy = jest.spyOn(PDFDocument.prototype, 'text');
+    const { res, chunks } = pdfResponse();
+    const done = finished(res);
+    try {
+      await getSummaryReport({ user: { id: 'user-1' } } as Request, res);
+      await done;
+      const pdf = Buffer.concat(chunks).toString('latin1');
+      const pages = pdf.match(/\/Type \/Page\b/g) ?? [];
+      expect(pages.length).toBeGreaterThan(2);
+      const labels = textSpy.mock.calls.map(([value]) => String(value));
+      expect(labels).toContain(`Page 1 of ${pages.length}`);
+      expect(labels).toContain(`Page ${pages.length} of ${pages.length}`);
+    } finally {
+      textSpy.mockRestore();
+    }
+  });
+
+  it('returns a 500 response when a required query fails before PDF headers', async () => {
+    db.building.findMany.mockRejectedValue(new Error('database unavailable'));
+    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { res } = pdfResponse();
+    try {
+      await getSummaryReport({ user: { id: 'user-1' } } as Request, res);
+    } finally {
+      errorLog.mockRestore();
+    }
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ status: 'error', message: 'Failed to generate report' });
+  });
+
+  it('does not send JSON after PDF headers have been sent', async () => {
+    db.building.findMany.mockRejectedValue(new Error('database unavailable'));
+    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { res } = pdfResponse();
+    res.headersSent = true;
+    try {
+      await getSummaryReport({ user: { id: 'user-1' } } as Request, res);
+    } finally {
+      errorLog.mockRestore();
+    }
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 });
