@@ -9,6 +9,7 @@ jest.mock('../../../backend/core/src/services/building.services', () => ({
   getPortfolioConsumption: jest.fn(),
   getAllBuildings: jest.fn(),
   getBuildingDetails: jest.fn(),
+  updateBuildingService: jest.fn(),
 }));
 jest.mock('../../../backend/core/src/lib/influx', () => ({
   queryTotalKwh: jest.fn(),
@@ -19,6 +20,12 @@ jest.mock('../../../backend/core/src/validation/building.validation', () => ({
   buildingSeriesQuerySchema: { parse: jest.fn() },
   adminBuildingsSchema: { parse: jest.fn() },
   buildingDetailsParamsSchema: { parse: jest.fn() },
+  deleteBuildingSchema: { parse: jest.fn() },
+  updateBuildingSchema: { parse: jest.fn() },
+}));
+jest.mock('../../../backend/core/src/services/auditLog.service', () => ({
+  getClientIp: jest.fn().mockReturnValue('127.0.0.1'),
+  recordAuditLog: jest.fn(),
 }));
 
 import prisma from '../../../backend/core/src/lib/prisma';
@@ -28,12 +35,16 @@ import {
   getBuildingDetails,
   getPortfolioConsumption,
   listBuildingsForUser,
+  updateBuildingService,
 } from '../../../backend/core/src/services/building.services';
+import { recordAuditLog } from '../../../backend/core/src/services/auditLog.service';
 import {
   adminBuildingsSchema,
   buildingDetailsParamsSchema,
   buildingSeriesParamsSchema,
   buildingSeriesQuerySchema,
+  deleteBuildingSchema,
+  updateBuildingSchema,
 } from '../../../backend/core/src/validation/building.validation';
 import {
   getAllBuildingsController,
@@ -41,6 +52,7 @@ import {
   getBuildingSeriesController,
   getPortfolioConsumptionController,
   listBuildingsController,
+  updateBuildingController,
 } from '../../../backend/core/src/controllers/building.controller';
 
 const buildingId = '11111111-1111-4111-8111-111111111111';
@@ -59,6 +71,8 @@ const mockList = listBuildingsForUser as jest.Mock;
 const mockPortfolio = getPortfolioConsumption as jest.Mock;
 const mockAll = getAllBuildings as jest.Mock;
 const mockDetails = getBuildingDetails as jest.Mock;
+const mockUpdate = updateBuildingService as jest.Mock;
+const mockAudit = recordAuditLog as jest.Mock;
 const mockUsage = queryTotalKwh as jest.Mock;
 const mockSeries = queryUsageSeries as jest.Mock;
 const mockAccess = prisma.userBuildingAccess.findUnique as jest.Mock;
@@ -66,6 +80,8 @@ const mockSeriesParams = buildingSeriesParamsSchema.parse as jest.Mock;
 const mockSeriesQuery = buildingSeriesQuerySchema.parse as jest.Mock;
 const mockAdminQuery = adminBuildingsSchema.parse as jest.Mock;
 const mockDetailsParams = buildingDetailsParamsSchema.parse as jest.Mock;
+const mockUpdateParams = deleteBuildingSchema.parse as jest.Mock;
+const mockUpdateBody = updateBuildingSchema.parse as jest.Mock;
 
 describe('Building controller remaining paths', () => {
   beforeEach(() => {
@@ -74,6 +90,8 @@ describe('Building controller remaining paths', () => {
     mockSeriesQuery.mockImplementation((value) => value);
     mockAdminQuery.mockImplementation((value) => value);
     mockDetailsParams.mockImplementation((value) => value);
+    mockUpdateParams.mockImplementation((value) => value);
+    mockUpdateBody.mockImplementation((value) => value);
   });
 
   it('requires a user before listing or aggregating a portfolio', async () => {
@@ -133,6 +151,18 @@ describe('Building controller remaining paths', () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
+  it('does not query buildings when the session lacks a user id', async () => {
+    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const res = response();
+    try {
+      await listBuildingsController(request({ user: { roleType: 'VIEWER' } }), res);
+    } finally {
+      errorLog.mockRestore();
+    }
+    expect(mockList).not.toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it('returns portfolio consumption and handles a service failure', async () => {
     const data = { daily: [{ date: '2026-01-01', kwh: 10 }] };
     mockPortfolio.mockResolvedValueOnce(data).mockRejectedValueOnce(new Error('failed'));
@@ -183,6 +213,73 @@ describe('Building controller remaining paths', () => {
     expect(mockAccess).not.toHaveBeenCalled();
     expect(mockSeries).toHaveBeenCalledWith(buildingId, '7d');
     expect(res.json).toHaveBeenCalledWith({ status: 'success', data: series });
+  });
+
+  it('returns 500 when the series query fails after access is granted', async () => {
+    mockAccess.mockResolvedValue({ id: 'access-1' });
+    mockSeries.mockRejectedValue(new Error('Influx unavailable'));
+    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const res = response();
+    try {
+      await getBuildingSeriesController(request(), res);
+    } finally {
+      errorLog.mockRestore();
+    }
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ status: 'error', message: 'Internal server error' });
+  });
+
+  it('requires an authenticated admin or manager to update a building', async () => {
+    const unauthenticated = response();
+    await updateBuildingController(request({ user: undefined }), unauthenticated);
+    expect(unauthenticated.status).toHaveBeenCalledWith(401);
+
+    const viewer = response();
+    await updateBuildingController(request(), viewer);
+    expect(viewer.status).toHaveBeenCalledWith(403);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('validates, updates, and audits an authorized building change', async () => {
+    const updated = { building_id: buildingId, building_name: 'Updated' };
+    mockUpdate.mockResolvedValue(updated);
+    const res = response();
+    await updateBuildingController(request({
+      user: { id: 'manager-1', roleType: 'BUILDING_MANAGER' },
+      body: { building_name: 'Updated' },
+    }), res);
+    expect(mockUpdate).toHaveBeenCalledWith('manager-1', buildingId, { building_name: 'Updated' }, 'BUILDING_MANAGER');
+    expect(mockAudit).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'manager-1', buildingId, actionType: 'UPDATE', newValue: { building_name: 'Updated' },
+    }));
+    expect(res.json).toHaveBeenCalledWith({ status: 'success', data: updated });
+  });
+
+  it('returns 400 for an invalid building update payload', async () => {
+    const invalid = Object.assign(new Error('bad payload'), { name: 'ZodError', errors: ['invalid name'] });
+    mockUpdateBody.mockImplementation(() => { throw invalid; });
+    const res = response();
+    await updateBuildingController(request({ user: { id: 'admin-1', roleType: 'ADMIN' } }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('distinguishes denied and unexpected update failures', async () => {
+    mockUpdate.mockRejectedValueOnce(new Error('Access Denied: building not assigned'))
+      .mockRejectedValueOnce(new Error('database unavailable'));
+    const admin = request({ user: { id: 'admin-1', roleType: 'ADMIN' } });
+    const denied = response();
+    await updateBuildingController(admin, denied);
+    expect(denied.status).toHaveBeenCalledWith(403);
+
+    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const failed = response();
+    try {
+      await updateBuildingController(admin, failed);
+    } finally {
+      errorLog.mockRestore();
+    }
+    expect(failed.status).toHaveBeenCalledWith(500);
   });
 
   it('handles unauthenticated admin listing and invalid admin filters', async () => {
