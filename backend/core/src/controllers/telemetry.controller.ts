@@ -109,15 +109,38 @@ export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
 
         const fluxQuery = `
             from(bucket: "${bucket}")
-                |> range(start: -15m)
+                |> range(start: -5m)
                 |> filter(fn: (r) => r["_measurement"] == "energy_telemetry" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_consumption")
                 |> filter(fn: (r) => r["_field"] == "power_kw" or r["_field"] == "usage" or r["_field"] == "usage_kwh")
-                |> group(columns: ["building_id"])
                 |> last()
         `;
 
-        const results: any[] = [];
+
+        const perBuilding = new Map<string, { building_id: string; current_kw: number; timestamp: any }>();
         let queryCompleted = false;
+
+        const collect = (o: any) => {
+            const buildingId = o.building_id;
+            if (!buildingId) {
+                return;
+            }
+            const value = Number(o._value);
+            const running = perBuilding.get(buildingId);
+            if (!running) {
+                perBuilding.set(buildingId, {
+                    building_id: buildingId,
+                    current_kw: Number.isFinite(value) ? value : 0,
+                    timestamp: o._time
+                });
+                return;
+            }
+            if (Number.isFinite(value)) {
+                running.current_kw += value;
+            }
+            if (o._time && (!running.timestamp || o._time > running.timestamp)) {
+                running.timestamp = o._time;
+            }
+        };
 
         // if influx cannot load, fallback
         const timer = setTimeout(() => {
@@ -129,12 +152,7 @@ export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
 
         queryApi.queryRows(fluxQuery, {
             next(row, tableMeta) {
-                const o = tableMeta.toObject(row);
-                results.push({
-                    building_id: o.building_id,
-                    current_kw: o._value,
-                    timestamp: o._time
-                });
+                collect(tableMeta.toObject(row));
             },
             error(error) {
                 if (queryCompleted) return;
@@ -150,7 +168,7 @@ export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
                 queryCompleted = true;
                 clearTimeout(timer);
                 if (!res.headersSent) {
-                    return res.status(200).json({ status: 'success', data: results });
+                    return res.status(200).json({ status: 'success', data: Array.from(perBuilding.values()) });
                 }
             }
         });
