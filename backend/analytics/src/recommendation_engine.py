@@ -326,3 +326,49 @@ class RecommendationSynthesizer:
         comfort_score = math.floor(100.0 - penalty + 0.5)
 
         return max(0, min(100, comfort_score))
+
+    def get_season(self, dt: datetime, seasons: List[Dict[str, Any]]) -> str:
+        if not seasons:
+            return None
+        month = dt.month
+        for s in seasons:
+            start = s.get("startMonth", 1)
+            end = s.get("endMonth", 12)
+            if start <= end:
+                if start <= month <= end:
+                    return s.get("name")
+            else:
+                if month >= start or month <= end:
+                    return s.get("name")
+        return seasons[0].get("name") if seasons else None
+
+    def get_tou_period(self, dt: datetime, schedule: Dict[str, Any]) -> str:
+        if not schedule:
+            return "Flat"
+        hour = dt.hour
+        day = dt.weekday()
+        if day == 6:
+            periods = schedule.get("sunday", [])
+        elif day == 5:
+            periods = schedule.get("saturday", [])
+        else:
+            periods = schedule.get("weekday", [])
+        
+        for p in periods:
+            if p.get("startHour", 0) <= hour < p.get("endHour", 24):
+                return p.get("period", "Flat")
+        return "Flat"
+
+    def get_current_rate(self, dt: datetime, tariff_structure: Dict[str, Any], peak_only: bool = False) -> float:
+        if not tariff_structure:
+            return 1.5
+        
+        season = self.get_season(dt, tariff_structure.get("seasons", []))
+        tou = "Peak" if peak_only else self.get_tou_period(dt, tariff_structure.get("tou_schedule", {}))
+        
+        blocks = tariff_structure.get("blocks", [])
+        if not blocks:
+            return 1.5
+            
+        rate = blocks[0].get("rates", {}).get(season, {}).get(tou, 1.5)
+        return float(rate)
