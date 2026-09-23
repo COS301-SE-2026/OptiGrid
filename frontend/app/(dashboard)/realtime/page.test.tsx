@@ -104,7 +104,7 @@ describe("Rendering readings", () => {
 
         expect(cardLink).toHaveAttribute(
             "href",
-            "/buildings/11111111-0000-0000-0000-000000000001/view",
+            expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/buildings\/11111111-0000-0000-0000-000000000001\/view$/),
         );
     });
 
