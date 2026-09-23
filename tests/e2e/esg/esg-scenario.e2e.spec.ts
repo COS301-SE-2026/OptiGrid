@@ -74,7 +74,8 @@ test.describe('ESG Scenario Builder', () => {
         await expect(page).toHaveURL(/\/dashboard$/);
 
         // 3. Navigate to the ESG dashboard for that building
-        await page.goto(`/esg`);
+        const sessionPrefix = new URL(page.url()).pathname.match(/^\/_sessions\/[0-9a-f-]+/i)?.[0] ?? "";
+        await page.goto(`${sessionPrefix}/esg`);
         // Wait for the Living Environment to load
         await expect(page.getByRole('heading', { name: /Living Environment/i })).toBeVisible({ timeout: 15000 });
 

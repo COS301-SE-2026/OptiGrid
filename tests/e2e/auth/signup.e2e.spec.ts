@@ -58,7 +58,10 @@ test.describe("Signup page", () => {
 		await page.getByLabel("Work email").fill(user.email);
 		await page.getByLabel("Password", { exact: true }).fill(user.password);
 		await page.getByLabel("Confirm password", { exact: true }).fill(user.password);
-		const signupResponsePromise = page.waitForResponse("**/api/auth/signup");
+		const signupResponsePromise = page.waitForResponse((response) =>
+			response.request().method() === "POST" &&
+			new URL(response.url()).pathname.endsWith("/api/auth/signup")
+		);
 		await page.getByRole("button", { name: "Create account" }).click();
 		const signupResponse = await signupResponsePromise;
 		expect(signupResponse.ok()).toBeTruthy();
@@ -79,7 +82,12 @@ test.describe("Signup page", () => {
 		await page.getByLabel("Work email").fill(user.email);
 		await page.getByLabel("Password", { exact: true }).fill(user.password);
 		await page.getByLabel("Confirm password", { exact: true }).fill(user.password);
+		const signupResponsePromise = page.waitForResponse((response) =>
+			response.request().method() === "POST" &&
+			new URL(response.url()).pathname.endsWith("/api/auth/signup")
+		);
 		await page.getByRole("button", { name: "Create account" }).click();
+		await signupResponsePromise;
 
 		await expect(page.getByText("User already exists, please login instead.")).toBeVisible();
 	});
