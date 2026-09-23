@@ -8,6 +8,7 @@
 		"build": "node ./scripts/prisma-generate-dummy.mjs && tsc -p tsconfig.json",
 		"start": "node dist/src/server.js",
 		"test": "jest --config ./jest.config.cjs",
+		"test:coverage": "jest --config ./jest.config.cjs --coverage --runInBand --forceExit",
 		"lint": "eslint .",
 		"test:unit": "jest",
 		"test:integration": "jest --config ./jest.integration.json --runInBand",

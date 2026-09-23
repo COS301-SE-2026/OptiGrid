@@ -142,5 +142,19 @@ describe("Telemetry Controller Unit Tests", () => {
                 data: [],
             });
         });
+
+        it('returns an empty dataset when starting the Influx query throws', () => {
+            mockQueryRows.mockImplementation(() => {
+                throw new Error('query setup failed');
+            });
+            const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            try {
+                getLivePortfolioTelemetry(mockRequest as Request, mockResponse as Response);
+            } finally {
+                warn.mockRestore();
+            }
+            expect(mockResponse.status).toHaveBeenCalledWith(200);
+            expect(mockResponse.json).toHaveBeenCalledWith({ status: 'success', data: [] });
+        });
     });
 });
