@@ -234,10 +234,10 @@ describe("Recommendation Services Unit Tests", () => {
             (prisma.utilityTariff.create as jest.Mock).mockResolvedValue(true);
 
             const payload = {
-                peak_rate_zar: 0.15,
-                off_peak_rate_zar: 0.08,
-                season_name: "Summer"
-            };
+                type: "flat",
+                seasons: [{ name: "Summer", startMonth: 9, endMonth: 5 }],
+                blocks: [{ max_kwh: null, rates: { "Summer": { "Flat": 2.50 } } }]
+            } as any;
             //act
             const out = await updateTariffService("user-123", "building123", payload);
             //asset
@@ -245,9 +245,7 @@ describe("Recommendation Services Unit Tests", () => {
             expect(prisma.utilityTariff.create).toHaveBeenCalledWith({
                 data: {
                     building_id: "building123",
-                    peak_rate_zar: 0.15,
-                    off_peak_rate_zar: 0.08,
-                    season_name: "Summer"
+                    tariff_structure: payload
                 }
             });
             expect(prisma.utilityTariff.update).not.toHaveBeenCalled();
@@ -263,15 +261,15 @@ describe("Recommendation Services Unit Tests", () => {
             (prisma.utilityTariff.update as jest.Mock).mockResolvedValue(true);
 
             const payload = {
-                peak_rate_zar: 0.42,
-                off_peak_rate_zar: 0.21,
-                season_name: "Winter"
-            };
+                type: "flat",
+                seasons: [{ name: "Winter", startMonth: 6, endMonth: 8 }],
+                blocks: [{ max_kwh: null, rates: { "Winter": { "Flat": 3.0 } } }]
+            } as any;
 
             await expect(updateTariffService("user-123", "building123", payload)).resolves.toBe(true);
             expect(prisma.utilityTariff.update).toHaveBeenCalledWith({
                 where: { tariff_id: "tariff-123" },
-                data: payload
+                data: { tariff_structure: payload }
             });
             expect(prisma.utilityTariff.create).not.toHaveBeenCalled();
         });
@@ -279,10 +277,10 @@ describe("Recommendation Services Unit Tests", () => {
         it("should_throw_an_error_if_no_building_exists", async ()=>{
             (prisma.building.findUnique as jest.Mock).mockResolvedValue(null);
             const payload = {
-                peak_rate_zar: 0.15,
-                off_peak_rate_zar: 0.08,
-                season_name: "Summer"
-            };
+                type: "flat",
+                seasons: [{ name: "Summer", startMonth: 9, endMonth: 5 }],
+                blocks: [{ max_kwh: null, rates: { "Summer": { "Flat": 2.50 } } }]
+            } as any;
             //act n assert
             await expect(updateTariffService("user-123", "building123", payload))
             .rejects.toThrow("Building not found");
@@ -293,10 +291,10 @@ describe("Recommendation Services Unit Tests", () => {
             (prisma.building.findUnique as jest.Mock).mockResolvedValue({ building_id: "building123" });
             (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue(null);
             const payload = {
-                peak_rate_zar: 0.15,
-                off_peak_rate_zar: 0.08,
-                season_name: "Summer"
-            };
+                type: "flat",
+                seasons: [{ name: "Summer", startMonth: 9, endMonth: 5 }],
+                blocks: [{ max_kwh: null, rates: { "Summer": { "Flat": 2.50 } } }]
+            } as any;
             //act n assert
             await expect(updateTariffService("user-123", "build-123", payload))
             .rejects.toThrow("Access Denied");

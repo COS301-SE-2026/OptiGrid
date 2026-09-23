@@ -51,7 +51,7 @@ class RecommendationSynthesizer:
                         recs.append(anomaly_rec)
 
         #prepaid advice calc
-        prepaid_rec = self._generate_prepaid_purchase_advice(building_id, cumulative_kwh, tariffs)
+        prepaid_rec = self.generate_prepaid_purchase_advice(building_id, cumulative_kwh, tariffs)
         if prepaid_rec:
             recs.append(prepaid_rec)
 

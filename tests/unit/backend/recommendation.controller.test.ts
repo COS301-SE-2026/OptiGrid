@@ -352,9 +352,9 @@ describe("Recommendation Controller Unit Tests", () => {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
                 body: {
-                    peak_rate_zar: 0.15,
-                    off_peak_rate_zar: 0.08,
-                    season_name: "Summer"
+                    type: "flat",
+                    seasons: [{ name: "Summer", startMonth: 9, endMonth: 5 }],
+                    blocks: [{ max_kwh: null, rates: { "Summer": { "Flat": 2.50 } } }]
                 }
             };
             (updateTariffService as jest.Mock).mockResolvedValue(true);
@@ -365,9 +365,9 @@ describe("Recommendation Controller Unit Tests", () => {
                 "user123",
                 "550e8400-e29b-41d4-a716-446655440000",
                 {
-                    peak_rate_zar: 0.15,
-                    off_peak_rate_zar: 0.08,
-                    season_name: "Summer"
+                    type: "flat",
+                    seasons: [{ name: "Summer", startMonth: 9, endMonth: 5 }],
+                    blocks: [{ max_kwh: null, rates: { "Summer": { "Flat": 2.50 } } }]
                 }
             );
             expect(mockstatus).toHaveBeenCalledWith(200);
@@ -453,9 +453,9 @@ describe("Recommendation Controller Unit Tests", () => {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
                 body: {
-                    peak_rate_zar: 0.15,
-                    off_peak_rate_zar: 0.08,
-                    season_name: "Summer"
+                    type: "flat",
+                    seasons: [{ name: "Summer", startMonth: 9, endMonth: 5 }],
+                    blocks: [{ max_kwh: null, rates: { "Summer": { "Flat": 2.50 } } }]
                 }
             };
             (updateTariffService as jest.Mock).mockRejectedValue(new Error("Building not found"));
@@ -479,9 +479,9 @@ describe("Recommendation Controller Unit Tests", () => {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
                 body: {
-                    peak_rate_zar: 0.15,
-                    off_peak_rate_zar: 0.08,
-                    season_name: "Summer"
+                    type: "flat",
+                    seasons: [{ name: "Summer", startMonth: 9, endMonth: 5 }],
+                    blocks: [{ max_kwh: null, rates: { "Summer": { "Flat": 2.50 } } }]
                 }
             };
             (updateTariffService as jest.Mock).mockRejectedValue(new Error("Error"));

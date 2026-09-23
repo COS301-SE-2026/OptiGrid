@@ -6,6 +6,15 @@ jest.mock('@influxdata/influxdb-client', () => ({
     InfluxDB,
 }));
 
+jest.mock('../../../backend/core/src/lib/prisma', () => ({
+    __esModule: true,
+    default: {
+        utilityTariff: {
+            findFirst: jest.fn().mockResolvedValue(null)
+        }
+    }
+}));
+
 describe('Influx usage queries', () => {
     beforeEach(() => {
         jest.resetModules();
