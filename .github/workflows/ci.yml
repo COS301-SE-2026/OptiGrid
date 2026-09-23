@@ -226,6 +226,32 @@ jobs:
   e2e:
     name: E2E (${{ matrix.suite }})
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      influxdb:
+        image: influxdb:2.7-alpine@sha256:991673dc2d237bd79b15d6627410d72de111387e7dac673dbb92cf3333ffcc8c
+        env:
+          DOCKER_INFLUXDB_INIT_MODE: setup
+          DOCKER_INFLUXDB_INIT_USERNAME: admin
+          DOCKER_INFLUXDB_INIT_PASSWORD: optigrid-e2e-password
+          DOCKER_INFLUXDB_INIT_ORG: OptiGrid
+          DOCKER_INFLUXDB_INIT_BUCKET: EnergyData
+          DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: token-1234
+        ports:
+          - 8086:8086
+        options: >-
+          --health-cmd "influx ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     strategy:
       fail-fast: false
       matrix:
