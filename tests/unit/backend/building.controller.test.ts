@@ -568,7 +568,7 @@ describe('Building Controller', () => {
 			const req = { user: { id: mockUserId }, params: { building_id: buildingId } } as any;
 			const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
 
-			mockedBuildingDetailsParamsSchema.parse.mockReturnValue({ building_id: buildingId });
+			mockedBuildingDetailsParamsSchema.parse = jest.fn().mockReturnValue({ building_id: buildingId });
 			mockedGetBuildingDetails.mockResolvedValue(building as any);
 
 			await getBuildingDetailsController(req, res);
@@ -586,7 +586,7 @@ describe('Building Controller', () => {
 			const req = { user: { id: mockUserId }, params: { building_id: 'not-a-uuid' } } as any;
 			const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
 
-			mockedBuildingDetailsParamsSchema.parse.mockImplementation(() => {
+			mockedBuildingDetailsParamsSchema.parse = jest.fn().mockImplementation(() => {
 				throw zodError;
 			});
 
@@ -604,7 +604,7 @@ describe('Building Controller', () => {
 			const req = { user: { id: mockUserId }, params: { building_id: buildingId } } as any;
 			const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
 
-			mockedBuildingDetailsParamsSchema.parse.mockReturnValue({ building_id: buildingId });
+			mockedBuildingDetailsParamsSchema.parse = jest.fn().mockReturnValue({ building_id: buildingId });
 			mockedGetBuildingDetails.mockRejectedValue(
 				new Error('Access Denied: You do not have permission to view this building.'),
 			);
@@ -643,8 +643,8 @@ describe('Building Controller', () => {
 				json: jest.fn(),
 			} as any;
 
-			mockedBuildingEnergyConsumptionParamsSchema.parse.mockReturnValue({ building_id: energyBuildingId });
-			mockedBuildingEnergyConsumptionQuerySchema.parse.mockReturnValue({ time_range: '30d' });
+			mockedBuildingEnergyConsumptionParamsSchema.parse = jest.fn().mockReturnValue({ building_id: energyBuildingId });
+			mockedBuildingEnergyConsumptionQuerySchema.parse = jest.fn().mockReturnValue({ time_range: '30d' });
 			mockedGetBuildingEnergyConsumptionDetails.mockResolvedValue(details as any);
 
 			await getBuildingEnergyConsumptionController(req, res);
@@ -690,7 +690,7 @@ describe('Building Controller', () => {
 				json: jest.fn(),
 			} as any;
 
-			mockedBuildingEnergyConsumptionParamsSchema.parse.mockImplementation(() => {
+			mockedBuildingEnergyConsumptionParamsSchema.parse = jest.fn().mockImplementation(() => {
 				throw zodError;
 			});
 
@@ -716,8 +716,8 @@ describe('Building Controller', () => {
 				json: jest.fn(),
 			} as any;
 
-			mockedBuildingEnergyConsumptionParamsSchema.parse.mockReturnValue({ building_id: energyBuildingId });
-			mockedBuildingEnergyConsumptionQuerySchema.parse.mockReturnValue({ time_range: '7d' });
+			mockedBuildingEnergyConsumptionParamsSchema.parse = jest.fn().mockReturnValue({ building_id: energyBuildingId });
+			mockedBuildingEnergyConsumptionQuerySchema.parse = jest.fn().mockReturnValue({ time_range: '7d' });
 			mockedGetBuildingEnergyConsumptionDetails.mockRejectedValue(new Error('Access Denied: You do not have permission to view this building.'));
 
 			await getBuildingEnergyConsumptionController(req, res);
@@ -740,8 +740,8 @@ describe('Building Controller', () => {
 				json: jest.fn(),
 			} as any;
 
-			mockedBuildingEnergyConsumptionParamsSchema.parse.mockReturnValue({ building_id: energyBuildingId });
-			mockedBuildingEnergyConsumptionQuerySchema.parse.mockReturnValue({ time_range: '90d' });
+			mockedBuildingEnergyConsumptionParamsSchema.parse = jest.fn().mockReturnValue({ building_id: energyBuildingId });
+			mockedBuildingEnergyConsumptionQuerySchema.parse = jest.fn().mockReturnValue({ time_range: '90d' });
 			mockedGetBuildingEnergyConsumptionDetails.mockRejectedValue(new Error('Building not found'));
 
 			await getBuildingEnergyConsumptionController(req, res);
@@ -819,7 +819,7 @@ describe('Building Controller', () => {
 			};
 
 			mockedCheckIdempotencyKey.mockResolvedValue(null); // Not in cache
-			mockedDeleteBuildingSchema.parse.mockReturnValue({ building_id: 'building-003' });
+			mockedDeleteBuildingSchema.parse = jest.fn().mockReturnValue({ building_id: 'building-003' });
 			mockedDeleteBuildingService.mockResolvedValue(undefined); // Deletion matches
 
 			await deleteBuildingController(req, res);
@@ -846,7 +846,7 @@ describe('Building Controller', () => {
 			};
 
 			mockedCheckIdempotencyKey.mockResolvedValue(null);
-			mockedDeleteBuildingSchema.parse.mockReturnValue({ building_id: 'building-003' });
+			mockedDeleteBuildingSchema.parse = jest.fn().mockReturnValue({ building_id: 'building-003' });
 			mockedDeleteBuildingService.mockRejectedValue(new Error('Access Denied: User has no permission'));
 
 			await deleteBuildingController(req, res);
@@ -905,7 +905,7 @@ describe("Get All Buildings for Admin - COntroller tests", () => {
 				lifecycle_state: "ACTIVE"
 			},
 		];
-		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
+		mockedAdminBuildingsSchema.parse = jest.fn().mockReturnValue(req.query);
 		mockedAllBuildingsService.mockResolvedValue(buildings);
 
 		//act
@@ -938,7 +938,7 @@ describe("Get All Buildings for Admin - COntroller tests", () => {
 				lifecycle_state: "ACTIVE"
 			},
 		];
-		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
+		mockedAdminBuildingsSchema.parse = jest.fn().mockReturnValue(req.query);
 		mockedAllBuildingsService.mockResolvedValue(buildings);
 
 		//act
@@ -978,7 +978,7 @@ describe("Get All Buildings for Admin - COntroller tests", () => {
 			},
 			query: {},
 		};
-		mockedAdminBuildingsSchema.parse.mockReturnValue(req.query);
+		mockedAdminBuildingsSchema.parse = jest.fn().mockReturnValue(req.query);
 		mockedAllBuildingsService.mockRejectedValue(new Error("No connection"));
 
 		//act
