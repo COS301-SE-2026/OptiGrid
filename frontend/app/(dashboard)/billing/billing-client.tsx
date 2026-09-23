@@ -147,11 +147,11 @@ export default function BillingClient() {
                 body: JSON.stringify(complexPayload),
             });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data?.message ?? "Failed to update the tariff rates.");
-            setSaved(data?.message ?? "Complex Tariff rules updated successfully.");
+            if (!res.ok) throw new Error(data?.message ?? "Failed to update the tariff rates");
+            setSaved(data?.message ?? "Tariff rules updated successfully");
         }
         catch (err) {
-            setApiError(err instanceof Error ? err.message : "Failed to update the tariff rates.");
+            setApiError(err instanceof Error ? err.message : "Failed to update the tariff rates");
         }
         finally {
             setLoading(false);
@@ -161,7 +161,7 @@ export default function BillingClient() {
     return (
         <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
             <PageHeading
-                title="Advanced Tariff Builder"
+                title="Utitlity Tariff Rates"
                 subtitle="Configure comprehensive Time-of-Use and Seasonal rates based on Eskom schedules."
             />
 
@@ -195,14 +195,14 @@ export default function BillingClient() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-6)" }}>
                     <SeasonRateCard
                         season="Summer"
-                        heading="☀️ Summer (Sep - May)"
+                        heading="Summer"
                         colour="var(--brand-warning)"
                         rates={rates.Summer}
                         onRateChange={handleRateChange}
                     />
                     <SeasonRateCard
                         season="Winter"
-                        heading="❄️ Winter (Jun - Aug)"
+                        heading="Winter"
                         colour="var(--brand-info)"
                         rates={rates.Winter}
                         onRateChange={handleRateChange}
