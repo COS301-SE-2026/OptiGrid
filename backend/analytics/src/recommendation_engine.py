@@ -372,3 +372,64 @@ class RecommendationSynthesizer:
             
         rate = blocks[0].get("rates", {}).get(season, {}).get(tou, 1.5)
         return float(rate)
+
+    def generate_prepaid_purchase_advice(self, building_id: str, cumulative_kwh: float, tariffs: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if not tariffs:
+            return None
+            
+        tar = tariffs[0]
+        tariff_structure = tar.get("tariff_structure", {})
+        if not tariff_structure:
+            return None
+        
+        #we only send recs at end of month amd to those who have inclining block rate
+        blocks = tariff_structure.get("blocks", [])
+        if len(blocks) <= 1:
+            return None
+            
+        now = datetime.now(timezone.utc)
+        if now.day < 20:
+            return None
+            
+        current_block = 0
+        for i, block in enumerate(blocks):
+            max_kwh = block.get("max_kwh")
+            if max_kwh is None or cumulative_kwh <= max_kwh:
+                current_block = i
+                break
+                
+        if current_block > 0:
+            season = self.get_season(now, tariff_structure.get("seasons", []))
+            base_rate = blocks[0].get("rates", {}).get(season, {}).get("Flat", blocks[0].get("rates", {}).get(season, {}).get("Standard", 0))
+            expensive_rate = blocks[current_block].get("rates", {}).get(season, {}).get("Flat", blocks[current_block].get("rates", {}).get(season, {}).get("Standard", 0))
+            
+            savings_per_unit = max(0, float(expensive_rate) - float(base_rate))
+            if savings_per_unit <= 0:
+                return None
+                
+            strategy = (
+                f"You have used {round(cumulative_kwh, 1)} kWh this month and are currently purchasing electricity at a high block rate (approx R{expensive_rate:.2f}/kWh). "
+                f"Since we are near the end of the month, delay large prepaid electricity purchases until the 1st of next month to buy at the cheaper Block 1 rate (approx R{base_rate:.2f}/kWh)."
+            )
+            
+            context = "Prepaid Purchase Advice"
+            if self._is_duplicate(building_id, context):
+                return None
+                
+            return {
+                "building_id": building_id,
+                "strategy_description": strategy,
+                "estimated_monthly_savings": round(savings_per_unit * 100, 2),
+                "status": "Pending",
+                "recommendation_category": "finance",
+                "applicable_range": {
+                    "time_window":{
+                        "start": "00:00",
+                        "end": "23:59",
+                        "timezone": "Africa/Johannesburg"
+                    },
+                    "equipment": "Prepaid Meter"
+                },
+                "context": context
+            }
+        return None
