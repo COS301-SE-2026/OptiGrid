@@ -6,13 +6,15 @@ import type { StartedInfluxHarness } from "./harness/influx-container";
 import { InfluxDB, Point } from "@influxdata/influxdb-client";
 import { Client } from "pg";
 import { randomUUID } from "node:crypto";
+import { insertIntegrationUsers } from "./harness/user-fixtures";
 
 describe("Telemetry Integration Tests", () => {
     let harness: CoreApiHarness;
     let influxHarness: StartedInfluxHarness;
     let authHeaders: { Cookie: string };
-    const userId = "bbe48b78-438f-4ed7-9fe7-a8fc9addc187";
-    const buildingId = "bld-integration-1";
+    const userId = "33333333-3333-3333-3333-333333333333";
+    const tenantId = "44444444-4444-4444-8444-444444444440";
+    const buildingId = "44444444-4444-4444-8444-444444444441";
     const ingestBuildingId = randomUUID();
     const originalHardwareApiKey = process.env.HARDWARE_API_KEY;
 
@@ -28,6 +30,38 @@ describe("Telemetry Integration Tests", () => {
         harness = await createCoreApiHarness();
         authHeaders = await getAuthHeaders(userId);
     }, 120000);
+
+    beforeEach(async () => {
+        const client = new Client({ connectionString: harness.databaseUrl });
+        await client.connect();
+        try {
+            await client.query(
+                `insert into tenants (tenant_id, company_name)
+                 values ($1, $2)
+                 on conflict (tenant_id) do nothing`,
+                [tenantId, "Telemetry Integration Tenant"],
+            );
+            await insertIntegrationUsers(client, [{
+                userId,
+                tenantId,
+                email: "telemetry.integration@optigrid.test",
+            }]);
+            await client.query(
+                `insert into buildings (building_id, tenant_id, building_name)
+                 values ($1, $2, $3)
+                 on conflict (building_id) do nothing`,
+                [buildingId, tenantId, "Telemetry Integration Building"],
+            );
+            await client.query(
+                `insert into user_building_access (user_id, building_id)
+                 values ($1, $2)
+                 on conflict (user_id, building_id) do nothing`,
+                [userId, buildingId],
+            );
+        } finally {
+            await client.end();
+        }
+    });
 
     afterAll(async () => {
         if (harness) await harness.stop();
@@ -164,9 +198,14 @@ describe("Telemetry Integration Tests", () => {
             expect(response.body).toHaveProperty("status", "success");
             expect(Array.isArray(response.body.data)).toBe(true);
             expect(response.body.data.length).toBeGreaterThan(0);
-            expect(response.body.data[0]).toHaveProperty("building_id", buildingId);
-            expect(response.body.data[0]).toHaveProperty("current_kw", 100.5);
-            expect(response.body.data[0]).toHaveProperty("timestamp");
+            const buildingTelemetry = response.body.data.find(
+                (item: { building_id: string }) => item.building_id === buildingId,
+            );
+            expect(buildingTelemetry).toMatchObject({
+                building_id: buildingId,
+                current_kw: 100.5,
+            });
+            expect(buildingTelemetry).toHaveProperty("timestamp");
         });
     });
 

@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { Request, Response } from 'express';
 import { sseManager } from '../utils/sseManager';
+import { assertBuildingAccess } from '../services/sensor.services';
 
 const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
@@ -81,9 +82,17 @@ export const ingestTelemetry = async (req: Request, res: Response) => {
     }
 };
 
-export const streamTelemetry = (req: Request, res: Response) => {
+export const streamTelemetry = async (req: Request, res: Response) => {
     try {
         const { building_id } = req.params;
+        if (!req.user) {
+            return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+        }
+
+        const streamId = building_id || 'portfolio';
+        if (streamId !== 'portfolio') {
+            await assertBuildingAccess(req.user.id, streamId, req.user.roleType);
+        }
 
         // standard SSE headers
         res.setHeader('Content-Type', 'text/event-stream');
@@ -93,10 +102,16 @@ export const streamTelemetry = (req: Request, res: Response) => {
             res.flushHeaders();
         }
 
-        sseManager.addClient(building_id || 'portfolio', res);
-    } catch (error) {
-        console.error('Stream telemetry error:', error);
+        sseManager.addClient(streamId, res);
+    } catch (error: any) {
         if (!res.headersSent) {
+            if (error.message?.includes('Access Denied')) {
+                return res.status(403).json({ status: 'error', message: error.message });
+            }
+            if (error.message === 'Building not found') {
+                return res.status(404).json({ status: 'error', message: error.message });
+            }
+            console.error('Stream telemetry error:', error);
             res.status(500).json({ status: 'error', message: 'Internal server error.' });
         }
     }
