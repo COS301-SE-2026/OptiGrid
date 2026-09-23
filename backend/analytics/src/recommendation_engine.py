@@ -26,6 +26,7 @@ class RecommendationSynthesizer:
         thresold_kw: float,
         tariffs: List[Dict[str, Any]],
         anomalies: List[Dict[str, Any]],
+        cumulative_kwh: float = 0.0,
         time_window: str= "weekly"
     ) -> List[Dict[str, Any]]:
         recs = []
@@ -48,6 +49,11 @@ class RecommendationSynthesizer:
                     anomaly_rec = self._calculate_anomaly_investigation(building_id, building_type, i)
                     if anomaly_rec:
                         recs.append(anomaly_rec)
+
+        #prepaid advice calc
+        prepaid_rec = self._generate_prepaid_purchase_advice(building_id, cumulative_kwh, tariffs)
+        if prepaid_rec:
+            recs.append(prepaid_rec)
 
         return recs
 
@@ -115,22 +121,44 @@ class RecommendationSynthesizer:
         kw_reduced = forecast_peak-threshold_kw
 
         peak_rate = 1.5
-        #standard_rate = 1.0
-        peak_start = "14:00"
-        peak_end = "18:00"
+        standard_rate = 1.0
+        peak_start = "17:00"
+        peak_end = "19:00"
 
         if tariffs:
             tar = tariffs[0]
-            peak_rate = float(tar.get("peak_rate_zar", 1.5))
-            if tar.get("peak_start_time"):
-                peak_start = str(tar["peak_start_time"])[:5]
-            if tar.get("peak_end_time"):
-                peak_end = str(tar["peak_end_time"])[:5]
+            tariff_structure = tar.get("tariff_structure", {})
+            if tariff_structure:
+                #we get the rates for the curr season and to calculate the savings
+                now = datetime.now(timezone.utc)
+                peak_rate = self._get_current_rate(now, tariff_structure, peak_only=True)
+                season = self._get_season(now, tariff_structure.get("seasons", []))
+                blocks = tariff_structure.get("blocks", [])
+                if blocks:
+                    standard_rate = float(blocks[0].get("rates", {}).get(season, {}).get("Standard", 1.0))
+                else:
+                    standard_rate = 1.0
+                
+                weekday_schedule = tariff_structure.get("tou_schedule", {}).get("weekday", [])
+                peak_periods = [p for p in weekday_schedule if p.get("period") == "Peak"]
+                if peak_periods:
+                    evening_peak = peak_periods[-1]
+                    start_hr = evening_peak.get("startHour", 17)
+                    end_hr = evening_peak.get("endHour", 19)
+                    peak_start = f"{start_hr:02d}:00"
+                    peak_end = f"{end_hr:02d}:00"
+            else:
+                peak_rate = float(tar.get("peak_rate_zar", 1.5))
+                if tar.get("peak_start_time"):
+                    peak_start = str(tar["peak_start_time"])[:5]
+                if tar.get("peak_end_time"):
+                    peak_end = str(tar["peak_end_time"])[:5]
 
         peak_kwh_saved = kw_reduced * 0.5 # assume 50% of the peak reduction is achievable for 1 hour
         # Assume peak occurs half the weekdays (approx 10 days a month)
         rate = 10
-        monthly_savings = (peak_rate*peak_kwh_saved) * rate
+        rate_differential = max(0, peak_rate - standard_rate)
+        monthly_savings = (rate_differential * peak_kwh_saved) * rate
 
 
         context = "Peak Shaving"
