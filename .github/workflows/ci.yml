@@ -87,6 +87,9 @@ jobs:
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
 
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
       - name: Start Supabase local emulator
         run: |
           if [ ! -f supabase/config.toml ]; then
@@ -194,6 +197,9 @@ jobs:
           pip install -r backend/ingestion/requirements.txt
           pip install -r backend/analytics/requirements.txt
 
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
       - name: Start Supabase local emulator
         run: |
           if [ ! -f supabase/config.toml ]; then
@@ -260,6 +266,9 @@ jobs:
 
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Start Supabase local emulator
         run: |
