@@ -88,14 +88,7 @@ jobs:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
 
       - name: Start Supabase local emulator
-        run: |
-          if [ ! -f supabase/config.toml ]; then
-            supabase init --yes
-          fi
-          if [ -f supabase/seed.sql ]; then
-            mv supabase/seed.sql supabase/seed.sql.ci.bak
-          fi
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+        run: bash scripts/start-supabase-ci.sh
 
       - name: Export Supabase local auth env vars
         run: |
@@ -195,16 +188,7 @@ jobs:
           pip install -r backend/analytics/requirements.txt
 
       - name: Start Supabase local emulator
-        run: |
-          if [ ! -f supabase/config.toml ]; then
-            supabase init --yes
-          fi
-          # This repository's supabase/seed.sql targets app tables managed by Prisma test harness, not Supabase local migrations.
-          # Move it out of the way for this CI job so Supabase local Auth can start cleanly.
-          if [ -f supabase/seed.sql ]; then
-            mv supabase/seed.sql supabase/seed.sql.ci.bak
-          fi
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+        run: bash scripts/start-supabase-ci.sh
 
       - name: Export Supabase local auth env vars
         run: |
@@ -262,16 +246,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Start Supabase local emulator
-        run: |
-          if [ ! -f supabase/config.toml ]; then
-            supabase init --yes
-          fi
-          # This repository's supabase/seed.sql targets app tables managed by Prisma test harness, not Supabase local migrations.
-          # Move it out of the way for this CI job so Supabase local Auth can start cleanly.
-          if [ -f supabase/seed.sql ]; then
-            mv supabase/seed.sql supabase/seed.sql.ci.bak
-          fi
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+        run: bash scripts/start-supabase-ci.sh
 
       - name: Run Playwright ${{ matrix.suite }} tests
         run: ${{ matrix.command }}
