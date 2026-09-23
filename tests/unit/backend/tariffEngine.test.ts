@@ -1,5 +1,11 @@
 import { getSeason, getTOUPeriod, calculateCost } from "../../../backend/core/src/lib/tariffEngine";
-import { TariffStructure, TariffSeason, TOUSchedule } from "../../../backend/core/src/types/tariff";
+import { TariffStructure, TariffSeason, TOUPeriod, TOUPeriodDefinition, TOUSchedule } from "../../../backend/core/src/types/tariff";
+
+const timeSlot = (period: TOUPeriod, startHour: number, endHour: number): TOUPeriodDefinition => ({
+    period,
+    startHour,
+    endHour
+});
 
 describe("Tariff Engine Unit Tests", () => {
     describe("getSeason function", () => {
@@ -34,23 +40,21 @@ describe("Tariff Engine Unit Tests", () => {
     describe("getTOUPeriod function test", () => {
         const schedule: TOUSchedule = {
             weekday: [
-                { period: "Off-Peak", startHour: 0, endHour: 6 },
-                { period: "Peak", startHour: 6, endHour: 9 },
-                { period: "Standard", startHour: 9, endHour: 17 },
-                { period: "Peak", startHour: 17, endHour: 19 },
-                { period: "Standard", startHour: 19, endHour: 22 },
-                { period: "Off-Peak", startHour: 22, endHour: 24 }
+                timeSlot("Off-Peak", 0, 6),
+                timeSlot("Peak", 6, 9),
+                timeSlot("Standard", 9, 17),
+                timeSlot("Peak", 17, 19),
+                timeSlot("Standard", 19, 22),
+                timeSlot("Off-Peak", 22, 24)
             ],
             saturday: [
-                { period: "Off-Peak", startHour: 0, endHour: 7 },
-                { period: "Standard", startHour: 7, endHour: 12 },
-                { period: "Off-Peak", startHour: 12, endHour: 18 },
-                { period: "Standard", startHour: 18, endHour: 20 },
-                { period: "Off-Peak", startHour: 20, endHour: 24 }
+                timeSlot("Off-Peak", 0, 7),
+                timeSlot("Standard", 7, 12),
+                timeSlot("Off-Peak", 12, 18),
+                timeSlot("Standard", 18, 20),
+                timeSlot("Off-Peak", 20, 24)
             ],
-            sunday: [
-                { period: "Off-Peak", startHour: 0, endHour: 24 }
-            ]
+            sunday: [timeSlot("Off-Peak", 0, 24)]
         };
 
         it("should_get_weekday_peak", () => {

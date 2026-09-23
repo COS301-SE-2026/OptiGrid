@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useBuildings } from "@/lib/useBuildings";
 import { PageHeading } from "@/components/PageHeading";
 import { FormAlert } from "@/components/FormAlert";
@@ -10,10 +10,54 @@ type RatesState = {
     Winter: { Peak: string; Standard: string; "Off-Peak": string };
 };
 
+type Season = keyof RatesState;
+type RatePeriod = keyof RatesState[Season];
+
+const RATE_PERIODS: RatePeriod[] = ["Peak", "Standard", "Off-Peak"];
+
 const initialRates: RatesState = {
     Summer: { Peak: "2.50", Standard: "1.50", "Off-Peak": "1.00" },
     Winter: { Peak: "3.50", Standard: "2.00", "Off-Peak": "1.50" }
 };
+
+type SeasonRateCardProps = {
+    season: Season;
+    heading: string;
+    colour: string;
+    rates: RatesState[Season];
+    onRateChange: (season: Season, period: RatePeriod, value: string) => void;
+};
+
+function SeasonRateCard({ season, heading, colour, rates, onRateChange }: SeasonRateCardProps) {
+    return (
+        <div style={{
+            background: `color-mix(in srgb, ${colour} 5%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${colour} 20%, transparent)`,
+            padding: "var(--space-4)",
+            borderRadius: "var(--radius-lg)"
+        }}>
+            <h3 style={{ margin: "0 0 var(--space-4) 0", color: colour }}>{heading}</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                {RATE_PERIODS.map(period => (
+                    <div key={`${season}-${period}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <label style={{ fontSize: "var(--fs-small)", fontWeight: 500 }}>{period}</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                            <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>R</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                className="input"
+                                value={rates[period]}
+                                onChange={event => onRateChange(season, period, event.target.value)}
+                                style={{ width: "100px", padding: "var(--space-1) var(--space-2)" }}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 export default function BillingClient() {
     const [buildingId, setBuildingId] = useState<string>("");
@@ -28,7 +72,7 @@ export default function BillingClient() {
         isError: buildingsError,
     } = useBuildings();
 
-    const handleRateChange = (season: "Summer" | "Winter", period: "Peak" | "Standard" | "Off-Peak", value: string) => {
+    const handleRateChange = (season: Season, period: RatePeriod, value: string) => {
         setRates(prev => ({
             ...prev,
             [season]: {
@@ -136,52 +180,33 @@ export default function BillingClient() {
                         <option value="">{buildingsLoading ? "Loading buildings..." : "Select building"}</option>
                         {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </select>
+                    {buildingsError && (
+                        <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
+                            Unable to load your buildings right now.
+                        </p>
+                    )}
+                    {!buildingsLoading && !buildingsError && buildings.length === 0 && (
+                        <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                            No buildings are currently assigned to your account.
+                        </p>
+                    )}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-6)" }}>
-                    <div style={{ background: "color-mix(in srgb, var(--brand-warning) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--brand-warning) 20%, transparent)", padding: "var(--space-4)", borderRadius: "var(--radius-lg)" }}>
-                        <h3 style={{ margin: "0 0 var(--space-4) 0", color: "var(--brand-warning)" }}>☀️ Summer (Sep - May)</h3>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                            {(["Peak", "Standard", "Off-Peak"] as const).map(period => (
-                                <div key={`summer-${period}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <label style={{ fontSize: "var(--fs-small)", fontWeight: 500 }}>{period}</label>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                                        <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>R</span>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            className="input"
-                                            value={rates.Summer[period]}
-                                            onChange={e => handleRateChange("Summer", period, e.target.value)}
-                                            style={{ width: "100px", padding: "var(--space-1) var(--space-2)" }}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div style={{ background: "color-mix(in srgb, var(--brand-info) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--brand-info) 20%, transparent)", padding: "var(--space-4)", borderRadius: "var(--radius-lg)" }}>
-                        <h3 style={{ margin: "0 0 var(--space-4) 0", color: "var(--brand-info)" }}>❄️ Winter (Jun - Aug)</h3>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                            {(["Peak", "Standard", "Off-Peak"] as const).map(period => (
-                                <div key={`winter-${period}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <label style={{ fontSize: "var(--fs-small)", fontWeight: 500 }}>{period}</label>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                                        <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>R</span>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            className="input"
-                                            value={rates.Winter[period]}
-                                            onChange={e => handleRateChange("Winter", period, e.target.value)}
-                                            style={{ width: "100px", padding: "var(--space-1) var(--space-2)" }}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <SeasonRateCard
+                        season="Summer"
+                        heading="☀️ Summer (Sep - May)"
+                        colour="var(--brand-warning)"
+                        rates={rates.Summer}
+                        onRateChange={handleRateChange}
+                    />
+                    <SeasonRateCard
+                        season="Winter"
+                        heading="❄️ Winter (Jun - Aug)"
+                        colour="var(--brand-info)"
+                        rates={rates.Winter}
+                        onRateChange={handleRateChange}
+                    />
                 </div>
 
                 <div style={{ padding: "var(--space-4)", background: "var(--gray-50)", borderRadius: "var(--radius-md)", fontSize: "var(--fs-small)" }}>
