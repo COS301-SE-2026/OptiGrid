@@ -43,7 +43,10 @@ const touScheduleSchema = z.object({
     saturday: z.array(touPeriodDefinitionSchema),
     sunday: z.array(touPeriodDefinitionSchema),
 });
-const blockRatesSchema = z.record(z.string(), z.record(z.string(), z.number().nonnegative()));
+const tariffRateSchema = z.number()
+    .nonnegative("Tariff rate cannot be negative")
+    .max(100, "Tariff rate cannot exceed R100/kWh");
+const blockRatesSchema = z.record(z.string(), z.record(z.string(), tariffRateSchema));
 const tariffBlockSchema = z.object({
     max_kwh: z.number().nullable(),
     rates: blockRatesSchema,
@@ -54,4 +57,4 @@ export const tariffQuerySchema = z.object({
     seasons: z.array(tariffSeasonSchema),
     tou_schedule: touScheduleSchema.optional(),
     blocks: z.array(tariffBlockSchema),
-});
+}).strict();

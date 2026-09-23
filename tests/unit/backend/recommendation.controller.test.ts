@@ -417,7 +417,7 @@ describe("Recommendation Controller Unit Tests", () => {
             }));
         });
 
-        it("should_reject_an_off_peak_rate_above_the_peak_rate", async () => {
+        it("should_reject_a_negative_tariff_rate", async () => {
             req = {
                 user: {
                     id: "user123",
@@ -427,9 +427,9 @@ describe("Recommendation Controller Unit Tests", () => {
                     building_id: "550e8400-e29b-41d4-a716-446655440000"
                 },
                 body: {
-                    peak_rate_zar: 0.2,
-                    off_peak_rate_zar: 0.4,
-                    season_name: "Summer"
+                    type: "flat",
+                    seasons: [{ name: "Summer", startMonth: 9, endMonth: 5 }],
+                    blocks: [{ max_kwh: null, rates: { Summer: { Flat: -0.2 } } }]
                 }
             };
 
