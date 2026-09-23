@@ -6,11 +6,13 @@ import { createApp } from './app';
 import { initWebSocketServer } from './services/websocket';
 import { bullMQsetUp } from './services/bullmq';
 import { startAnomalySubscriber } from './services/anomaly.subscriber';
+import { startTelemetrySubscriber, stopTelemetrySubscriber } from './services/telemetry.subscriber';
 import { syncThresholdsToRedis } from './services/threshold.services';
 import { startEscalationWorker } from './workers/escalation.worker';
 import { AuditEventWorker } from './workers/auditEvent.worker';
 import { redis } from './lib/redis';
 import prisma from './lib/prisma';
+import { startTelemetry } from './services/telemetryPubSub.service';
 
 export function startServer(port = Number(process.env.PORT ?? 4000)): Server {
     const app = createApp(port);
@@ -22,7 +24,10 @@ export function startServer(port = Number(process.env.PORT ?? 4000)): Server {
         //init background services
         syncThresholdsToRedis().catch(console.error);
         startAnomalySubscriber().catch(console.error);
+        startTelemetrySubscriber().catch(console.error);
         startEscalationWorker();
+        startTelemetry();
+        
         if (process.env.NODE_ENV !== 'test') {
             auditEventWorker = new AuditEventWorker(redis.duplicate(), prisma);
             auditEventWorker.start().catch(error => {
@@ -32,6 +37,7 @@ export function startServer(port = Number(process.env.PORT ?? 4000)): Server {
     });
     server.once('close', () => {
         if (auditEventWorker) void auditEventWorker.stop();
+        void stopTelemetrySubscriber();
     });
     initWebSocketServer(server);
     bullMQsetUp();

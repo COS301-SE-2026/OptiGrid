@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { PeakUsageTime, queryTotalKwh, queryUsageDetails, queryUsageSeries, resolveCostZar, UTILITY_COST_USD_PER_KWH, UTILITY_COST_ZAR_PER_KWH } from '../lib/influx';
 import prisma from '../lib/prisma';
 import { deleteInfluxBucket, queueBuildingProvisioning } from './provisioning.service';
+import { resolveCoordinates, computeGeohash } from './geocode.service';
 
 const buildingDetailsSelect = {
   building_id: true,
@@ -159,6 +160,8 @@ export interface buildingPayload {
   longitude?: number;
   lifecycle_state?: LifecycleState;
   geohash?: string;
+  floors_above_ground?: number;
+  solar_capacity_kw?: number;
 }
 
 export interface updateBuildingPayload {
@@ -175,6 +178,8 @@ export interface updateBuildingPayload {
   metadata?: Record<string, unknown>;
   lifecycle_state?: LifecycleState;
   geohash?: string;
+  floors_above_ground?: number;
+  solar_capacity_kw?: number;
 }
 
 export interface BuildingEnergyConsumptionDetails {
@@ -220,6 +225,22 @@ export const createBuilding = async (
   userId: string,
   payload: buildingPayload
 ) => {
+  let lat = payload.latitude;
+  let long = payload.longitude;
+  let hash = payload.geohash;
+
+  if(payload.physical_address && (lat === undefined || long === undefined)) {
+    const coords = await resolveCoordinates(payload.physical_address);
+    if(coords) {
+      lat = coords.latitude;
+      long = coords.longitude;
+    }
+  }
+
+  if(lat !== undefined && long !== undefined && hash === undefined) {
+    hash = computeGeohash(lat, long);
+  }
+
   return await prisma.$transaction(async (tx) => {
     // create building
     const newBuilding = await tx.building.create({
@@ -231,8 +252,11 @@ export const createBuilding = async (
         physical_address: payload.physical_address,
         timezone: payload.timezone || 'UTC',
         max_occupancy: payload.max_occupancy,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
+        floors_above_ground: payload.floors_above_ground,
+        solar_capacity_kw: payload.solar_capacity_kw,
+        latitude: lat,
+        longitude: long,
+        geohash: hash,
         nominal_voltage: payload.nominal_voltage ?? 230,
         max_current_threshold: payload.max_current_threshold ?? 60,
         lifecycle_state: 'PROVISIONING',
@@ -529,6 +553,30 @@ export const updateBuildingService = async (
       console.error(`Provisioning failed due to unexpected errors`, error);
     }
   }
+  let flat = payload.latitude;
+  let flong = payload.longitude;
+  let fhash = payload.geohash;
+
+  if(payload.physical_address !== undefined && payload.physical_address !== exists.physical_address) {
+    if(flat === undefined && flong === undefined && payload.physical_address !== '') {
+      const coords = await resolveCoordinates(payload.physical_address);
+      if(coords) {
+        flat = coords.latitude;
+        flong = coords.longitude;
+      }
+    }
+  }
+  else {
+    flat ??= exists.latitude ?? undefined;
+    flong ??= exists.longitude ?? undefined;
+  }
+
+  if(payload.geohash === undefined && flat !== undefined && flong !== undefined) {
+    if (payload.latitude !== undefined || payload.longitude !== undefined || payload.physical_address !== undefined) {
+       fhash = computeGeohash(flat, flong);
+    }
+  }
+
   return prisma.building.update({
     where: {
       building_id: buildingId,
@@ -540,12 +588,14 @@ export const updateBuildingService = async (
       ...(payload.physical_address !== undefined ? { physical_address: payload.physical_address } : {}),
       ...(payload.timezone !== undefined ? { timezone: payload.timezone } : {}),
       ...(payload.max_occupancy !== undefined ? { max_occupancy: payload.max_occupancy } : {}),
+      ...(payload.floors_above_ground !== undefined ? { floors_above_ground: payload.floors_above_ground } : {}),
+      ...(payload.solar_capacity_kw !== undefined ? { solar_capacity_kw: payload.solar_capacity_kw } : {}),
       ...(payload.latitude !== undefined ? { latitude: payload.latitude } : {}),
       ...(payload.longitude !== undefined ? { longitude: payload.longitude } : {}),
       ...(payload.nominal_voltage !== undefined ? { nominal_voltage: payload.nominal_voltage } : {}),
       ...(payload.max_current_threshold !== undefined ? { max_current_threshold: payload.max_current_threshold } : {}),
       ...(buildingState !== undefined ? { lifecycle_state: buildingState } : {}),
-      ...(payload.geohash !== undefined ? { geohash: payload.geohash } : {}),
+      ...(fhash !== undefined ? { geohash: fhash } : {}),
     },
   });
 };
