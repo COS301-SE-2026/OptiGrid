@@ -23,6 +23,9 @@ jest.mock('@influxdata/influxdb-client', () => ({
 jest.mock('../../../backend/core/src/utils/sseManager', () => ({
   sseManager: { addClient: jest.fn(), broadcast: jest.fn() },
 }));
+jest.mock('../../../backend/core/src/services/sensor.services', () => ({
+  assertBuildingAccess: jest.fn(),
+}));
 
 import { sseManager } from '../../../backend/core/src/utils/sseManager';
 import { ingestTelemetry, prisma, shutdownTelemetry } from '../../../backend/core/src/controllers/telemetry.controller';
