@@ -35,7 +35,7 @@ describe("BillingClient", () => {
     it("renders the tariff form", () => {
         render(<BillingClient />);
 
-        expect(screen.getByRole("heading", { name: "Advanced Tariff Builder" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Utility Tariff Rates" })).toBeInTheDocument();
         expect(screen.getByLabelText(/Target Building/i)).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Save Tariff Schedule" })).toBeInTheDocument();
     });

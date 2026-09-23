@@ -161,7 +161,7 @@ export default function BillingClient() {
     return (
         <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
             <PageHeading
-                title="Utitlity Tariff Rates"
+                title="Utility Tariff Rates"
                 subtitle="Configure comprehensive Time-of-Use and Seasonal rates based on Eskom schedules."
             />
 
