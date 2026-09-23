@@ -14,10 +14,24 @@ function buildRequest(body: unknown, withAuth = true) {
 	});
 }
 
-const validRates = {
-	season_name: "Summer",
-	peak_rate_zar: 0.33,
-	off_peak_rate_zar: 0.22
+const validTariff = {
+	type: "tou",
+	seasons: [
+		{ name: "Summer", startMonth: 9, endMonth: 5 },
+		{ name: "Winter", startMonth: 6, endMonth: 8 },
+	],
+	tou_schedule: {
+		weekday: [{ period: "Peak", startHour: 6, endHour: 9 }],
+		saturday: [{ period: "Standard", startHour: 7, endHour: 12 }],
+		sunday: [{ period: "Off-Peak", startHour: 0, endHour: 24 }],
+	},
+	blocks: [{
+		max_kwh: null,
+		rates: {
+			Summer: { Peak: 0.33, Standard: 0.28, "Off-Peak": 0.22 },
+			Winter: { Peak: 0.48, Standard: 0.35, "Off-Peak": 0.27 },
+		},
+	}],
 };
 
 describe("building tariffs route", () => {
@@ -30,15 +44,15 @@ describe("building tariffs route", () => {
 		}) as jest.Mock;
 	});
 
-	it("forwards the rates and the access token to Core", async () => {
-		const response = await PUT(buildRequest(validRates), { params });
+	it("forwards the tariff structure and the access token to Core", async () => {
+		const response = await PUT(buildRequest(validTariff), { params });
 
 		expect(response.status).toBe(200);
 
 		const [url, options] = (global.fetch as jest.Mock).mock.calls[0];
 		expect(url).toBe("https://core.test/api/buildings/building-123/recommendations/tariffs");
 		expect(options.method).toBe("PUT");
-		expect(JSON.parse(options.body)).toEqual(validRates);
+		expect(JSON.parse(options.body)).toEqual(validTariff);
 
 		const headers = options.headers as Headers;
 		expect(headers.get("Authorization")).toBe("Bearer access-token");
@@ -46,10 +60,10 @@ describe("building tariffs route", () => {
 	});
 
 	it("drops fields that are not part of the tariff contract", async () => {
-		await PUT(buildRequest({ ...validRates, building_id: "spoofed", tariff_id: "nope" }), { params });
+		await PUT(buildRequest({ ...validTariff, building_id: "spoofed", tariff_id: "nope" }), { params });
 
 		const [, options] = (global.fetch as jest.Mock).mock.calls[0];
-		expect(JSON.parse(options.body)).toEqual(validRates);
+		expect(JSON.parse(options.body)).toEqual(validTariff);
 	});
 
 	it("mirrors a forbidden response from Core", async () => {
@@ -59,7 +73,7 @@ describe("building tariffs route", () => {
 			json: async () => ({ status: "error", message: "Strictly Admin or Building Manager" }),
 		}) as jest.Mock;
 
-		const response = await PUT(buildRequest(validRates), { params });
+		const response = await PUT(buildRequest(validTariff), { params });
 
 		expect(response.status).toBe(403);
 		await expect(response.json()).resolves.toEqual({
@@ -75,7 +89,7 @@ describe("building tariffs route", () => {
 		expect(global.fetch).not.toHaveBeenCalled();
 	});
 	it("rejects unauthenticated requests without calling the Core", async () => {
-		const response = await PUT(buildRequest(validRates, false), { params });
+		const response = await PUT(buildRequest(validTariff, false), { params });
 
 		expect(response.status).toBe(401);
 		expect(global.fetch).not.toHaveBeenCalled();
@@ -83,12 +97,12 @@ describe("building tariffs route", () => {
 
 	it("returns 502 when Core cannot be reached", async () => {
 		global.fetch = jest.fn().mockRejectedValue(new Error("connection refused")) as jest.Mock;
-		const response = await PUT(buildRequest(validRates), { params });
+		const response = await PUT(buildRequest(validTariff), { params });
 		expect(response.status).toBe(502);
 	});
 
 	it("rejects a cross-origin browser request before calling Core", async () => {
-		const request = buildRequest(validRates);
+		const request = buildRequest(validTariff);
 		request.headers.set("Origin", "https://attacker.example");
 
 		const response = await PUT(request, { params });
@@ -99,7 +113,7 @@ describe("building tariffs route", () => {
 	});
 
 	it("allows a same-origin browser request", async () => {
-		const request = buildRequest(validRates);
+		const request = buildRequest(validTariff);
 		request.headers.set("Origin", "http://localhost");
 
 		const response = await PUT(request, { params });
