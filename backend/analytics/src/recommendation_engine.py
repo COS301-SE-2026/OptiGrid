@@ -131,8 +131,8 @@ class RecommendationSynthesizer:
             if tariff_structure:
                 #we get the rates for the curr season and to calculate the savings
                 now = datetime.now(timezone.utc)
-                peak_rate = self._get_current_rate(now, tariff_structure, peak_only=True)
-                season = self._get_season(now, tariff_structure.get("seasons", []))
+                peak_rate = self.get_current_rate(now, tariff_structure, peak_only=True)
+                season = self.get_season(now, tariff_structure.get("seasons", []))
                 blocks = tariff_structure.get("blocks", [])
                 if blocks:
                     standard_rate = float(blocks[0].get("rates", {}).get(season, {}).get("Standard", 1.0))
