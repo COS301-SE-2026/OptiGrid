@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getTabSessionPath, stripTabSessionPath } from "../../lib/tab-session";
 
 const navigation = [
     { label: "Dashboard", href: "/dashboard" },
@@ -30,13 +31,14 @@ export function NavLinks({ role }: { readonly role?: string }) {
             {navigation
                 .filter((item) => !item.roles || (role && item.roles.includes(role)))
                 .map((item) => {
+                    const cleanPathname = stripTabSessionPath(pathname);
                     const active =
-                        pathname === item.href ||
-                        pathname.startsWith(item.href + "/");
+                        cleanPathname === item.href ||
+                        cleanPathname.startsWith(item.href + "/");
                     return (
                         <Link
                             key={item.href}
-                            href={item.href}
+                            href={getTabSessionPath(item.href)}
                             className={`dashboard-link ${active ? "dashboard-link-active" : ""
                                 }`}
                             aria-current={active ? "page" : undefined}

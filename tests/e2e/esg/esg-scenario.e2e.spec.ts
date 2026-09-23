@@ -75,6 +75,13 @@ test.describe('ESG Scenario Builder', () => {
 
         // 3. Navigate to the ESG dashboard for that building
         const sessionPrefix = new URL(page.url()).pathname.match(/^\/_sessions\/[0-9a-f-]+/i)?.[0] ?? "";
+        
+        // Setup wait for baseline API call before navigating
+        const healthScoreResponsePromise = page.waitForResponse(
+            resp => resp.url().includes('/esg/health-score') && resp.status() === 200, 
+            { timeout: 15000 }
+        );
+        
         await page.goto(`${sessionPrefix}/esg`);
         // Wait for the Living Environment to load
         await expect(page.getByRole('heading', { name: /Living Environment/i })).toBeVisible({ timeout: 15000 });
@@ -84,11 +91,11 @@ test.describe('ESG Scenario Builder', () => {
         await expect(resetBtn).toBeVisible();
         await expect(resetBtn).toBeDisabled();
         
-        // Wait for Tree simulation rendering
-        await expect(page.locator('text=Trees Eq')).toBeVisible();
+        // Wait for Tree simulation rendering and initial baseline fetch
+        await expect(page.locator('text=Health Score')).toBeVisible();
+        await healthScoreResponsePromise;
 
         const energySlider = page.getByRole('slider', { name: 'Energy Efficiency' });
-        
         await energySlider.focus();
         for (let i = 0; i < 10; i++) {
             await page.keyboard.press('ArrowRight');
