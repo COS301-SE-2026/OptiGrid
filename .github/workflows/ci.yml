@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "main", "develop" ]
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   frontend:
     name: Frontend 
@@ -75,7 +79,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
         with:
-          version: 2.100.1
+          version: 2.117.0
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -176,7 +180,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
         with: 
-          version: 2.100.1
+          version: 2.117.0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
