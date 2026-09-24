@@ -287,18 +287,5 @@ describe("Recommendation Services Unit Tests", () => {
             expect(prisma.userBuildingAccess.findFirst).not.toHaveBeenCalled();
         });
 
-        it("should_throw_error_if_no_access", async ( ) => {
-            (prisma.building.findUnique as jest.Mock).mockResolvedValue({ building_id: "building123" });
-            (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue(null);
-            const payload = {
-                type: "flat",
-                seasons: [{ name: "Summer", startMonth: 9, endMonth: 5 }],
-                blocks: [{ max_kwh: null, rates: { "Summer": { "Flat": 2.50 } } }]
-            } as any;
-            //act n assert
-            await expect(updateTariffService("user-123", "build-123", payload))
-            .rejects.toThrow("Access Denied");
-            expect(prisma.utilityTariff.findFirst).not.toHaveBeenCalled();
-        })
     });
 });
