@@ -421,6 +421,7 @@ export const getViewersService = async () => {
             firstName: true,
             lastName: true,
             roleType: true,
+            createdAt: true,
             buildingAccess: {
                 select: {
                     building_id: true
@@ -449,6 +450,7 @@ export const getManagersService = async () => {
             firstName: true,
             lastName: true,
             roleType: true,
+            createdAt: true,
             buildingAccess: {
                 select: {
                     building_id: true
