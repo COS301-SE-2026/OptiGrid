@@ -40,6 +40,7 @@ describe('User management queries', () => {
     it.each([
         ['VIEWER', authServices.getViewersService],
         ['BUILDING_MANAGER', authServices.getManagersService],
+        ['ADMIN', authServices.getAdminsService],
     ])('returns createdAt and flattened building ids for %s users', async (roleType, getUsers) => {
         const createdAt = new Date('2026-09-20T08:00:00.000Z');
         mockedPrisma.user.findMany.mockResolvedValue([{

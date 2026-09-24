@@ -95,13 +95,11 @@ export default function UserManagementPage() {
   };
 
   const filteredUsers = useMemo(() => {
-    const nonManagers = users.filter((u) => {
-      if (u.role_type === "ADMIN") {
-        return u.email === "tali@example.com";
-      }
-      return u.role_type !== "BUILDING_MANAGER";
-    });
-    return filterAndSortUsers(nonManagers, searchQuery, sortFilter);
+    return filterAndSortUsers(
+      users.filter((u) => u.role_type === "VIEWER"),
+      searchQuery,
+      sortFilter
+    );
   }, [users, sortFilter, searchQuery]);
 
   const filteredManagers = useMemo(() => {
@@ -243,16 +241,24 @@ export default function UserManagementPage() {
         const managersResp = await fetch("/api/usersAdmin?role=managers");
         if (!managersResp.ok) throw new Error("Unable to load managers.");
         const managersData = await managersResp.json();
+        const adminsResp = await fetch("/api/usersAdmin?role=admins");
+        if (!adminsResp.ok) throw new Error("Unable to load administrators.");
+        const adminsData = await adminsResp.json();
 
         const users = [
           ...(viewersData.data || []),
-          ...(managersData.data || [])
+          ...(managersData.data || []),
+          ...(adminsData.data || [])
         ];
         const formatUser: User[] = users.map((user: RawUser) => ({
           user_id: user.userId,
           first_name: user.firstName?.trim() || user.email,
           email: user.email,
-          role_type: user.roleType === "BUILDING_MANAGER" ? "BUILDING_MANAGER" : "VIEWER",
+          role_type: user.roleType === "ADMIN"
+            ? "ADMIN"
+            : user.roleType === "BUILDING_MANAGER"
+              ? "BUILDING_MANAGER"
+              : "VIEWER",
           building_ids: user.buildingIds || [],
           created_at: user.createdAt || null
         }));

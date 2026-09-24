@@ -209,6 +209,17 @@ export const getManagersController = async (req: Request, resp: Response) => {
     }
 };
 
+export const getAdminsController = async (_req: Request, resp: Response) => {
+    try {
+        const admins = await authService.getAdminsService();
+        return resp.status(200).json({ data: admins });
+    }
+    catch (error) {
+        console.error("Internal Server Error when fetching admins: ", error);
+        return resp.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
 const helperForManager = (
     funcToCall: (userId: string, buildingId: string) => Promise<any>,
     action: string,

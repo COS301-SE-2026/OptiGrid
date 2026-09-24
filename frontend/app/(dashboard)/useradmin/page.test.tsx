@@ -95,6 +95,25 @@ beforeEach(() => {
         } as Response;
       }
 
+      if (url.includes("role=admins")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: [
+              {
+                userId: "admin-1",
+                firstName: "Tali",
+                email: "tali@example.com",
+                roleType: "ADMIN",
+                buildingIds: [],
+                createdAt: "2026-09-18T08:00:00.000Z",
+              },
+            ],
+          }),
+        } as Response;
+      }
+
       return {
         ok: true,
         status: 200,
@@ -265,6 +284,14 @@ describe("UserManagementPage", () => {
       expect(
         (getSortSelect() as HTMLSelectElement).value
       ).toBe(value);
+    });
+
+    it("reports the fetched administrator count", async () => {
+      render(<UserManagementPage />);
+      await screen.findByText("Alice");
+
+      const adminLabel = screen.getByText("Admins");
+      expect(adminLabel.parentElement).toHaveTextContent("1");
     });
 
     it.each([
