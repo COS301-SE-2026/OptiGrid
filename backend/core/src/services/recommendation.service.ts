@@ -90,11 +90,50 @@ export const viewRecommendationService = async (userId:string, buildingId: strin
   });
   if(!access) throw new Error("Access Denied");
 
+  const days = new Date();
+  days.setDate(days.getDate() - 4);
+
+  await prisma.optimisationRecommendation.deleteMany({
+    where: {
+      building_id: buildingId,
+      expires_at: {
+        lt: days
+      }
+    }
+  });
+  await prisma.optimisationRecommendation.updateMany({
+    where: {
+      building_id: buildingId,
+      status: "Pending",
+      expires_at: {
+        lt: new Date()
+      }
+    },
+    data: {
+      status: "Expired"
+    }
+  });
+
   //rec short for recommendations, fetching them here
   const rec = await prisma.optimisationRecommendation.findMany({
     where: {
       building_id: buildingId,
-      ...(status && {status:status as RecommendationStatus})
+      ...(status && {status:status as RecommendationStatus}),
+      OR: [
+        {
+          expires_at: {
+            gt: new Date()
+          }
+        },
+        {
+          status: {
+            notIn: [
+              "Pending", 
+              "Expired"
+            ]
+          }
+        }
+      ]
     },
     take: limit,
     orderBy: {

@@ -12,6 +12,8 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
             findUnique: jest.fn(),
             update: jest.fn(),
             findMany: jest.fn(),
+            deleteMany: jest.fn(),
+            updateMany: jest.fn(),
         },
         building: {
             findUnique: jest.fn(),
