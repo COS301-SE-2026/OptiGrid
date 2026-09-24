@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { getTabSessionPath } from "../../../../../lib/tab-session";
+import { AddressSearchInput } from "@/components/AddressSearchInput";
 
 type BuildingRecord = {
     building_id: string;
@@ -278,14 +279,19 @@ export default function EditBuildingPage({
             
                 <div>
                     <label className="label" htmlFor="physical_address">Address</label>
-                    <textarea
-                        id="physical_address"
-                        className="textarea"
+                    <AddressSearchInput
                         value={form.physical_address}
                         onChange={(event) =>
                             setForm((prev) => ({ ...prev, physical_address: event.target.value }))
                         }
-                        rows={3}
+                        onCoordinatesFound={(lat, lon) => {
+                            setForm((prev) => ({
+                                ...prev,
+                                latitude: String(lat),
+                                longitude: String(lon)
+                            }));
+                        }}
+                        disabled={saving}
                     />
                 </div>
 

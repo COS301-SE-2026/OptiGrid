@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getTabSessionPath } from "../../../../lib/tab-session";
 import { FormAlert } from "@/components/FormAlert";
+import { AddressSearchInput } from "@/components/AddressSearchInput";
 
 const BUILDING_TYPES = [
     "Residential",
@@ -190,16 +191,18 @@ export default function AddBuildingPage() {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                     <label className="label" htmlFor="physical_address">Physical address</label>
-                    <input
-                        id="physical_address"
-                        name="physical_address"
-                        type="text"
-                        className="input"
+                    <AddressSearchInput
                         value={form.physical_address}
                         onChange={handleChange}
+                        onCoordinatesFound={(lat, lon) => {
+                            setForm((prev) => ({
+                                ...prev,
+                                latitude: String(lat),
+                                longitude: String(lon)
+                            }));
+                        }}
                         disabled={loading}
-                        placeholder="1 Maude St, Sandton, 2196"
-                        style={errors.physical_address ? errorStyle : undefined}
+                        error={!!errors.physical_address}
                     />
                     {errors.physical_address && (
                         <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>
