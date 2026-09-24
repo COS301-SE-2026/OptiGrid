@@ -475,7 +475,7 @@ export default function BillingClient() {
                 Size the rand savings the optimiser reports back to you.
               </li>
               <li>
-                Rank recommendations — the bigger the peak-to-off-peak spread,
+                Rank recommendations. the bigger the peak to off peak spread,
                 the more shifting load pays off.
               </li>
             </ul>

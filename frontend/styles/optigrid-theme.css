@@ -215,7 +215,7 @@ h3 {
 }
 
 .input,
-.select,
+
 .textarea {
     width: 100%;
     font-family: var(--font-body);
@@ -226,6 +226,20 @@ h3 {
     border-radius: var(--radius-md);
     padding: 9px 12px;
 }
+
+.select {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: var(--fs-small);
+    color: var(--brand-ink);
+    background: var(--brand-surface);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-pill);
+    padding: 9px 14px;
+}
+
+
+
 
 .input::placeholder,
 .textarea::placeholder {
