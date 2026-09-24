@@ -131,4 +131,107 @@ describe('Threshold API Integration', () => {
 		expect(response.body.status).toBe('success');
 		expect(response.body.message).toBe('Threshold deleted');
 	});
+
+	it('returns only thresholds from buildings in the user portfolio', async () => {
+		const allowedThresholdId = uuidv4();
+		const foreignBuildingId = uuidv4();
+		const foreignThresholdId = uuidv4();
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+		try {
+			await client.query(
+				`INSERT INTO buildings (building_id, tenant_id, building_name)
+				 VALUES ($1, $2, 'Foreign Threshold Building')`,
+				[foreignBuildingId, tenantId],
+			);
+			await client.query(
+				`INSERT INTO alert_thresholds (threshold_id, building_id, metric_type, z_score_threshold, is_active)
+				 VALUES ($1, $2, 'power_kw', 2.0, true),
+				        ($3, $4, 'voltage', 3.0, true)`,
+				[allowedThresholdId, buildingId, foreignThresholdId, foreignBuildingId],
+			);
+		} finally {
+			await client.end();
+		}
+
+		const response = await request(harness.app)
+			.get('/api/thresholds/portfolio')
+			.set(authHeaders);
+
+		expect(response.status).toBe(200);
+		expect(response.body.status).toBe('success');
+		expect(response.body.data).toHaveLength(1);
+		expect(response.body.data[0]).toMatchObject({
+			threshold_id: allowedThresholdId,
+			building_id: buildingId,
+		});
+	});
+
+	it('mutes and unmutes an accessible threshold', async () => {
+		const thresholdId = uuidv4();
+		const mutedUntil = '2027-01-15T10:30:00.000Z';
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+		await client.query(
+			`INSERT INTO alert_thresholds (threshold_id, building_id, metric_type, z_score_threshold, is_active)
+			 VALUES ($1, $2, 'power_kw', 2.0, true)`,
+			[thresholdId, buildingId],
+		);
+		await client.end();
+
+		const muted = await request(harness.app)
+			.patch(`/api/thresholds/${thresholdId}/mute`)
+			.set(authHeaders)
+			.send({ muted_until: mutedUntil });
+
+		expect(muted.status).toBe(200);
+		expect(muted.body.data.muted_until).toBe(mutedUntil);
+
+		const unmuted = await request(harness.app)
+			.patch(`/api/thresholds/${thresholdId}/mute`)
+			.set(authHeaders)
+			.send({ muted_until: null });
+
+		expect(unmuted.status).toBe(200);
+		expect(unmuted.body.data.muted_until).toBeNull();
+	});
+
+	it('refuses to mute a threshold outside the user portfolio', async () => {
+		const foreignBuildingId = uuidv4();
+		const thresholdId = uuidv4();
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+		try {
+			await client.query(
+				`INSERT INTO buildings (building_id, tenant_id, building_name)
+				 VALUES ($1, $2, 'Foreign Mute Building')`,
+				[foreignBuildingId, tenantId],
+			);
+			await client.query(
+				`INSERT INTO alert_thresholds (threshold_id, building_id, metric_type, is_active)
+				 VALUES ($1, $2, 'power_kw', true)`,
+				[thresholdId, foreignBuildingId],
+			);
+		} finally {
+			await client.end();
+		}
+
+		const response = await request(harness.app)
+			.patch(`/api/thresholds/${thresholdId}/mute`)
+			.set(authHeaders)
+			.send({ muted_until: '2027-01-15T10:30:00.000Z' });
+
+		expect(response.status).toBe(403);
+		const stored = await new Client({ connectionString: harness.databaseUrl });
+		await stored.connect();
+		try {
+			const result = await stored.query(
+				'SELECT muted_until FROM alert_thresholds WHERE threshold_id = $1',
+				[thresholdId],
+			);
+			expect(result.rows[0].muted_until).toBeNull();
+		} finally {
+			await stored.end();
+		}
+	});
 });

@@ -185,6 +185,8 @@ model Building {
   latitude              Float?
   longitude             Float?
   geohash               String?         @db.VarChar
+  floors_above_ground   Int?            @map("floors_above_ground")
+  solar_capacity_kw     Decimal?        @map("solar_capacity_kw") @db.Decimal
   nominal_voltage       Float?          @default(230) @map("nominal_voltage")
   max_current_threshold Float?          @default(60) @map("max_current_threshold")
   hardware_auth_token   String?         @map("hardware_auth_token") @db.VarChar
