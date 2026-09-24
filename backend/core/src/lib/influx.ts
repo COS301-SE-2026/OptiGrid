@@ -1,3 +1,6 @@
+import prisma from './prisma';
+import { calculateCost } from './tariffEngine';
+import { TariffStructure } from '../types/tariff';
 let InfluxDB: any;
 try {
     InfluxDB = require('@influxdata/influxdb-client').InfluxDB;
@@ -274,15 +277,59 @@ async function queryBucketUsageSeries(
         }
         points.set(timestamp, point);
     }
+    //i need the following for the tariffs, fallbacks to the the flat rate
+    //if structure is incorrect 
+    const buildingTariffRecord = await prisma.utilityTariff.findFirst({
+        where: {
+            building_id: buildingId
+        },
+        orderBy: {
+            created_at: "desc"
+        }
+    });
+        let tariffStructure: TariffStructure = {
+        type: "flat",
+        seasons: [{
+            name: "Flat",
+            startMonth: 1,
+            endMonth: 12
+        }],
+        blocks: [{
+            max_kwh: null,
+            rates: {
+                "Flat": { "Flat": UTILITY_COST_ZAR_PER_KWH }
+            }
+        }]
+    };
+    if(buildingTariffRecord?.tariff_structure) {
+        tariffStructure = buildingTariffRecord.tariff_structure as unknown as TariffStructure;
+    }
 
+    let totalKwh = 0;
+    let currMonth = -1;
+    
     return Array.from(points.entries())
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([timestamp, point]) => {
             const kwh = point.sawUsage ? point.usage : point.usageKwh;
+            
+            let cost_zar = 0;
+            if(buildingTariffRecord?.tariff_structure) {
+                const date = new Date(timestamp);
+                if(currMonth !== -1 && date.getMonth() !== currMonth) totalKwh = 0;
+
+                currMonth = date.getMonth();
+                cost_zar = calculateCost(timestamp, kwh, totalKwh, tariffStructure);
+                totalKwh += kwh;
+            }
+            else {
+                cost_zar = resolveCostZar(point.costZar, point.costUsd, kwh);
+            }
+
             return {
                 timestamp,
                 kwh,
-                cost_zar: resolveCostZar(point.costZar, point.costUsd, kwh),
+                cost_zar,
             };
         });
 }

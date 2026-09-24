@@ -16,6 +16,15 @@ describe('Recommendation integration tests', () => {
 	};
 	let viewerAuthHeaders: { Cookie: string };
 	let unassignedAdminAuthHeaders: { Cookie: string };
+	const tariffPayload = (season: "Summer" | "Winter", rate: number) => ({
+		type: "flat",
+		seasons: [{
+			name: season,
+			startMonth: season === "Summer" ? 9 : 6,
+			endMonth: season === "Summer" ? 5 : 8,
+		}],
+		blocks: [{ max_kwh: null, rates: { [season]: { Flat: rate } } }],
+	});
 
 	beforeAll(async () => {
 		harness = await createCoreApiHarness();
@@ -78,14 +87,11 @@ describe('Recommendation integration tests', () => {
 	});
 
 	it("should_create_then_update_a_building_tariff", async () => {
+		const initialTariff = tariffPayload("Summer", 0.33);
 		const createResponse = await request(harness.app)
 			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
 			.set(authHeaders)
-			.send({
-				peak_rate_zar: 0.33,
-				off_peak_rate_zar: 0.22,
-				season_name: "Summer",
-			});
+			.send(initialTariff);
 
 		expect(createResponse.status).toBe(200);
 		expect(createResponse.body).toEqual({
@@ -93,14 +99,11 @@ describe('Recommendation integration tests', () => {
 			message: "Tariff rates updated successfully",
 		});
 
+		const updatedTariff = tariffPayload("Winter", 0.48);
 		const updateResponse = await request(harness.app)
 			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
 			.set(authHeaders)
-			.send({
-				peak_rate_zar: 0.48,
-				off_peak_rate_zar: 0.27,
-				season_name: "Winter",
-			});
+			.send(updatedTariff);
 
 		expect(updateResponse.status).toBe(200);
 
@@ -108,18 +111,14 @@ describe('Recommendation integration tests', () => {
 		await client.connect();
 		try {
 			const result = await client.query(
-				`select peak_rate_zar, off_peak_rate_zar, season_name
+				`select tariff_structure
 				 from utility_tariffs
 				 where building_id = $1`,
 				[buildingId],
 			);
 
 			expect(result.rowCount).toBe(1);
-			expect(result.rows[0]).toEqual({
-				peak_rate_zar: "0.48",
-				off_peak_rate_zar: "0.27",
-				season_name: "Winter",
-			});
+			expect(result.rows[0].tariff_structure).toEqual(updatedTariff);
 		}
 		finally {
 			await client.end();
@@ -130,11 +129,7 @@ describe('Recommendation integration tests', () => {
 		const rateResponse = await request(harness.app)
 			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
 			.set(authHeaders)
-			.send({
-				peak_rate_zar: 0.2,
-				off_peak_rate_zar: 0.4,
-				season_name: "Summer",
-			});
+			.send(tariffPayload("Summer", -0.2));
 
 		expect(rateResponse.status).toBe(400);
 		expect(rateResponse.body).toEqual(expect.objectContaining({
@@ -146,9 +141,8 @@ describe('Recommendation integration tests', () => {
 			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
 			.set(authHeaders)
 			.send({
-				peak_rate_zar: 0.4,
-				off_peak_rate_zar: 0.2,
-				season_name: "Spring",
+				...tariffPayload("Summer", 0.4),
+				seasons: [{ name: "Summer", startMonth: 13, endMonth: 5 }],
 			});
 
 		expect(seasonResponse.status).toBe(400);
@@ -161,9 +155,7 @@ describe('Recommendation integration tests', () => {
 			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
 			.set(authHeaders)
 			.send({
-				peak_rate_zar: 0.4,
-				off_peak_rate_zar: 0.2,
-				season_name: "Summer",
+				...tariffPayload("Summer", 0.4),
 				tariff_id: "attacker-controlled",
 			});
 
@@ -172,21 +164,13 @@ describe('Recommendation integration tests', () => {
 		const extremeRateResponse = await request(harness.app)
 			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
 			.set(authHeaders)
-			.send({
-				peak_rate_zar: 101,
-				off_peak_rate_zar: 0.2,
-				season_name: "Summer",
-			});
+			.send(tariffPayload("Summer", 101));
 
 		expect(extremeRateResponse.status).toBe(400);
 	});
 
 	it("should_enforce_tariff_authentication_and_authorisation", async () => {
-		const payload = {
-			peak_rate_zar: 0.4,
-			off_peak_rate_zar: 0.2,
-			season_name: "Summer",
-		};
+		const payload = tariffPayload("Summer", 0.4);
 
 		const unauthenticatedResponse = await request(harness.app)
 			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
