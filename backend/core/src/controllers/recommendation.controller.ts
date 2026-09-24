@@ -193,16 +193,14 @@ export const updateTariffController = async(req:Request, resp:Response) => {
     })
   }
   catch(err: any) {
+    console.error("Error updating tariffs: ", err);
     if(err.name == "ZodError") {
-      const reasons = Array.isArray(err.issues) ? err.issues.map((issue: any) => issue.message).join("; ") : "";
-      console.warn(`Rejected tariff payload: ${reasons}`);
       return resp.status(400).json({
         status: "error",
         message: "Invalid tariff payload",
         errors: err.issues,
       });
     }
-    console.error("Error updating tariffs: ", err);
     if(err.message.includes("Building not found")) {
       return resp.status(404).json({
         status: "error",

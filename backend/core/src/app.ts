@@ -20,7 +20,6 @@ import auditLogRoutes from "./routes/auditLog.routes";
 import auditEventRoutes from "./routes/auditEvent.routes";
 import reportRoutes from "./routes/report.routes";
 import complianceRoutes from "./routes/compliance.routes";
-import heatmapRoutes from "./routes/heatmap.routes";
 import cors from 'cors';
 
 export interface CreateAppOptions {
@@ -199,7 +198,6 @@ export function createApp(port = Number(process.env.PORT ?? 4000), options: Crea
 	app.use('/api/anomalies', normalRate, authenticateRequest, anomalyRoutes);
 	app.use('/api/reports', normalRate, authenticateRequest, reportRoutes);
 	app.use('/api/compliance', normalRate, authenticateRequest, complianceRoutes);
-	app.use("/api/heatmap", normalRate, authenticateRequest, heatmapRoutes);
 
 	app.get("/health", (_req, res) => {
 		return res.status(200).json({ status: "ok", service: "core" });

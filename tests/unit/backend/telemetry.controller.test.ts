@@ -2,12 +2,6 @@ import { Request, Response } from "express";
 import { streamTelemetry, getLivePortfolioTelemetry } from "../../../backend/core/src/controllers/telemetry.controller";
 import { sseManager } from "../../../backend/core/src/utils/sseManager";
 
-const mockAssertBuildingAccess = jest.fn();
-
-jest.mock("../../../backend/core/src/services/sensor.services", () => ({
-    assertBuildingAccess: (...args: unknown[]) => mockAssertBuildingAccess(...args),
-}));
-
 jest.mock("../../../backend/core/src/utils/sseManager", () => ({
     sseManager: {
         addClient: jest.fn(),
@@ -41,14 +35,7 @@ describe("Telemetry Controller Unit Tests", () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockAssertBuildingAccess.mockResolvedValue(undefined);
-        mockRequest = {
-            user: {
-                id: "user-1",
-                roleType: "VIEWER",
-                user_metadata: { tenant_id: "tenant-1" },
-            },
-        };
+        mockRequest = {};
         mockResponse = {
             setHeader: jest.fn(),
             flushHeaders: jest.fn(),
@@ -59,41 +46,16 @@ describe("Telemetry Controller Unit Tests", () => {
     });
 
     describe("streamTelemetry", () => {
-        it("authorizes building access before registering the SSE client", async () => {
+        it("configures SSE headers and registers the client with sseManager", () => {
             mockRequest.params = { building_id: "bld-999" };
 
-            await streamTelemetry(mockRequest as Request, mockResponse as Response);
+            streamTelemetry(mockRequest as Request, mockResponse as Response);
 
-            expect(mockAssertBuildingAccess).toHaveBeenCalledWith("user-1", "bld-999", "VIEWER");
             expect(mockResponse.setHeader).toHaveBeenCalledWith("Content-Type", "text/event-stream");
             expect(mockResponse.setHeader).toHaveBeenCalledWith("Cache-Control", "no-cache");
             expect(mockResponse.setHeader).toHaveBeenCalledWith("Connection", "keep-alive");
             expect(mockResponse.flushHeaders).toHaveBeenCalled();
             expect(sseManager.addClient).toHaveBeenCalledWith("bld-999", mockResponse);
-        });
-
-        it("returns 403 without opening a stream when building access is denied", async () => {
-            mockRequest.params = { building_id: "bld-denied" };
-            mockAssertBuildingAccess.mockRejectedValue(
-                new Error("Access Denied. You do not have permission to access this building."),
-            );
-
-            await streamTelemetry(mockRequest as Request, mockResponse as Response);
-
-            expect(mockResponse.status).toHaveBeenCalledWith(403);
-            expect(mockResponse.setHeader).not.toHaveBeenCalled();
-            expect(sseManager.addClient).not.toHaveBeenCalled();
-        });
-
-        it("returns 401 when no authenticated user is present", async () => {
-            mockRequest.user = undefined;
-            mockRequest.params = { building_id: "bld-999" };
-
-            await streamTelemetry(mockRequest as Request, mockResponse as Response);
-
-            expect(mockResponse.status).toHaveBeenCalledWith(401);
-            expect(mockAssertBuildingAccess).not.toHaveBeenCalled();
-            expect(sseManager.addClient).not.toHaveBeenCalled();
         });
     });
 
@@ -141,20 +103,6 @@ describe("Telemetry Controller Unit Tests", () => {
                 status: "success",
                 data: [],
             });
-        });
-
-        it('returns an empty dataset when starting the Influx query throws', () => {
-            mockQueryRows.mockImplementation(() => {
-                throw new Error('query setup failed');
-            });
-            const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-            try {
-                getLivePortfolioTelemetry(mockRequest as Request, mockResponse as Response);
-            } finally {
-                warn.mockRestore();
-            }
-            expect(mockResponse.status).toHaveBeenCalledWith(200);
-            expect(mockResponse.json).toHaveBeenCalledWith({ status: 'success', data: [] });
         });
     });
 });

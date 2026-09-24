@@ -1,9 +1,8 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
-import DigitalTwin from "@/components/digital-twin/DigitalTwin";
 
 type BuildingRecord = {
     building_id: string;
@@ -132,7 +131,6 @@ export default function ViewBuildingPage({
     const [consumption, setConsumption] = useState<EnergyConsumptionRecord | null>(null);
     const [consumptionLoading, setConsumptionLoading] = useState(true);
     const [consumptionError, setConsumptionError] = useState("");
-    const twinBuilding = useMemo(() => (building.building_id ? building : null), [building]);
 
     useEffect(() => {
         if (!buildingId) return;
@@ -253,16 +251,11 @@ export default function ViewBuildingPage({
                             Sensors
                         </Link>
                     )}
-                    {building.building_id && (
-                        <Link href={`/heatmap?building=${encodeURIComponent(building.building_id)}`} className="btn btn-secondary">View on map</Link>
-                    )}
                     <Link href="/dashboard" className="btn btn-secondary">
                         Back
                     </Link>
                 </div>
             </div>
-
-            {twinBuilding && <DigitalTwin building={twinBuilding} />}
 
             {error && (
                 <div

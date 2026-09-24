@@ -3,7 +3,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { Request, Response } from 'express';
 import { sseManager } from '../utils/sseManager';
-import { assertBuildingAccess } from '../services/sensor.services';
 
 const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
@@ -82,17 +81,9 @@ export const ingestTelemetry = async (req: Request, res: Response) => {
     }
 };
 
-export const streamTelemetry = async (req: Request, res: Response) => {
+export const streamTelemetry = (req: Request, res: Response) => {
     try {
         const { building_id } = req.params;
-        if (!req.user) {
-            return res.status(401).json({ status: 'error', message: 'Unauthorized' });
-        }
-
-        const streamId = building_id || 'portfolio';
-        if (streamId !== 'portfolio') {
-            await assertBuildingAccess(req.user.id, streamId, req.user.roleType);
-        }
 
         // standard SSE headers
         res.setHeader('Content-Type', 'text/event-stream');
@@ -102,16 +93,10 @@ export const streamTelemetry = async (req: Request, res: Response) => {
             res.flushHeaders();
         }
 
-        sseManager.addClient(streamId, res);
-    } catch (error: any) {
+        sseManager.addClient(building_id || 'portfolio', res);
+    } catch (error) {
+        console.error('Stream telemetry error:', error);
         if (!res.headersSent) {
-            if (error.message?.includes('Access Denied')) {
-                return res.status(403).json({ status: 'error', message: error.message });
-            }
-            if (error.message === 'Building not found') {
-                return res.status(404).json({ status: 'error', message: error.message });
-            }
-            console.error('Stream telemetry error:', error);
             res.status(500).json({ status: 'error', message: 'Internal server error.' });
         }
     }
@@ -124,38 +109,15 @@ export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
 
         const fluxQuery = `
             from(bucket: "${bucket}")
-                |> range(start: -5m)
+                |> range(start: -15m)
                 |> filter(fn: (r) => r["_measurement"] == "energy_telemetry" or r["_measurement"] == "building_energy_usage" or r["_measurement"] == "energy_consumption")
                 |> filter(fn: (r) => r["_field"] == "power_kw" or r["_field"] == "usage" or r["_field"] == "usage_kwh")
+                |> group(columns: ["building_id"])
                 |> last()
         `;
 
-
-        const perBuilding = new Map<string, { building_id: string; current_kw: number; timestamp: any }>();
+        const results: any[] = [];
         let queryCompleted = false;
-
-        const collect = (o: any) => {
-            const buildingId = o.building_id;
-            if (!buildingId) {
-                return;
-            }
-            const value = Number(o._value);
-            const running = perBuilding.get(buildingId);
-            if (!running) {
-                perBuilding.set(buildingId, {
-                    building_id: buildingId,
-                    current_kw: Number.isFinite(value) ? value : 0,
-                    timestamp: o._time
-                });
-                return;
-            }
-            if (Number.isFinite(value)) {
-                running.current_kw += value;
-            }
-            if (o._time && (!running.timestamp || o._time > running.timestamp)) {
-                running.timestamp = o._time;
-            }
-        };
 
         // if influx cannot load, fallback
         const timer = setTimeout(() => {
@@ -167,7 +129,12 @@ export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
 
         queryApi.queryRows(fluxQuery, {
             next(row, tableMeta) {
-                collect(tableMeta.toObject(row));
+                const o = tableMeta.toObject(row);
+                results.push({
+                    building_id: o.building_id,
+                    current_kw: o._value,
+                    timestamp: o._time
+                });
             },
             error(error) {
                 if (queryCompleted) return;
@@ -183,7 +150,7 @@ export const getLivePortfolioTelemetry = (req: Request, res: Response) => {
                 queryCompleted = true;
                 clearTimeout(timer);
                 if (!res.headersSent) {
-                    return res.status(200).json({ status: 'success', data: Array.from(perBuilding.values()) });
+                    return res.status(200).json({ status: 'success', data: results });
                 }
             }
         });

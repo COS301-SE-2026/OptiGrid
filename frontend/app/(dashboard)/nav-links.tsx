@@ -7,7 +7,6 @@ const navigation = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Compare", href: "/compare" },
     { label: "Live", href: "/realtime" },
-    { label: "Heatmap", href: "/heatmap" },
     { label: "Forecast", href: "/forecast" },
     { label: "Insights", href: "/insights" },
     { label: "ESG", href:"/esg"},

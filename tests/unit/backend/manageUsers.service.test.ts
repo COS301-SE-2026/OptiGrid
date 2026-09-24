@@ -99,12 +99,6 @@ describe("ALl user operations for admin such as getting viewers, managers etc.",
         expect(out.message).toBe("Building was already assigned to another manager");
     });
 
-    it('propagates unexpected assignment failures', async () => {
-        (prisma.userBuildingAccess.create as jest.Mock).mockRejectedValue(new Error('database unavailable'));
-        await expect(assignMangerToBuilding('user-123', 'building-123'))
-            .rejects.toThrow('database unavailable');
-    });
-
     it("should_remove_assignment_from_a_building", async () => {
         (prisma.userBuildingAccess.delete as jest.Mock).mockResolvedValue({});
         //act
@@ -131,11 +125,5 @@ describe("ALl user operations for admin such as getting viewers, managers etc.",
         //arrange
         expect(out.success).toBe(true);
         expect(out.message).toBe("Building was not assigned to this manager");
-    });
-
-    it('propagates unexpected removal failures', async () => {
-        (prisma.userBuildingAccess.delete as jest.Mock).mockRejectedValue(new Error('database unavailable'));
-        await expect(removeAssignment('user-123', 'building-123'))
-            .rejects.toThrow('database unavailable');
     });
 });

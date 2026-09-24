@@ -25,11 +25,6 @@ describe("NavLinks audit visibility", () => {
         expect(screen.queryByRole("link", { name: "Audit" })).not.toBeInTheDocument();
     });
 
-    it.each(["ADMIN", "BUILDING_MANAGER", "VIEWER"])("offers the heatmap to %s users", (role) => {
-        render(<NavLinks role={role} />);
-        expect(screen.getByRole("link", { name: "Heatmap" })).toHaveAttribute("href", "/heatmap");
-    });
-
     it("marks Audit active on nested audit routes", () => {
         mockUsePathname.mockReturnValue("/audit/details");
         render(<NavLinks role="ADMIN" />);

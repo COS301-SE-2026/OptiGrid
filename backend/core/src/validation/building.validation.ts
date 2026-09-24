@@ -27,15 +27,6 @@ export const createBuildingSchema = z.object({
     max_current_threshold: z.number()
         .positive("Max current threshold must be a positive number")
         .optional(),
-    floors_above_ground: z.number()
-        .int("Floors must be a whole number")
-        .min(1, "A building has at least one floor")
-        .max(200, "Floors must be 200 or fewer")
-        .optional(),
-    solar_capacity_kw: z.number()
-        .min(0, "Solar capacity cannot be negative")
-        .max(100000, "Solar capacity is too large")
-        .optional(),
     latitude: z.number().min(-90).max(90, "Latitude must be between -90 and 90").optional(),
     longitude: z.number().min(-180).max(180, "Longitude must be between -180 and 180").optional(),
     geohash: z.string().min(5).max(10, "Geohash must be between 5 and 10").optional(),
@@ -105,15 +96,6 @@ export const updateBuildingSchema = z.object({
         .optional(),
     max_current_threshold: z.number()
         .positive("Max current threshold must be a positive number")
-        .optional(),
-    floors_above_ground: z.number()
-        .int("Floors must be a whole number")
-        .min(1, "A building has at least one floor")
-        .max(200, "Floors must be 200 or fewer")
-        .optional(),
-    solar_capacity_kw: z.number()
-        .min(0, "Solar capacity cannot be negative")
-        .max(100000, "Solar capacity is too large")
         .optional(),
 }).strict().refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required to update a building",

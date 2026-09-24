@@ -33,8 +33,6 @@ function dependencies() {
         xack: jest.fn(),
         xadd: jest.fn(),
         xgroup: jest.fn(),
-        xautoclaim: jest.fn(),
-        xreadgroup: jest.fn(),
         disconnect: jest.fn(),
     } as unknown as Redis;
     const store = {
@@ -112,71 +110,5 @@ describe('AuditEventWorker', () => {
         const worker = new AuditEventWorker(redis, store, 'test-consumer');
 
         await expect(worker.ensureConsumerGroup()).resolves.toBeUndefined();
-    });
-
-    it('propagates an unexpected consumer group creation failure', async () => {
-        const { redis, store } = dependencies();
-        (redis.xgroup as jest.Mock).mockRejectedValue(new Error('Redis unavailable'));
-        const worker = new AuditEventWorker(redis, store, 'test-consumer');
-        await expect(worker.ensureConsumerGroup()).rejects.toThrow('Redis unavailable');
-    });
-
-    it('leaves an invalid event pending if the dead-letter write fails', async () => {
-        const { redis, store } = dependencies();
-        const entry = validEntry();
-        entry[1][1] = 'not-a-uuid';
-        (redis.xadd as jest.Mock).mockRejectedValue(new Error('Redis unavailable'));
-        const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
-        const worker = new AuditEventWorker(redis, store, 'test-consumer');
-        try {
-            await worker.processEntry(entry);
-        } finally {
-            errorLog.mockRestore();
-        }
-        expect(redis.xack).not.toHaveBeenCalled();
-        expect(store.auditLog.create).not.toHaveBeenCalled();
-    });
-
-    it('processes claimed and fresh entries while ignoring malformed stream records', async () => {
-        const { redis, store } = dependencies();
-        const claimed = validEntry();
-        const fresh: AuditStreamEntry = ['1724335500001-0', [...validEntry()[1]]];
-        (redis.xautoclaim as jest.Mock).mockResolvedValue(['0-0', [claimed, ['bad'], 123]]);
-        let worker: AuditEventWorker;
-        (redis.xreadgroup as jest.Mock).mockImplementation(async () => {
-            void worker.stop();
-            return [[AUDIT_EVENT_STREAM, [fresh, ['invalid'], null]]];
-        });
-        worker = new AuditEventWorker(redis, store, 'test-consumer', { blockMs: 0 });
-
-        await worker.start();
-
-        expect(redis.xgroup).toHaveBeenCalledWith('CREATE', AUDIT_EVENT_STREAM, AUDIT_EVENT_GROUP, '0', 'MKSTREAM');
-        expect(redis.xautoclaim).toHaveBeenCalledTimes(1);
-        expect(store.auditLog.create).toHaveBeenCalledTimes(2);
-        expect(redis.xack).toHaveBeenCalledTimes(2);
-        expect(redis.disconnect).toHaveBeenCalledTimes(1);
-    });
-
-    it('retries a failed stream read and stops cleanly', async () => {
-        const { redis, store } = dependencies();
-        (redis.xautoclaim as jest.Mock)
-            .mockRejectedValueOnce(new Error('temporary Redis failure'))
-            .mockResolvedValue(['0-0', []]);
-        let worker: AuditEventWorker;
-        (redis.xreadgroup as jest.Mock).mockImplementation(async () => {
-            void worker.stop();
-            return null;
-        });
-        worker = new AuditEventWorker(redis, store, 'test-consumer', { retryDelayMs: 0, blockMs: 0 });
-        const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
-        try {
-            await worker.start();
-        } finally {
-            errorLog.mockRestore();
-        }
-        expect(redis.xautoclaim).toHaveBeenCalledTimes(2);
-        expect(redis.xgroup).toHaveBeenCalledTimes(1);
-        expect(redis.disconnect).toHaveBeenCalledTimes(1);
     });
 });

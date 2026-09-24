@@ -203,10 +203,10 @@ async function provisionAuthUser(email: string, password: string): Promise<Provi
         email_confirm: true,
     });
 
-    if (isSupabaseDuplicateUserError(error)) {
-        throw new Error(USER_EXISTS_ERROR);
-    }
     if (error) {
+        if (isSupabaseDuplicateUserError(error)) {
+            throw new Error(USER_EXISTS_ERROR);
+        }
         throw new Error(`Failed to provision auth user: ${error.message}`);
     }
 

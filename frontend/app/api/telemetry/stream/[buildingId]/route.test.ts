@@ -62,28 +62,6 @@ describe("telemetry stream [buildingId] route", () => {
     );
   });
 
-  it("forwards the signed in user credentials so core can check building access", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      status: 200,
-      body: new ReadableStream(),
-    });
-
-    const request = new Request("http://localhost/api/telemetry/stream/building-123", {
-      headers: {
-        cookie: "optigrid_access_token=access-token; theme=dark",
-      },
-    });
-    await callGet("building-123", request);
-
-    const [, options] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(options.headers).toEqual({
-      Accept: "text/event-stream",
-      authorization: "Bearer access-token",
-      cookie: "optigrid_access_token=access-token; theme=dark",
-    });
-  });
-
   it("encodes the building id before forwarding to core", async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,

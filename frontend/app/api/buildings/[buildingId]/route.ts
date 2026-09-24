@@ -18,8 +18,6 @@ type UpdateBuildingPayload = {
 	latitude?: number;
 	longitude?: number;
 	geohash?: string;
-	floors_above_ground?: number;
-	solar_capacity_kw?: number;
 };
 
 const ALLOWED_BUILDING_FIELDS = [
@@ -35,8 +33,6 @@ const ALLOWED_BUILDING_FIELDS = [
 	"latitude",
 	"longitude",
 	"geohash",
-	"floors_above_ground",
-	"solar_capacity_kw",
 ] as const;
 
 export type ForwardHeaderOptions = {

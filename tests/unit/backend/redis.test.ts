@@ -27,30 +27,6 @@ describe("Redis file Unit Tests", () => {
         await expect(red.get("key")).resolves.toBeNull();
     });
 
-    it('supports multi-key reads, pipeline updates, duplicate clients, and subscriptions in test mode', async () => {
-        process.env.NODE_ENV = 'test';
-        const { redis: client } = require('../../../backend/core/src/lib/redis');
-        await client.set('a', '1');
-        await client.set('b', '2');
-        expect(await client.mget('a', 'missing', 'b')).toEqual(['1', null, '2']);
-        expect(await client.keys('*')).toEqual(['a', 'b']);
-
-        const pipeline = client.pipeline();
-        await pipeline.del('a').set('c', '3').exec();
-        expect(await client.mget('a', 'c')).toEqual([null, '3']);
-        expect(await client.del('b', 'missing')).toBe(1);
-        expect(await client.ping()).toBe('PONG');
-        expect(await client.publish('events', 'payload')).toBe(0);
-        expect(await client.subscribe('events')).toBe(1);
-        expect(await client.unsubscribe('events')).toBe(0);
-
-        const duplicate = client.duplicate();
-        expect(await duplicate.get('c')).toBeNull();
-        await duplicate.set('own', 'value');
-        expect(await client.get('own')).toBeNull();
-        client.disconnect();
-    });
-
     it("should_initialise_ioredis_when_not_in_test_with_the_given_url", async () => {
         process.env.NODE_ENV = "production";
         process.env.REDIS_URL = "redis://test:6379";

@@ -11,8 +11,6 @@ type BuildingRecord = {
     square_footage?: number | string | null;
     timezone?: string | null;
     max_occupancy?: number | null;
-    floors_above_ground?: number | null;
-    solar_capacity_kw?: number | string | null;
     latitude?: number | null;
     longitude?: number | null;
     geohash?: string | null;
@@ -33,8 +31,6 @@ type UpdatePayload = {
     square_footage?: number;
     timezone?: string;
     max_occupancy?: number;
-    floors_above_ground?: number;
-    solar_capacity_kw?: number;
     latitude?: number;
     longitude?: number;
     geohash?: string;
@@ -71,8 +67,6 @@ export default function EditBuildingPage({
         square_footage: "",
         timezone: "UTC",
         max_occupancy: "",
-        floors_above_ground: "",
-        solar_capacity_kw: "",
         nominal_voltage: "230",
         lifecycle_state: "PROVISIONING",
         latitude: "",
@@ -116,14 +110,6 @@ export default function EditBuildingPage({
                         physical_address: building.physical_address ?? "",
                         square_footage: building.square_footage ? String(building.square_footage) : "",
                         timezone: building.timezone ?? "UTC",
-                        floors_above_ground:
-                            typeof building.floors_above_ground === "number"
-                                ? String(building.floors_above_ground)
-                                : "",
-                        solar_capacity_kw:
-                            building.solar_capacity_kw === null || building.solar_capacity_kw === undefined
-                                ? ""
-                                : String(building.solar_capacity_kw),
                         max_occupancy:
                             typeof building.max_occupancy === "number"
                                 ? String(building.max_occupancy)
@@ -168,8 +154,6 @@ export default function EditBuildingPage({
             timezone: form.timezone.trim() || undefined,
             square_footage: toNumber(form.square_footage),
             max_occupancy: toNumber(form.max_occupancy),
-            floors_above_ground: toNumber(form.floors_above_ground),
-            solar_capacity_kw: toNumber(form.solar_capacity_kw),
             nominal_voltage: toNumber(form.nominal_voltage),
             lifecycle_state: form.lifecycle_state.trim() || undefined,
             latitude: toNumber(form.latitude),
@@ -313,34 +297,6 @@ export default function EditBuildingPage({
                             setForm((prev) => ({ ...prev, max_occupancy: event.target.value }))
                         }
                         inputMode="numeric"
-                    />
-                </div>
-
-                <div>
-                    <label className="label" htmlFor="floors_above_ground">Floors above ground</label>
-                    <input
-                        id="floors_above_ground"
-                        className="input"
-                        value={form.floors_above_ground}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, floors_above_ground: event.target.value }))
-                        }
-                        inputMode="numeric"
-                        placeholder="Shapes the 3D model"
-                    />
-                </div>
-
-                <div>
-                    <label className="label" htmlFor="solar_capacity_kw">Rooftop solar (kW)</label>
-                    <input
-                        id="solar_capacity_kw"
-                        className="input"
-                        value={form.solar_capacity_kw}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, solar_capacity_kw: event.target.value }))
-                        }
-                        inputMode="decimal"
-                        placeholder="0 if none"
                     />
                 </div>
             </div>

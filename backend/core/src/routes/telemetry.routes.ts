@@ -1,6 +1,5 @@
 import {Router} from 'express';
 import {ingestTelemetry, streamTelemetry, getLivePortfolioTelemetry} from '../controllers/telemetry.controller';
-import { authenticateRequest } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -11,6 +10,6 @@ router.post('/ingest', ingestTelemetry);
 router.get('/live', getLivePortfolioTelemetry);
 
 //used by frontend dashboard
-router.get('/stream/:building_id', authenticateRequest, streamTelemetry);
+router.get('/stream/:building_id', streamTelemetry);
 
 export default router;

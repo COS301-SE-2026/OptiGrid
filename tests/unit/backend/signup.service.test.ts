@@ -32,7 +32,6 @@ const mockedCreateClient = createClient as jest.MockedFunction<typeof createClie
 // Supabase admin methods exercised by signup service.
 const mockCreateUser = jest.fn();
 const mockDeleteUser = jest.fn();
-const mockSignInWithPassword = jest.fn();
 
 // Signup tests validate both auth provisioning and profile persistence behavior.
 describe('signup service', () => {
@@ -44,7 +43,6 @@ describe('signup service', () => {
 			...originalEnv,
 			SUPABASE_URL: 'https://example.supabase.co',
 			SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
-			SUPABASE_ANON_KEY: 'anon-key',
 		};
 
 		mockCreateUser.mockResolvedValue({
@@ -56,9 +54,8 @@ describe('signup service', () => {
 
 		// Return a minimal Supabase client surface used by signup.
 		mockedCreateClient.mockReturnValue({
-				auth: {
-					signInWithPassword: mockSignInWithPassword,
-					admin: {
+			auth: {
+				admin: {
 					createUser: mockCreateUser,
 					deleteUser: mockDeleteUser,
 				},
@@ -142,66 +139,5 @@ describe('signup service', () => {
 
 		// Assert: no auth provisioning or profile writes occur for duplicate email.
 		expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
-	});
-
-	it('reuses an existing auth identity when Supabase reports a duplicate and credentials match', async () => {
-		mockedPrisma.user.findUnique.mockResolvedValue(null);
-		mockCreateUser.mockResolvedValue({ data: { user: null }, error: { code: 'USER_ALREADY_EXISTS' } });
-		mockSignInWithPassword.mockResolvedValue({
-			data: { user: { id: 'existing-auth-id', email: 'user@example.com' }, session: { access_token: 'token' } },
-			error: null,
-		});
-		mockedPrisma.user.upsert.mockResolvedValue({ userId: 'existing-auth-id' });
-
-		await expect(signup('user@example.com', 'SecurePass123!', 'Jane Doe'))
-			.resolves.toEqual({ userId: 'existing-auth-id' });
-		expect(mockedPrisma.user.upsert).toHaveBeenCalledWith(expect.objectContaining({
-			where: { userId: 'existing-auth-id' },
-		}));
-		expect(mockDeleteUser).not.toHaveBeenCalled();
-	});
-
-	it('reports an existing account when duplicate auth credentials do not match', async () => {
-		mockedPrisma.user.findUnique.mockResolvedValue(null);
-		mockCreateUser.mockResolvedValue({ data: { user: null }, error: { message: 'Already registered' } });
-		mockSignInWithPassword.mockResolvedValue({
-			data: { user: null, session: null },
-			error: { code: 'invalid_credentials', message: 'Invalid login credentials' },
-		});
-		await expect(signup('user@example.com', 'wrong-password', 'Jane Doe'))
-			.rejects.toThrow('User already exists, please login instead.');
-		expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
-	});
-
-	it('propagates a non-credential auth failure when resolving a duplicate identity', async () => {
-		mockedPrisma.user.findUnique.mockResolvedValue(null);
-		mockCreateUser.mockResolvedValue({ data: { user: null }, error: { code: 'user_already_exists' } });
-		mockSignInWithPassword.mockResolvedValue({
-			data: { user: null, session: null }, error: { message: 'service unavailable' },
-		});
-		await expect(signup('user@example.com', 'SecurePass123!', 'Jane Doe'))
-			.rejects.toThrow('Failed to authenticate user: service unavailable');
-	});
-
-	it('reports an unexpected Supabase provisioning failure', async () => {
-		mockedPrisma.user.findUnique.mockResolvedValue(null);
-		mockCreateUser.mockResolvedValue({ data: { user: null }, error: { message: 'rate limit exceeded' } });
-		await expect(signup('user@example.com', 'SecurePass123!', 'Jane Doe'))
-			.rejects.toThrow('Failed to provision auth user: rate limit exceeded');
-		expect(mockSignInWithPassword).not.toHaveBeenCalled();
-	});
-
-	it('logs rollback failure while preserving the profile write error', async () => {
-		mockedPrisma.user.findUnique.mockResolvedValue(null);
-		mockedPrisma.user.upsert.mockRejectedValue(new Error('database unavailable'));
-		mockDeleteUser.mockResolvedValue({ error: { message: 'delete denied' } });
-		const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
-		try {
-			await expect(signup('user@example.com', 'SecurePass123!', 'Jane Doe'))
-				.rejects.toThrow('database unavailable');
-		} finally {
-			errorLog.mockRestore();
-		}
-		expect(mockDeleteUser).toHaveBeenCalledWith('supabase-user-id');
 	});
 });

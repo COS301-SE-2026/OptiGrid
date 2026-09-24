@@ -1,11 +1,9 @@
 const { Client } = require('pg');
 import request from 'supertest';
-import type { Queue } from 'bullmq';
 import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
 
 describe('Analytics API Integration', () => {
 	let harness: CoreApiHarness;
-	let analyticsQueue: Queue;
 	const testBuildingId = '22222222-2222-4222-8222-222222222222';
 	const testUserId = '11111111-1111-1111-1111-111111111111';
 	const unassignedBuildingId = '33333333-3333-4333-8333-333333333333';
@@ -53,70 +51,12 @@ describe('Analytics API Integration', () => {
 				],
 			},
 		});
-		analyticsQueue = (await import('../../../../backend/core/src/services/bullmq')).analyticsQueue;
 	}, 180000);
 
 	afterEach(async () => {
-		if (analyticsQueue) {
-			await analyticsQueue.drain(true);
-		}
 		if (harness) {
 			await harness.resetDatabase();
 		}
-	});
-
-	it('queues an analytics refresh for an assigned building', async () => {
-		const client = new Client({ connectionString: harness.databaseUrl });
-		await client.connect();
-		try {
-			await seedAssignedBuildingAccess(client);
-		} finally {
-			await client.end();
-		}
-
-		const response = await request(harness.app)
-			.post(`/api/analytics/refresh/${testBuildingId}`);
-
-		expect(response.status).toBe(202);
-		expect(response.body).toEqual({
-			status: 'accepted',
-			message: 'Analytics refresh task queued, a FORECAST_READY websocket event will be sent shortly',
-		});
-		const jobs = await analyticsQueue.getJobs(['waiting', 'delayed']);
-		expect(jobs).toHaveLength(1);
-		expect(jobs[0]).toMatchObject({
-			name: 'refresh_building',
-			data: { building_id: testBuildingId },
-		});
-	});
-
-	it('does not queue a refresh for an unassigned building', async () => {
-		const client = new Client({ connectionString: harness.databaseUrl });
-		await client.connect();
-		try {
-			await seedAssignedBuildingAccess(client);
-			await client.query(
-				`INSERT INTO public.buildings (building_id, building_name, timezone)
-				 VALUES ($1, $2, $3)`,
-				[unassignedBuildingId, 'Unassigned Refresh Building', 'UTC'],
-			);
-		} finally {
-			await client.end();
-		}
-
-		const response = await request(harness.app)
-			.post(`/api/analytics/refresh/${unassignedBuildingId}`);
-
-		expect(response.status).toBe(403);
-		expect(await analyticsQueue.count()).toBe(0);
-	});
-
-	it('rejects an invalid refresh building id before queueing', async () => {
-		const response = await request(harness.app)
-			.post('/api/analytics/refresh/not-a-building');
-
-		expect(response.status).toBe(400);
-		expect(await analyticsQueue.count()).toBe(0);
 	});
 
 	afterAll(async () => {

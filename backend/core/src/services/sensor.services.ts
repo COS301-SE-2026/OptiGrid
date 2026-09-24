@@ -19,7 +19,7 @@ export const forwardToIngestionService = async (data: any): Promise<any> => {
 }
 
 // everyone must be assigned to the building to access it except
-export const assertBuildingAccess = async (userId: string, buildingId: string, role: string) => {
+const buildingAccess = async (userId: string, buildingId: string, role: string) => {
     const building = await prisma.building.findUnique({
         where: { building_id: buildingId }
     });
@@ -44,7 +44,7 @@ export const assertBuildingAccess = async (userId: string, buildingId: string, r
 
 //every sensor belongs to exactly one building 
 export const listSensorsForBuilding = async (userId: string, buildingId: string, role: string = "VIEWER") => {
-    await assertBuildingAccess(userId, buildingId, role);
+    await buildingAccess(userId, buildingId, role);
 
     return prisma.sensor.findMany({
         where: { building_id: buildingId },
@@ -53,7 +53,7 @@ export const listSensorsForBuilding = async (userId: string, buildingId: string,
 };
 
 export const registerSensorService = async (userId: string, payload: CreateSensorPayload, role: string = "VIEWER") => {
-    await assertBuildingAccess(userId, payload.building_id, role);
+    await buildingAccess(userId, payload.building_id, role);
     return prisma.sensor.create({
         data: {
             building_id: payload.building_id,
@@ -77,7 +77,7 @@ export const deleteSensorService = async (userId: string, sensorId: string, role
         throw new Error("Sensor not found")
     };
 
-    await assertBuildingAccess(userId, sensor.building_id, role);
+    await buildingAccess(userId, sensor.building_id, role);
     return prisma.sensor.delete({
         where: { sensor_id: sensorId }
     });
