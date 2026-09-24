@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import UserManagementPage from "./page";
 
@@ -25,8 +25,8 @@ beforeEach(() => {
           json: async () => ({
             data: [
               {
-                buildingId: "b1",
-                buildingName: "Building-123 A",
+                building_id: "b1",
+                building_name: "Building-123 A",
               },
             ],
           }),
@@ -45,6 +45,23 @@ beforeEach(() => {
                 email: "alice@test.com",
                 roleType: "VIEWER",
                 buildingIds: [],
+                createdAt: "2026-09-22T08:00:00.000Z",
+              },
+              {
+                userId: "u2",
+                firstName: "Charlie",
+                email: "charlie@test.com",
+                roleType: "VIEWER",
+                buildingIds: [],
+                createdAt: "2026-09-20T08:00:00.000Z",
+              },
+              {
+                userId: "u3",
+                firstName: null,
+                email: "nameless@test.com",
+                roleType: "VIEWER",
+                buildingIds: [],
+                createdAt: "2026-09-21T08:00:00.000Z",
               },
             ],
           }),
@@ -63,6 +80,15 @@ beforeEach(() => {
                 email: "bob@test.com",
                 roleType: "BUILDING_MANAGER",
                 buildingIds: [],
+                createdAt: "2026-09-23T08:00:00.000Z",
+              },
+              {
+                userId: "m2",
+                firstName: "Zoe",
+                email: "zoe@test.com",
+                roleType: "BUILDING_MANAGER",
+                buildingIds: [],
+                createdAt: "2026-09-19T08:00:00.000Z",
               },
             ],
           }),
@@ -87,6 +113,13 @@ afterEach(() => {
 const getSortSelect = () => screen.getByRole("combobox", { name: /sort users by/i });
 const getSearchInput = () =>
   screen.getByPlaceholderText(/name or email/i);
+const getViewerNames = () => {
+  const table = screen.getByRole("table", { name: /viewers and their assigned buildings/i });
+  return within(table)
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => within(row).getAllByRole("cell")[0].textContent?.trim());
+};
 
 describe("UserManagementPage", () => {
   describe("Initial render", () => {
@@ -233,6 +266,29 @@ describe("UserManagementPage", () => {
         (getSortSelect() as HTMLSelectElement).value
       ).toBe(value);
     });
+
+    it.each([
+      ["name_asc", ["Alice", "Charlie", "nameless@test.com"]],
+      ["name_desc", ["nameless@test.com", "Charlie", "Alice"]],
+      ["latest", ["Alice", "nameless@test.com", "Charlie"]],
+      ["oldest", ["Charlie", "nameless@test.com", "Alice"]],
+    ])("orders the displayed rows for %s", async (value, expectedNames) => {
+      render(<UserManagementPage />);
+      await screen.findByText("Alice");
+
+      fireEvent.change(getSortSelect(), { target: { value } });
+
+      expect(getViewerNames()).toEqual(expectedNames);
+    });
+
+    it("uses email as the sortable and searchable name when firstName is null", async () => {
+      render(<UserManagementPage />);
+      await screen.findAllByText("nameless@test.com");
+
+      fireEvent.change(getSearchInput(), { target: { value: "nameless" } });
+
+      expect(getViewerNames()).toEqual(["nameless@test.com"]);
+    });
   });
 
   describe("Reset button", () => {
@@ -296,9 +352,9 @@ describe("UserManagementPage", () => {
       await screen.findByText("Bob");
 
       fireEvent.click(
-        screen.getByRole("button", {
+        screen.getAllByRole("button", {
           name: /^assign$/i,
-        })
+        })[0]
       );
 
      

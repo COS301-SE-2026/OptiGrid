@@ -8,7 +8,7 @@ interface User {
   first_name: string;
   email: string;
   role_type: "ADMIN" | "VIEWER" | "BUILDING_MANAGER";
-  created_at: string;
+  created_at: string | null;
   building_ids: string[];
 }
 
@@ -24,11 +24,51 @@ interface RawBuilding {
 
 interface RawUser {
   userId: string;
-  firstName: string;
+  firstName: string | null;
   email: string;
   roleType: string;
   buildingIds?: string[];
-  createdAt?: string;
+  createdAt?: string | null;
+}
+
+const userNameCollator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+
+function getUserDisplayName(user: User): string {
+  return user.first_name.trim() || user.email;
+}
+
+function compareCreatedAt(a: User, b: User, direction: "latest" | "oldest"): number {
+  const aTime = a.created_at ? Date.parse(a.created_at) : Number.NaN;
+  const bTime = b.created_at ? Date.parse(b.created_at) : Number.NaN;
+  const aHasDate = Number.isFinite(aTime);
+  const bHasDate = Number.isFinite(bTime);
+
+  if (!aHasDate && !bHasDate) return userNameCollator.compare(getUserDisplayName(a), getUserDisplayName(b));
+  if (!aHasDate) return 1;
+  if (!bHasDate) return -1;
+  return direction === "latest" ? bTime - aTime : aTime - bTime;
+}
+
+function filterAndSortUsers(users: User[], searchQuery: string, sortFilter: string): User[] {
+  const query = searchQuery.trim().toLowerCase();
+  const result = query
+    ? users.filter((user) =>
+        getUserDisplayName(user).toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query)
+      )
+    : [...users];
+
+  switch (sortFilter) {
+    case "latest":
+    case "oldest":
+      return result.sort((a, b) => compareCreatedAt(a, b, sortFilter));
+    case "name_asc":
+      return result.sort((a, b) => userNameCollator.compare(getUserDisplayName(a), getUserDisplayName(b)));
+    case "name_desc":
+      return result.sort((a, b) => userNameCollator.compare(getUserDisplayName(b), getUserDisplayName(a)));
+    default:
+      return result;
+  }
 }
 
 export default function UserManagementPage() {
@@ -36,11 +76,12 @@ export default function UserManagementPage() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [sortFilter, setSortFilter] = useState<string>("latest");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [isActionOpen, setIsActionOpen] = useState<boolean>(false);
+  const [, setIsActionOpen] = useState<boolean>(false);
   const [Action, setAction] = useState<"assign" | "remove" | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>("");
   const [actionError, setActionError] = useState<string>("");
+  const [loadError, setLoadError] = useState<string>("");
   const dialogRef = useRef<HTMLDialogElement>(null);
   const dialogTitleId = useId();
 
@@ -54,91 +95,24 @@ export default function UserManagementPage() {
   };
 
   const filteredUsers = useMemo(() => {
-    let result = [...users];
-
-    result = result.filter((u) => {
+    const nonManagers = users.filter((u) => {
       if (u.role_type === "ADMIN") {
         return u.email === "tali@example.com";
       }
-      return true;
+      return u.role_type !== "BUILDING_MANAGER";
     });
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      result = result.filter(
-        (u) =>
-          u.first_name.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q)
-      );
-    }
-
-    switch (sortFilter) {
-      case "latest":
-        result.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        break;
-      case "oldest":
-        result.sort(
-          (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-        break;
-      case "name_asc":
-        result.sort((a, b) => a.first_name.localeCompare(b.first_name));
-        break;
-      case "name_desc":
-        result.sort((a, b) => b.first_name.localeCompare(a.first_name));
-        break;
-      default:
-        break;
-    }
-
-    return result;
+    return filterAndSortUsers(nonManagers, searchQuery, sortFilter);
   }, [users, sortFilter, searchQuery]);
 
   const filteredManagers = useMemo(() => {
-    let result = users.filter((u) => u.role_type === "BUILDING_MANAGER");
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      result = result.filter(
-        (u) =>
-          u.first_name.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q)
-      );
-    }
-
-    switch (sortFilter) {
-      case "latest":
-        result.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        break;
-      case "oldest":
-        result.sort(
-          (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-        break;
-      case "name_asc":
-        result.sort((a, b) => a.first_name.localeCompare(b.first_name));
-        break;
-      case "name_desc":
-        result.sort((a, b) => b.first_name.localeCompare(a.first_name));
-        break;
-      default:
-        break;
-    }
-
-    return result;
+    return filterAndSortUsers(
+      users.filter((u) => u.role_type === "BUILDING_MANAGER"),
+      searchQuery,
+      sortFilter
+    );
   }, [users, sortFilter, searchQuery]);
 
-  const regularUsers = useMemo(() => {
-    return filteredUsers.filter((u) => u.role_type !== "BUILDING_MANAGER");
-  }, [filteredUsers]);
+  const regularUsers = filteredUsers;
 
   const stats = useMemo(() => {
     const total = users.length;
@@ -251,7 +225,9 @@ export default function UserManagementPage() {
   useEffect(() => {
     const data = async () => {
       try {
+        setLoadError("");
         const buildingResp = await fetch("/api/admin");
+        if (!buildingResp.ok) throw new Error("Unable to load buildings.");
         const buidlingData = await buildingResp.json();
 
         const bdata = buidlingData.data || (Array.isArray(buidlingData) ? buidlingData : []);
@@ -262,8 +238,10 @@ export default function UserManagementPage() {
         setBuildings(formatBuildings);
 
         const viewersReps = await fetch("/api/usersAdmin?role=viewers");
+        if (!viewersReps.ok) throw new Error("Unable to load users.");
         const viewersData = await viewersReps.json();
         const managersResp = await fetch("/api/usersAdmin?role=managers");
+        if (!managersResp.ok) throw new Error("Unable to load managers.");
         const managersData = await managersResp.json();
 
         const users = [
@@ -272,15 +250,16 @@ export default function UserManagementPage() {
         ];
         const formatUser: User[] = users.map((user: RawUser) => ({
           user_id: user.userId,
-          first_name: user.firstName,
+          first_name: user.firstName?.trim() || user.email,
           email: user.email,
           role_type: user.roleType === "BUILDING_MANAGER" ? "BUILDING_MANAGER" : "VIEWER",
           building_ids: user.buildingIds || [],
-          created_at: user.createdAt || new Date().toISOString()
+          created_at: user.createdAt || null
         }));
         setUsers(formatUser);
       } catch (error) {
         console.error("Failed to get data: ", error);
+        setLoadError(error instanceof Error ? error.message : "Unable to load user management data.");
       }
     };
     data();
@@ -335,6 +314,8 @@ export default function UserManagementPage() {
               </div>
             </div>
           </section>
+
+          {loadError && <p role="alert" className="auth-alert">{loadError}</p>}
 
           <section aria-label="Filters and controls">
             <div className="card" style={{ marginBottom: "var(--space-5)" }}>
