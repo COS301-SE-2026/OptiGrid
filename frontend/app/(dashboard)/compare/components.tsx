@@ -11,6 +11,7 @@ import {
 import { formatMetricValue } from "./format";
 import type { Building, ComparisonBuilding, Metric, TimeRange } from "./types";
 import { AccessibleChart } from "../../../components/AccessibleChart";
+import { CurvedSelect } from "@/components/curvedselect";
 
 type ChartPoint = {
     period: string;
@@ -68,87 +69,77 @@ export function CompareControls({
                 }}
             >
                 <div style={{ display: "grid", gap: "6px" }}>
-                    <label htmlFor="building-a-select" className="label">
-                        Building 1
-                    </label>
-                    <select
-                        id="building-a-select"
-                        value={buildingA}
-                        onChange={(event) => onBuildingAChange(event.target.value)}
-                        className="select"
-                        disabled={disabled}
-                        aria-label="Select first building to compare"
-                    >
-                        <option value="">
-                            {buildingsLoading ? "Loading buildings..." : "Select building"}
-                        </option>
-                        {buildings.map((building) => (
-                            <option key={building.id} value={building.id}>
-                                {building.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+  <label htmlFor="building-a-select" className="label">
+    Building 1
+  </label>
+  <CurvedSelect
+    id="building-a-select"
+    value={buildingA}
+    onChange={onBuildingAChange}
+    options={buildings.map((building) => ({
+      value: building.id,
+      label: building.name,
+    }))}
+    placeholder={buildingsLoading ? "Loading buildings…" : "Select building"}
+    disabled={disabled}
+    ariaLabel="Select first building to compare"
+  />
+</div>
 
-                <div style={{ display: "grid", gap: "6px" }}>
-                    <label htmlFor="building-b-select" className="label">
-                        Building 2
-                    </label>
-                    <select
-                        id="building-b-select"
-                        value={buildingB}
-                        onChange={(event) => onBuildingBChange(event.target.value)}
-                        className="select"
-                        disabled={disabled}
-                        aria-label="Select second building to compare"
-                    >
-                        <option value="">
-                            {buildingsLoading ? "Loading buildings..." : "Select building"}
-                        </option>
-                        {buildings
-                            .filter((building) => building.id !== buildingA)
-                            .map((building) => (
-                                <option key={building.id} value={building.id}>
-                                    {building.name}
-                                </option>
-                            ))}
-                    </select>
-                </div>
+<div style={{ display: "grid", gap: "6px" }}>
+  <label htmlFor="building-b-select" className="label">
+    Building 2
+  </label>
+  <CurvedSelect
+    id="building-b-select"
+    value={buildingB}
+    onChange={onBuildingBChange}
+    options={buildings
+      .filter((building) => building.id !== buildingA)
+      .map((building) => ({
+        value: building.id,
+        label: building.name,
+      }))}
+    placeholder={buildingsLoading ? "Loading buildings…" : "Select building"}
+    disabled={disabled}
+    ariaLabel="Select second building to compare"
+  />
+</div>
 
-                <div style={{ display: "grid", gap: "6px" }}>
-                    <label htmlFor="date-range-select" className="label">
-                        Date Range
-                    </label>
-                    <select
-                        id="date-range-select"
-                        value={dateRange}
-                        onChange={(event) => onDateRangeChange(event.target.value as TimeRange)}
-                        className="select"
-                        disabled={disabled}
-                        aria-label="Select date range for comparison"
-                    >
-                        <option value="7">Last 7 days</option>
-                        <option value="30">Last 30 days</option>
-                        <option value="90">Last 90 days</option>
-                    </select>
-                </div>
+<div style={{ display: "grid", gap: "6px" }}>
+  <label htmlFor="date-range-select" className="label">
+    Date Range
+  </label>
+  <CurvedSelect
+    id="date-range-select"
+    value={dateRange}
+    onChange={(value) => onDateRangeChange(value as TimeRange)}
+    options={[
+      { value: "7", label: "Last 7 days" },
+      { value: "30", label: "Last 30 days" },
+      { value: "90", label: "Last 90 days" },
+    ]}
+    disabled={disabled}
+    ariaLabel="Select date range for comparison"
+  />
+</div>
 
-                <div style={{ display: "grid", gap: "6px" }}>
-                    <label htmlFor="metric-select" className="label">
-                        Metric
-                    </label>
-                    <select
-                        id="metric-select"
-                        value={metric}
-                        onChange={(event) => onMetricChange(event.target.value as Metric)}
-                        className="select"
-                        disabled={disabled}
-                        aria-label="Select metric for comparison"
-                    >
-                        <option value="R">Cost</option>
-                        <option value="kWh">Energy</option>
-                    </select>
-                </div>
+<div style={{ display: "grid", gap: "6px" }}>
+  <label htmlFor="metric-select" className="label">
+    Metric
+  </label>
+  <CurvedSelect
+    id="metric-select"
+    value={metric}
+    onChange={(value) => onMetricChange(value as Metric)}
+    options={[
+      { value: "R", label: "Cost" },
+      { value: "kWh", label: "Energy" },
+    ]}
+    disabled={disabled}
+    ariaLabel="Select metric for comparison"
+  />
+</div>
             </div>
 
             {buildingsError && (
