@@ -1,0 +1,5 @@
+aiohttp
+numpy
+supabase
+influxdb-client
+python-dotenv
