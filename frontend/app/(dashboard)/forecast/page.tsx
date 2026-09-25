@@ -16,6 +16,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import { CurvedSelect } from "@/components/curvedselect";
 
 type ForecastParams = {
     building_id: string;
@@ -216,7 +217,7 @@ function Spinner() {
     );
 }
 
-function ChevronDown() {
+/*function ChevronDown() {
     return (
         <svg
             width="14"
@@ -232,7 +233,7 @@ function ChevronDown() {
             <polyline points="6 9 12 15 18 9" />
         </svg>
     );
-}
+}*/
 
 function Skeleton({ style }: Readonly<{ style?: CSSProperties }>) {
     return <div className="skeleton" style={style} aria-hidden="true" />;
@@ -634,24 +635,18 @@ export default function ForecastPage() {
                             Building
                         </label>
                         <div style={{ position: "relative" }}>
-                            <select
-                                id="building-select"
-                                className="select"
-                                style={selectStyle}
-                                value={buildingId}
-                                disabled={buildingsLoading || buildings.length === 0}
-                                onChange={(e) => setBuildingId(e.target.value)}
-                                aria-label="Select a building for forecast"
-                            >
-                                <option value="">
-                                    {buildingsLoading ? "Loading buildings..." : "Select building"}
-                                </option>
-                                {buildings.map((b) => (
-                                    <option key={b.id} value={b.id}>
-                                        {b.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <CurvedSelect
+                           id="building-select"
+                           value={buildingId}
+                         disabled={buildingsLoading || buildings.length === 0}
+                         onChange={setBuildingId}
+                  placeholder={buildingsLoading ? "Loading buildings…" : "Select building"}
+            options={buildings.map((b) => ({
+           value: b.id,
+           label: b.name,
+         }))}
+           ariaLabel="Select a building for forecast"
+         />
                             <span
                                 style={{
                                     position: "absolute",
@@ -663,7 +658,7 @@ export default function ForecastPage() {
                                 }}
                                 aria-hidden="true"
                             >
-                                <ChevronDown />
+                                
                             </span>
                         </div>
                     </div>
@@ -677,17 +672,16 @@ export default function ForecastPage() {
                             Horizon
                         </label>
                         <div style={{ position: "relative" }}>
-                            <select
-                                id="horizon-select"
-                                className="select"
-                                style={selectStyle}
-                                value={horizon}
-                                onChange={(e) => setHorizon(e.target.value as "weekly" | "monthly")}
-                                aria-label="Select forecast horizon"
-                            >
-                                <option value="weekly">Weekly (Next 7 Days)</option>
-                                <option value="monthly">Monthly (Next 12 Weeks)</option>
-                            </select>
+                            <CurvedSelect
+                           id="horizon-select"
+                           value={horizon}
+                           onChange={(value) => setHorizon(value as "weekly" | "monthly")}
+                        options={[
+                           { value: "weekly", label: "Weekly (Next 7 Days)" },
+                           { value: "monthly", label: "Monthly (Next 12 Weeks)" },
+                        ]}
+                           ariaLabel="Select forecast horizon"
+                        />
                             <span
                                 style={{
                                     position: "absolute",
@@ -699,7 +693,7 @@ export default function ForecastPage() {
                                 }}
                                 aria-hidden="true"
                             >
-                                <ChevronDown />
+                                
                             </span>
                         </div>
                     </div>
