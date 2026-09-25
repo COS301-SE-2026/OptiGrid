@@ -27,18 +27,34 @@ export const tariffParameterSchema = z.object({
     }),
 });
 
+const tariffSeasonSchema = z.object({
+    name: z.string().min(1, "Season name cannot be empty"),
+    startMonth: z.number().int().min(1).max(12),
+    endMonth: z.number().int().min(1).max(12),
+});
+const touPeriodSchema = z.enum(["Peak", "Standard", "Off-Peak"]);
+const touPeriodDefinitionSchema = z.object({
+    period: touPeriodSchema,
+    startHour: z.number().int().min(0).max(23),
+    endHour: z.number().int().min(0).max(24),
+});
+const touScheduleSchema = z.object({
+    weekday: z.array(touPeriodDefinitionSchema),
+    saturday: z.array(touPeriodDefinitionSchema),
+    sunday: z.array(touPeriodDefinitionSchema),
+});
 const tariffRateSchema = z.number()
     .nonnegative("Tariff rate cannot be negative")
     .max(100, "Tariff rate cannot exceed R100/kWh");
+const blockRatesSchema = z.record(z.string(), z.record(z.string(), tariffRateSchema));
+const tariffBlockSchema = z.object({
+    max_kwh: z.number().nullable(),
+    rates: blockRatesSchema,
+});
 
 export const tariffQuerySchema = z.object({
-    peak_rate_zar: tariffRateSchema,
-    off_peak_rate_zar: tariffRateSchema,
-    season_name: z.enum(["Summer", "Winter"]),
-}).strict().refine(
-    ({ peak_rate_zar, off_peak_rate_zar }) => off_peak_rate_zar <= peak_rate_zar,
-    {
-        message: "Off-peak rate cannot be higher than peak rate",
-        path: ["off_peak_rate_zar"],
-    },
-);
+    type: z.enum(["flat", "tou", "block", "block_tou"]),
+    seasons: z.array(tariffSeasonSchema),
+    tou_schedule: touScheduleSchema.optional(),
+    blocks: z.array(tariffBlockSchema),
+}).strict();

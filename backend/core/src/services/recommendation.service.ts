@@ -3,11 +3,7 @@ import { analyticsQueue } from './bullmq';
 import { Prisma, RecommendationStatus } from '@prisma/client';
 import { approveTradeoff, buildTradeoffProfile, readTradeoffInputs, type ApprovedTradeoff } from '../lib/comfortTradeoff';
 
-export interface UpdateTariffPayload {
-  peak_rate_zar: number;
-  off_peak_rate_zar: number;
-  season_name:string;
-}
+import { TariffStructure } from '../types/tariff';
 
 export interface ApplySelection {
   savings_level?: number;
@@ -121,7 +117,7 @@ export const viewRecommendationService = async (userId:string, buildingId: strin
   });
 }
 
-export const updateTariffService = async(userId:string, buildingId: string, payload: UpdateTariffPayload) => {
+export const updateTariffService = async(userId:string, buildingId: string, payload: TariffStructure) => {
   const building = await prisma.building.findUnique({
     where: {
       building_id: buildingId
@@ -148,18 +144,14 @@ export const updateTariffService = async(userId:string, buildingId: string, payl
         tariff_id: tariff.tariff_id
       },
       data: {
-        peak_rate_zar: payload.peak_rate_zar,
-        off_peak_rate_zar: payload.off_peak_rate_zar,
-        season_name: payload.season_name,
+        tariff_structure: payload as any
       }
     });
   } else {
     await prisma.utilityTariff.create({
       data: {
         building_id: buildingId,
-        peak_rate_zar: payload.peak_rate_zar,
-        off_peak_rate_zar: payload.off_peak_rate_zar,
-        season_name: payload.season_name,
+        tariff_structure: payload as any
       }
     });
   }
