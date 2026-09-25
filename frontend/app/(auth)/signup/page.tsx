@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, type ChangeEvent, type FocusEvent, type SubmitEvent} from "react";
+import {useEffect, useState, type ChangeEvent, type FocusEvent, type SubmitEvent} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {getSubmitResult, hasErrors, shouldShowError, type SignupErrors, type SignupTouched } from "./logic";
@@ -16,6 +16,11 @@ export default function SignupPage() {
     const [touched, setTouched] = useState<SignupTouched>({});
     const [loading, setLoading] = useState(false);
     const [apiError, setApiError] = useState("");
+    const [hydrated, setHydrated] = useState(false);
+
+    useEffect(() => {
+        setHydrated(true);
+    }, []);
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
@@ -105,7 +110,7 @@ export default function SignupPage() {
                                 value={formData.firstName}
                                 onChange={handleChange}
                                 onBlur={handleBlur}
-                                disabled={loading}
+                                disabled={!hydrated || loading}
                                 aria-invalid={showError("firstName")}
                                 aria-describedby={
                                     showError("firstName") ? "firstName-error" : undefined
@@ -138,7 +143,7 @@ export default function SignupPage() {
                                 value={formData.lastName}
                                 onChange={handleChange}
                                 onBlur={handleBlur}
-                                disabled={loading}
+                                disabled={!hydrated || loading}
                                 aria-invalid={showError("lastName")}
                                 aria-describedby={
                                     showError("lastName") ? "lastName-error" : undefined
@@ -172,7 +177,7 @@ export default function SignupPage() {
                             value={formData.email}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             aria-invalid={showError("email")}
                             aria-describedby={
                                 showError("email") ? "email-error" : undefined
@@ -204,7 +209,7 @@ export default function SignupPage() {
                             value={formData.password}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             ariaInvalid={showError("password")}
                             ariaDescribedBy={
                                 showError("password") ? "password-error" : undefined
@@ -235,7 +240,7 @@ export default function SignupPage() {
                             value={formData.confirmPassword}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             ariaInvalid={showError("confirmPassword")}
                             ariaDescribedBy={
                                 showError("confirmPassword")
@@ -259,7 +264,7 @@ export default function SignupPage() {
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={!hydrated || loading}
                         className="btn btn-primary auth-submit"
                     >
                         {loading ? "Creating account..." : "Create account"}

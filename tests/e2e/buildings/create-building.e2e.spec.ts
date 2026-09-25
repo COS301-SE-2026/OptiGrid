@@ -68,7 +68,7 @@ test.describe("Create building", () => {
     await page.getByLabel("Building type").selectOption("Commercial");
     await page.getByLabel("Physical address").fill(buildingAddress);
     await page.getByLabel(/Floor area/).fill("5000");
-    await page.getByLabel("Max occupancy").fill("200");
+    await page.getByLabel("Maximum occupancy").fill("200");
     await page.getByLabel("Timezone").fill("Africa/Johannesburg");
     await page.getByRole("button", { name: "Add building" }).click();
 

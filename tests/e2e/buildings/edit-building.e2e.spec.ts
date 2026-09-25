@@ -170,12 +170,12 @@ test.describe("Edit building", () => {
 
     await page.getByLabel("Building name").fill(updatedBuilding.name);
     await page.getByLabel("Address").fill(updatedBuilding.address);
-    await page.getByLabel("Square footage").fill(updatedBuilding.squareFootage);
-    await page.getByLabel("Max occupancy").fill(updatedBuilding.maxOccupancy);
+    await page.getByLabel("Floor area").fill(updatedBuilding.squareFootage);
+    await page.getByLabel("Maximum occupancy").fill(updatedBuilding.maxOccupancy);
     await page.getByLabel("Timezone").fill(updatedBuilding.timezone);
     await page.getByLabel("Building Type").selectOption(updatedBuilding.buildingType);
     await page.getByLabel("Nominal Voltage").fill(updatedBuilding.nominalVoltage);
-    await page.getByLabel("Building State").selectOption(updatedBuilding.lifecycleState);
+    await page.getByLabel("Status").selectOption(updatedBuilding.lifecycleState);
     await page.getByLabel("Latitude").fill(updatedBuilding.latitude);
     await page.getByLabel("Longitude").fill(updatedBuilding.longitude);
     await page.getByLabel("Geohash").fill(updatedBuilding.geohash);
@@ -213,12 +213,12 @@ test.describe("Edit building", () => {
 
     await expect(page.getByLabel("Building name")).toHaveValue(updatedBuilding.name);
     await expect(page.getByLabel("Address")).toHaveValue(updatedBuilding.address);
-    await expect(page.getByLabel("Square footage")).toHaveValue(updatedBuilding.squareFootage);
-    await expect(page.getByLabel("Max occupancy")).toHaveValue(updatedBuilding.maxOccupancy);
+    await expect(page.getByLabel("Floor area")).toHaveValue(updatedBuilding.squareFootage);
+    await expect(page.getByLabel("Maximum occupancy")).toHaveValue(updatedBuilding.maxOccupancy);
     await expect(page.getByLabel("Timezone")).toHaveValue(updatedBuilding.timezone);
     await expect(page.getByLabel("Building Type")).toHaveValue(updatedBuilding.buildingType);
     await expect(page.getByLabel("Nominal Voltage")).toHaveValue(updatedBuilding.nominalVoltage);
-    await expect(page.getByLabel("Building State")).toHaveValue(updatedBuilding.lifecycleState);
+    await expect(page.getByLabel("Status")).toHaveValue(updatedBuilding.lifecycleState);
     await expect(page.getByLabel("Latitude")).toHaveValue(updatedBuilding.latitude);
     await expect(page.getByLabel("Longitude")).toHaveValue(updatedBuilding.longitude);
     await expect(page.getByLabel("Geohash")).toHaveValue(updatedBuilding.geohash);

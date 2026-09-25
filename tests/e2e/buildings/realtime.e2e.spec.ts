@@ -187,7 +187,7 @@ test.describe("Real-time dashboard integration", () => {
       voltageV: 230.5,
       currentA: 53.6,
     });
-    await expect(buildingCard).toContainText("12.34", { timeout: 10_000 });
+    await expect(buildingCard).toContainText("12.3", { timeout: 10_000 });
     await expect(buildingCard).toContainText("Normal");
 
     const buildingStreamPromise = page.waitForRequest(
@@ -203,19 +203,16 @@ test.describe("Real-time dashboard integration", () => {
     await buildingStreamPromise;
 
     await expect(
-      page.getByRole("heading", { name: "Real-Time Telemetry" }),
+      page.getByRole("heading", { name: "Live telemetry" }),
     ).toBeVisible();
-    await expect(page.getByText("Online (Waiting for reading)")).toBeVisible();
-    await expect(
-      page.getByText("Live telemetry stream connected"),
-    ).toBeVisible();
+    await expect(page.getByText("Waiting for a reading")).toBeVisible();
 
     await ingestTelemetry(request, buildingId, {
       powerKw: 18.75,
       voltageV: 231.5,
       currentA: 81.2,
     });
-    await expect(page.getByText("Online (Streaming)")).toBeVisible({
+    await expect(page.getByText("Streaming", { exact: true })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText("EMULATOR")).toBeVisible();

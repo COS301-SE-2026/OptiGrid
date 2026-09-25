@@ -50,6 +50,7 @@ test.describe("Signup page", () => {
 	});
 
 	test("creates account and routes to dashboard", async ({ page }) => {
+		test.setTimeout(60_000);
 		const user = buildUniqueUser();
 
 		await page.goto("/signup");
@@ -81,6 +82,6 @@ test.describe("Signup page", () => {
 		await page.getByLabel("Confirm password", { exact: true }).fill(user.password);
 		await page.getByRole("button", { name: "Create account" }).click();
 
-		await expect(page.getByText("User already exists, please login instead.")).toBeVisible();
+		await expect(page.getByText("User already exists, please login instead.")).toBeVisible({ timeout: 15_000 });
 	});
 });

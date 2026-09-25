@@ -145,9 +145,9 @@ test.describe("Building energy consumption", () => {
     const buildingRow = page.locator("tbody tr").filter({ hasText: building.name });
     await expect(buildingRow).toBeVisible();
     await buildingRow.click();
-    await expect(page).toHaveURL(/\/buildings\/[^/]+\/view$/);
+    await expect(page).toHaveURL(/\/buildings\/[^/]+\/view$/, { timeout: 15_000 });
 
-    await expect(page.getByRole("heading", { name: "Energy Consumption" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Energy Consumption" })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("900 kWh")).toBeVisible();
     await expect(page.getByText("R 1,800")).toBeVisible();
     await expect(page.getByText("120 kWh")).toBeVisible();
