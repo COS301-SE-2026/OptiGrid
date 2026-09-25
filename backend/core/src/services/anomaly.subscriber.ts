@@ -46,6 +46,13 @@ export const startAnomalySubscriber = async () => {
 				// if muted, we don't create the alert (or we create it but don't notify)
 				// create the anomaly but do not send the notification
 
+				// Fetch building name for frontend UI and verify existence
+				const building = await prisma.building.findUnique({ where: { building_id } });
+				if (!building) {
+					console.warn(`[AnomalySubscriber] Building ${building_id} not found. Skipping anomaly.`);
+					return;
+				}
+
 				const anomaly = await prisma.anomaly.create({
 					data: {
 						building_id,
@@ -62,11 +69,9 @@ export const startAnomalySubscriber = async () => {
 
 				console.log(`[AnomalySubscriber] Logged anomaly ${anomaly.anomaly_id} for building ${building_id}`);
 
-				// Fetch building name for frontend UI
-				const building = await prisma.building.findUnique({ where: { building_id } });
 				const anomalyWithBuildingName = {
 					...anomaly,
-					building_name: building?.building_name || "Unknown Building"
+					building_name: building.building_name
 				};
 
 				// broadcast the anomaly via websockets for real-time dashboard updates

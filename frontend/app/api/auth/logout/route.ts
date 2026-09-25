@@ -26,9 +26,11 @@ async function buildLogoutResponse(request: Request) {
 		response.headers.append("Set-Cookie", buildDeleteCookieString(ACCESS_TOKEN_COOKIE_NAME, tabPath));
 	}
 	try {
-		const cookieStore = await cookies();
-		const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,
-			process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,{
+		const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+		const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+		if (supabaseUrl && supabaseKey) {
+			const cookieStore = await cookies();
+			const supabase = createServerClient(supabaseUrl, supabaseKey, {
 				cookies: {
 					get(name: string) {
 						return cookieStore.get(name)?.value;
@@ -48,9 +50,9 @@ async function buildLogoutResponse(request: Request) {
 						});
 					},
 				},
-			}
-		);
-		await supabase.auth.signOut();
+			});
+			await supabase.auth.signOut();
+		}
 	} 
 	catch(err) {
 		console.warn("Supabase signout skipped or failed:", err);

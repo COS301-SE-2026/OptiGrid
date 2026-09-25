@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
+import { getTabSessionPath } from "@/lib/tab-session";
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
 
@@ -66,7 +67,7 @@ function mapBuilding(raw: RawBuilding): Building {
 }
 
 async function fetchBuildings(): Promise<Building[]> {
-    const response = await fetch("/api/buildings", { method: "GET", cache: "no-store" });
+    const response = await fetch(getTabSessionPath("/api/buildings"), { method: "GET", cache: "no-store" });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.message || "Unable to fetch buildings.");
     const rows = Array.isArray(payload.data) ? payload.data : [];
@@ -89,7 +90,7 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
 
     return (
         <Link
-            href={`/buildings/${encodeURIComponent(building.id)}/view`}
+            href={getTabSessionPath(`/buildings/${encodeURIComponent(building.id)}/view`)}
             aria-label={`View live telemetry for ${building.name}`}
             className="card"
             style={{
@@ -184,7 +185,7 @@ export default function RealtimePage() {
     useQuery({
         queryKey: ["live-telemetry-poll"],
         queryFn: async () => {
-            const res = await fetch("/api/telemetry/live", { method: "GET", cache: "no-store" });
+            const res = await fetch(getTabSessionPath("/api/telemetry/live"), { method: "GET", cache: "no-store" });
             const payload = await res.json();
             if (payload.status === "success" && Array.isArray(payload.data)) {
                 const initialMap: Record<string, { currentKw: number; timestamp: string }> = {};
