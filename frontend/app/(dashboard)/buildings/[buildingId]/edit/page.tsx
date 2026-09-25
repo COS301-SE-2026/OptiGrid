@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { getTabSessionPath } from "../../../../../lib/tab-session";
 import { BUILDING_TYPE_OPTIONS, LIFECYCLE_OPTIONS } from "@/lib/buildingOptions";
+import { AddressSearchInput } from "@/components/AddressSearchInput";
 
 type BuildingRecord = {
     building_id: string;
@@ -312,12 +313,18 @@ export default function EditBuildingPage({
                         <p>Change the address and clear the coordinates to have them worked out again.</p>
                     </div>
                     <div className="form-grid">
-                        <Field id="physical_address" label="Physical address" wide>
-                            <input
-                                id="physical_address"
-                                className="input"
+                      <Field id="physical_address" label="Physical address" wide>
+                            <AddressSearchInput
                                 value={form.physical_address}
                                 onChange={update("physical_address")}
+                                onCoordinatesFound={(lat, lon) => {
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        latitude: String(lat),
+                                        longitude: String(lon),
+                                    }));
+                                }}
+                                disabled={saving}
                             />
                         </Field>
                         <Field id="timezone" label="Timezone">

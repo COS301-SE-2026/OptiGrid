@@ -1,4 +1,5 @@
 jest.mock('@influxdata/influxdb-client', () => ({ InfluxDB: undefined }));
+process.env.DATABASE_URL = "postgresql://dummy:dummy@localhost:5432/dummy";
 
 describe('Influx client unavailable fallbacks', () => {
   it('returns empty values for every query shape', async () => {

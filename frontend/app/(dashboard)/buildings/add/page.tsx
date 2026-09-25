@@ -6,6 +6,8 @@ import Link from "next/link";
 import { getTabSessionPath } from "../../../../lib/tab-session";
 import { FormAlert } from "@/components/FormAlert";
 import { BUILDING_TYPE_OPTIONS } from "@/lib/buildingOptions";
+import { AddressSearchInput } from "@/components/AddressSearchInput";
+
 
 type FormData = {
     building_name: string;
@@ -211,16 +213,18 @@ export default function AddBuildingPage() {
                     </div>
                     <div className="form-grid">
                         <Field id="physical_address" label="Physical address" wide error={errors.physical_address}>
-                            <input
-                                id="physical_address"
-                                name="physical_address"
-                                type="text"
-                                className={invalid("physical_address")}
+                            <AddressSearchInput
                                 value={form.physical_address}
                                 onChange={handleChange}
+                                onCoordinatesFound={(lat, lon) => {
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        latitude: String(lat),
+                                        longitude: String(lon),
+                                    }));
+                                }}
                                 disabled={loading}
-                                placeholder="1 Maude St, Sandton, 2196"
-                                aria-invalid={Boolean(errors.physical_address)}
+                                error={Boolean(errors.physical_address)}
                             />
                         </Field>
                         <Field id="timezone" label="Timezone" hint="Defaults to UTC when left empty.">

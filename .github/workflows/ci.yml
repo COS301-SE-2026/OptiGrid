@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "main", "develop" ]
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   frontend:
     name: Frontend 
@@ -87,15 +91,15 @@ jobs:
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
 
+      - name: Authenticate with GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Start Supabase local emulator
-        run: |
-          if [ ! -f supabase/config.toml ]; then
-            supabase init --yes
-          fi
-          if [ -f supabase/seed.sql ]; then
-            mv supabase/seed.sql supabase/seed.sql.ci.bak
-          fi
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+        run: bash scripts/start-supabase-ci.sh
 
       - name: Export Supabase local auth env vars
         run: |
@@ -194,17 +198,15 @@ jobs:
           pip install -r backend/ingestion/requirements.txt
           pip install -r backend/analytics/requirements.txt
 
+      - name: Authenticate with GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Start Supabase local emulator
-        run: |
-          if [ ! -f supabase/config.toml ]; then
-            supabase init --yes
-          fi
-          # This repository's supabase/seed.sql targets app tables managed by Prisma test harness, not Supabase local migrations.
-          # Move it out of the way for this CI job so Supabase local Auth can start cleanly.
-          if [ -f supabase/seed.sql ]; then
-            mv supabase/seed.sql supabase/seed.sql.ci.bak
-          fi
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+        run: bash scripts/start-supabase-ci.sh
 
       - name: Export Supabase local auth env vars
         run: |
@@ -261,17 +263,15 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Authenticate with GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Start Supabase local emulator
-        run: |
-          if [ ! -f supabase/config.toml ]; then
-            supabase init --yes
-          fi
-          # This repository's supabase/seed.sql targets app tables managed by Prisma test harness, not Supabase local migrations.
-          # Move it out of the way for this CI job so Supabase local Auth can start cleanly.
-          if [ -f supabase/seed.sql ]; then
-            mv supabase/seed.sql supabase/seed.sql.ci.bak
-          fi
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+        run: bash scripts/start-supabase-ci.sh
 
       - name: Run Playwright ${{ matrix.suite }} tests
         run: ${{ matrix.command }}
