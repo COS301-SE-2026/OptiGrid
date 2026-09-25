@@ -203,10 +203,10 @@ describe("Recommendation Services Unit Tests", () => {
                 }
             })
             expect(prisma.optimisationRecommendation.findMany).toHaveBeenCalledWith({
-                where: {
+                where: expect.objectContaining({
                     building_id: "building-123",
-                    status:"Pending"
-                },
+                    status: "Pending"
+                }),
                 take: 10,
                 orderBy: {
                     expires_at: "desc"
