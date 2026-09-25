@@ -1,11 +1,22 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+    Children,
+    isValidElement,
+    useEffect,
+    useId,
+    useRef,
+    useState,
+    type CSSProperties,
+    type ReactElement,
+    type ReactNode,
+} from "react";
 import { useBuildings } from "@/lib/useBuildings";
 import { openDialog } from "@/lib/openDialog";
 import { PageHeading } from "@/components/PageHeading";
 import { formatDate } from "@/lib/formatDate";
 import ComfortTradeoff, { type TradeoffPoint, type TradeoffProfile } from "@/components/ComfortTradeoff";
+import { CurvedSelect, type CurvedSelectOption } from "@/components/curvedselect";
 
 type RecommendationStatus =
     | "Pending"
@@ -161,30 +172,23 @@ function formatKw(value: number | null): string {
     return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} kW`;
 }
 
-function ChevronDown() {
-    return (
-        <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            stroke="currentColor"
-            aria-hidden="true"
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    );
-}
 
-const selectStyle: CSSProperties = {
-    appearance: "none",
-    WebkitAppearance: "none",
-    MozAppearance: "none",
-    paddingRight: "var(--space-6)"
-};
+function optionsFromChildren(children: ReactNode): CurvedSelectOption[] {
+    return Children.toArray(children)
+        .filter(isValidElement)
+        .map((child) => {
+            const el = child as ReactElement<{
+                value?: string | number;
+                children?: ReactNode;
+                disabled?: boolean;
+            }>;
+            return {
+                value: String(el.props.value ?? ""),
+                label: el.props.children ?? "",
+                disabled: el.props.disabled,
+            };
+        });
+}
 
 function LabeledSelect({
     id,
@@ -202,45 +206,29 @@ function LabeledSelect({
     children: ReactNode;
 }>) {
     return (
-        <div style={{
-            display: "grid",
-            gap: "var(--space-2)"
-        }}>
+        <div
+            style={{
+                display: "grid",
+                gap: "var(--space-2)",
+            }}
+        >
             <label
                 htmlFor={id}
                 className="label"
                 style={{
                     textTransform: "uppercase",
-                    letterSpacing: "0.2em"
+                    letterSpacing: "0.2em",
                 }}
             >
                 {label}
             </label>
-            <div style={{ position: "relative" }}>
-                <select
-                    id={id}
-                    className="select"
-                    style={selectStyle}
-                    value={value}
-                    disabled={disabled}
-                    onChange={(e) => onChange(e.target.value)}
-                >
-                    {children}
-                </select>
-                <span
-                    style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        pointerEvents: "none",
-                        transform: "translateY(-50%)",
-                        color: "var(--brand-ink-muted)"
-                    }}
-                    aria-hidden="true"
-                >
-                    <ChevronDown />
-                </span>
-            </div>
+            <CurvedSelect
+                id={id}
+                value={value}
+                onChange={onChange}
+                options={optionsFromChildren(children)}
+                disabled={disabled}
+            />
         </div>
     );
 }
@@ -253,10 +241,14 @@ function DetailItem({ label, value }: Readonly<{ label: string; value: string }>
     return (
         <div>
             <dt className="dashboard-kpi-label">{label}</dt>
-            <dd style={{
-                marginTop: "var(--space-1)",
-                fontSize: "var(--fs-small)"
-            }}>{value}</dd>
+            <dd
+                style={{
+                    marginTop: "var(--space-1)",
+                    fontSize: "var(--fs-small)",
+                }}
+            >
+                {value}
+            </dd>
         </div>
     );
 }
@@ -279,8 +271,11 @@ function ReviewDialog({
     const dialogRef = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const tradeoff = recommendation.tradeoff ?? null;
-    const approvedTradeoff = recommendation.applicable_range?.approved_tradeoff ?? null;
-    const [savingsLevel, setSavingsLevel] = useState<number>(approvedTradeoff?.savings_level ?? 0);
+    const approvedTradeoff =
+        recommendation.applicable_range?.approved_tradeoff ?? null;
+    const [savingsLevel, setSavingsLevel] = useState<number>(
+        approvedTradeoff?.savings_level ?? 0
+    );
     const [levelChosen, setLevelChosen] = useState(false);
 
     useEffect(() => {
@@ -293,7 +288,8 @@ function ReviewDialog({
     const minExpected = toFiniteNumber(range?.load_bounds_kw?.min_expected);
     const maxAllowed = toFiniteNumber(range?.load_bounds_kw?.max_allowed);
     const monthlySavings = toFiniteNumber(recommendation.estimated_monthly_savings);
-    const shedLoad = minExpected !== null && maxAllowed !== null ? maxAllowed - minExpected : null;
+    const shedLoad =
+        minExpected !== null && maxAllowed !== null ? maxAllowed - minExpected : null;
     const actionable = isActionable(recommendation);
     const busy = pendingAction !== null;
     const approvalLocked = tradeoff !== null && !levelChosen;
@@ -305,12 +301,21 @@ function ReviewDialog({
             aria-labelledby={titleId}
             style={{
                 width: "100%",
-                maxWidth: tradeoff ? "640px" : "560px"
+                maxWidth: tradeoff ? "640px" : "560px",
             }}
             onClose={onClose}
         >
-            <h2 id={titleId} style={{ marginBottom: "var(--space-2)" }}>Review recommendation</h2>
-            <p style={{ lineHeight: "var(--lh-body)", marginBottom: "var(--space-4)" }}>{recommendation.strategy_description}</p>
+            <h2 id={titleId} style={{ marginBottom: "var(--space-2)" }}>
+                Review recommendation
+            </h2>
+            <p
+                style={{
+                    lineHeight: "var(--lh-body)",
+                    marginBottom: "var(--space-4)",
+                }}
+            >
+                {recommendation.strategy_description}
+            </p>
 
             {tradeoff ? (
                 <ComfortTradeoff
@@ -330,13 +335,28 @@ function ReviewDialog({
                         border: "1px solid var(--brand-border)",
                         borderRadius: "var(--radius-md)",
                         background: "var(--brand-surface-alt)",
-                        marginBottom: "var(--space-4)"
+                        marginBottom: "var(--space-4)",
                     }}
                 >
                     <p className="dashboard-kpi-label">Estimated monthly savings</p>
-                    <p className="dashboard-kpi-value metric" style={{ fontSize: "1.5rem" }}>{formatZar(monthlySavings)}</p>
-                    <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
-                        Around {formatZar(monthlySavings === null ? null : monthlySavings * 12)} per year at the current tariff.
+                    <p
+                        className="dashboard-kpi-value metric"
+                        style={{ fontSize: "1.5rem" }}
+                    >
+                        {formatZar(monthlySavings)}
+                    </p>
+                    <p
+                        className="text-muted"
+                        style={{
+                            fontSize: "var(--fs-small)",
+                            marginTop: "var(--space-2)",
+                        }}
+                    >
+                        Around{" "}
+                        {formatZar(
+                            monthlySavings === null ? null : monthlySavings * 12
+                        )}{" "}
+                        per year at the current tariff.
                     </p>
                 </div>
             )}
@@ -347,24 +367,56 @@ function ReviewDialog({
                     gap: "var(--space-4)",
                     margin: 0,
                     marginBottom: "var(--space-5)",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))"
+                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
                 }}
             >
                 <DetailItem label="Status" value={statusLabel(recommendation.status)} />
                 {timeWindow && <DetailItem label="Shift window" value={timeWindow} />}
-                {range?.time_window?.timezone && (<DetailItem label="Timezone" value={range.time_window.timezone} />)}
-                {range?.target_equipment && (<DetailItem label="Target equipment" value={range.target_equipment} />)}
-                {minExpected !== null && (<DetailItem label="Expected baseline" value={formatKw(minExpected)} />)}
-                {maxAllowed !== null && (<DetailItem label="Forecast peak" value={formatKw(maxAllowed)} />)}
-                {shedLoad !== null && (<DetailItem label="Load to shift" value={formatKw(shedLoad)} />)}
-                {confidence !== null && (<DetailItem label="Confidence" value={`${Math.round(confidence * 100)}%`} />)}
-                {approvedTradeoff && (<DetailItem label="Approved setting" value={formatTradeoffPoint(approvedTradeoff)} />)}
-                <DetailItem label="Generated" value={formatDate(recommendation.generated_date)} />
-                <DetailItem label="Expires" value={formatDate(recommendation.expires_at)} />
+                {range?.time_window?.timezone && (
+                    <DetailItem label="Timezone" value={range.time_window.timezone} />
+                )}
+                {range?.target_equipment && (
+                    <DetailItem label="Target equipment" value={range.target_equipment} />
+                )}
+                {minExpected !== null && (
+                    <DetailItem label="Expected baseline" value={formatKw(minExpected)} />
+                )}
+                {maxAllowed !== null && (
+                    <DetailItem label="Forecast peak" value={formatKw(maxAllowed)} />
+                )}
+                {shedLoad !== null && (
+                    <DetailItem label="Load to shift" value={formatKw(shedLoad)} />
+                )}
+                {confidence !== null && (
+                    <DetailItem
+                        label="Confidence"
+                        value={`${Math.round(confidence * 100)}%`}
+                    />
+                )}
+                {approvedTradeoff && (
+                    <DetailItem
+                        label="Approved setting"
+                        value={formatTradeoffPoint(approvedTradeoff)}
+                    />
+                )}
+                <DetailItem
+                    label="Generated"
+                    value={formatDate(recommendation.generated_date)}
+                />
+                <DetailItem
+                    label="Expires"
+                    value={formatDate(recommendation.expires_at)}
+                />
             </dl>
 
             {!actionable && (
-                <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-4)" }}>
+                <p
+                    className="text-muted"
+                    style={{
+                        fontSize: "var(--fs-small)",
+                        marginBottom: "var(--space-4)",
+                    }}
+                >
                     {isExpired(recommendation)
                         ? "This recommendation has expired and can no longer be applied."
                         : "This recommendation has already been reviewed."}
@@ -372,21 +424,46 @@ function ReviewDialog({
             )}
 
             {error && (
-                <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)", marginBottom: "var(--space-4)" }}>{error}</p>
+                <p
+                    role="alert"
+                    style={{
+                        color: "var(--brand-danger)",
+                        fontSize: "var(--fs-small)",
+                        marginBottom: "var(--space-4)",
+                    }}
+                >
+                    {error}
+                </p>
             )}
 
-            <div style={{
-                display: "flex",
-                gap: "var(--space-3)",
-                justifyContent: "flex-end",
-                flexWrap: "wrap"
-            }}>
-
-                <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>Close</button>
-                <button type="button" className="btn btn-secondary" onClick={onDismiss} disabled={busy || !actionable}>
+            <div
+                style={{
+                    display: "flex",
+                    gap: "var(--space-3)",
+                    justifyContent: "flex-end",
+                    flexWrap: "wrap",
+                }}
+            >
+                <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={onClose}
+                    disabled={busy}
+                >
+                    Close
+                </button>
+                <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={onDismiss}
+                    disabled={busy || !actionable}
+                >
                     {pendingAction === "dismiss" ? "Dismissing..." : "Dismiss"}
                 </button>
-                <button type="button" className="btn btn-primary" onClick={() => onApprove(tradeoff ? savingsLevel : undefined)} 
+                <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => onApprove(tradeoff ? savingsLevel : undefined)}
                     disabled={busy || !actionable || approvalLocked}
                     style={{ backgroundColor: "#3A6B7C", color: "#FFFFFF" }}
                 >
@@ -420,7 +497,7 @@ function RecommendationCard({
             style={{
                 display: "grid",
                 gap: "var(--space-4)",
-                opacity: expired ? 0.75 : 1
+                opacity: expired ? 0.75 : 1,
             }}
         >
             <div
@@ -429,14 +506,18 @@ function RecommendationCard({
                     justifyContent: "space-between",
                     alignItems: "flex-start",
                     gap: "var(--space-4)",
-                    flexWrap: "wrap"
+                    flexWrap: "wrap",
                 }}
             >
-                <p style={{
-                    flex: 1,
-                    minWidth: "240px",
-                    lineHeight: "var(--lh-body)"
-                }}>{recommendation.strategy_description}</p>
+                <p
+                    style={{
+                        flex: 1,
+                        minWidth: "240px",
+                        lineHeight: "var(--lh-body)",
+                    }}
+                >
+                    {recommendation.strategy_description}
+                </p>
                 <span className={`badge ${statusBadgeClass(recommendation.status)}`}>
                     {statusLabel(recommendation.status)}
                 </span>
@@ -446,34 +527,73 @@ function RecommendationCard({
                     padding: "var(--space-3) var(--space-4)",
                     border: "1px solid var(--brand-border)",
                     borderRadius: "var(--radius-md)",
-                    background: "var(--brand-surface-alt)"
+                    background: "var(--brand-surface-alt)",
                 }}
             >
                 <p className="dashboard-kpi-label">Estimated monthly savings</p>
-                <p className="dashboard-kpi-value metric" style={{ fontSize: "1.25rem" }}>{formatZar(toFiniteNumber(recommendation.estimated_monthly_savings))}</p>
+                <p
+                    className="dashboard-kpi-value metric"
+                    style={{ fontSize: "1.25rem" }}
+                >
+                    {formatZar(toFiniteNumber(recommendation.estimated_monthly_savings))}
+                </p>
             </div>
             <dl
                 style={{
                     display: "grid",
                     gap: "var(--space-4)",
                     margin: 0,
-                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))"
+                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
                 }}
             >
                 {timeWindow && <DetailItem label="Shift window" value={timeWindow} />}
-                {range?.target_equipment && (<DetailItem label="Target equipment" value={range.target_equipment} />)}
-                {confidence !== null && (<DetailItem label="Confidence" value={`${Math.round(confidence * 100)}%`} />)}
-                {fullStrength && (<DetailItem label="Comfort at full savings" value={`${fullStrength.comfort_score}/100`} />)}
-                {sweetSpot && (<DetailItem label="Sweet spot" value={formatTradeoffPoint(sweetSpot)} />)}
-                {approvedTradeoff && (<DetailItem label="Approved setting" value={formatTradeoffPoint(approvedTradeoff)} />)}
+                {range?.target_equipment && (
+                    <DetailItem label="Target equipment" value={range.target_equipment} />
+                )}
+                {confidence !== null && (
+                    <DetailItem
+                        label="Confidence"
+                        value={`${Math.round(confidence * 100)}%`}
+                    />
+                )}
+                {fullStrength && (
+                    <DetailItem
+                        label="Comfort at full savings"
+                        value={`${fullStrength.comfort_score}/100`}
+                    />
+                )}
+                {sweetSpot && (
+                    <DetailItem
+                        label="Sweet spot"
+                        value={formatTradeoffPoint(sweetSpot)}
+                    />
+                )}
+                {approvedTradeoff && (
+                    <DetailItem
+                        label="Approved setting"
+                        value={formatTradeoffPoint(approvedTradeoff)}
+                    />
+                )}
 
-                <DetailItem label="Generated" value={formatDate(recommendation.generated_date)} />
-                <DetailItem label="Expires" value={formatDate(recommendation.expires_at)} />
+                <DetailItem
+                    label="Generated"
+                    value={formatDate(recommendation.generated_date)}
+                />
+                <DetailItem
+                    label="Expires"
+                    value={formatDate(recommendation.expires_at)}
+                />
             </dl>
 
             {showReview && (
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button type="button" className="btn btn-secondary" onClick={onReview}>Review</button>
+                    <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={onReview}
+                    >
+                        Review
+                    </button>
                 </div>
             )}
         </li>
@@ -503,12 +623,18 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
         queryKey: ["recommendations", buildingId, statusFilter],
         enabled: buildingId !== "",
         queryFn: async () => {
-            const query = statusFilter === "all" ? "" : `?status=${encodeURIComponent(statusFilter)}`;
-            const response = await fetch(`/api/buildings/${buildingId}/recommendations${query}`, {
-                method: "GET",
-                credentials: "include",
-                cache: "no-store",
-            });
+            const query =
+                statusFilter === "all"
+                    ? ""
+                    : `?status=${encodeURIComponent(statusFilter)}`;
+            const response = await fetch(
+                `/api/buildings/${buildingId}/recommendations${query}`,
+                {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store",
+                }
+            );
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
@@ -518,7 +644,11 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
         },
     });
 
-    const { mutate: reviewRecommendation, variables: pendingReview, isPending: reviewPending } = useMutation({
+    const {
+        mutate: reviewRecommendation,
+        variables: pendingReview,
+        isPending: reviewPending,
+    } = useMutation({
         mutationFn: async ({ action, recommendationId, savingsLevel }: ReviewVariables) => {
             const response = await fetch(
                 `/api/buildings/${buildingId}/recommendations/${recommendationId}/${action}`,
@@ -528,10 +658,10 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
                     ...(savingsLevel === undefined
                         ? {}
                         : {
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ savings_level: savingsLevel })
-                        }),
-                },
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ savings_level: savingsLevel }),
+                          }),
+                }
             );
 
             const payload = await response.json().catch(() => ({}));
@@ -552,13 +682,19 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
         },
     });
 
-    const activeRecommendations = recommendations.filter((recommendation) => !isExpired(recommendation) && recommendation.status !== "Dismissed",);
-    const potentialSavings = activeRecommendations.reduce(
-        (total, recommendation) => total + (toFiniteNumber(recommendation.estimated_monthly_savings) ?? 0),
-        0,
+    const activeRecommendations = recommendations.filter(
+        (recommendation) =>
+            !isExpired(recommendation) && recommendation.status !== "Dismissed"
     );
-    const selectedBuildingName = buildings.find((building) => building.id === buildingId)?.name ?? "";
-    const reviewTarget = recommendations.find((item) => item.recommendation_id === reviewId) ?? null;
+    const potentialSavings = activeRecommendations.reduce(
+        (total, recommendation) =>
+            total + (toFiniteNumber(recommendation.estimated_monthly_savings) ?? 0),
+        0
+    );
+    const selectedBuildingName =
+        buildings.find((building) => building.id === buildingId)?.name ?? "";
+    const reviewTarget =
+        recommendations.find((item) => item.recommendation_id === reviewId) ?? null;
 
     const closeReview = () => {
         setReviewId(null);
@@ -569,7 +705,9 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
         if (buildingId === "") {
             return (
                 <div className="card dashboard-empty">
-                    <p className="text-muted">Select a building to view its optimisation recommendations.</p>
+                    <p className="text-muted">
+                        Select a building to view its optimisation recommendations.
+                    </p>
                 </div>
             );
         }
@@ -613,13 +751,16 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
                     margin: 0,
                     display: "grid",
                     gap: "var(--space-4)",
-                    listStyle: "none"
+                    listStyle: "none",
                 }}
             >
                 {recommendations.map((recommendation) => (
-                    <RecommendationCard key={recommendation.recommendation_id} recommendation={recommendation} showReview={showReview} onReview={
-                        () => setReviewId(recommendation.recommendation_id)
-                    } />
+                    <RecommendationCard
+                        key={recommendation.recommendation_id}
+                        recommendation={recommendation}
+                        showReview={showReview}
+                        onReview={() => setReviewId(recommendation.recommendation_id)}
+                    />
                 ))}
             </ul>
         );
@@ -632,13 +773,16 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
                 subtitle="Suggested load-shifting strategies and their estimated cost savings."
             />
 
-            <section className="card dashboard-section" aria-label="Recommendation filters">
+            <section
+                className="card dashboard-section"
+                aria-label="Recommendation filters"
+            >
                 <div
                     style={{
                         display: "grid",
                         gap: "var(--space-4)",
                         gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                        alignItems: "end"
+                        alignItems: "end",
                     }}
                 >
                     <LabeledSelect
@@ -648,9 +792,13 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
                         disabled={buildingsLoading || buildings.length === 0}
                         onChange={setBuildingId}
                     >
-                        <option value="">{buildingsLoading ? "Loading buildings..." : "Select building"}</option>
+                        <option value="">
+                            {buildingsLoading ? "Loading buildings..." : "Select building"}
+                        </option>
                         {buildings.map((building) => (
-                            <option key={building.id} value={building.id}>{building.name}</option>
+                            <option key={building.id} value={building.id}>
+                                {building.name}
+                            </option>
                         ))}
                     </LabeledSelect>
 
@@ -662,33 +810,49 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
                         onChange={setStatusFilter}
                     >
                         {STATUS_FILTERS.map((filter) => (
-                            <option key={filter.value} value={filter.value}>{filter.label}</option>
+                            <option key={filter.value} value={filter.value}>
+                                {filter.label}
+                            </option>
                         ))}
                     </LabeledSelect>
                 </div>
 
                 {buildingsError && (
-                    <p className="text-muted" style={{
-                        marginTop: "var(--space-3)",
-                        color: "var(--brand-danger)"
-                    }} role="alert">Unable to load your assigned buildings right now.
+                    <p
+                        className="text-muted"
+                        style={{
+                            marginTop: "var(--space-3)",
+                            color: "var(--brand-danger)",
+                        }}
+                        role="alert"
+                    >
+                        Unable to load your assigned buildings right now.
                     </p>
                 )}
                 {!buildingsLoading && !buildingsError && buildings.length === 0 && (
-                    <p className="text-muted" style={{ marginTop: "var(--space-3)" }}>No buildings are currently assigned to your account.</p>
+                    <p className="text-muted" style={{ marginTop: "var(--space-3)" }}>
+                        No buildings are currently assigned to your account.
+                    </p>
                 )}
             </section>
 
             {buildingId !== "" && !recommendationsLoading && !recommendationsError && (
-                <section className="dashboard-section" aria-label="Recommendation summary">
+                <section
+                    className="dashboard-section"
+                    aria-label="Recommendation summary"
+                >
                     <div className="dashboard-kpi-grid">
                         <div className="card dashboard-card-tight">
                             <p className="dashboard-kpi-label">Active recommendations</p>
-                            <p className="dashboard-kpi-value">{activeRecommendations.length}</p>
+                            <p className="dashboard-kpi-value">
+                                {activeRecommendations.length}
+                            </p>
                         </div>
                         <div className="card dashboard-card-tight">
                             <p className="dashboard-kpi-label">Potential monthly savings</p>
-                            <p className="dashboard-kpi-value metric">{formatZar(potentialSavings)}</p>
+                            <p className="dashboard-kpi-value metric">
+                                {formatZar(potentialSavings)}
+                            </p>
                         </div>
                         <div className="card dashboard-card-tight">
                             <p className="dashboard-kpi-label">Total listed</p>
@@ -700,9 +864,15 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
             <section className="dashboard-section" aria-label="Recommendation list">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Load-shifting strategies</h2>
-                    {selectedBuildingName && (<span className="dashboard-section-meta">{selectedBuildingName}</span>)}
+                    {selectedBuildingName && (
+                        <span className="dashboard-section-meta">
+                            {selectedBuildingName}
+                        </span>
+                    )}
                 </div>
-                <output aria-live="polite" style={{ display: "block" }}>{renderResults()}</output>
+                <output aria-live="polite" style={{ display: "block" }}>
+                    {renderResults()}
+                </output>
             </section>
 
             {reviewTarget && (
@@ -711,12 +881,19 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
                     recommendation={reviewTarget}
                     pendingAction={reviewPending ? pendingReview?.action ?? null : null}
                     error={reviewError}
-                    onApprove={(savingsLevel) => reviewRecommendation({
-                        action: "apply",
-                        recommendationId: reviewTarget.recommendation_id,
-                        ...(savingsLevel === undefined ? {} : { savingsLevel })
-                    })}
-                    onDismiss={() => reviewRecommendation({ action: "dismiss", recommendationId: reviewTarget.recommendation_id })}
+                    onApprove={(savingsLevel) =>
+                        reviewRecommendation({
+                            action: "apply",
+                            recommendationId: reviewTarget.recommendation_id,
+                            ...(savingsLevel === undefined ? {} : { savingsLevel }),
+                        })
+                    }
+                    onDismiss={() =>
+                        reviewRecommendation({
+                            action: "dismiss",
+                            recommendationId: reviewTarget.recommendation_id,
+                        })
+                    }
                     onClose={closeReview}
                 />
             )}

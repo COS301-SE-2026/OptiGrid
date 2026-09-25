@@ -12,6 +12,7 @@ import {
   Area,
   Line,
 } from "recharts";
+import { CurvedSelect } from "@/components/curvedselect";
 
 export type AnomalyStatus = "Open" | "Resolved" | "In_Progress" | "Ignored";
 export type SeverityLevel = "low" | "medium" | "high" | "critical";
@@ -337,82 +338,87 @@ export function FilterBar(props: Readonly<FilterBarProps>) {
     <div className="card" style={{ marginBottom: "var(--space-5)" }}>
       <div
         style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "var(--space-4)",
-          alignItems: "center",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "var(--space-3)",
+          alignItems: "end",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <label className="label" htmlFor="building-filter">{buildingFilterLabel}</label>
-          <select
+        <div style={{ display: "grid", gap: "var(--space-2)" }}>
+          <label className="label" htmlFor="building-filter" style={{ margin: 0 }}>
+            {buildingFilterLabel.replace(/:$/, "")}
+          </label>
+          <CurvedSelect
             id="building-filter"
             value={selectedBuilding}
-            onChange={(e) => onBuildingChange(e.target.value)}
-            className="select"
-            style={{ minWidth: "140px" }}
-            aria-label="Filter by building"
-          >
-            <option value="all">All Buildings</option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+            onChange={onBuildingChange}
+            options={[
+              { value: "all", label: "All Buildings" },
+              ...buildings.map((b) => ({ value: b.id, label: b.name })),
+            ]}
+            ariaLabel="Filter by building"
+          />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <label className="label" htmlFor="status-filter">Status:</label>
-          <select
+        <div style={{ display: "grid", gap: "var(--space-2)" }}>
+          <label className="label" htmlFor="status-filter" style={{ margin: 0 }}>
+            Status
+          </label>
+          <CurvedSelect
             id="status-filter"
             value={statusFilter}
-            onChange={(e) => onStatusChange(e.target.value)}
-            className="select"
-            style={{ minWidth: "120px" }}
-            aria-label="Filter by status"
-          >
-            <option value="all">All</option>
-            <option value="Open">Open</option>
-            <option value="In_Progress">In Progress</option>
-            <option value="Resolved">Resolved</option>
-            <option value="Ignored">Ignored</option>
-          </select>
+            onChange={onStatusChange}
+            options={[
+              { value: "all", label: "All" },
+              { value: "Open", label: "Open" },
+              { value: "In_Progress", label: "In Progress" },
+              { value: "Resolved", label: "Resolved" },
+              { value: "Ignored", label: "Ignored" },
+            ]}
+            ariaLabel="Filter by status"
+          />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <label className="label" htmlFor="severity-filter">Severity:</label>
-          <select
+        <div style={{ display: "grid", gap: "var(--space-2)" }}>
+          <label className="label" htmlFor="severity-filter" style={{ margin: 0 }}>
+            Severity
+          </label>
+          <CurvedSelect
             id="severity-filter"
             value={severityFilter}
-            onChange={(e) => onSeverityChange(e.target.value)}
-            className="select"
-            style={{ minWidth: "120px" }}
-            aria-label="Filter by severity"
-          >
-            <option value="all">All</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="critical">Critical</option>
-          </select>
+            onChange={onSeverityChange}
+            options={[
+              { value: "all", label: "All" },
+              { value: "low", label: "Low" },
+              { value: "medium", label: "Medium" },
+              { value: "high", label: "High" },
+              { value: "critical", label: "Critical" },
+            ]}
+            ariaLabel="Filter by severity"
+          />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: 1 }}>
-          <label className="label" htmlFor="search-input">Search:</label>
+        <div style={{ display: "grid", gap: "var(--space-2)" }}>
+          <label className="label" htmlFor="search-input" style={{ margin: 0 }}>
+            Search
+          </label>
           <input
             id="search-input"
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search anomalies..."
+            placeholder="Search anomalies…"
             className="input"
-            style={{ flex: 1 }}
             aria-label="Search anomalies"
           />
         </div>
 
-        <button type="button" onClick={onReset} className="btn btn-secondary">
-          Reset
-        </button>
+        <div style={{ display: "grid", gap: "var(--space-2)" }}>
+          <span aria-hidden style={{ height: "1.25rem" }} />
+          <button type="button" onClick={onReset} className="btn btn-secondary">
+            Reset
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -565,7 +571,7 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
 
   return (
     <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)", flexWrap: "wrap", gap: "var(--space-3)" }}>
         <div>
           <h2 style={{ fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
             Energy Consumption
@@ -574,28 +580,26 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
             Actual vs Expected consumption with detected anomalies
           </p>
         </div>
-        <div style={{ display: "flex", gap: "var(--space-3)" }}>
-          <select
-            value={chartMetric}
-            onChange={(e) => onMetricChange(e.target.value as MetricType)}
-            className="select"
-            style={{ minWidth: "120px" }}
-            aria-label="Select metric for chart"
-          >
-            <option value="power">Power (kWh)</option>
-            <option value="cost">Cost (R)</option>
-          </select>
-          <select
-            value={selectedBuilding}
-            onChange={(e) => onBuildingChange(e.target.value)}
-            className="select"
-            style={{ minWidth: "150px" }}
-            aria-label="Select building for chart"
-          >
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+        <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
+          <div style={{ minWidth: 140 }}>
+            <CurvedSelect
+              value={chartMetric}
+              onChange={(value) => onMetricChange(value as MetricType)}
+              options={[
+                { value: "power", label: "Power (kWh)" },
+                { value: "cost", label: "Cost (R)" },
+              ]}
+              ariaLabel="Select metric for chart"
+            />
+          </div>
+          <div style={{ minWidth: 170 }}>
+            <CurvedSelect
+              value={selectedBuilding}
+              onChange={onBuildingChange}
+              options={buildings.map((b) => ({ value: b.id, label: b.name }))}
+              ariaLabel="Select building for chart"
+            />
+          </div>
         </div>
       </div>
 
@@ -746,7 +750,6 @@ export function Modal({
   children,
   maxWidth = "600px",
 }: Readonly<ModalProps>) {
- 
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -777,7 +780,6 @@ export function Modal({
         padding: 0,
       }}
     >
-
       <button
         type="button"
         aria-label="Close dialog"
@@ -814,7 +816,6 @@ export function Modal({
   );
 }
 
-
 export function formatDate(date: string) {
   return new Date(date).toLocaleString(undefined, {
     month: "short",
@@ -838,7 +839,6 @@ export function parseNumberOrNull(value: string): number | null {
 
 const EMPTY_BUILDINGS: Building[] = [];
 const SERIES_ERROR_MESSAGE = "Unable to load energy consumption data.";
-
 
 export type AnomalyChartState = {
   chartData: typeof mockConsumptionData;
@@ -995,17 +995,14 @@ export function useAnomalyChartData(
   const chartData = useMemo(() => {
     const buildingId = resolveBuildingId(selectedBuildingForChart, buildings);
     const buildingAnomalies = anomalies.filter((a) => a.building_id === buildingId);
-    
-    // Create a map to quickly check if an hour has an anomaly
+
     const anomalyMap = new Map();
     buildingAnomalies.forEach((a) => {
-      // Truncate to hour to match influx 1h aggregation
       const d = new Date(a.detected_timestamp);
       d.setMinutes(0, 0, 0);
       anomalyMap.set(d.toISOString(), a);
     });
 
-    // Compute hourly baselines across the 7 days
     const hourlyBaselines = new Map<number, { kwhSum: number; costSum: number; count: number }>();
     seriesData.forEach((point) => {
       const pDate = new Date(point.timestamp);
@@ -1026,7 +1023,7 @@ export function useAnomalyChartData(
       pDate.setMinutes(0, 0, 0);
       const isAnomaly = anomalyMap.has(pDate.toISOString());
       const hour = pDate.getHours();
-      
+
       const baseline = hourlyBaselines.get(hour);
       const actualKwh = toFiniteValue(point.kwh);
       const actualCost = toFiniteValue(point.cost_zar);
@@ -1055,7 +1052,6 @@ export function useAnomalyChartData(
 
   return { chartData, anomalyPoints, chartError, chartLoading };
 }
-
 
 export function useAnomalyFilters(anomalies: Anomaly[]) {
   const [selectedBuilding, setSelectedBuilding] = useState<string>("all");
@@ -1098,7 +1094,6 @@ export function useAnomalyFilters(anomalies: Anomaly[]) {
   };
 }
 
-
 export function useHistoricFilterState() {
   const [historicFilter, setHistoricFilter] = useState<string>("all");
   const [historicSearch, setHistoricSearch] = useState<string>("");
@@ -1118,7 +1113,6 @@ interface AnomalyDetailsModalProps {
   onResolve?: (anomaly: Anomaly) => void;
   onIgnore?: (anomaly: Anomaly) => void;
 }
-
 
 export function AnomalyDetailsModal({ anomaly, open, onClose, onResolve, onIgnore }: Readonly<AnomalyDetailsModalProps>) {
   if (!open || !anomaly) return null;
@@ -1246,7 +1240,6 @@ interface HistoricAlertsModalProps {
   idPrefix: string;
 }
 
-
 export function HistoricAlertsModal({
   open,
   onClose,
@@ -1273,33 +1266,36 @@ export function HistoricAlertsModal({
   return (
     <Modal open={open} onClose={onClose} maxWidth="1200px">
       <h2 style={{ marginBottom: "var(--space-3)" }}>Historic Alerts</h2>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-          <label className="label" htmlFor={`historic-status-${idPrefix}`}>Status:</label>
-          <select
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(200px, 1fr) minmax(200px, 1.5fr) auto", gap: "var(--space-3)", marginBottom: "var(--space-4)", alignItems: "end" }}>
+        <div style={{ display: "grid", gap: "var(--space-2)" }}>
+          <label className="label" htmlFor={`historic-status-${idPrefix}`} style={{ margin: 0 }}>
+            Status
+          </label>
+          <CurvedSelect
             id={`historic-status-${idPrefix}`}
             value={statusFilter}
-            onChange={(e) => onStatusFilterChange(e.target.value)}
-            className="select"
-            style={{ minWidth: "120px" }}
-          >
-            <option value="all">All</option>
-            <option value="Open">Open</option>
-            <option value="In_Progress">In Progress</option>
-            <option value="Resolved">Resolved</option>
-            <option value="Ignored">Ignored</option>
-          </select>
+            onChange={onStatusFilterChange}
+            options={[
+              { value: "all", label: "All" },
+              { value: "Open", label: "Open" },
+              { value: "In_Progress", label: "In Progress" },
+              { value: "Resolved", label: "Resolved" },
+              { value: "Ignored", label: "Ignored" },
+            ]}
+            ariaLabel="Filter historic alerts by status"
+          />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: 1 }}>
-          <label className="label" htmlFor={`historic-search-${idPrefix}`}>Search:</label>
+        <div style={{ display: "grid", gap: "var(--space-2)" }}>
+          <label className="label" htmlFor={`historic-search-${idPrefix}`} style={{ margin: 0 }}>
+            Search
+          </label>
           <input
             id={`historic-search-${idPrefix}`}
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search historic alerts..."
+            placeholder="Search historic alerts…"
             className="input"
-            style={{ flex: 1 }}
           />
         </div>
         <button type="button" onClick={onReset} className="btn btn-secondary">
