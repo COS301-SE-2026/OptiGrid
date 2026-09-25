@@ -15,10 +15,12 @@ import {
     YAxis,
 } from "recharts";
 import { AccessibleChart } from "../../../components/AccessibleChart";
-import { buildDisplayName, type SessionUser } from "../../../lib/session";
+import { type SessionUser } from "../../../lib/session";
+import { SERIES_COLOURS, axisTick, formatAxisNumber, gridStroke, seriesDot, tooltipContentStyle, tooltipLabelStyle } from "../../../lib/chartTheme";
 import { getTabSessionPath } from "../../../lib/tab-session";
 import { useTabSessionId } from "../../../lib/use-tab-session-id";
 import VerifyIntegrityButton, { IntegrityStatus, useIntegrityVerification } from "@/components/VerifyIntegrityButton";
+import { humanise } from "@/lib/labels";
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
 
@@ -334,14 +336,6 @@ export default function DashboardPage() {
     });
 
     const firstName = user?.firstName?.trim() || "there";
-    const fullName = user ? buildDisplayName(user) : "User";
-    const initials = fullName
-        .split(" ")
-        .map((part) => part[0])
-        .filter(Boolean)
-        .slice(0, 2)
-        .join("")
-        .toUpperCase() || "U";
 
     const buildingsWithTelemetry = buildings.map((building) => ({
         ...building,
@@ -391,7 +385,7 @@ export default function DashboardPage() {
     const renderBuildingsList = () => {
         if (buildingsLoading) {
             return (
-                <div style={{ display: "grid", gap: "var(--space-3)" }} aria-hidden="true">
+                <div className="dashboard-panel-body" style={{ display: "grid", gap: "var(--space-3)" }} aria-hidden="true">
                     <Skeleton style={{ height: 56, width: "100%" }} />
                     <Skeleton style={{ height: 56, width: "100%" }} />
                     <Skeleton style={{ height: 56, width: "100%" }} />
@@ -401,7 +395,7 @@ export default function DashboardPage() {
 
         if (buildingsError) {
             return (
-                <div className="card dashboard-empty">
+                <div className="dashboard-empty">
                     <p className="text-muted">
                         {buildingsErrorDetails?.message || "Unable to load buildings right now."}
                     </p>
@@ -414,7 +408,7 @@ export default function DashboardPage() {
 
         if (!hasBuildings) {
             return (
-                <div className="card dashboard-empty">
+                <div className="dashboard-empty">
                     <p className="text-muted">You do not have any buildings in your portfolio yet.</p>
                     <Link
                         href="/buildings/add"
@@ -434,10 +428,10 @@ export default function DashboardPage() {
 
         return (
             <>
-                <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
+                <p className="text-muted dashboard-panel-note">
                     Click on any building row to view detailed information
                 </p>
-                <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                <div>
                     <div style={{ overflow: "auto" }}>
                         <table className="dashboard-table" ref={tableRef}>
                             <caption className="sr-only">Your buildings</caption>
@@ -475,11 +469,11 @@ export default function DashboardPage() {
                                             >
                                                 {building.name}
                                             </Link>
-                                            <p className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                                            <p className="text-muted dashboard-row-sub">
                                                 {building.location}
                                             </p>
                                         </td>
-                                        <td>{building.type}</td>
+                                        <td>{humanise(building.type, "Unspecified")}</td>
                                         <td>
                                             <span className="metric">
                                                 {formatNumberMetric(building.todayKwh)}
@@ -527,51 +521,39 @@ export default function DashboardPage() {
                         }
                     ]}
                 >
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={240}>
                     <LineChart
                         data={consumption}
-                        margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                     >
-                        <CartesianGrid
-                            strokeDasharray="3 3"
-                            stroke="var(--brand-border)"
-                        />
+                        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                         <XAxis
                             dataKey="day"
-                            tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                            tick={axisTick}
                             axisLine={false}
                             tickLine={false}
+                            padding={{ left: 16, right: 16 }}
                         />
                         <YAxis
-                            tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                            tick={axisTick}
                             axisLine={false}
                             tickLine={false}
-                            label={{
-                                value: "kWh",
-                                angle: -90,
-                                position: "insideLeft",
-                                style: { fill: "var(--brand-ink-muted)", fontSize: 11 }
-                            }}
+                            width={52}
+                            tickFormatter={formatAxisNumber}
                         />
                         <Tooltip
-                            contentStyle={{
-                                backgroundColor: "var(--brand-surface)",
-                                border: "1px solid var(--brand-border)",
-                                borderRadius: "12px",
-                                color: "var(--brand-ink)",
-                                fontSize: "var(--fs-small)",
-                            }}
+                            contentStyle={tooltipContentStyle}
+                            labelStyle={tooltipLabelStyle}
                             cursor={{ stroke: "var(--brand-border)" }}
                             formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy usage"]}
-                            labelFormatter={(label) => `Day: ${label}`}
                         />
                         <Line
                             type="monotone"
                             dataKey="kwh"
-                            stroke="var(--brand-primary)"
+                            stroke={SERIES_COLOURS[0]}
                             strokeWidth={2}
-                            dot={{ fill: "var(--brand-primary)", r: 3 }}
-                            activeDot={{ r: 5 }}
+                            dot={seriesDot(SERIES_COLOURS[0])}
+                            activeDot={seriesDot(SERIES_COLOURS[0], 6)}
                         />
                     </LineChart>
                 </ResponsiveContainer>
@@ -596,13 +578,6 @@ export default function DashboardPage() {
 
     return (
         <div>
-            <div className="dashboard-topbar">
-                <div className="dashboard-user">
-                    <div className="dashboard-avatar" aria-hidden="true">{initials}</div>
-                    <span>{fullName}</span>
-                </div>
-            </div>
-
             <div className="dashboard-header">
                 <div>
                     <h1 className="dashboard-title">Welcome back, {firstName}</h1>
@@ -615,28 +590,17 @@ export default function DashboardPage() {
                         href={getTabSessionPath("/api/reports/summary", tabSessionId)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-primary"
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            backgroundColor: "#3A6B7C",
-                            color: "#FFFFFF",
-                        }}
+                        className="btn btn-secondary"
                     >
                         Download Summary Report
                     </a>
+                    <VerifyIntegrityButton state={ledgerVerification.state} onVerify={ledgerVerification.run} />
                     <Link 
                         href="/buildings/add" 
                         className="btn btn-primary"
-                 //   aria-label="Add a new building to your portfolio"
-                        style={{
-                            backgroundColor: "#3A6B7C",
-                            color: "#FFFFFF",
-                        }}
                     >
                         + Add building
                     </Link>
-                    <VerifyIntegrityButton state={ledgerVerification.state} onVerify={ledgerVerification.run} variant="primary" />
                 </div>
             </div>
 
@@ -680,8 +644,8 @@ export default function DashboardPage() {
                 {renderConsumptionChart()}
             </section>
 
-            <section className="dashboard-section" aria-label="Buildings list">
-                <div className="dashboard-section-header">
+            <section className="card dashboard-section dashboard-panel" aria-label="Buildings list">
+                <div className="dashboard-section-header dashboard-panel-head">
                     <h2 className="dashboard-section-title">
                         Your buildings
                     </h2>

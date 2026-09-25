@@ -90,7 +90,7 @@ describe("Rendering readings", () => {
         mockBuildings([sandtonOffice]);
         renderPage();
         await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
-        expect(screen.getByText("100.00")).toBeInTheDocument();
+        expect(screen.getByText("100.0")).toBeInTheDocument();
         expect(screen.getByText("12 West St")).toBeInTheDocument();
     });
 

@@ -108,18 +108,18 @@ export default function AdminPage() {
   const getstatelabel = (state: lifecycle_state) => {
     const status = state?.toLowerCase() || "provisioning";
     const labels: Record<string, string> = {
-      active: "ACTIVE",
-      inactive: "INACTIVE",
-      provisioning: "PROVISIONING",
-      provisioning_failed: "PROVISIONING_FAILED",
+      active: "Active",
+      inactive: "Inactive",
+      provisioning: "Provisioning",
+      provisioning_failed: "Provisioning failed",
     };
-    return labels[status] || "PROVISIONING";
+    return labels[status] || "Provisioning";
   };
 
   const getStateBadgeClass = (state: lifecycle_state) => {
     const classes: Record<string, string> = {
       ACTIVE: "badge-success",
-      INACTIVE: "badge-warning",
+      INACTIVE: "badge-default",
       PROVISIONING: "badge-warning",
       PROVISIONING_FAILED: "badge-danger",
     };
@@ -189,155 +189,85 @@ export default function AdminPage() {
     <div className="dashboard-page">
       <div className="dashboard-shell">
         <div className="dashboard-main">
-          <div className="dashboard-header">
+          <div className="dashboard-header dashboard-page-heading">
             <div>
-              <h1 className="dashboard-title">Admin - Manage Buildings</h1>
-              <div className="dashboard-subtitle">
-                {buildings.length} buildings total
-              </div>
+              <h1 className="dashboard-title">Manage buildings</h1>
+              <p className="dashboard-subtitle">
+                {buildings.length} {buildings.length === 1 ? "building" : "buildings"} in the portfolio, with their status and assigned people.
+              </p>
             </div>
-            <Link
-              href="useradmin"
-              className="btn btn-primary"
-              style={{
-                backgroundColor: "#3A6B7C",
-                color: "#FFFFFF",
-              }}
-            >
-              Manage Users
+            <Link href="useradmin" className="btn btn-primary">
+              Manage users
             </Link>
           </div>
 
           <section aria-label="Filters and controls">
-            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  gap: "var(--space-4)",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-2)",
-                    flex: 1,
-                  }}
+            <div className="card filter-bar">
+              <div className="filter-field">
+                <label className="label" htmlFor="lifecycle-filter">Status</label>
+                <select
+                  id="lifecycle-filter"
+                  value={lifecycleFilter}
+                  onChange={(e) => setLifecycleFilter(e.target.value)}
+                  className="select"
+                  aria-label="Filter buildings by lifecycle state"
                 >
-                  <label className="label" htmlFor="lifecycle-filter" style={{ whiteSpace: "nowrap" }}>
-                    Lifecycle:
-                  </label>
-                  <select
-                    id="lifecycle-filter"
-                    value={lifecycleFilter}
-                    onChange={(e) => setLifecycleFilter(e.target.value)}
-                    className="select"
-                    style={{ flex: 1 }}
-                    aria-label="Filter buildings by lifecycle state"
-                  >
-                    <option value="all">All states</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                    <option value="PROVISIONING">Provisioning</option>
-                    <option value="PROVISIONING_FAILED">Provisioning failed</option>
-                  </select>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-2)",
-                    flex: 1,
-                  }}
-                >
-                  <label className="label" htmlFor="search-input" style={{ whiteSpace: "nowrap" }}>
-                    Search:
-                  </label>
-                  <input
-                    id="search-input"
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="building name..."
-                    className="input"
-                    style={{ flex: 1 }}
-                    aria-label="Search buildings by name"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLifecycleFilter("all");
-                    setSearchQuery("");
-                  }}
-                  className="btn btn-secondary"
-                >
-                  Reset filters
-                </button>
+                  <option value="all">All states</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="PROVISIONING">Provisioning</option>
+                  <option value="PROVISIONING_FAILED">Provisioning failed</option>
+                </select>
               </div>
+
+              <div className="filter-field filter-field-grow">
+                <label className="label" htmlFor="search-input">Search</label>
+                <input
+                  id="search-input"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by building name"
+                  className="input"
+                  aria-label="Search buildings by name"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setLifecycleFilter("all");
+                  setSearchQuery("");
+                }}
+                className="btn btn-secondary filter-reset"
+              >
+                Reset filters
+              </button>
             </div>
           </section>
 
           <section aria-label="Building statistics">
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-                gap: "var(--space-4)",
-                marginBottom: "var(--space-5)",
-              }}
-            >
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">Total</div>
-                <div className="dashboard-kpi-value">{stats.total}</div>
-              </div>
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">ACTIVE</div>
-                <div className="dashboard-kpi-value" style={{ color: "var(--brand-success)" }}>
-                  {stats.active}
+            <div className="kpi-strip">
+              {[
+                { label: "Total", value: stats.total, tone: "" },
+                { label: "Active", value: stats.active, tone: "is-success" },
+                { label: "Inactive", value: stats.inactive, tone: "is-muted" },
+                { label: "Provisioning", value: stats.provisioning, tone: "is-warning" },
+                { label: "Provisioning failed", value: stats.provisioning_failed, tone: "is-danger" },
+                { label: "Assigned", value: stats.assigned, tone: "is-primary" },
+                { label: "Unassigned", value: stats.unassigned, tone: "is-warning" },
+              ].map((item) => (
+                <div key={item.label} className="card kpi-tile">
+                  <div className="dashboard-kpi-label">{item.label}</div>
+                  <div className={`dashboard-kpi-value ${item.tone}`.trim()}>{item.value}</div>
                 </div>
-              </div>
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">Inactive</div>
-                <div className="dashboard-kpi-value" style={{ color: "var(--brand-ink-muted)" }}>
-                  {stats.inactive}
-                </div>
-              </div>
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">PROVISIONING</div>
-                <div className="dashboard-kpi-value" style={{ color: "var(--brand-warning)" }}>
-                  {stats.provisioning}
-                </div>
-              </div>
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">PROVISIONING_FAILED</div>
-                <div className="dashboard-kpi-value" style={{ color: "var(--brand-danger)" }}>
-                  {stats.provisioning_failed}
-                </div>
-              </div>
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">Assigned</div>
-                <div className="dashboard-kpi-value" style={{ color: "var(--brand-primary)" }}>
-                  {stats.assigned}
-                </div>
-              </div>
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">Unassigned</div>
-                <div className="dashboard-kpi-value" style={{ color: "var(--brand-warning)" }}>
-                  {stats.unassigned}
-                </div>
-              </div>
+              ))}
             </div>
           </section>
 
           <section aria-label="Buildings list">
-            <div className="card" style={{ overflow: "hidden", padding: 0 }}>
-              <div style={{ overflow: "auto" }}>
+            <div className="card table-card">
+              <div className="table-scroll">
                 <table className="dashboard-table">
                   <caption className="sr-only">All buildings with assigned viewer and manager</caption>
                   <thead>
@@ -346,7 +276,7 @@ export default function AdminPage() {
                         Building
                       </th>
                       <th scope="col">
-                        Building State
+                        Status
                       </th>
                       <th scope="col">
                         Viewer
@@ -385,12 +315,6 @@ export default function AdminPage() {
                                 type="button"
                                 onClick={() => handleeditbuilding(building)}
                                 className="btn btn-primary"
-                                style={{
-                                  fontSize: "var(--fs-small)",
-                                  padding: "var(--space-1) var(--space-3)",
-                                  backgroundColor: "#3A6B7C",
-                                  color: "#FFFFFF",
-                                }}
                               >
                                 Edit
                               </button>
@@ -398,10 +322,6 @@ export default function AdminPage() {
                                 type="button"
                                 onClick={() => setDeleteTarget(building)}
                                 className="btn btn-danger"
-                                style={{
-                                  fontSize: "var(--fs-small)",
-                                  padding: "var(--space-1) var(--space-3)",
-                                }}
                               >
                                 Delete
                               </button>

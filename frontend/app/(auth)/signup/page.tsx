@@ -85,7 +85,6 @@ export default function SignupPage() {
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
-                    <p className="landing-kicker">OptiGrid Access</p>
                     <h1>Create your account</h1>
                     <p className="text-muted auth-lede">
                         Monitor usage, catch anomalies, and start saving in minutes.
@@ -113,7 +112,7 @@ export default function SignupPage() {
                                 }
                                 className={inputClass}
                                 style={showError("firstName") ? errorStyle : undefined}
-                                placeholder="Abdelrahman"
+                                placeholder="Lerato"
                                 suppressHydrationWarning
                             />
                             {showError("firstName") && (
@@ -146,7 +145,7 @@ export default function SignupPage() {
                                 }
                                 className={inputClass}
                                 style={showError("lastName") ? errorStyle : undefined}
-                                placeholder="Esam"
+                                placeholder="Mokoena"
                                 suppressHydrationWarning
                             />
                             {showError("lastName") && (
@@ -180,7 +179,7 @@ export default function SignupPage() {
                             }
                             className={inputClass}
                             style={showError("email") ? errorStyle : undefined}
-                            placeholder="abdelrahman.esam@company.io"
+                            placeholder="you@company.co.za"
                             suppressHydrationWarning
                         />
                         {showError("email") && (
@@ -262,10 +261,6 @@ export default function SignupPage() {
                         type="submit"
                         disabled={loading}
                         className="btn btn-primary auth-submit"
-                        style={{
-                            backgroundColor: "#3A6B7C",
-                            color: "#FFFFFF",
-                        }}
                     >
                         {loading ? "Creating account..." : "Create account"}
                     </button>

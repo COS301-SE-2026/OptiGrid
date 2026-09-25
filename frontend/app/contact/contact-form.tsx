@@ -81,7 +81,7 @@ export function ContactForm() {
             <label className="label" htmlFor="description">Description</label>
             <textarea
               id="description"
-              rows={3}
+              rows={5}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="input"
@@ -94,10 +94,6 @@ export function ContactForm() {
           <button
             type="submit"
             className="btn btn-primary contact-submit"
-            style={{
-              backgroundColor: "#3A6B7C",
-              color: "#FFFFFF",
-            }}
           >
             Submit
           </button>

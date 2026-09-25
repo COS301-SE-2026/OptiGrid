@@ -18,7 +18,7 @@ export default async function FaqsPage() {
             <main>
                 <section className="landing-section">
                     <div className="landing-shell">
-                        <div className="landing-section-header">
+                        <div className="landing-section-header faq-header">
                             <h1>Frequently Asked Questions</h1>
                             <p className="text-muted">
                                 {user

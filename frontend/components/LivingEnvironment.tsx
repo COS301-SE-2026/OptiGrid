@@ -145,22 +145,13 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
   );
 
   return (
-    <div
-      className="esg-layout"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)',
-        gap: 'var(--space-5)',
-        alignItems: 'start',
-      }}
-    >
-      
-      <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
-        <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
+    <div className="esg-layout">
+      <div className="esg-column">
+        <section className="card esg-tree" style={{ padding: 0, overflow: 'hidden' }}>
           <div
             className="dashboard-section-header"
             style={{
-              padding: 'var(--space-4) var(--space-5) 0',
+              padding: 'var(--space-5) var(--space-5) 0',
               marginBottom: 0,
             }}
           >
@@ -218,18 +209,17 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
           </div>
         </section>
 
-        <WhatIsAffectingPanel
-          drivers={drivers}
-          healthScore={healthScore}
-          state={state}
-        />
+        <div className="esg-drivers">
+          <WhatIsAffectingPanel
+            drivers={drivers}
+            healthScore={healthScore}
+            state={state}
+          />
+        </div>
       </div>
 
       
-      <section
-        className="card"
-        style={{ position: 'sticky', top: 'var(--space-5)' }}
-      >
+      <section className="card esg-controls">
         <header
           className="dashboard-section-header"
           style={{ marginBottom: 'var(--space-4)' }}
@@ -242,7 +232,7 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
           </div>
         </header>
 
-        <div style={{ display: 'grid', gap: 'var(--space-5)' }}>
+        <div style={{ display: 'grid', gap: 'var(--space-5)', marginBottom: 'var(--space-5)' }}>
           <ControlSlider
             label="Energy Efficiency"
             value={energyEfficiency}
@@ -272,7 +262,7 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
         <div
           className="dashboard-section-meta"
           style={{
-            marginTop: 'var(--space-5)',
+            marginTop: 'auto',
             paddingTop: 'var(--space-3)',
             borderTop: '1px solid var(--brand-border)',
           }}
@@ -619,6 +609,7 @@ function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
         <input
           id={id}
           type="range"
+          className="esg-range"
           min={0}
           max={100}
           step={1}

@@ -239,10 +239,6 @@ export default function BillingClient() {
 
                 <div style={{ display: "flex", gap: "var(--space-3)" }}>
                     <button type="submit" disabled={loading} className="btn btn-primary"
-                        style={{
-                            backgroundColor: "#3A6B7C",
-                            color: "#FFFFFF"
-                        }}
                     >
                         {loading ? "Saving..." : "Save rates"}
                     </button>

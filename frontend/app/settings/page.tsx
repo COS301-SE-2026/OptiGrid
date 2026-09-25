@@ -194,7 +194,7 @@ export default function SettingsPage() {
 
           <section aria-label="Profile Information">
             <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-              <h2 style={{ marginBottom: "var(--space-4)" }}>Profile Information</h2>
+              <h2 className="settings-section-title">Profile Information</h2>
 
               <div
                 style={{
@@ -273,10 +273,6 @@ export default function SettingsPage() {
                   type="button"
                   onClick={handleSaveChanges}
                   className="btn btn-primary"
-                  style={{
-                    backgroundColor: "#3A6B7C",
-                    color: "#FFFFFF",
-                  }}
                 >
                   Save Changes
                 </button>
@@ -289,14 +285,16 @@ export default function SettingsPage() {
 
           <section aria-label="Theme settings">
             <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-              <h2 style={{ marginBottom: "var(--space-4)" }}>Theme</h2>
+              <h2 className="settings-section-title">Theme</h2>
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  padding: "var(--space-3)",
-                  backgroundColor: "var(--brand-surface-alt)",
+                  gap: "var(--space-3)",
+                  flexWrap: "wrap",
+                  padding: "var(--space-3) var(--space-4)",
+                  border: "1px solid var(--brand-border)",
                   borderRadius: "var(--radius-md)",
                 }}
               >
@@ -313,8 +311,6 @@ export default function SettingsPage() {
                   style={{
                     padding: "var(--space-2) var(--space-4)",
                     fontSize: "var(--fs-small)",
-                    backgroundColor: "#3A6B7C",
-                    color: "#FFFFFF",
                   }}
                 >
                   Switch to {theme === "light" ? "Dark" : "Light"} Mode
@@ -325,7 +321,7 @@ export default function SettingsPage() {
 
           <section aria-label="Help and contact information">
             <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-              <h2 style={{ marginBottom: "var(--space-4)" }}>Help & Contact</h2>
+              <h2 className="settings-section-title">Help & Contact</h2>
 
               <div
                 style={{
@@ -334,50 +330,22 @@ export default function SettingsPage() {
                   gap: "var(--space-4)",
                 }}
               >
-                <div
-                  className="card"
-                  style={{
-                    padding: "var(--space-4)",
-                    backgroundColor: "var(--brand-surface-alt)",
-                  }}
-                >
-                  <h3 style={{ marginBottom: "var(--space-2)" }}>Help</h3>
-                  <p className="text-muted" style={{ marginBottom: "var(--space-3)", color: "var(--brand-ink)" }}>
+                <div className="settings-link-card">
+                  <h3>Help</h3>
+                  <p className="text-muted">
                     Get help with using the platform and FAQs.
                   </p>
-                  <Link
-                    href="/help"
-                    className="btn btn-primary"
-                    style={{
-                      display: "inline-flex",
-                      backgroundColor: "#3A6B7C",
-                      color: "#FFFFFF",
-                    }}
-                  >
+                  <Link href="/help" className="btn btn-secondary">
                     View Help
                   </Link>
                 </div>
 
-                <div
-                  className="card"
-                  style={{
-                    padding: "var(--space-4)",
-                    backgroundColor: "var(--brand-surface-alt)",
-                  }}
-                >
-                  <h3 style={{ marginBottom: "var(--space-2)" }}>Contact Us</h3>
-                  <p className="text-muted" style={{ marginBottom: "var(--space-3)", color: "var(--brand-ink)" }}>
+                <div className="settings-link-card">
+                  <h3>Contact Us</h3>
+                  <p className="text-muted">
                     Get in touch with us for assistance.
                   </p>
-                  <Link
-                    href="/contact"
-                    className="btn btn-primary"
-                    style={{
-                      display: "inline-flex",
-                      backgroundColor: "#3A6B7C",
-                      color: "#FFFFFF",
-                    }}
-                  >
+                  <Link href="/contact" className="btn btn-secondary">
                     Contact
                   </Link>
                 </div>
@@ -387,7 +355,7 @@ export default function SettingsPage() {
 
           <section aria-label="Account management">
             <div className="card">
-              <h2 style={{ marginBottom: "var(--space-4)" }}>Account Management</h2>
+              <h2 className="settings-section-title">Account Management</h2>
 
               <div
                 style={{
@@ -411,12 +379,10 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setShowRecoverModal(true)}
-                  className="btn"
+                  className="btn btn-secondary"
                   style={{
                     padding: "var(--space-2) var(--space-4)",
                     fontSize: "var(--fs-small)",
-                    backgroundColor: "#8B6914",
-                    color: "#FFFFFF",
                   }}
                 >
                   Recover Account
@@ -429,8 +395,6 @@ export default function SettingsPage() {
                   style={{
                     padding: "var(--space-2) var(--space-4)",
                     fontSize: "var(--fs-small)",
-                    backgroundColor: "#8B1E3F",
-                    color: "#FFFFFF",
                   }}
                 >
                   Delete Account
@@ -526,7 +490,7 @@ export default function SettingsPage() {
             >
               <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
                 <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
-                  <h2 style={{ color: "#B26B00", marginBottom: "var(--space-2)" }}>
+                  <h2 style={{ color: "var(--badge-warning-text)", marginBottom: "var(--space-2)" }}>
                     Recover Account
                   </h2>
                   <p className="text-muted">
@@ -548,12 +512,8 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={handleRecoverAccount}
-                    className="btn"
-                    style={{
-                      flex: 1,
-                      backgroundColor: "#B26B00",
-                      color: "#FFFFFF",
-                    }}
+                    className="btn btn-primary"
+                    style={{ flex: 1 }}
                   >
                     Recover Account
                   </button>
@@ -566,7 +526,9 @@ export default function SettingsPage() {
             <div
               style={{
                 position: "fixed",
-                bottom: "var(--space-4)",
+                right: "var(--space-5)",
+                bottom: "var(--space-5)",
+                zIndex: 60,
                 backgroundColor: "var(--brand-ink)",
                 color: "var(--brand-bg)",
                 padding: "var(--space-3) var(--space-5)",

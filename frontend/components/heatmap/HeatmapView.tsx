@@ -42,6 +42,7 @@ import {
 import { fetchHeatmapSnapshot } from "@/lib/heatmapSource";
 import TimelineScrubber from "./TimelineScrubber";
 import type { FlyTarget, MapPalette } from "./MapCanvas";
+import { humanise } from "@/lib/labels";
 
 const MapCanvas = dynamic(() => import("./MapCanvas"), {
     ssr: false,
@@ -206,7 +207,7 @@ function BuildingCard({
                 <div>
                     <p className="heat-eyebrow">{frame.label}</p>
                     <h2 className="heat-card-title">{point.name}</h2>
-                    {point.type && <p className="text-muted heat-card-sub">{point.type.replace(/_/g, " ")}</p>}
+                    {point.type && <p className="text-muted heat-card-sub">{humanise(point.type)}</p>}
                 </div>
                 <button type="button" className="heat-close" aria-label="Close building details" onClick={onClose}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
@@ -807,7 +808,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                                             <span className="heat-row-swatch" style={{ background: colour }} aria-hidden="true" />
                                             <span className="heat-row-main">
                                                 <span className="heat-row-name">{point.name}</span>
-                                                <span className="heat-row-meta">{change ?? (point.type ? point.type.replace(/_/g, " ") : "Building")}</span>
+                                                <span className="heat-row-meta">{change ?? (point.type ? humanise(point.type) : "Building")}</span>
                                                 <span className="heat-row-track" aria-hidden="true">
                                                     <span className="heat-row-fill" style={{ width: `${Math.round(share * 100)}%`, background: colour }} />
                                                 </span>

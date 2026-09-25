@@ -280,8 +280,6 @@ export default function ManagerBuildings() {
                                                             style={{
                                                                 padding: "var(--space-1) var(--space-3)",
                                                                 fontSize: "var(--fs-small)",
-                                                                backgroundColor: "#3A6B7C",
-                                                                color: "#FFFFFF",
                                                             }}
                                                         >
                                                             Edit

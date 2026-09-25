@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
+import { humanise } from "@/lib/labels";
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
 
@@ -28,10 +29,10 @@ type RawBuilding = {
 const REFETCH_METADATA_MS = 60_000;
 const SKELETON_KEYS = ["sk-1", "sk-2", "sk-3", "sk-4", "sk-5", "sk-6"];
 
-const STATUS_STYLES: Record<BuildingStatus, { badge: string; color: string; textColor: string }> = {
-    Normal: { badge: "badge-success", color: "#2F7D5D", textColor: "#FFFFFF" },
-    "Peak alert": { badge: "badge-warning", color: "#B26B00", textColor: "#FFFFFF" },
-    Offline: { badge: "badge-danger", color: "#8B1E3F", textColor: "#FFFFFF" },
+const STATUS_STYLES: Record<BuildingStatus, { badge: string; tone: string }> = {
+    Normal: { badge: "badge-success", tone: "is-normal" },
+    "Peak alert": { badge: "badge-warning", tone: "is-peak" },
+    Offline: { badge: "badge-danger", tone: "is-offline" },
 };
 
 function toNumber(value: unknown): number | null {
@@ -41,6 +42,13 @@ function toNumber(value: unknown): number | null {
         if (Number.isFinite(parsed)) return parsed;
     }
     return null;
+}
+
+function formatReading(value: number | null | undefined): string {
+    if (value === null || value === undefined || !Number.isFinite(value)){
+        return "--";
+    }
+    return value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function formatTime(date: Date): string {
@@ -77,86 +85,38 @@ function Skeleton({ height = 80 }: Readonly<{ height?: number }>) {
     return <div className="skeleton" style={{ height, borderRadius: 14 }} aria-hidden="true" />;
 }
 
-const GRID_STYLE = {
-    display: "grid",
-    gap: "var(--space-4)",
-    gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-} as const;
 
 function BuildingCard({ building }: Readonly<{ building: Building }>) {
     const statusStyle = STATUS_STYLES[building.status];
-    const isOffline = building.status === "Offline";
 
     return (
-        <Link
-            href={`/buildings/${encodeURIComponent(building.id)}/view`}
-            aria-label={`View live telemetry for ${building.name}`}
-            className="card"
-            style={{
-                position: "relative",
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--space-3)",
-                paddingLeft: "var(--space-5)",
-                overflow: "hidden",
-                opacity: isOffline ? 0.78 : 1,
-                border: isOffline ? "1px solid var(--brand-border)" : `1px solid ${statusStyle.color}40`,
-                color: "inherit",
-                cursor: "pointer",
-                textDecoration: "none",
-            }}
-           
-        >
-            <span
-                aria-hidden="true"
-                style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "var(--space-1)", background: statusStyle.color }}
-            />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-2)" }}>
-                <div style={{ minWidth: 0 }}>
-                    <p style={{ fontWeight: 600, fontSize: "var(--fs-body)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {building.name}
-                    </p>
-                    <p className="text-muted" style={{ fontSize: "var(--fs-small)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {building.location}
-                    </p>
+        <li>
+            <Link
+                href={`/buildings/${encodeURIComponent(building.id)}/view`}
+                aria-label={`View live telemetry for ${building.name}`}
+                className={`card live-card ${statusStyle.tone}`}
+            >
+                <div className="live-card-head">
+                    <div className="live-card-titles">
+                        <p className="live-card-name">{building.name}</p>
+                        <p className="live-card-address" title={building.location}>{building.location}</p>
+                    </div>
+                    <span className={`badge ${statusStyle.badge}`}>{building.status}</span>
                 </div>
-                <span 
-                    className={`badge ${statusStyle.badge}`} 
-                    style={{ 
-                        flexShrink: 0,
-                        backgroundColor: statusStyle.color,
-                        color: statusStyle.textColor,
-                    }}
-                >
-                    {building.status}
-                </span>
-            </div>
 
-            <div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)" }}>
-                    <span className="dashboard-kpi-value" style={{ fontSize: "1.9rem", lineHeight: 1, color: isOffline ? "inherit" : "var(--brand-primary-cta)" }}>
-                        {building.currentKw !== null && building.currentKw !== undefined ? building.currentKw.toFixed(2) : "--"}
-                    </span>
-                    <span className="text-muted" style={{ fontSize: "var(--fs-small)", fontWeight: 500 }}>
-                        kW (Live)
-                    </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-                    <span className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)", lineHeight: 1 }}>
-                        {building.todayKwh !== null && building.todayKwh !== undefined ? building.todayKwh.toFixed(2) : "--"}
-                    </span>
-                    <span className="text-muted" style={{ fontSize: "var(--fs-small)", fontWeight: 500 }}>
-                        kWh today
-                    </span>
-                </div>
-            </div>
+                <p className="live-card-reading">
+                    <span className="live-card-value">{formatReading(building.currentKw)}</span>
+                    <span className="live-card-unit">kW live</span>
+                </p>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--brand-border)", paddingTop: "var(--space-3)" }}>
-                <span className="text-muted" style={{ fontSize: "0.72rem", textTransform: "capitalize" }}>
-                    {building.type.replaceAll("_", " ")}
-                </span>
-            </div>
-        </Link>
+                <div className="live-card-foot">
+                    <span>
+                        <strong>{formatReading(building.todayKwh)}</strong> kWh today
+                    </span>
+                    <span>{humanise(building.type, "Unspecified")}</span>
+                </div>
+            </Link>
+        </li>
     );
 }
 
@@ -260,7 +220,7 @@ export default function RealtimePage() {
     const renderMainContent = () => {
         if (isMetadataLoading) {
             return (
-                <div style={GRID_STYLE} aria-label="Loading buildings">
+                <div className="live-grid" aria-label="Loading buildings">
                     {SKELETON_KEYS.map((key) => (
                         <Skeleton key={key} height={180} />
                     ))}
@@ -291,8 +251,8 @@ export default function RealtimePage() {
 
         return (
             <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
-                    <fieldset style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", border: 0, padding: 0, margin: 0, minInlineSize: "auto" }}>
+                <div className="live-toolbar">
+                    <fieldset className="live-filters">
                         <legend className="sr-only">Filter by status</legend>
                         {STATUS_FILTERS.map((filter) => (
                             <button key={filter} type="button" className={`live-chip ${statusFilter === filter ? "on" : ""}`} aria-pressed={statusFilter === filter} onClick={() => setStatusFilter(filter)}>
@@ -300,9 +260,7 @@ export default function RealtimePage() {
                             </button>
                         ))}
                     </fieldset>
-                    <span className="text-muted" style={{ fontSize: "0.72rem" }}>
-                        Sorted by live active power (kW)
-                    </span>
+                    <span className="dashboard-section-meta">Sorted by live active power</span>
                 </div>
 
                 {visibleBuildings.length === 0 ? (
@@ -310,7 +268,7 @@ export default function RealtimePage() {
                         <p className="text-muted">No buildings match the {statusFilter} filter.</p>
                     </div>
                 ) : (
-                    <ul style={GRID_STYLE} aria-label="Buildings list">
+                    <ul className="live-grid" aria-label="Buildings list">
                         {visibleBuildings.map((building) => (
                             <BuildingCard key={building.id} building={building} />
                         ))}
@@ -322,21 +280,19 @@ export default function RealtimePage() {
 
     return (
         <>
-            <section className="card" style={{ marginBottom: 20 }} aria-label="Live readings status">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4)", flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-                        <span className={`live-dot ${isConnected ? "on" : "off"}`} aria-hidden="true" />
-                        <div>
-                            <h1 className="dashboard-title">Live readings</h1>
-                            <p className="dashboard-subtitle">
-                                <span className={`live-status-label ${isConnected ? "on" : "off"}`}>{isConnected ? "Connected" : "Disconnected"}</span>
-                                {" - "}
-                                {lastRefreshedAt ? `last updated ${formatTime(lastRefreshedAt)}` : "connecting..."}
-                            </p>
-                        </div>
-                    </div>
+            <div className="dashboard-header dashboard-page-heading">
+                <div>
+                    <h1 className="dashboard-title">Live readings</h1>
+                    <p className="dashboard-subtitle">Active power across your buildings as it streams in.</p>
                 </div>
-            </section>
+                <div className="live-connection" role="status" aria-label="Live readings status">
+                    <span className={`live-dot ${isConnected ? "on" : "off"}`} aria-hidden="true" />
+                    <span className={`live-status-label ${isConnected ? "on" : "off"}`}>{isConnected ? "Connected" : "Disconnected"}</span>
+                    <span className="live-connection-time">
+                        {lastRefreshedAt ? `Last updated ${formatTime(lastRefreshedAt)}` : "Connecting..."}
+                    </span>
+                </div>
+            </div>
 
             {renderMainContent()}
         </>

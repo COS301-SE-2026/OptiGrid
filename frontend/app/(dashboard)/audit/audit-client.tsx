@@ -164,7 +164,7 @@ export default function AuditClient() {
                 <td>{formatTarget(log)}</td>
                 <td>
                     {log.severity ? (
-                        <span className={`badge ${getSeverityBadge(log.severity)}`}>{log.severity.toLowerCase()}</span>
+                        <span className={`badge ${getSeverityBadge(log.severity)}`} style={{ textTransform: "capitalize" }}>{log.severity.toLowerCase()}</span>
                     ) : (
                         <span className="text-muted">-</span>
                     )}
@@ -228,85 +228,55 @@ export default function AuditClient() {
     return (
         <div>
             <PageHeading title="Security and audit" subtitle="A chronological record of sign ins and configuration changes across the system."/>
-            <section className="card dashboard-section" aria-label="Audit filters">
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-                        gap: "var(--space-4)",
-                        alignItems: "end"
-                    }}
-                >
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <label className="label" htmlFor="audit-action">Action</label>
-                        <select
-                            id="audit-action"
-                            className="select"
-                            value={actionFilter}
-                            onChange={(e) => {
-                                setActionFilter(e.target.value);
-                                if (e.target.value !== "all") setPageFilter("all");
-                            }}
-                        >
-                            {ACTION_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
-                        </select>
-                    </div>
-
-                    <div style={{
-                        display: "grid",
-                        gap: "var(--space-2)"
-                    }}>
-                        <label className="label" htmlFor="audit-page">Page</label>
-                        <select
-                            id="audit-page"
-                            className="select"
-                            value={pageFilter}
-                            onChange={(e) => {
-                                setPageFilter(e.target.value);
-                                if (e.target.value !== "all") setActionFilter("all");
-                            }}
-                        >
-                            {PAGE_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
-                        </select>
-                    </div>
-
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <label className="label" htmlFor="audit-severity">Severity</label>
-                        <select id="audit-severity" className="select" value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
-                            {SEVERITY_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
-                        </select>
-                    </div>
-
-
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <label className="label" htmlFor="audit-from">From</label>
-                        <input id="audit-from" type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)}/>
-                    </div>
-
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <label className="label" htmlFor="audit-to">To</label>
-                        <input id="audit-to" type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)}/>
-                    </div>
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <span className="label" aria-hidden="true">&nbsp;</span>
-                        <button type="button" className="btn btn-secondary" onClick={resetFilters}>Reset</button>
-                    </div>
+            <section className="card filter-bar" aria-label="Audit filters">
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-action">Action</label>
+                    <select
+                        id="audit-action"
+                        className="select"
+                        value={actionFilter}
+                        onChange={(e) => {
+                            setActionFilter(e.target.value);
+                            if (e.target.value !== "all") setPageFilter("all");
+                        }}
+                    >
+                        {ACTION_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
+                    </select>
                 </div>
+
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-page">Page</label>
+                    <select
+                        id="audit-page"
+                        className="select"
+                        value={pageFilter}
+                        onChange={(e) => {
+                            setPageFilter(e.target.value);
+                            if (e.target.value !== "all") setActionFilter("all");
+                        }}
+                    >
+                        {PAGE_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
+                    </select>
+                </div>
+
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-severity">Severity</label>
+                    <select id="audit-severity" className="select" value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
+                        {SEVERITY_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
+                    </select>
+                </div>
+
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-from">From</label>
+                    <input id="audit-from" type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)}/>
+                </div>
+
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-to">To</label>
+                    <input id="audit-to" type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)}/>
+                </div>
+
+                <button type="button" className="btn btn-secondary filter-reset" onClick={resetFilters}>Reset</button>
             </section>
 
             <section className="dashboard-section" aria-label="Audit log">

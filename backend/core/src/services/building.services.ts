@@ -23,6 +23,8 @@ const buildingDetailsSelect = {
   latitude: true,
   longitude: true,
   geohash: true,
+  floors_above_ground: true,
+  solar_capacity_kw: true,
 } satisfies Prisma.BuildingSelect;
 
 export type BuildingDetails = Prisma.BuildingGetPayload<{
