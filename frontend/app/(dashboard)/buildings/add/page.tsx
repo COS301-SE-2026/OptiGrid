@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getTabSessionPath } from "../../../../lib/tab-session";
 import { FormAlert } from "@/components/FormAlert";
+import { CurvedSelect } from "@/components/curvedselect";
 
 const BUILDING_TYPES = [
     "Residential",
@@ -172,20 +173,22 @@ export default function AddBuildingPage() {
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                        <label className="label" htmlFor="building_type">Building type</label>
-                        <select
-                            id="building_type"
-                            name="building_type"
-                            className="select"
-                            value={form.building_type}
-                            onChange={handleChange}
-                            disabled={loading}
-                        >
-                            {BUILDING_TYPES.map((t) => (
-                                <option key={t} value={t}>{t.replace("_", " ")}</option>
-                            ))}
-                        </select>
-                    </div>
+  <label className="label" htmlFor="building_type">Building type</label>
+  <CurvedSelect
+    id="building_type"
+    value={form.building_type}
+    onChange={(value) =>
+      setForm((p) => ({ ...p, building_type: value }))
+    }
+    options={BUILDING_TYPES.map((t) => ({
+      value: t,
+      label: t.replace("_", " "),
+    }))}
+    disabled={loading}
+  />
+</div>
+
+                    
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>

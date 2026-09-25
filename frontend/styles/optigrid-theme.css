@@ -241,7 +241,7 @@ h3 {
 
 
 
-.curved-select {
+.curvedselect {
   position: relative;
   width: 100%;
 }
@@ -310,6 +310,8 @@ h3 {
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 32px rgba(11, 17, 32, 0.18);
   overflow-y: auto;
+  scrollbar-width: thin;              
+  scrollbar-color: var(--brand-border) transparent;
 }
 
 .curved-select-option {
@@ -346,6 +348,23 @@ h3 {
   .curved-select-list {
     max-height: 60vh !important;
   }
+}
+
+.curved-select-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.curved-select-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.curved-select-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--brand-secondary) 45%, transparent);
+  border-radius: 999px;
+}
+
+.curved-select-list::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--brand-secondary) 70%, transparent);
 }
 
 
