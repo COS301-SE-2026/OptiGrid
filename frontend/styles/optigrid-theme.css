@@ -241,6 +241,116 @@ h3 {
 
 
 
+.curved-select {
+  position: relative;
+  width: 100%;
+}
+
+.curved-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 9px 14px;
+  font-family: var(--font-body);
+  font-size: var(--fs-small);
+  color: var(--brand-ink);
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.curved-select-trigger:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+}
+
+.curved-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.curved-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  color: var(--brand-ink-muted);
+}
+
+.curved-select-trigger-error {
+  border-color: var(--brand-danger);
+  box-shadow: 0 0 0 2px var(--brand-bg), 0 0 0 4px var(--brand-danger);
+}
+
+.curved-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.curved-select-chevron {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.curved-select-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.curved-select-list {
+  z-index: 50;
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(11, 17, 32, 0.18);
+  overflow-y: auto;
+}
+
+.curved-select-option {
+  padding: 8px 12px;
+  font-family: var(--font-body);
+  font-size: var(--fs-small);
+  color: var(--brand-ink);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.curved-select-option.is-highlighted {
+  background: color-mix(in srgb, var(--brand-secondary) 22%, transparent);
+}
+
+.curved-select-option.is-selected {
+  font-weight: var(--fw-semibold);
+}
+
+.curved-select-option.is-disabled {
+  color: var(--brand-ink-muted);
+  cursor: not-allowed;
+}
+
+
+.dark .curved-select-list,
+[data-theme="dark"] .curved-select-list {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+
+@media (max-width: 640px) {
+  .curved-select-list {
+    max-height: 60vh !important;
+  }
+}
+
+
+
+
 .input::placeholder,
 .textarea::placeholder {
     font-style: italic;
