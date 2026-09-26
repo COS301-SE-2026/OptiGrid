@@ -15,7 +15,7 @@ describe("OptiGridStyleGuide", () => {
 
   it("renders every section link in the navbar", () => {
     render(<OptiGridStyleGuide />);
-    const nav = screen.getByRole("navigation");
+    const nav = screen.getByRole("navigation", { name: "Brand guide sections" });
 
     [
       "Introduction",
@@ -36,7 +36,7 @@ describe("OptiGridStyleGuide", () => {
 
   it("scrolls to a section when its link is clicked", () => {
     render(<OptiGridStyleGuide />);
-    const nav = screen.getByRole("navigation");
+    const nav = screen.getByRole("navigation", { name: "Brand guide sections" });
     const colorPaletteButton = within(nav).getByRole("button", { name: "Colour Palette" });
     
     fireEvent.click(colorPaletteButton);

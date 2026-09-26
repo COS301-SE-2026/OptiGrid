@@ -393,6 +393,61 @@ describe('User Authentication Service - Login', () => {
     });
 });
 
+describe('Google account recovery', () => {
+    const originalEnv = process.env;
+    beforeEach(() => {
+        jest.clearAllMocks();
+        process.env = {
+            ...originalEnv,
+            SUPABASE_URL: 'https://example.supabase.co',
+            SUPABASE_ANON_KEY: 'anon-key',
+        };
+    });
+    afterAll(() => { process.env = originalEnv; });
+
+    const withGoogleUser = (user: unknown, error: unknown = null) => {
+        mockedCreateClient.mockReturnValue({ auth: {
+            getUser: jest.fn().mockResolvedValue({ data: { user }, error }),
+        } } as unknown as ReturnType<typeof createClient>);
+    };
+
+    it('reactivates a deleted account for the verified Google user', async () => {
+        withGoogleUser({ id: 'user-1', email: 'a@example.com' });
+        mockedPrisma.user.findUnique.mockResolvedValue({ userId: 'user-1', accountStatus: 'DEACTIVATED' });
+        const profile = { userId: 'user-1', email: 'a@example.com', firstName: 'Ada', lastName: 'Lovelace', roleType: 'VIEWER' };
+        mockedPrisma.user.update.mockResolvedValue(profile);
+        await expect(authServices.recoverOAuthAccount('google-token')).resolves.toEqual({ user: profile, accessToken: 'google-token' });
+        expect(mockedPrisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+            where: { userId: 'user-1' },
+            data: { accountStatus: 'ACTIVE', deactivatedAt: null },
+        }));
+    });
+
+    it('does not reactivate an account that is already active', async () => {
+        withGoogleUser({ id: 'user-1' });
+        mockedPrisma.user.findUnique.mockResolvedValue({ userId: 'user-1', accountStatus: 'ACTIVE' });
+
+        await expect(authServices.recoverOAuthAccount('google-token')).rejects.toThrow('This account is already active. Please log in normally.');
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+    
+    it('rejects an invalid Google token without touching any profile', async () => {
+        withGoogleUser(null, { message: 'expired' });
+
+        await expect(authServices.recoverOAuthAccount('bad-token')).rejects.toThrow('Invalid or expired access token');
+        expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('does not recover a Google user with no app profile', async () => {
+        withGoogleUser({ id: 'user-1' });
+        mockedPrisma.user.findUnique.mockResolvedValue(null);
+
+        await expect(authServices.recoverOAuthAccount('google-token')).rejects.toThrow('Account profile was not found.');
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+});
+
 describe('Google authentication profile handling', () => {
     const originalEnv = process.env;
     beforeEach(() => {
