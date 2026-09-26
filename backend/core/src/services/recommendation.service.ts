@@ -7,7 +7,8 @@ const checkBuildingAccess = async (userId: string, buildingId: string) => {
   const user = await prisma.user.findUnique({ where: { userId } });
   const building = await prisma.building.findUnique({ where: { building_id: buildingId } });
   
-  if(!user || !building) throw new Error("Access Denied");
+  if(!building) throw new Error("Building not found");
+  if(!user) throw new Error("Access Denied");
   
   if(user.roleType === "ADMIN") {
     if(user.tenantId !== building.tenant_id) throw new Error("Access Denied");
