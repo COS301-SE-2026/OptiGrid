@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useTheme } from "../theme-provider";
+import { useTheme } from "@/app/theme-provider";
 
 
 interface UserProfile {
@@ -77,7 +77,7 @@ export default function SettingsPage() {
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
-  const [showRecoverModal, setShowRecoverModal] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState<boolean>(false);
 
   const showToastMessage = (message: string) => {
     setToastMessage(message);
@@ -146,17 +146,29 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDeleteAccount = () => {
-    setShowDeleteModal(false);
-    showToastMessage("Account deleted");
-    setTimeout(() => {
-      router.push("/login");
-    }, 500);
-  };
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const response = await fetch("/api/accounts/me/deactivate", { method: "POST" });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        setShowDeleteModal(false);
+        showToastMessage(typeof payload?.message === "string" ? payload.message : "Unable to delete your account");
+        return;
+      }
 
-  const handleRecoverAccount = () => {
-    setShowRecoverModal(false);
-    showToastMessage("Account recovery initiated");
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+      setShowDeleteModal(false);
+      showToastMessage("Account deleted");
+      router.push("/login?deleted=1");
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to delete account", error);
+      setShowDeleteModal(false);
+      showToastMessage("Unable to delete your account");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleThemeToggle = async () => {
@@ -173,37 +185,24 @@ export default function SettingsPage() {
     }
   };
 
+  const roleLabel = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
+
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-shell">
-        <main className="dashboard-main" role="main" aria-label="Settings main content">
-          <div className="dashboard-header">
+    <div className="settings-page">
+          <div className="dashboard-header dashboard-page-heading">
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-                <Link href="/dashboard" className="btn btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
-                  Back to Dashboard
-                </Link>
-              </div>
-              <h1 className="dashboard-title" style={{ marginTop: "var(--space-3)" }}>Settings</h1>
-              <div className="dashboard-subtitle">Manage your profile and account settings</div>
+              <h1 className="dashboard-title">Settings</h1>
+              <p className="dashboard-subtitle">Manage your profile and account settings.</p>
             </div>
-            <div className="badge badge-default" style={{ display: "inline-flex" }}>
-              {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
-            </div>
+            <span className="badge badge-default">{roleLabel}</span>
           </div>
 
-          <section aria-label="Profile Information">
-            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-              <h2 className="settings-section-title">Profile Information</h2>
+          <div className="settings-grid">
+          <section aria-label="Profile Information" className="card settings-card settings-profile">
+              <h2 className="dashboard-section-title settings-card-title">Profile Information</h2>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                  gap: "var(--space-4)",
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+              <div className="settings-fields">
+                <div className="settings-field">
                   <label className="label" htmlFor="firstName">First Name</label>
                   <input
                     id="firstName"
@@ -217,7 +216,7 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                <div className="settings-field">
                   <label className="label" htmlFor="lastName">Last Name</label>
                   <input
                     id="lastName"
@@ -231,7 +230,7 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                <div className="settings-field">
                   <label className="label" htmlFor="email">Email Address</label>
                   <input
                     id="email"
@@ -245,165 +244,75 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                <div className="settings-field">
                   <label className="label" htmlFor="role">Role</label>
-                  <input
-                    id="role"
-                    type="text"
-                    value={profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
-                    className="input"
-                    disabled
-                    style={{
-                      backgroundColor: "var(--brand-surface-alt)",
-                    }}
-                  />
+                  <input id="role" type="text" value={roleLabel} className="input" disabled />
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: "var(--space-3)",
-                  marginTop: "var(--space-5)",
-                  paddingTop: "var(--space-4)",
-                  borderTop: "1px solid var(--brand-border)",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleSaveChanges}
-                  className="btn btn-primary"
-                >
-                  Save Changes
-                </button>
+              <div className="settings-actions">
                 <button type="button" onClick={handleResetToDefault} className="btn btn-secondary">
                   Reset
                 </button>
+                <button type="button" onClick={handleSaveChanges} className="btn btn-primary">
+                  Save Changes
+                </button>
               </div>
-            </div>
           </section>
 
-          <section aria-label="Theme settings">
-            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-              <h2 className="settings-section-title">Theme</h2>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "var(--space-3)",
-                  flexWrap: "wrap",
-                  padding: "var(--space-3) var(--space-4)",
-                  border: "1px solid var(--brand-border)",
-                  borderRadius: "var(--radius-md)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+          <div className="settings-side">
+          <section aria-label="Theme settings" className="card settings-card">
+              <h2 className="dashboard-section-title settings-card-title">Theme</h2>
+              <div className="settings-row">
+                <div className="settings-row-label">
                   {theme === "light" ? <SunIcon /> : <MoonIcon />}
-                  <span style={{ fontWeight: "var(--fw-medium)" }}>
-                    {theme === "light" ? "Light Mode" : "Dark Mode"}
-                  </span>
+                  <span>{theme === "light" ? "Light Mode" : "Dark Mode"}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleThemeToggle}
-                  className="btn btn-primary"
-                  style={{
-                    padding: "var(--space-2) var(--space-4)",
-                    fontSize: "var(--fs-small)",
-                  }}
-                >
+                <button type="button" onClick={handleThemeToggle} className="btn btn-secondary">
                   Switch to {theme === "light" ? "Dark" : "Light"} Mode
                 </button>
               </div>
-            </div>
           </section>
 
-          <section aria-label="Help and contact information">
-            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-              <h2 className="settings-section-title">Help & Contact</h2>
+          <section aria-label="Account management" className="card settings-card">
+              <h2 className="dashboard-section-title settings-card-title">Account Management</h2>
+              <div className="settings-buttons">
+                <button type="button" onClick={handleLogout} className="btn btn-secondary">
+                  Logout
+                </button>
+                <button type="button" onClick={() => setShowDeleteModal(true)} className="btn btn-danger">
+                  Delete Account
+                </button>
+              </div>
+          </section>
+          </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                  gap: "var(--space-4)",
-                }}
-              >
+          <section aria-label="Help and contact information" className="card settings-card settings-help">
+              <h2 className="dashboard-section-title settings-card-title">Help & Contact</h2>
+              <div className="settings-help-grid">
                 <div className="settings-link-card">
-                  <h3>Help</h3>
-                  <p className="text-muted">
-                    Get help with using the platform and FAQs.
-                  </p>
+                  <div>
+                    <h3>Help</h3>
+                    <p className="text-muted">Guides, tutorials and answers to common questions.</p>
+                  </div>
                   <Link href="/help" className="btn btn-secondary">
                     View Help
                   </Link>
                 </div>
 
                 <div className="settings-link-card">
-                  <h3>Contact Us</h3>
-                  <p className="text-muted">
-                    Get in touch with us for assistance.
-                  </p>
+                  <div>
+                    <h3>Contact Us</h3>
+                    <p className="text-muted">Send the team a message when you need a hand.</p>
+                  </div>
                   <Link href="/contact" className="btn btn-secondary">
                     Contact
                   </Link>
                 </div>
               </div>
-            </div>
           </section>
+          </div>
 
-          <section aria-label="Account management">
-            <div className="card">
-              <h2 className="settings-section-title">Account Management</h2>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "var(--space-3)",
-                  flexWrap: "wrap",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="btn btn-secondary"
-                  style={{
-                    padding: "var(--space-2) var(--space-4)",
-                    fontSize: "var(--fs-small)",
-                  }}
-                >
-                  Logout
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowRecoverModal(true)}
-                  className="btn btn-secondary"
-                  style={{
-                    padding: "var(--space-2) var(--space-4)",
-                    fontSize: "var(--fs-small)",
-                  }}
-                >
-                  Recover Account
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteModal(true)}
-                  className="btn btn-danger"
-                  style={{
-                    padding: "var(--space-2) var(--space-4)",
-                    fontSize: "var(--fs-small)",
-                  }}
-                >
-                  Delete Account
-                </button>
-              </div>
-            </div>
-          </section>
-
-          
           {showDeleteModal && (
             <div
               className="modal-overlay"
@@ -434,7 +343,10 @@ export default function SettingsPage() {
                     Delete Account
                   </h2>
                   <p className="text-muted">
-                    All your data will be permanently deleted. This action cannot be undone.
+                    You will be logged out and lose access straight away. Your data is kept for now.
+                  </p>
+                  <p className="text-muted" style={{ marginTop: "var(--space-2)" }}>
+                    Changed your mind later? Log in with the same email and password and choose Recover account.
                   </p>
                 </div>
 
@@ -454,100 +366,35 @@ export default function SettingsPage() {
                     onClick={handleDeleteAccount}
                     className="btn btn-danger"
                     style={{ flex: 1 }}
+                    disabled={deleting}
                   >
-                    Delete Account
+                    {deleting ? "Deleting..." : "Delete Account"}
                   </button>
                 </div>
               </div>
               </div>
 )}
-
-             
-          
-          {showRecoverModal && (
-            <div
-              className="modal-overlay"
-              style={{
-                position: "fixed",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "var(--space-4)",
-              }}
-              onClick={(e) => {
-                if (e.target === e.currentTarget) {
-                  setShowRecoverModal(false);
-                }
-              }}
-              role="dialog"
-              aria-modal="true"
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setShowRecoverModal(false);
-                }
-              }}
-            >
-              <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
-                <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
-                  <h2 style={{ color: "var(--badge-warning-text)", marginBottom: "var(--space-2)" }}>
-                    Recover Account
-                  </h2>
-                  <p className="text-muted">
-                    Are you sure you want to recover your account?
-                  </p>
-                </div>
-
-                <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowRecoverModal(false);
-                    }}
-                    className="btn btn-secondary"
-                    style={{ flex: 1 }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRecoverAccount}
-                    className="btn btn-primary"
-                    style={{ flex: 1 }}
-                  >
-                    Recover Account
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
+ 
           {showToast && (
             <div
               style={{
+                backgroundColor: "var(--brand-ink)",
+                color: "var(--brand-bg)",
                 position: "fixed",
                 right: "var(--space-5)",
                 bottom: "var(--space-5)",
                 zIndex: 60,
-                backgroundColor: "var(--brand-ink)",
-                color: "var(--brand-bg)",
                 padding: "var(--space-3) var(--space-5)",
                 borderRadius: "var(--radius-md)",
                 boxShadow: "var(--shadow-card)",
                 fontFamily: "var(--font-body)",
-                fontSize: "var(--fs-body)",
-                
+                fontSize: "var(--fs-body)"                
               }}
               role="alert"
             >
               {toastMessage}
             </div>
           )}
-        
-
-        </main>
-      
-      </div>
     </div>
   );
 }

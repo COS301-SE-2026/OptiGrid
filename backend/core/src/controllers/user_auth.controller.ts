@@ -179,6 +179,42 @@ export const recoverAccount = async (req: Request, res: Response) => {
         return res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+export const recoverOAuthAccountController = async (req: Request, res: Response) => {
+    const access = req.body?.access;
+    if (typeof access !== 'string' || !access) {
+        return res.status(400).json({ message: 'Access token required' });
+    }
+
+    try {
+        const recoveryResult = await authService.recoverOAuthAccount(access);
+        await recordAuditLog({
+            userId: recoveryResult.user.userId,
+            actionType: "LOGIN",
+            targetTable: "users",
+            ipAddress: getClientIp(req),
+        });
+
+        return res.status(200).json({
+            message: 'Account recovered successfully',
+            ...recoveryResult,
+        });
+    } catch (error: unknown) {
+        if (error instanceof AccountAlreadyActiveError) {
+            return res.status(409).json({ code: error.code, message: error.message });
+        }
+        if (error instanceof AccountNotFoundError) {
+            return res.status(404).json({ code: error.code, message: error.message });
+        }
+        if (error instanceof Error && error.message === 'Invalid or expired access token') {
+            return res.status(401).json({ message: 'Unauthorized or invalid access token' });
+        }
+
+        console.error('OAuth account recovery error:', error instanceof Error ? error.message : error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 export const getViewersController = async (req: Request, resp: Response) => {
     try {
         const viewers = await authService.getViewersService();

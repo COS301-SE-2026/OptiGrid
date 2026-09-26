@@ -13,6 +13,14 @@ export const Categories: FAQCategory[] = [
                 question: "Can I use an email that is already registered?",
                 answer: "No. The form will ask you to log in instead.",
             },
+            {
+                question: "What happens when I delete my account?",
+                answer: "You are logged out and lose access straight away. Your data is kept in case you change your mind.",
+            },
+            {
+                question: "Can I get my account back after deleting it?",
+                answer: "Yes. Log in with the same email and password, then choose Recover account. If you use Google, sign in with Google and choose Recover with Google.",
+            },
         ],
     },
     {
@@ -21,6 +29,10 @@ export const Categories: FAQCategory[] = [
             {
                 question: "How do I log in?",
                 answer: "Open the login page and enter your email and password. Click Log in to reach your dashboard.",
+            },
+            {
+                question: "I forgot my password. What now?",
+                answer: "Click Forgot password? on the login page. We will email you a link to set a new one.",
             },
             {
                 question: "How do I log out?",
@@ -229,6 +241,10 @@ export const PublicCategories: FAQCategory[] = [
             {
                 question: "How do I create an account?",
                 answer: "Click Get started free. Fill in your name and email and pick a password.",
+            },
+            {
+                question: "I forgot my password. What now?",
+                answer: "Click Forgot password? on the login page. We will email you a link to set a new one.",
             },
             {
                 question: "Do I need to install anything?",

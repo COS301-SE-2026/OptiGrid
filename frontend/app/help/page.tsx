@@ -75,7 +75,7 @@ export default function HelpPage() {
                     </div>
                 </div>
             </header>
-            <main role="main" aria-label="Help centre main content">
+            <main role="main" aria-label="Help centre main content" className="help-main">
                 <section id="resources" className="landing-section landing-section-alt help-anchor" aria-label="Help resources">
                     <div className="landing-shell">
                         <div className="landing-section-header">

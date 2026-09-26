@@ -3,13 +3,15 @@ import Link from "next/link";
 export function PublicNav({
     signedIn,
     anchorPrefix = "/",
+    wide = false,
 }: Readonly<{
     signedIn: boolean;
     anchorPrefix?: string;
+    wide?: boolean;
 }>) {
     return (
         <header className="navbar landing-nav">
-            <div className="landing-shell landing-nav-inner">
+            <div className={wide ? "landing-shell landing-shell-wide landing-nav-inner" : "landing-shell landing-nav-inner"}>
                 <Link href="/" className="landing-wordmark">OptiGrid</Link>
                 {signedIn ? null : (
                     <nav className="landing-links" aria-label="Primary">

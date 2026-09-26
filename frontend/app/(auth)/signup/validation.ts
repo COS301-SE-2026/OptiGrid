@@ -14,8 +14,8 @@ export const initialSignupFormData: SignupFormData = {
     confirmPassword: "",
 };
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
+export const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
 
 export function validateSignup(data: SignupFormData): Partial<Record<keyof SignupFormData, string>> {
     const errors: Partial<Record<keyof SignupFormData, string>> = {};

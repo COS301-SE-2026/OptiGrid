@@ -51,6 +51,19 @@ export async function deactivateAccount(userId: string) {
         return user;
     }
 
+    if (user.roleType === UserRole.ADMIN) {
+        const activeAdminCount = await prisma.user.count({
+            where: {
+                roleType: UserRole.ADMIN,
+                accountStatus: AccountStatus.ACTIVE,
+            },
+        });
+
+        if (activeAdminCount <= 1) {
+            throw new LastActiveAdminError();
+        }
+    }
+
     return prisma.user.update({
         where: { userId },
         data: {
