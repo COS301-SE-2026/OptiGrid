@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ForecastPage from "./page";
+import "@testing-library/jest-dom";
 
 const mockUseQuery = jest.fn();
 const mockUseMutation = jest.fn();
@@ -76,6 +77,17 @@ function setupMutation({
     return mutate;
 }
 
+async function selectCurvedOption(
+    user: ReturnType<typeof userEvent.setup>,
+    comboboxName: string | RegExp,
+    optionLabel: string | RegExp
+) {
+    await user.click(screen.getByLabelText(comboboxName));
+    const option = await screen.findByRole("option", { name: optionLabel });
+    await user.click(option);
+}
+
+
 describe("ForecastPage", () => {
     beforeEach(() => {
         mockUseQuery.mockReset();
@@ -106,8 +118,8 @@ describe("ForecastPage", () => {
         render(<ForecastPage />);
 
         const user = userEvent.setup();
-        await user.selectOptions(screen.getByLabelText(/building/i), "1");
-
+        //await user.selectOptions(screen.getByLabelText(/building/i), "1");
+        await selectCurvedOption(user, /building/i, "Sandton HQ");
         const runButton = screen.getByRole("button", { name: "Run forecast" });
         expect(runButton).not.toBeDisabled();
 
@@ -125,8 +137,8 @@ describe("ForecastPage", () => {
         render(<ForecastPage />);
 
         const user = userEvent.setup();
-        await user.selectOptions(screen.getByLabelText(/building/i), "1");
-        await user.selectOptions(screen.getByLabelText(/horizon/i), "monthly");
+        await selectCurvedOption(user, /building/i, "Sandton HQ");
+        await selectCurvedOption(user, /horizon/i, "Monthly (Next 12 Weeks)");
 
         const runButton = screen.getByRole("button", { name: "Run forecast" });
         await user.click(runButton);
@@ -168,7 +180,7 @@ describe("ForecastPage", () => {
     render(<ForecastPage />);
 
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(/building/i), "1");
+   await selectCurvedOption(user, /building/i, "Sandton HQ");
     await user.click(screen.getByRole("button", { name: /run forecast/i }));
 
     //assert

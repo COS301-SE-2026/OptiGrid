@@ -98,6 +98,22 @@ function setupQueries({
     });
 }
 
+/**
+ * CurvedSelect helper — opens the dropdown and picks the option by label.
+ */
+async function selectCurvedOption(
+    user: ReturnType<typeof userEvent.setup>,
+    comboboxName: string | RegExp,
+    optionLabel: string | RegExp
+) {
+    // Open the dropdown
+    await user.click(screen.getByRole("combobox", { name: comboboxName }));
+
+    // Click the matching option
+    const option = await screen.findByRole("option", { name: optionLabel });
+    await user.click(option);
+}
+
 describe("CompareBuildingPage", () => {
     beforeEach(() => {
         mockUseQuery.mockReset();
@@ -107,14 +123,35 @@ describe("CompareBuildingPage", () => {
         setupQueries();
         render(<CompareBuildingPage />);
 
-        expect(screen.getByRole("heading", { name: /compare buildings/i })).toBeInTheDocument();
+        expect(
+            screen.getByRole("heading", { name: /compare buildings/i })
+        ).toBeInTheDocument();
         expect(screen.getAllByRole("combobox")).toHaveLength(4);
-        expect(screen.getAllByRole("option", { name: "Building A" }).length).toBeGreaterThan(0);
-        expect(screen.getAllByRole("option", { name: "Building B" }).length).toBeGreaterThan(0);
 
+        // Open the Building 1 dropdown to confirm its options are present
+        const user = userEvent.setup();
+        await user.click(
+            screen.getByRole("combobox", { name: /select first building/i })
+        );
+
+        expect(
+            await screen.findByRole("option", { name: "Building A" })
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("option", { name: "Building B" })
+        ).toBeInTheDocument();
+
+        // Close the dropdown
+        await user.keyboard("{Escape}");
+
+        // The trigger should display the selected value's label
         await waitFor(() => {
-            expect(screen.getByLabelText("Building 1")).toHaveValue(buildingIdA);
-            expect(screen.getByLabelText("Building 2")).toHaveValue(buildingIdB);
+            expect(
+                screen.getByRole("combobox", { name: /select first building/i })
+            ).toHaveTextContent("Building A");
+            expect(
+                screen.getByRole("combobox", { name: /select second building/i })
+            ).toHaveTextContent("Building B");
         });
     });
 
@@ -126,7 +163,9 @@ describe("CompareBuildingPage", () => {
         expect(screen.getByText("R 9,800.00")).toBeInTheDocument();
         expect(screen.getByText(/2,500 m²?/)).toBeInTheDocument();
         expect(screen.getByText(/1,800 m²?/)).toBeInTheDocument();
-        expect(screen.getByText(/Building A is higher for the selected metric/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Building A is higher for the selected metric/)
+        ).toBeInTheDocument();
     });
 
     it("switches between cost and energy metrics", async () => {
@@ -134,7 +173,9 @@ describe("CompareBuildingPage", () => {
         render(<CompareBuildingPage />);
 
         const user = userEvent.setup();
-        await user.selectOptions(screen.getByLabelText("Metric"), "kWh");
+
+        // CurvedSelect: open the metric dropdown and click the "Energy" option
+        await selectCurvedOption(user, /select metric for comparison/i, "Energy");
 
         expect(await screen.findByText("8,200.00 kWh")).toBeInTheDocument();
         expect(screen.getByText("6,000.00 kWh")).toBeInTheDocument();
@@ -149,7 +190,11 @@ describe("CompareBuildingPage", () => {
 
         render(<CompareBuildingPage />);
 
-        expect(screen.getByText(/Add another building before running a comparison/i)).toBeInTheDocument();
-        expect(screen.getByText(/Select two different buildings to compare/i)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Add another building before running a comparison/i)
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/Select two different buildings to compare/i)
+        ).toBeInTheDocument();
     });
 });

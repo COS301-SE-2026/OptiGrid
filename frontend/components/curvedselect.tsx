@@ -96,7 +96,9 @@ export function CurvedSelect({
   useEffect(() => {
     if (!open || highlight < 0) return;
     const el = listRef.current?.children[highlight] as HTMLElement | undefined;
-    el?.scrollIntoView({ block: "nearest" });
+    if (typeof el?.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
+    }
   }, [open, highlight]);
 
   const commit = (idx: number) => {
