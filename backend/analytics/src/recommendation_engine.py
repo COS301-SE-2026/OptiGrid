@@ -230,11 +230,34 @@ class RecommendationSynthesizer:
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
         }
 
-    def _calculate_season_optimisation(self, building_id, building_type, context):
-        if self._is_duplicate(building_id, context):
-            return None
+    def _is_seasonal_duplicate(self, building_id: str, equipment: str) -> bool:
+        if not self.supabase:
+            return False
+        try:
+            season_start = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+            resp = self.supabase.table("optimisation_recommendations").select("applicable_range") \
+            .eq("building_id", building_id) \
+            .eq("recommendation_category", "non_data") \
+            .gte("generated_date", season_start) \
+            .execute()
+            
+            if resp.data:
+                #only max of 3 recoomendations allowed to avoid spamming the user
+                if len(resp.data) >= 3:
+                    return True
+                for item in resp.data:
+                    rng = item.get("applicable_range") or {}
+                    if rng.get("target_equipment") == equipment:
+                        return True
+            return False
+        except Exception as error:
+            logger.warning("Failed season check for %s: %s", building_id, error)
+            return False
 
+    def _calculate_season_optimisation(self, building_id, building_type, context):
         equipment = self.get_probable_equipment(building_type)
+        if self._is_seasonal_duplicate(building_id, equipment):
+            return None
         if context == "Winter Optimisation":
             strategy = f"Winter tariffs are active. Shift non-essential heavy loads (like {equipment}) to off-peak hours to avoid seasonal peak surcharges."
             savings = 250.0
