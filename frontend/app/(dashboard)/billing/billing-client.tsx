@@ -338,6 +338,7 @@ export default function BillingClient() {
       />
 
       <form
+        id="tariff-form"
         onSubmit={handleSubmit}
         noValidate
         style={{ display: "grid", gap: "var(--space-5)", maxWidth: 1000 }}

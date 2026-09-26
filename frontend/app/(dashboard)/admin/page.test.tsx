@@ -18,7 +18,6 @@ afterAll(() => {
   jest.restoreAllMocks();
 });
 
-
 const getRow = async (name: string) => {
   const cell = await screen.findByText(name);
   return cell.closest("tr")!;
@@ -29,10 +28,15 @@ const clickInRow = async (name: string, buttonLabel: RegExp | string) => {
   fireEvent.click(within(row).getByRole("button", { name: buttonLabel }));
 };
 
+const selectLifecycle = async (labelOrRegex: string | RegExp) => {
+  const select = await screen.findByRole("combobox");
+  fireEvent.click(select);
+  const option = await screen.findByRole("option", { name: labelOrRegex });
+  fireEvent.mouseDown(option);
+};
 
 describe("AdminPage", () => {
   beforeEach(() => {
-
     (useRouter as jest.Mock).mockReturnValue({
       push: jest.fn(),
       replace: jest.fn(),
@@ -54,16 +58,14 @@ describe("AdminPage", () => {
         })
       })
     ) as jest.Mock;
-  })
-  afterEach(() => { jest.clearAllMocks();});
-
+  });
+  afterEach(() => { jest.clearAllMocks(); });
 
   describe("Initial render", () => {
     it("renders the page heading", async () => {
       render(<AdminPage />);
       expect(await screen.findByRole("heading", { name: /Admin - Manage Buildings/i })).toBeInTheDocument();
     });
-
 
     it("renders the lifecycle filter", async () => {
       render(<AdminPage />);
@@ -81,20 +83,16 @@ describe("AdminPage", () => {
     });
   });
 
-  
-  
-  
   describe("Reset filters button", () => {
-   
     it("resets lifecycle filter to 'all' when Reset filters is clicked", async () => {
       render(<AdminPage />);
       const select = await screen.findByRole("combobox");
-      fireEvent.change(select, { target: { value: "all" } });
-      expect((select as HTMLSelectElement).value).toBe("all");
+      await selectLifecycle(/^active$/i);
+      expect(select).toHaveTextContent("Active");
 
       fireEvent.click(await screen.findByRole("button", { name: /reset filters/i }));
 
-      expect((select as HTMLSelectElement).value).toBe("all");
+      expect(select).toHaveTextContent("All states");
     });
 
     it("shows all buildings again after reset", async () => {
@@ -111,8 +109,6 @@ describe("AdminPage", () => {
   });
 
   describe("Edit button", () => {
-    
-
     it("navigaets_to+edit_page", async () => {
       const pushMock = jest.fn();
       (useRouter as jest.Mock).mockReturnValue({
@@ -127,9 +123,7 @@ describe("AdminPage", () => {
     });
   });
 
-});
-
-   describe("Delete button", () => {
+  describe("Delete button", () => {
     it("renders a Delete button for every building", async () => {
       render(<AdminPage />);
       await screen.findByText("sandtonhq");
@@ -143,7 +137,6 @@ describe("AdminPage", () => {
     });
   });
 
-  
   describe("Search bar", () => {
     it("search buildings by name", async () => {
       render(<AdminPage />);
@@ -164,27 +157,27 @@ describe("AdminPage", () => {
     });
   });
 
-  
   describe("Lifecycle filter", () => {
     it("filters to show only active buildings", async () => {
       render(<AdminPage />);
       await screen.findByText("sandtonhq");
-      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "ACTIVE" } });
+      await selectLifecycle(/^active$/i);
       expect(await screen.findByText("sandtonhq")).toBeInTheDocument();
     });
 
     it("filters to show only failed buildings", async () => {
       render(<AdminPage />);
-      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "PROVISIONING_FAILED" } });
+      await selectLifecycle(/provisioning failed/i);
       expect(await screen.findByText("river")).toBeInTheDocument();
       expect(screen.queryByText("sandtonhq")).not.toBeInTheDocument();
     });
 
     it("shows all buildings when 'all' is selected", async () => {
       render(<AdminPage />);
-      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "ACTIVE" } });
-      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "all" } });
+      await selectLifecycle(/^active$/i);
+      await selectLifecycle(/^all states$/i);
       const rows = await screen.findAllByRole("row");
-      expect(await screen.getAllByRole("row").length).toBeGreaterThan(5);
+      expect(rows.length).toBeGreaterThan(5);
     });
   });
+});

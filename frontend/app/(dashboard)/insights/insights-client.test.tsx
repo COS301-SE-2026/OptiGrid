@@ -12,6 +12,12 @@ jest.mock("@tanstack/react-query", () => ({
     useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
 }));
 
+jest.mock("@/lib/openDialog", () => ({
+    openDialog: (el: HTMLDialogElement | null) => {
+        if (el) el.setAttribute("open", "");
+    },
+}));
+
 const buildingsData = [
     { id: "1", name: "Sandton HQ" },
     { id: "2", name: "Rosebank Tower" }
@@ -85,7 +91,11 @@ function renderPage(role = "ADMIN") {
 
 async function selectBuilding() {
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(/building/i), "1");
+    await user.click(screen.getByRole("combobox", { name: /building/i }));
+      await user.click(
+        within(screen.getByRole("listbox")).getByRole("option", { name: "Sandton HQ" })
+    );
+    
     return user;
 }
 
@@ -175,7 +185,12 @@ describe("InsightsPage", () => {
         renderPage();
         const user = await selectBuilding();
 
-        await user.selectOptions(screen.getByLabelText(/status/i), "Pending");
+        await user.click(screen.getByRole("combobox", { name: /status/i }));
+await user.click(
+    within(screen.getByRole("listbox")).getByRole("option", { name: "Pending" })
+);
+
+        
 
         const lastCall = mockUseQuery.mock.calls.at(-1)?.[0];
         expect(lastCall.queryKey).toEqual(["recommendations", "1", "Pending"]);

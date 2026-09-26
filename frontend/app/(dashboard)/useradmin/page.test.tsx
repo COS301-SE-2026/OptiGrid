@@ -88,6 +88,12 @@ const getSortSelect = () => screen.getByRole("combobox", { name: /sort users by/
 const getSearchInput = () =>
   screen.getByPlaceholderText(/name or email/i);
 
+const selectSortOption = (labelOrRegex: string | RegExp) => {
+  fireEvent.click(getSortSelect());
+  const option = screen.getByRole("option", { name: labelOrRegex });
+  fireEvent.mouseDown(option);
+};
+
 describe("UserManagementPage", () => {
   describe("Initial render", () => {
     it("renders the heading", async () => {
@@ -211,27 +217,21 @@ describe("UserManagementPage", () => {
 
       await screen.findByText("Alice");
 
-      expect(
-        (getSortSelect() as HTMLSelectElement).value
-      ).toBe("latest");
+      expect(getSortSelect()).toHaveTextContent("Latest Added");
     });
 
     it.each([
-      ["Oldest Added", "oldest"],
-      ["Name A-Z", "name_asc"],
-      ["Name Z-A", "name_desc"],
-    ])("changes to %s", async (_, value) => {
+      ["Oldest Added", "Oldest Added"],
+      ["Name A-Z", "Name A-Z"],
+      ["Name Z-A", "Name Z-A"],
+    ])("changes to %s", async (label, expectedText) => {
       render(<UserManagementPage />);
 
       await screen.findByText("Alice");
 
-      fireEvent.change(getSortSelect(), {
-        target: { value },
-      });
+      selectSortOption(label);
 
-      expect(
-        (getSortSelect() as HTMLSelectElement).value
-      ).toBe(value);
+      expect(getSortSelect()).toHaveTextContent(expectedText);
     });
   });
 
@@ -239,9 +239,10 @@ describe("UserManagementPage", () => {
     it("resets sort filter to 'latest'", async () => {
       render(<UserManagementPage />);
       await screen.findByText("Alice");
-      fireEvent.change(getSortSelect(), { target: { value: "oldest" } });
+      selectSortOption("Oldest Added");
+      expect(getSortSelect()).toHaveTextContent("Oldest Added");
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
-      expect((getSortSelect() as HTMLSelectElement).value).toBe("latest");
+      expect(getSortSelect()).toHaveTextContent("Latest Added");
     });
 
     it("clears search query", async () => {
@@ -301,7 +302,6 @@ describe("UserManagementPage", () => {
         })
       );
 
-     
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: /assign building/i })).toBeInTheDocument();
       });

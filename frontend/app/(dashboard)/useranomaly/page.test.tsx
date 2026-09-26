@@ -3,7 +3,6 @@ import { render, screen, fireEvent, within, act } from "@testing-library/react";
 import ViewerAnomalyPage from "./page";
 import "@testing-library/jest-dom";
 
-
 import { 
   MOCK_ANOMALIES_VIEWER as MOCK_ANOMALIES, 
   MOCK_BUILDINGS, 
@@ -12,7 +11,6 @@ import {
   getTableCell,
   getTableRow,
   getHistoricModal,
-  getSeverityFilter,
   getSearchInput
 } from "../anomaly/testMocks";
 
@@ -25,7 +23,6 @@ jest.mock("recharts", () => {
 jest.mock("@/lib/useBuildings", () => ({
   useBuildings: () => ({ data: MOCK_BUILDINGS, isLoading: false, error: null }),
 }));
-
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -40,10 +37,6 @@ beforeEach(() => {
   });
 });
 
-
-
-
-
 async function renderPage() {
   render(<ViewerAnomalyPage />);
   await act(async () => {
@@ -51,7 +44,24 @@ async function renderPage() {
   });
 }
 
+function selectSeverity(severity: string) {
+  const trigger = document.getElementById("severity-filter");
+  expect(trigger).not.toBeNull();
+  fireEvent.click(trigger!);
 
+  const listbox = document.getElementById("severity-filter-listbox");
+  expect(listbox).not.toBeNull();
+
+  const options = Array.from(listbox!.querySelectorAll('[role="option"]'));
+  const targetLabel = severity.toLowerCase();
+
+  const matched = options.find(
+    (opt) => opt.textContent?.trim().toLowerCase() === targetLabel
+  );
+
+  expect(matched).toBeDefined();
+  fireEvent.mouseDown(matched!);
+}
 
 const findKpiLabel = (labelText: string) => {
   const cards = document.querySelectorAll(".dashboard-card-tight");
@@ -144,22 +154,16 @@ describe("ViewerAnomalyPage", () => {
     describe("Severity filter", () => {
       it("filters to show only critical anomalies", async () => {
         await renderPage();
-        const severityFilterEl = getSeverityFilter();
-        if (severityFilterEl) {
-          fireEvent.change(severityFilterEl, { target: { value: "critical" } });
-          expect(getTableCell("Sandton HQ")).toBeInTheDocument();
-          expect(getTableCell("College")).toBeUndefined();
-        }
+        selectSeverity("critical");
+        expect(getTableCell("Sandton HQ")).toBeInTheDocument();
+        expect(getTableCell("College")).toBeUndefined();
       });
 
       it("filters to show only high severity anomalies", async () => {
         await renderPage();
-        const severityFilterEl = getSeverityFilter();
-        if (severityFilterEl) {
-          fireEvent.change(severityFilterEl, { target: { value: "high" } });
-          expect(getTableCell("College")).toBeInTheDocument();
-          expect(getTableCell("Sandton HQ")).toBeUndefined();
-        }
+        selectSeverity("high");
+        expect(getTableCell("College")).toBeInTheDocument();
+        expect(getTableCell("Sandton HQ")).toBeUndefined();
       });
     });
 

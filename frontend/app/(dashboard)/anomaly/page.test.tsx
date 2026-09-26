@@ -3,7 +3,6 @@ import { render, screen, fireEvent, within, act, waitFor } from "@testing-librar
 import ManagerAnomalyPage from "./page";
 import "@testing-library/jest-dom";
 
-
 import { 
   MOCK_ANOMALIES_MANAGER as MOCK_ANOMALIES, 
   MOCK_BUILDINGS, 
@@ -16,7 +15,7 @@ import {
 } from "./testMocks";
 
 jest.mock("recharts", () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  
   const { rechartsMockFactory } = require("./testMocks");
   return rechartsMockFactory();
 });
@@ -26,7 +25,6 @@ const mockUseBuildings = jest.fn();
 jest.mock("@/lib/useBuildings", () => ({
   useBuildings: () => mockUseBuildings(),
 }));
-
 
 beforeAll(() => jest.useFakeTimers());
 afterAll(() => jest.useRealTimers());
@@ -54,10 +52,6 @@ beforeEach(() => {
   });
 });
 
-
-
-
-
 async function renderPage() {
   render(<ManagerAnomalyPage />);
 
@@ -66,17 +60,36 @@ async function renderPage() {
   });
 }
 
-
-
 const getBuildingFilter = () =>
-  document.getElementById("building-filter") as HTMLSelectElement;
+  document.getElementById("building-filter") as HTMLElement;
 const getStatusFilter = () =>
-  document.getElementById("status-filter") as HTMLSelectElement;
+  document.getElementById("status-filter") as HTMLElement;
 const getSeverityFilter = () =>
-  document.getElementById("severity-filter") as HTMLSelectElement;
+  document.getElementById("severity-filter") as HTMLElement;
 const getSearchInput = () =>
   document.getElementById("search-input") as HTMLInputElement;
 
+
+function selectOption(triggerId: string, valueOrLabel: string) {
+  const trigger = document.getElementById(triggerId);
+  expect(trigger).not.toBeNull();
+  fireEvent.click(trigger!);
+
+  const listbox = document.getElementById(`${triggerId}-listbox`);
+  expect(listbox).not.toBeNull();
+
+  const options = Array.from(listbox!.querySelectorAll('[role="option"]'));
+  const building = MOCK_BUILDINGS.find((b: { id: string; name: string }) => b.id === valueOrLabel);
+  const targetLabel = (building ? building.name : valueOrLabel).replace(/_/g, " ").toLowerCase();
+
+  const matched = options.find((opt) => {
+    const text = opt.textContent?.trim().toLowerCase();
+    return text === targetLabel || (targetLabel === "all" && text === "all buildings");
+  });
+
+  expect(matched).toBeDefined();
+  fireEvent.mouseDown(matched!);
+}
 
 describe("ManagerAnomalyPage", () => {
   describe("Initial render", () => {
@@ -186,16 +199,16 @@ describe("ManagerAnomalyPage", () => {
 
   describe("Reset button", () => {
     it.each([
-      { name: "building", getFilter: getBuildingFilter, value: "b1" },
-      { name: "status", getFilter: getStatusFilter, value: "Open" },
-      { name: "severity", getFilter: getSeverityFilter, value: "critical" },
-    ])("resets $name filter to all", async ({ getFilter, value }) => {
+      { name: "building", getFilter: getBuildingFilter, value: "b1", defaultLabel: "All Buildings" },
+      { name: "status", getFilter: getStatusFilter, value: "Open", defaultLabel: "All" },
+      { name: "severity", getFilter: getSeverityFilter, value: "critical", defaultLabel: "All" },
+    ])("resets $name filter to all", async ({ getFilter, value, defaultLabel }) => {
       await renderPage();
       const filter = getFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value } });
+      selectOption(filter.id, value);
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
-      expect(filter.value).toBe("all");
+      expect(filter).toHaveTextContent(defaultLabel);
     });
 
     it("clears search query", async () => {
@@ -211,7 +224,7 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getBuildingFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "b1" } });
+      selectOption(filter.id, "b1");
       expect(getTableCell("Hillcrest")).toBeUndefined();
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
       expect(getTableCell("Hillcrest")).toBeInTheDocument();
@@ -220,10 +233,15 @@ describe("ManagerAnomalyPage", () => {
 
   describe("Building filter", () => {
     it("shows No anomalies found when filter matches nothing", async () => {
+      mockUseBuildings.mockReturnValue({
+        data: [...MOCK_BUILDINGS, { id: "b999", name: "Empty Building" }],
+        isLoading: false,
+        error: null,
+      });
       await renderPage();
       const filter = getBuildingFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "b999" } });
+      selectOption(filter.id, "Empty Building");
       expect(within(getAnomaliesSection()).getByText(/no anomalies found/i)).toBeInTheDocument();
     });
   });
@@ -239,7 +257,7 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value } });
+      selectOption(filter.id, value);
       expect(getTableCell(expected)).toBeInTheDocument();
       expect(getTableCell(unexpected)).toBeUndefined();
     });
