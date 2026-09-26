@@ -86,8 +86,8 @@ export default function LoginPage() {
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
-                    <p className="landing-kicker">OptiGrid Access</p>
                     <h1 id="login-title">Log in to your account</h1>
+                    <p className="text-muted auth-lede">Sign in to see your buildings and live readings.</p>
                 </header>
 
                 {notice && (
@@ -118,7 +118,7 @@ export default function LoginPage() {
                             onChange={handleChange}
                             disabled={!hydrated || loading}
                             className="input"
-                            placeholder="you@company.io"
+                            placeholder="you@company.co.za"
                             aria-invalid={Boolean(error)}
                             suppressHydrationWarning
                         />
@@ -143,10 +143,6 @@ export default function LoginPage() {
                         disabled={!hydrated || loading}
                         aria-disabled={!hydrated || loading}
                         className="btn btn-primary auth-submit"
-                        style={{
-                            backgroundColor: "#3A6B7C",
-                            color: "#FFFFFF",
-                        }}
                     >
                         {!hydrated ? "Loading..." : loading ? "Logging in..." : "Log in"}
                     </button>

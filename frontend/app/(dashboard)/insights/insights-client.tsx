@@ -161,31 +161,6 @@ function formatKw(value: number | null): string {
     return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} kW`;
 }
 
-function ChevronDown() {
-    return (
-        <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            stroke="currentColor"
-            aria-hidden="true"
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    );
-}
-
-const selectStyle: CSSProperties = {
-    appearance: "none",
-    WebkitAppearance: "none",
-    MozAppearance: "none",
-    paddingRight: "var(--space-6)"
-};
-
 function LabeledSelect({
     id,
     label,
@@ -206,41 +181,18 @@ function LabeledSelect({
             display: "grid",
             gap: "var(--space-2)"
         }}>
-            <label
-                htmlFor={id}
-                className="label"
-                style={{
-                    textTransform: "uppercase",
-                    letterSpacing: "0.2em"
-                }}
-            >
+            <label htmlFor={id} className="label">
                 {label}
             </label>
-            <div style={{ position: "relative" }}>
-                <select
-                    id={id}
-                    className="select"
-                    style={selectStyle}
-                    value={value}
-                    disabled={disabled}
-                    onChange={(e) => onChange(e.target.value)}
-                >
-                    {children}
-                </select>
-                <span
-                    style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        pointerEvents: "none",
-                        transform: "translateY(-50%)",
-                        color: "var(--brand-ink-muted)"
-                    }}
-                    aria-hidden="true"
-                >
-                    <ChevronDown />
-                </span>
-            </div>
+            <select
+                id={id}
+                className="select"
+                value={value}
+                disabled={disabled}
+                onChange={(e) => onChange(e.target.value)}
+            >
+                {children}
+            </select>
         </div>
     );
 }
@@ -388,7 +340,7 @@ function ReviewDialog({
                 </button>
                 <button type="button" className="btn btn-primary" onClick={() => onApprove(tradeoff ? savingsLevel : undefined)} 
                     disabled={busy || !actionable || approvalLocked}
-                    style={{ backgroundColor: "#3A6B7C", color: "#FFFFFF" }}
+                   
                 >
                     {pendingAction === "apply" ? "Approving..." : "Approve Recommendation"}
                 </button>

@@ -1,8 +1,9 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ViewBuildingPage from "./page";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
+import { formatDateTime } from "@/lib/formatDate";
 
 jest.mock("@/lib/useTelemetryStream", () => ({
     useTelemetryStream: jest.fn(),
@@ -41,6 +42,8 @@ const mockBuilding = {
   latitude: -26.111,
   longitude: 28.055,
   geohash: "kgesj5h",
+  floors_above_ground: 14,
+  solar_capacity_kw: "120.5",
 };
 
 const makeParams = (buildingId: string) => Promise.resolve({ buildingId });
@@ -109,16 +112,20 @@ describe("ViewBuildingPage", () => {
       expect(screen.getByRole("heading", { name: /building details/i })).toBeInTheDocument();
       expect(screen.getByText("Building A")).toBeInTheDocument();
       expect(screen.getByText("tenant-111")).toBeInTheDocument();
-      expect(screen.getByText("OFFICE")).toBeInTheDocument();
-      expect(screen.getByText("ACTIVE")).toBeInTheDocument();
-      expect(screen.getByText("Online (Waiting for reading)")).toBeInTheDocument();
-      expect(screen.getByText(/5000 m²/)).toBeInTheDocument();
+      expect(screen.getByText("Office")).toBeInTheDocument();
+      expect(screen.getByText("Active")).toBeInTheDocument();
+      expect(screen.getByText("Waiting for a reading")).toBeInTheDocument();
+      expect(screen.getByText("5,000 m²")).toBeInTheDocument();
       expect(screen.getByText("200")).toBeInTheDocument();
       expect(screen.getByText("230 V")).toBeInTheDocument();
+      expect(screen.getByText("60 A")).toBeInTheDocument();
+      expect(screen.getByText("14")).toBeInTheDocument();
+      expect(screen.getByText("120.5 kWp")).toBeInTheDocument();
       expect(screen.getByText("-26.111")).toBeInTheDocument();
       expect(screen.getByText("28.055")).toBeInTheDocument();
-      expect(screen.getAllByText("2026-07-17T08:00:00.000Z")).toHaveLength(2);
-      expect(screen.getByRole("heading", { name: "Energy Consumption" })).toBeInTheDocument();
+      expect(screen.getByText(formatDateTime(mockBuilding.created_at))).toBeInTheDocument();
+      expect(screen.queryByText("2026-07-17T08:00:00.000Z")).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Energy consumption" })).toBeInTheDocument();
       expect(screen.getByText("900 kWh")).toBeInTheDocument();
       expect(screen.getByText("R 1,800")).toBeInTheDocument();
       expect(screen.getByText("120 kWh")).toBeInTheDocument();
@@ -144,8 +151,8 @@ describe("ViewBuildingPage", () => {
     render(<ViewBuildingPage params={makeParams("111")} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Real-Time Telemetry" })).toBeInTheDocument();
-      expect(screen.getByText("Online (Streaming)")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Live telemetry" })).toBeInTheDocument();
+      expect(screen.getByText("Streaming")).toBeInTheDocument();
       expect(screen.getByText("EMULATOR")).toBeInTheDocument();
       expect(screen.getByText("sensor-111")).toBeInTheDocument();
       expect(screen.getByText("12.35 kW")).toBeInTheDocument();
@@ -172,7 +179,7 @@ describe("ViewBuildingPage", () => {
     render(<ViewBuildingPage params={makeParams("111")} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Real-Time Telemetry" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Live telemetry" })).toBeInTheDocument();
       expect(screen.queryByText("99 kW")).not.toBeInTheDocument();
       expect(screen.queryByText("240 V")).not.toBeInTheDocument();
       expect(screen.queryByText("75 A")).not.toBeInTheDocument();
@@ -190,7 +197,7 @@ describe("ViewBuildingPage", () => {
     render(<ViewBuildingPage params={makeParams("111")} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Offline / Connecting")).toBeInTheDocument();
+      expect(screen.getByText("Connecting")).toBeInTheDocument();
       expect(screen.getByText("Lost connection to telemetry stream.")).toBeInTheDocument();
     });
   });
@@ -216,6 +223,33 @@ describe("ViewBuildingPage", () => {
       expect(screen.getByText("Building A")).toBeInTheDocument();
       expect(screen.getByText("Telemetry is temporarily unavailable.")).toBeInTheDocument();
     });
+  });
+
+  it("reloads consumption when another period is chosen", async () => {
+    mockFetchOk();
+    render(<ViewBuildingPage params={makeParams("111")} />);
+
+    const week = await screen.findByRole("radio", { name: "7 days" });
+    expect(screen.getByRole("radio", { name: "30 days" })).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(week);
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith("/api/buildings/111/energy-consumption?time_range=7d", {
+        method: "GET",
+        cache: "no-store",
+      }),
+    );
+    expect(week).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("marks fields which the building record leaves empty", async () => {
+    mockFetchOk({ ...mockBuilding, geohash: null, floors_above_ground: null, solar_capacity_kw: null });
+    render(<ViewBuildingPage params={makeParams("111")} />);
+
+    const geohash = await screen.findByText("Geohash");
+    expect(geohash.nextElementSibling).toHaveTextContent("-");
+    expect(screen.getByText("Rooftop solar").nextElementSibling).toHaveTextContent("-");
   });
 
   it("links the building to its place on the energy heatmap", async () => {

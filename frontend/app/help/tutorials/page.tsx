@@ -195,10 +195,7 @@ export default function TutorialsPage() {
                         <Link href="/help/manual" className="btn btn-secondary">
                             Open manual
                         </Link>
-                        <Link href="/dashboard" className="btn btn-primary" style={{
-                            backgroundColor: "#3A6B7C",
-                            color: "#FFFFFF",
-                        }}>
+                        <Link href="/dashboard" className="btn btn-primary">
                             Back to dashboard
                         </Link>
                     </div>

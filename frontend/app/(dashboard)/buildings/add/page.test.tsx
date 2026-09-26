@@ -121,7 +121,7 @@ describe("AddBuildingPage", () => {
       describe("Building type dropdown", () => {
     const types = [
       "Residential", "Commercial", "Industrial", "Healthcare",
-      "Construction", "Mixed Use", "ShoppingCentre", "Other",
+      "Construction", "Mixed use", "Shopping centre", "Other",
     ];
  
     types.forEach((type) => {
@@ -216,12 +216,51 @@ describe("AddBuildingPage", () => {
       expect(screen.getByText(/address must be at least 5 characters/i)).toBeInTheDocument();
     });
 
-    it("shows error when square footage is negative", () => {
+    it("shows error when floor area is negative", () => {
       render(<AddBuildingPage />);
       fill("building_name", "building A");
       fill("square_footage", "-100");
       submitForm();
-      expect(screen.getByText(/square footage must be a positive number/i)).toBeInTheDocument();
+      expect(screen.getByText(/floor area must be a positive number/i)).toBeInTheDocument();
+    });
+
+    it("rejects a floor count that is not a whole number", () => {
+      render(<AddBuildingPage />);
+      fillRequired();
+      fill("floors_above_ground", "2.5");
+      submitForm();
+      expect(screen.getByText(/floors must be a whole number/i)).toBeInTheDocument();
+    });
+
+    it("rejects a geohash that is too short", () => {
+      render(<AddBuildingPage />);
+      fillRequired();
+      fill("geohash", "kg");
+      submitForm();
+      expect(screen.getByText(/geohash must be 5 to 10 characters/i)).toBeInTheDocument();
+    });
+
+    it("sends the size, supply and location details with the new building", async () => {
+      mockFetchOk();
+      render(<AddBuildingPage />);
+      fillRequired();
+      fill("floors_above_ground", "6");
+      fill("solar_capacity_kw", "40");
+      fill("max_current_threshold", "80");
+      fill("latitude", "-26.1");
+      fill("longitude", "28.05");
+      await act(async () => { submitForm(); });
+
+      const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(JSON.parse(options.body)).toMatchObject({
+        building_name: "building A",
+        floors_above_ground: 6,
+        solar_capacity_kw: 40,
+        max_current_threshold: 80,
+        latitude: -26.1,
+        longitude: 28.05,
+        nominal_voltage: 230,
+      });
     });
  
 

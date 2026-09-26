@@ -11,6 +11,17 @@ import {
 import { formatMetricValue } from "./format";
 import type { Building, ComparisonBuilding, Metric, TimeRange } from "./types";
 import { AccessibleChart } from "../../../components/AccessibleChart";
+import { ChartLegend } from "../../../components/ChartLegend";
+import {
+    SERIES_COLOURS,
+    axisTick,
+    formatAxisNumber,
+    formatAxisRand,
+    gridStroke,
+    seriesDot,
+    tooltipContentStyle,
+    tooltipLabelStyle,
+} from "../../../lib/chartTheme";
 
 type ChartPoint = {
     period: string;
@@ -281,11 +292,16 @@ export function ComparisonChart({
             );
         }
 
+        const showDots = chartData.length <= 14;
+
         return (
             <>
-                <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
-                    Daily {metric === "R" ? "cost" : "energy"} comparison between {getBuildingName(buildingA)} and {getBuildingName(buildingB)}
-                </p>
+                <ChartLegend
+                    items={[
+                        { label: getBuildingName(buildingA), colour: SERIES_COLOURS[0] },
+                        { label: getBuildingName(buildingB), colour: SERIES_COLOURS[1] }
+                    ]}
+                />
                 <AccessibleChart
                     caption={`Comparison totals over the last ${dateRange} days, in ${metric === "R" ? "cost (rand)" : "energy (kWh)"}`}
                     categoryLabel="Period"
@@ -301,56 +317,47 @@ export function ComparisonChart({
                         }
                     ]}
                 >
-                <ResponsiveContainer width="100%" height={260}>
-                    <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--brand-border)" />
+                <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                         <XAxis
                             dataKey="period"
-                            tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                            tick={axisTick}
                             axisLine={false}
                             tickLine={false}
+                            padding={{ left: 12, right: 12 }}
+                            minTickGap={24}
                         />
                         <YAxis
-                            tick={{ fill: "var(--brand-ink-muted)", fontSize: 11 }}
+                            tick={axisTick}
                             axisLine={false}
                             tickLine={false}
-                            tickFormatter={(value) => formatMetricValue(value, metric)}
-                            label={{
-                                value: metric === "R" ? "Cost (R)" : "Energy (kWh)",
-                                angle: -90,
-                                position: "insideLeft",
-                                style: { fill: "var(--brand-ink-muted)", fontSize: 11 }
-                            }}
+                            width={metric === "R" ? 68 : 56}
+                            tickFormatter={metric === "R" ? formatAxisRand : formatAxisNumber}
                         />
                         <Tooltip
-                            contentStyle={{
-                                backgroundColor: "var(--brand-surface)",
-                                border: "1px solid var(--brand-border)",
-                                borderRadius: "12px",
-                                color: "var(--brand-ink)",
-                                fontSize: "var(--fs-small)",
-                            }}
+                            contentStyle={tooltipContentStyle}
+                            labelStyle={tooltipLabelStyle}
                             cursor={{ stroke: "var(--brand-border)" }}
                             formatter={(value: number) => formatMetricValue(value, metric)}
-                            labelFormatter={(label) => `Period: ${label}`}
                         />
                         <Line
                             type="monotone"
                             dataKey="A"
                             name={getBuildingName(buildingA)}
-                            stroke="var(--brand-primary)"
+                            stroke={SERIES_COLOURS[0]}
                             strokeWidth={2}
-                            dot={{ fill: "var(--brand-primary)", r: 2 }}
-                            activeDot={{ r: 3 }}
+                            dot={showDots ? seriesDot(SERIES_COLOURS[0]) : false}
+                            activeDot={seriesDot(SERIES_COLOURS[0], 5)}
                         />
                         <Line
                             type="monotone"
                             dataKey="B"
                             name={getBuildingName(buildingB)}
-                            stroke="var(--brand-secondary)"
+                            stroke={SERIES_COLOURS[1]}
                             strokeWidth={2}
-                            dot={{ fill: "var(--brand-secondary)", r: 2 }}
-                            activeDot={{ r: 3 }}
+                            dot={showDots ? seriesDot(SERIES_COLOURS[1]) : false}
+                            activeDot={seriesDot(SERIES_COLOURS[1], 5)}
                         />
                     </LineChart>
                 </ResponsiveContainer>
@@ -365,7 +372,7 @@ export function ComparisonChart({
                 <div>
                     <h2 className="dashboard-section-title">Comparison totals</h2>
                     <span className="dashboard-section-meta">
-                        Last {dateRange} days - {metric === "R" ? "cost" : "energy"}
+                        Last {dateRange} days - {metric === "R" ? "cost in rand" : "energy in kWh"} per day
                     </span>
                 </div>
             </div>

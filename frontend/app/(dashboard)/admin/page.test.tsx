@@ -61,7 +61,7 @@ describe("AdminPage", () => {
   describe("Initial render", () => {
     it("renders the page heading", async () => {
       render(<AdminPage />);
-      expect(await screen.findByRole("heading", { name: /Admin - Manage Buildings/i })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: /manage buildings/i })).toBeInTheDocument();
     });
 
 

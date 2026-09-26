@@ -275,128 +275,79 @@ export default function UserManagementPage() {
     <div className="dashboard-page">
       <div className="dashboard-shell">
         <div className="dashboard-main">
-          <div className="dashboard-header">
+          <div className="dashboard-header dashboard-page-heading">
             <div>
               <h1 className="dashboard-title">User Management</h1>
-              <div className="dashboard-subtitle">
-                Manage users and their building assignments
-              </div>
-            </div>
-            <div className="badge badge-success" style={{ display: "inline-flex" }}>
-              Admin
+              <p className="dashboard-subtitle">
+                Manage people and the buildings they can see.
+              </p>
             </div>
           </div>
 
           <section aria-label="User statistics">
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                gap: "var(--space-4)",
-                marginBottom: "var(--space-5)",
-              }}
-            >
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">Total Users</div>
-                <div className="dashboard-kpi-value">{stats.total}</div>
-              </div>
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">Admins</div>
-                <div className="dashboard-kpi-value" style={{ color: "var(--brand-success)" }}>
-                  {stats.admins}
+            <div className="kpi-strip">
+              {[
+                { label: "Total users", value: stats.total, tone: "" },
+                { label: "Admins", value: stats.admins, tone: "is-success" },
+                { label: "Managers", value: stats.managers, tone: "is-warning" },
+                { label: "Viewers", value: stats.regularUsers, tone: "is-primary" },
+              ].map((item) => (
+                <div key={item.label} className="card kpi-tile">
+                  <div className="dashboard-kpi-label">{item.label}</div>
+                  <div className={`dashboard-kpi-value ${item.tone}`.trim()}>{item.value}</div>
                 </div>
-              </div>
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">Managers</div>
-                <div className="dashboard-kpi-value" style={{ color: "var(--brand-warning)" }}>
-                  {stats.managers}
-                </div>
-              </div>
-              <div className="card dashboard-card-tight">
-                <div className="dashboard-kpi-label">Regular Users</div>
-                <div className="dashboard-kpi-value" style={{ color: "var(--brand-primary)" }}>
-                  {stats.regularUsers}
-                </div>
-              </div>
+              ))}
             </div>
           </section>
-
           {loadError && <p role="alert" className="auth-alert">{loadError}</p>}
-
-          <section aria-label="Filters and controls">
-            <div className="card" style={{ marginBottom: "var(--space-5)" }}>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  gap: "var(--space-4)",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                }}
+          <section aria-label="Filters and controls" className="card filter-bar">
+            <div className="filter-field">
+              <label className="label" htmlFor="sort-filter">Sort by</label>
+              <select
+                id="sort-filter"
+                value={sortFilter}
+                onChange={(e) => setSortFilter(e.target.value)}
+                className="select"
+                aria-label="Sort users by"
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-2)",
-                  }}
-                >
-                  <label className="label" htmlFor="sort-filter" style={{ whiteSpace: "nowrap" }}>
-                    Sort:
-                  </label>
-                  <select
-                    id="sort-filter"
-                    value={sortFilter}
-                    onChange={(e) => setSortFilter(e.target.value)}
-                    className="select"
-                    style={{ width: "auto" }}
-                    aria-label="Sort users by"
-                  >
-                    <option value="latest">Latest Added</option>
-                    <option value="oldest">Oldest Added</option>
-                    <option value="name_asc">Name A-Z</option>
-                    <option value="name_desc">Name Z-A</option>
-                  </select>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-2)",
-                    flex: 1,
-                  }}
-                >
-                  <label className="label" htmlFor="search-input" style={{ whiteSpace: "nowrap" }}>
-                    Search:
-                  </label>
-                  <input
-                    id="search-input"
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Name or email..."
-                    className="input"
-                    style={{ flex: 1 }}
-                    aria-label="Search users by name or email"
-                  />
-                </div>
-
-                <button type="button" onClick={resetFilters} className="btn btn-secondary">
-                  Reset
-                </button>
-              </div>
+                <option value="latest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="name_asc">Name, A to Z</option>
+                <option value="name_desc">Name, Z to A</option>
+              </select>
             </div>
+
+            <div className="filter-field filter-field-grow">
+              <label className="label" htmlFor="search-input">Search</label>
+              <input
+                id="search-input"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Name or email"
+                className="input"
+                aria-label="Search users by name or email"
+              />
+            </div>
+
+            <button type="button" onClick={resetFilters} className="btn btn-secondary filter-reset">
+              Reset
+            </button>
           </section>
 
           <section aria-label="Users list">
-            <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
+            <h2 className="dashboard-section-title dashboard-page-section">
               Users
             </h2>
-            <div className="card" style={{ overflow: "hidden", padding: 0, marginBottom: "var(--space-5)" }}>
-              <div style={{ overflow: "auto" }}>
-                <table className="dashboard-table">
+            <div className="card table-card dashboard-section">
+              <div className="table-scroll">
+                <table className="dashboard-table people-table">
                   <caption className="sr-only">Viewers and their assigned buildings</caption>
+                  <colgroup>
+                    <col className="people-col-name" />
+                    <col className="people-col-email" />
+                    <col />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th scope="col">
@@ -465,13 +416,19 @@ export default function UserManagementPage() {
           </section>
 
           <section aria-label="Managers list">
-            <h2 style={{ marginBottom: "var(--space-3)", color: "var(--brand-primary)", fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)" }}>
+            <h2 className="dashboard-section-title dashboard-page-section">
               Managers
             </h2>
-            <div className="card" style={{ overflow: "hidden", padding: 0, marginBottom: "var(--space-5)" }}>
-              <div style={{ overflow: "auto" }}>
-                <table className="dashboard-table">
+            <div className="card table-card dashboard-section">
+              <div className="table-scroll">
+                <table className="dashboard-table people-table">
                   <caption className="sr-only">Managers and their assigned buildings</caption>
+                  <colgroup>
+                    <col className="people-col-name" />
+                    <col className="people-col-email" />
+                    <col />
+                    <col className="people-col-actions" />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th scope="col">
@@ -481,7 +438,7 @@ export default function UserManagementPage() {
                         Email
                       </th>
                       <th scope="col">
-                        Assigned Buildings
+                        Assigned buildings
                       </th>
                       <th scope="col">
                         Actions
@@ -541,8 +498,6 @@ export default function UserManagementPage() {
                                   style={{
                                     fontSize: "var(--fs-small)",
                                     padding: "var(--space-1) var(--space-3)",
-                                    backgroundColor: "#3A6B7C",
-                                    color: "#FFFFFF",
                                   }}
                                 >
                                   Assign
@@ -677,8 +632,6 @@ export default function UserManagementPage() {
                 className={`btn ${Action === "assign" ? "btn-primary" : "btn-danger"}`}
                 style={{
                   flex: 1,
-                  backgroundColor: Action === "assign" ? "#3A6B7C" : undefined,
-                  color: Action === "assign" ? "#FFFFFF" : undefined,
                 }}
               >
                 {Action === "assign" ? "Assign" : "Remove"}

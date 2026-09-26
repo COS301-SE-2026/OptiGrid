@@ -4,6 +4,8 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
 import DigitalTwin from "@/components/digital-twin/DigitalTwin";
+import { formatDateTime } from "@/lib/formatDate";
+import { humanise } from "@/lib/labels";
 
 type BuildingRecord = {
     building_id: string;
@@ -22,6 +24,8 @@ type BuildingRecord = {
     latitude?: number | null;
     longitude?: number | null;
     geohash?: string | null;
+    floors_above_ground?: number | null;
+    solar_capacity_kw?: number | string | null;
 };
 
 type BuildingResponse = {
@@ -56,12 +60,23 @@ type EnergyConsumptionResponse = {
 
 type DisplayValue = string | number | null | undefined;
 
-function displayValue(value: DisplayValue): string | number {
-    return value ?? "-";
+const TIME_RANGES: Array<{ value: EnergyTimeRange; label: string }> = [
+    { value: "7d", label: "7 days" },
+    { value: "30d", label: "30 days" },
+    { value: "90d", label: "90 days" },
+    { value: "1y", label: "1 year" },
+];
+
+function isBlank(value: DisplayValue): boolean {
+    return value === null || value === undefined || value === "";
 }
 
-function displayValueWithUnit(value: DisplayValue, unit: string): string {
-    return value === null || value === undefined ? "-" : `${value} ${unit}`;
+function toNumber(value: number | string | null | undefined): number | null {
+    if (value === null || value === undefined || value === "") {
+        return null;
+    }
+    const parsed = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
 }
 
 function formatNumber(value: number | null | undefined, maximumFractionDigits = 2): string {
@@ -72,8 +87,8 @@ function formatNumber(value: number | null | undefined, maximumFractionDigits = 
     return value.toLocaleString(undefined, { maximumFractionDigits });
 }
 
-function formatMeasurement(value: number | null | undefined, unit: string): string {
-    const formatted = formatNumber(value);
+function formatMeasurement(value: number | string | null | undefined, unit: string, maximumFractionDigits = 2): string {
+    const formatted = formatNumber(toNumber(value), maximumFractionDigits);
     return formatted === "-" ? "-" : `${formatted} ${unit}`;
 }
 
@@ -86,12 +101,39 @@ function formatTelemetryTimestamp(value: string | null | undefined): string {
     return timestamp.toLocaleTimeString();
 }
 
+function formatPeakTime(value: string): string {
+    const timestamp = new Date(value);
+    if (Number.isNaN(timestamp.getTime())) return value;
+
+    return new Intl.DateTimeFormat("en", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    }).format(timestamp);
+}
+
 function formatZar(value: number | null | undefined): string {
     if (value === null || value === undefined || !Number.isFinite(value)) {
         return "-";
     }
 
     return `R ${formatNumber(value)}`;
+}
+
+function lifecycleTone(state: string | null | undefined): string {
+    switch (state) {
+        case "ACTIVE":
+            return "badge-success";
+        case "PROVISIONING":
+            return "badge-warning";
+        case "PROVISIONING_FAILED":
+            return "badge-danger";
+        default:
+            return "badge-default";
+    }
 }
 
 export default function ViewBuildingPage({
@@ -116,11 +158,12 @@ export default function ViewBuildingPage({
     const { liveData, error: sseError, isConnected } = useTelemetryStream(buildingId);
     const currentLiveData = liveData?.building_id === buildingId ? liveData : null;
     const isBuildingStreamConnected = Boolean(buildingId) && isConnected;
-    const streamConnectionStatus = isBuildingStreamConnected
-        ? currentLiveData
-            ? "Online (Streaming)"
-            : "Online (Waiting for reading)"
-        : "Offline / Connecting";
+    let streamStatus = { label: "Connecting", tone: "is-idle" };
+    if (isBuildingStreamConnected) {
+        streamStatus = currentLiveData
+            ? { label: "Streaming", tone: "is-live" }
+            : { label: "Waiting for a reading", tone: "is-waiting" };
+    }
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -237,17 +280,19 @@ export default function ViewBuildingPage({
         );
     }
 
+    const peakTimes = consumption?.peak_usage_times ?? [];
+    const peakMax = Math.max(0, ...peakTimes.map((peak) => peak.kwh));
+    const subtitle = [building.building_name, building.physical_address].filter(Boolean).join(", ");
+
     return (
-        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-            <div className="dashboard-header" style={{ marginBottom: "var(--space-6)" }}>
+        <div className="building-view">
+            <div className="dashboard-header dashboard-page-heading">
                 <div>
                     <h1 className="dashboard-title">Building Details</h1>
-                    <p className="dashboard-subtitle">
-                        {isBuildingStreamConnected ? "Live telemetry stream connected" : "Connecting live telemetry stream..."}
-                    </p>
+                    <p className="dashboard-subtitle">{subtitle || "Building record and live telemetry"}</p>
                 </div>
 
-                <div style={{ gap: "var(--space-3)", display: "flex" }}>
+                <div className="dashboard-header-actions">
                     {building.building_id && (
                         <Link href={`/buildings/${building.building_id}/sensors`} className="btn btn-primary">
                             Sensors
@@ -262,190 +307,197 @@ export default function ViewBuildingPage({
                 </div>
             </div>
 
-            {twinBuilding && <DigitalTwin building={twinBuilding} />}
-
             {error && (
-                <div
-                    className="card"
-                    role="alert"
-                    style={{
-                        marginBottom: "var(--space-4)",
-                        borderColor: "var(--brand-danger)",
-                        backgroundColor: "color-mix(in srgb, var(--brand-danger) 8%, transparent)",
-                        padding: "var(--space-4)",
-                    }}
-                >
-                    <p style={{ color: "var(--brand-danger)", margin: 0 }}>{error}</p>
+                <div className="card building-alert" role="alert">
+                    <p>{error}</p>
                 </div>
             )}
 
-            <div
-                className="card"
-                style={{ display: "grid", gap: "var(--space-6)", padding: "var(--space-6)" }}
-            >
-                <DetailsSection title="Real-Time Telemetry">
-                    <Detail
-                        label="Stream Connection"
-                        value={streamConnectionStatus}
-                    />
-                    <Detail
-                        label="Telemetry Source"
-                        value={currentLiveData?.source_type}
-                    />
-                    <Detail
-                        label="Sensor ID"
-                        value={currentLiveData?.sensor_id}
-                    />
-                    <Detail
-                        label="Live Power"
-                        value={formatMeasurement(currentLiveData?.power_kw, "kW")}
-                    />
-                    <Detail
-                        label="Live Voltage"
-                        value={formatMeasurement(currentLiveData?.voltage_v, "V")}
-                    />
-                    <Detail
-                        label="Live Current"
-                        value={formatMeasurement(currentLiveData?.current_a, "A")}
-                    />
-                    <Detail
-                        label="Last Broadcast"
-                        value={formatTelemetryTimestamp(currentLiveData?.timestamp)}
-                    />
-                    {sseError && (
-                        <div role="alert" style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
-                            {sseError.message}
+            {twinBuilding && <DigitalTwin building={twinBuilding} />}
+
+            <div className="building-view-grid">
+                <section className="card building-panel" aria-labelledby="building-energy-heading">
+                    <div className="dashboard-section-header dashboard-section-header-wrap">
+                        <div>
+                            <h2 id="building-energy-heading" className="dashboard-section-title">Energy consumption</h2>
+                            <span className="dashboard-section-meta">Usage and cost for the selected period</span>
                         </div>
-                    )}
-                </DetailsSection>
-
-                <DetailsSection title="General Information">
-                    <Detail label="Building Name" value={building.building_name} />
-                    <Detail label="Building ID" value={building.building_id} />
-                    <Detail label="Tenant ID" value={building.tenant_id} />
-                    <Detail label="Building Type" value={building.building_type} />
-                    <Detail label="Lifecycle State" value={building.lifecycle_state} />
-                    <Detail label="Physical Address" value={building.physical_address} />
-                    <Detail label="Timezone" value={building.timezone} />
-                </DetailsSection>
-
-                <DetailsSection title="Building Specifications">
-                    <Detail
-                        label="Square Footage"
-                        value={displayValueWithUnit(building.square_footage, "m²")}
-                    />
-                    <Detail label="Max Occupancy" value={building.max_occupancy} />
-                    <Detail
-                        label="Nominal Voltage"
-                        value={displayValueWithUnit(building.nominal_voltage, "V")}
-                    />
-                </DetailsSection>
-
-                <DetailsSection title="Energy Consumption">
-                    <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "space-between", gap: "var(--space-4)", alignItems: "center", flexWrap: "wrap" }}>
-                        <p className="text-muted" style={{ margin: 0 }}>
-                            Usage and cost metrics for this building.
-                        </p>
+                        <div className="segmented" role="radiogroup" aria-label="Energy period">
+                            {TIME_RANGES.map((range) => (
+                                <button
+                                    key={range.value}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={timeRange === range.value}
+                                    className={timeRange === range.value ? "segmented-option is-active" : "segmented-option"}
+                                    onClick={() => setTimeRange(range.value)}
+                                >
+                                    {range.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {consumptionLoading && (
-                        <div role="status" aria-live="polite" style={{ gridColumn: "1 / -1" }} className="text-muted">
+                        <p role="status" aria-live="polite" className="text-muted building-panel-note">
                             Loading energy consumption...
-                        </div>
+                        </p>
                     )}
 
                     {consumptionError && !error && (
-                        <div role="alert" style={{ gridColumn: "1 / -1", color: "var(--brand-danger)" }}>
+                        <p role="alert" className="building-panel-note building-panel-error">
                             {consumptionError}
-                        </div>
+                        </p>
                     )}
 
                     {consumption && !consumptionLoading && (
                         <>
-                            <Detail label="Total Consumption" value={displayValueWithUnit(formatNumber(consumption.total_kwh), "kWh")} />
-                            <Detail label="Average Daily Usage" value={displayValueWithUnit(formatNumber(consumption.average_daily_kwh), "kWh")} />
-                            <Detail label="Total Cost" value={formatZar(consumption.total_cost_zar)} />
-                            <Detail label="Cost per kWh" value={formatZar(consumption.cost_per_kwh)} />
-                            <Detail label="Energy Use Intensity" value={displayValueWithUnit(formatNumber(consumption.eui), "kWh/m²")} />
-                            <Detail label="Active Anomaly Alerts" value={consumption.total_anomaly_alerts} />
-                            <Detail label="Recommendation Savings" value={formatZar(consumption.cost_saved_by_recommendations_zar)} />
+                            <dl className="building-stat-grid">
+                                <Stat label="Total consumption" value={formatMeasurement(consumption.total_kwh, "kWh")} />
+                                <Stat label="Average per day" value={formatMeasurement(consumption.average_daily_kwh, "kWh")} />
+                                <Stat label="Total cost" value={formatZar(consumption.total_cost_zar)} />
+                                <Stat label="Cost per kWh" value={formatZar(consumption.cost_per_kwh)} />
+                                <Stat label="Energy use intensity" value={formatMeasurement(consumption.eui, "kWh/m²")} />
+                                <Stat
+                                    label="Anomaly alerts"
+                                    value={consumption.total_anomaly_alerts}
+                                    tone={consumption.total_anomaly_alerts ? "warning" : undefined}
+                                />
+                                <Stat label="Recommendation savings" value={formatZar(consumption.cost_saved_by_recommendations_zar)} />
+                            </dl>
 
-                            <div style={{ gridColumn: "1 / -1", marginTop: "var(--space-2)" }}>
-                                <h4 style={{ marginBottom: "var(--space-2)" }}>Peak Usage Times</h4>
-                                {consumption.peak_usage_times.length === 0 ? (
-                                    <p className="text-muted">No peak usage data is available for this time range.</p>
+                            <div className="building-peaks">
+                                <h3 className="building-subheading">Peak usage times</h3>
+                                {peakTimes.length === 0 ? (
+                                    <p className="text-muted">No peak usage data is available for this period.</p>
                                 ) : (
-                                    <div style={{ overflow: "auto" }}>
-                                        <table style={{ width: "100%" }}>
-                                            <caption className="sr-only">Peak usage times</caption>
-                                            <thead>
-                                                <tr>
-                                                    <th scope="col" align="left">Timestamp</th>
-                                                    <th scope="col" align="left">Usage</th>
+                                    <table className="dashboard-table building-peak-table">
+                                        <caption className="sr-only">Peak usage times</caption>
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">When</th>
+                                                <th scope="col" className="building-peak-bar-cell">
+                                                    <span className="sr-only">Share of the highest peak</span>
+                                                </th>
+                                                <th scope="col" className="is-numeric">Usage</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {peakTimes.map((peak) => (
+                                                <tr key={`${peak.timestamp}-${peak.kwh}`}>
+                                                    <td>{formatPeakTime(peak.timestamp)}</td>
+                                                    <td className="building-peak-bar-cell" aria-hidden="true">
+                                                        <span className="building-peak-bar">
+                                                            <span style={{ width: `${peakMax > 0 ? Math.max(4, (peak.kwh / peakMax) * 100) : 0}%` }} />
+                                                        </span>
+                                                    </td>
+                                                    <td className="is-numeric">{formatMeasurement(peak.kwh, "kWh")}</td>
                                                 </tr>
-                                            </thead>
-                                            <tbody>
-                                                {consumption.peak_usage_times.map((peak) => (
-                                                    <tr key={`${peak.timestamp}-${peak.kwh}`}>
-                                                        <td>{peak.timestamp}</td>
-                                                        <td>{displayValueWithUnit(formatNumber(peak.kwh), "kWh")}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 )}
                             </div>
                         </>
                     )}
-                </DetailsSection>
+                </section>
 
-                <DetailsSection title="Location Details">
-                    <Detail label="Latitude" value={building.latitude} />
-                    <Detail label="Longitude" value={building.longitude} />
-                    <Detail label="Geohash" value={building.geohash} />
-                </DetailsSection>
+                <section className="card building-panel" aria-labelledby="building-telemetry-heading">
+                    <div className="dashboard-section-header">
+                        <div>
+                            <h2 id="building-telemetry-heading" className="dashboard-section-title">Live telemetry</h2>
+                            <span className="dashboard-section-meta">Latest reading from the stream</span>
+                        </div>
+                        <span className={`building-stream ${streamStatus.tone}`}>
+                            <span className="building-stream-dot" aria-hidden="true" />
+                            {streamStatus.label}
+                        </span>
+                    </div>
 
-                <DetailsSection title="Record Details">
-                    <Detail label="Created At" value={building.created_at} />
-                    <Detail label="Updated At" value={building.updated_at} />
-                </DetailsSection>
+                    <div className="building-live">
+                        <span className="building-live-label">Live power</span>
+                        <p className="building-live-value">{formatMeasurement(currentLiveData?.power_kw, "kW")}</p>
+                    </div>
+
+                    <dl className="detail-list">
+                        <Detail label="Voltage" value={formatMeasurement(currentLiveData?.voltage_v, "V")} />
+                        <Detail label="Current" value={formatMeasurement(currentLiveData?.current_a, "A")} />
+                        <Detail label="Sensor" value={currentLiveData?.sensor_id} mono />
+                        <Detail label="Source" value={currentLiveData?.source_type} />
+                        <Detail label="Last broadcast" value={formatTelemetryTimestamp(currentLiveData?.timestamp)} />
+                    </dl>
+
+                    {sseError && (
+                        <p role="alert" className="building-panel-note building-panel-error">
+                            {sseError.message}
+                        </p>
+                    )}
+                </section>
+            </div>
+
+            <div className="building-detail-grid">
+                <section className="card building-panel" aria-labelledby="building-general-heading">
+                    <h2 id="building-general-heading" className="dashboard-section-title building-panel-title">General information</h2>
+                    <dl className="detail-list">
+                        <Detail label="Name" value={building.building_name} />
+                        <Detail label="Type" value={isBlank(building.building_type) ? null : humanise(building.building_type)} />
+                        <Detail
+                            label="Status"
+                            value={isBlank(building.lifecycle_state) ? null : (
+                                <span className={`badge ${lifecycleTone(building.lifecycle_state)}`}>{humanise(building.lifecycle_state)}</span>
+                            )}
+                        />
+                        <Detail label="Address" value={building.physical_address} />
+                        <Detail label="Timezone" value={building.timezone} />
+                        <Detail label="Building ID" value={building.building_id} mono />
+                        <Detail label="Tenant ID" value={building.tenant_id} mono />
+                    </dl>
+                </section>
+
+                <section className="card building-panel" aria-labelledby="building-specs-heading">
+                    <h2 id="building-specs-heading" className="dashboard-section-title building-panel-title">Specifications</h2>
+                    <dl className="detail-list">
+                        <Detail label="Floor area" value={formatMeasurement(building.square_footage, "m²")} />
+                        <Detail label="Floors above ground" value={toNumber(building.floors_above_ground)} />
+                        <Detail label="Maximum occupancy" value={building.max_occupancy} />
+                        <Detail label="Nominal voltage" value={formatMeasurement(building.nominal_voltage, "V")} />
+                        <Detail label="Circuit limit" value={formatMeasurement(building.max_current_threshold, "A")} />
+                        <Detail label="Rooftop solar" value={formatMeasurement(building.solar_capacity_kw, "kWp")} />
+                    </dl>
+                </section>
+
+                <section className="card building-panel" aria-labelledby="building-location-heading">
+                    <h2 id="building-location-heading" className="dashboard-section-title building-panel-title">Location and record</h2>
+                    <dl className="detail-list">
+                        <Detail label="Latitude" value={building.latitude} mono />
+                        <Detail label="Longitude" value={building.longitude} mono />
+                        <Detail label="Geohash" value={building.geohash} mono />
+                        <Detail label="Created" value={building.created_at ? formatDateTime(building.created_at) : null} />
+                        <Detail label="Last updated" value={building.updated_at ? formatDateTime(building.updated_at) : null} />
+                    </dl>
+                </section>
             </div>
         </div>
     );
 }
 
-function DetailsSection({ title, children }: Readonly<{ title: string; children: ReactNode }>) {
+function Stat({ label, value, tone }: Readonly<{ label: string; value: DisplayValue; tone?: "warning" }>) {
     return (
-        <div>
-            <h3
-                style={{
-                    color: "var(--brand-primary-cta)",
-                    marginBottom: "var(--space-4)",
-                    fontSize: "var(--fs-h3)",
-                    fontWeight: "var(--fw-semibold)",
-                }}
-            >
-                {title}
-            </h3>
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "220px 1fr",
-                    rowGap: "var(--space-4)",
-                }}
-            >
-                {children}
-            </div>
+        <div className={tone ? `building-stat is-${tone}` : "building-stat"}>
+            <dt>{label}</dt>
+            <dd>{isBlank(value) ? "-" : value}</dd>
         </div>
     );
 }
 
-function Detail({ label, value }: Readonly<{ label: string; value: DisplayValue }>) {
+function Detail({ label, value, mono = false }: Readonly<{ label: string; value: ReactNode; mono?: boolean }>) {
+    const empty = value === null || value === undefined || value === "" || value === "-";
     return (
-        <>
-            <div className="text-muted">{label}</div>
-            <div style={{ fontFamily: "var(--font-body)" }}>{displayValue(value)}</div>
-        </>
+        <div className="detail-row">
+            <dt>{label}</dt>
+            <dd className={[mono ? "is-mono" : "", empty ? "is-empty" : ""].filter(Boolean).join(" ") || undefined}>
+                {empty ? "-" : value}
+            </dd>
+        </div>
     );
 }

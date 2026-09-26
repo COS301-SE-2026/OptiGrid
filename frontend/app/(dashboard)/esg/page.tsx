@@ -27,7 +27,7 @@ export default function EsgDashboardPage() {
   return (
     <div className="dashboard-page">
       <div className="dashboard-shell">
-        <main className="dashboard-main">
+        <div className="dashboard-main">
           <header className="dashboard-header">
             <div>
               <p className="landing-kicker">Environmental</p>
@@ -67,7 +67,7 @@ export default function EsgDashboardPage() {
               <p className="text-muted">No buildings available.</p>
             </div>
           )}
-        </main>
+        </div>
       </div>
     </div>
   );

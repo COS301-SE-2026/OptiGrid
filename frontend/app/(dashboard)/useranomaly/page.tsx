@@ -91,7 +91,7 @@ export default function ViewerAnomalyPage() {
     <div className="dashboard-page">
       <AnomalyToast message={toastMessage} onClose={() => setToastMessage(null)} />
       <div className="dashboard-shell">
-        <main className="dashboard-main" role="main" aria-label="Anomaly viewer main content">
+        <div className="dashboard-main">
           <div className="dashboard-header">
             <div>
               <h1 className="dashboard-title">Anomaly Alerts</h1>
@@ -120,7 +120,7 @@ export default function ViewerAnomalyPage() {
             onRowClick={handleViewDetails}
             pageLoading={loading || chart.chartLoading}
           />
-        </main>
+        </div>
       </div>
 
       <AnomalyDetailsModal

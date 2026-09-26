@@ -139,8 +139,8 @@ describe("Form population from building data", () => {
         await renderAndLoad();
         expect(screen.getByLabelText(/building name/i)).toHaveValue("Test Building");
         expect(screen.getByLabelText(/address/i)).toHaveValue("1 Main St");
-        expect(screen.getByLabelText(/square footage/i)).toHaveValue("500");
-        expect(screen.getByLabelText(/max occupancy/i)).toHaveValue("20");
+        expect(screen.getByLabelText(/floor area/i)).toHaveValue("500");
+        expect(screen.getByLabelText(/maximum occupancy/i)).toHaveValue("20");
         expect(screen.getByLabelText(/timezone/i)).toHaveValue("Africa/Johannesburg");
         expect(screen.getByLabelText(/^latitude$/i)).toHaveValue("-25.7461");
         expect(screen.getByLabelText(/^longitude$/i)).toHaveValue("28.1881");
@@ -152,14 +152,14 @@ describe("Form population from building data", () => {
         expect(screen.getByLabelText(/timezone/i)).toHaveValue("UTC");
     });
 
-    it("leaves square footage empty when building has none", async () => {
+    it("leaves floor area empty when building has none", async () => {
         await renderAndLoad({ ...BASE_BUILDING, square_footage: null });
-        expect(screen.getByLabelText(/square footage/i)).toHaveValue("");
+        expect(screen.getByLabelText(/floor area/i)).toHaveValue("");
     });
 
-    it("leaves max occupancy empty when building has none", async () => {
+    it("leaves maximum occupancy empty when building has none", async () => {
         await renderAndLoad({ ...BASE_BUILDING, max_occupancy: null });
-        expect(screen.getByLabelText(/max occupancy/i)).toHaveValue("");
+        expect(screen.getByLabelText(/maximum occupancy/i)).toHaveValue("");
     });
 
     it("leaves address empty when building has none", async () => {
@@ -222,6 +222,33 @@ describe("PATCH payload on submit", () => {
                 max_occupancy: 20,
             });
         });
+    });
+
+    it("sends the size and supply details which the form was loaded with", async () => {
+        mockFetchPatch(true, undefined, {
+            ...BASE_BUILDING,
+            floors_above_ground: 9,
+            solar_capacity_kw: "42.5",
+            max_current_threshold: 80,
+        });
+        await renderAndWait();
+        expect(screen.getByLabelText(/floors above ground/i)).toHaveValue("9");
+        expect(screen.getByLabelText(/circuit limit/i)).toHaveValue("80");
+        fireEvent.submit(document.querySelector("form")!);
+        await waitFor(() =>
+            expect(getPatchBody()).toMatchObject({
+                floors_above_ground: 9,
+                solar_capacity_kw: 42.5,
+                max_current_threshold: 80,
+            }),
+        );
+    });
+
+    it("omits the circuit limit when the building has none", async () => {
+        mockFetchPatch();
+        await renderAndWait();
+        fireEvent.submit(document.querySelector("form")!);
+        await waitFor(() => expect(getPatchBody()).not.toHaveProperty("max_current_threshold"));
     });
 
     it("omits square_footage when the field is empty", async () => {

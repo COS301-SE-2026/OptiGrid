@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { getTabSessionPath } from "../../../../../lib/tab-session";
+import { BUILDING_TYPE_OPTIONS, LIFECYCLE_OPTIONS } from "@/lib/buildingOptions";
 import { AddressSearchInput } from "@/components/AddressSearchInput";
 
 type BuildingRecord = {
@@ -19,6 +20,7 @@ type BuildingRecord = {
     geohash?: string | null;
     building_type?: string | null;
     nominal_voltage?: number | null;
+    max_current_threshold?: number | null;
     hardware_auth_token?: string | null;
     lifecycle_state?: string | null; 
 };
@@ -41,6 +43,7 @@ type UpdatePayload = {
     geohash?: string;
     building_type?: string | null;
     nominal_voltage?: number | null;
+    max_current_threshold?: number;
     lifecycle_state?: string | null;
 };
 
@@ -51,6 +54,16 @@ function toNumber(value: string): number | undefined {
 
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function Field({ id, label, hint, wide = false, children }: Readonly<{ id: string; label: string; hint?: string; wide?: boolean; children: ReactNode }>) {
+    return (
+        <div className={wide ? "form-field form-field-wide" : "form-field"}>
+            <label className="label" htmlFor={id}>{label}</label>
+            {children}
+            {hint && <p className="form-hint">{hint}</p>}
+        </div>
+    );
 }
 
 export default function EditBuildingPage({
@@ -65,6 +78,7 @@ export default function EditBuildingPage({
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
+    const [savedName, setSavedName] = useState("");
     const [form, setForm] = useState({
         building_name: "",
         building_type: "Residential",
@@ -75,6 +89,7 @@ export default function EditBuildingPage({
         floors_above_ground: "",
         solar_capacity_kw: "",
         nominal_voltage: "230",
+        max_current_threshold: "",
         lifecycle_state: "PROVISIONING",
         latitude: "",
         longitude: "",
@@ -111,6 +126,7 @@ export default function EditBuildingPage({
                 }
 
                 if (isMounted) {
+                    setSavedName(building.building_name ?? "");
                     setForm({
                         building_name: building.building_name ?? "",
                         building_type: building.building_type ?? "Residential",
@@ -130,6 +146,8 @@ export default function EditBuildingPage({
                                 ? String(building.max_occupancy)
                                 : "",
                         nominal_voltage: building.nominal_voltage != null ? String(building.nominal_voltage) : "230",
+                        max_current_threshold:
+                            building.max_current_threshold != null ? String(building.max_current_threshold) : "",
                         lifecycle_state: building.lifecycle_state ?? "PROVISIONING",
                         latitude: building.latitude != null ? String(building.latitude) : "",
                         longitude: building.longitude != null ? String(building.longitude) : "",
@@ -172,6 +190,7 @@ export default function EditBuildingPage({
             floors_above_ground: toNumber(form.floors_above_ground),
             solar_capacity_kw: toNumber(form.solar_capacity_kw),
             nominal_voltage: toNumber(form.nominal_voltage),
+            max_current_threshold: toNumber(form.max_current_threshold),
             lifecycle_state: form.lifecycle_state.trim() || undefined,
             latitude: toNumber(form.latitude),
             longitude: toNumber(form.longitude),
@@ -225,232 +244,160 @@ export default function EditBuildingPage({
         );
     }
 
+    const update = (field: keyof typeof form) => (event: { target: { value: string } }) =>
+        setForm((prev) => ({ ...prev, [field]: event.target.value }));
+
     if (error && !saving) {
         return (
-            <div className="card">
-                <h1 className="dashboard-title">Edit Building</h1>
-                <p role="alert" className="text-muted" style={{ marginTop: "var(--space-2)" }}>{error}</p>
+            <div className="form-page">
+                <div className="dashboard-header dashboard-page-heading">
+                    <div>
+                        <h1 className="dashboard-title">Edit building</h1>
+                        <p className="dashboard-subtitle">This building could not be opened for editing.</p>
+                    </div>
+                </div>
+                <div className="card building-alert">
+                    <p role="alert">{error}</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="card">
-            <h1 className="dashboard-title">Edit Building Details</h1>
-            <p className="dashboard-subtitle">Update the building profile details.</p>
-
-            <form onSubmit={handleSubmit} style={{ marginTop: "var(--space-4)", display: "grid", gap: "var(--space-3)" }}>
-                <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
-                    <div>
-                        <label className="label" htmlFor="building_name">Building name</label>
-                        <input
-                            id="building_name"
-                            className="input"
-                            value={form.building_name}
-                            onChange={(event) =>
-                                setForm((prev) => ({ ...prev, building_name: event.target.value }))
-                            }
-                            required
-                        />
-                    </div>
-                    {/* added building type change*/}
-                    <div>
-                        <label className="label" htmlFor="building_type">Building Type</label>
-                        <select 
-                            id="building_type"
-                            className="input"
-                            value={form.building_type}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev, building_type: event.target.value
-                                }))
-                            }>
-                        <option value="Residential">Residential</option>
-                        <option value="Commercial">Commercial</option>
-                        <option value="Industrial">Industrial</option>
-                        <option value="Healthcare">Healthcare</option>
-                        <option value="Construction">Construction</option>
-                        <option value="Mixed_Use">Mixed_Use</option>   
-                        <option value="ShoppingCentre">ShoppingCentre</option>
-                        <option value="Other">Other</option>
-                        </select>
-                    </div>
-                </div>
-            
+        <div className="form-page">
+            <div className="dashboard-header dashboard-page-heading">
                 <div>
-                    <label className="label" htmlFor="physical_address">Address</label>
-                    <AddressSearchInput
-                        value={form.physical_address}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, physical_address: event.target.value }))
-                        }
-                        onCoordinatesFound={(lat, lon) => {
-                            setForm((prev) => ({
-                                ...prev,
-                                latitude: String(lat),
-                                longitude: String(lon)
-                            }));
-                        }}
-                        disabled={saving}
-                    />
-                </div>
-
-            <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
-                <div>
-                    <label className="label" htmlFor="square_footage">Square footage</label>
-                    <input
-                        id="square_footage"
-                        className="input"
-                        value={form.square_footage}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, square_footage: event.target.value }))
-                        }
-                        inputMode="numeric"
-                    />
-                </div>
-
-                <div>
-                    <label className="label" htmlFor="max_occupancy">Max occupancy</label>
-                    <input
-                        id="max_occupancy"
-                        className="input"
-                        value={form.max_occupancy}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, max_occupancy: event.target.value }))
-                        }
-                        inputMode="numeric"
-                    />
-                </div>
-
-                <div>
-                    <label className="label" htmlFor="floors_above_ground">Floors above ground</label>
-                    <input
-                        id="floors_above_ground"
-                        className="input"
-                        value={form.floors_above_ground}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, floors_above_ground: event.target.value }))
-                        }
-                        inputMode="numeric"
-                        placeholder="Shapes the 3D model"
-                    />
-                </div>
-
-                <div>
-                    <label className="label" htmlFor="solar_capacity_kw">Rooftop solar (kW)</label>
-                    <input
-                        id="solar_capacity_kw"
-                        className="input"
-                        value={form.solar_capacity_kw}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, solar_capacity_kw: event.target.value }))
-                        }
-                        inputMode="decimal"
-                        placeholder="0 if none"
-                    />
-                </div>
-            </div>
-
-            {/* add nominal voltage */}
-            <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
-                <div>
-                    <label className="label" htmlFor="nominal_voltage"> Nominal Voltage</label>
-                    <input 
-                        id="nominal_voltage"
-                        className="input" 
-                        value={form.nominal_voltage}
-                        onChange={(event) => 
-                            setForm((prev) => ({
-                                ...prev, nominal_voltage:event.target.value
-                            }))
-                        }
-                        inputMode="numeric">
-                    </input>
-                </div>
-            </div>
-
-            <div style={{display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"}}>
-                 <div>
-                    <label className="label" htmlFor="timezone">Timezone</label>
-                    <input
-                        id="timezone"
-                        className="input"
-                        value={form.timezone}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, timezone: event.target.value }))
-                        }
-                    />
-                </div>
-                <div>
-                    <label className="label" htmlFor="lifecycle_state">Building State</label>
-                    <select 
-                        id="lifecycle_state"
-                        className="input"
-                        value={form.lifecycle_state}
-                        onChange={(event) =>
-                            setForm((prev) => ({
-                                ...prev, lifecycle_state: event.target.value
-                            }))
-                        }>
-                    <option value="PROVISIONING">Provisioning</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="PROVISIONING_FAILED">Provisioning Failed</option>
-                    <option value="INACTIVE">Inactive</option>
-                    </select>
-                </div>
-            </div>    
-               
-                <div style={
-                    {
-                     display: "grid",
-                     gap: "var(--space-3)", 
-                     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" 
-                    }}>
-                    <div>
-                        <label className="label" htmlFor="latitude">Latitude</label>
-                        <input
-                            id="latitude"
-                            className="input"
-                            value={form.latitude}
-                            onChange={(event) =>
-                                setForm((prev) => ({ ...prev, latitude: event.target.value }))
-                            }
-                            inputMode="decimal"
-                        />
-                    </div>
-                    <div>
-                        <label className="label" htmlFor="longitude">Longitude</label>
-                        <input
-                            id="longitude"
-                            className="input"
-                            value={form.longitude}
-                            onChange={(event) =>
-                                setForm((prev) => ({ ...prev, longitude: event.target.value }))
-                            }
-                            inputMode="decimal"
-                        />
-                    </div>
-                </div>
-                <div>
-                    <label className="label" htmlFor="geohash">Geohash</label>
-                    <input
-                        id="geohash"
-                        className="input"
-                        value={form.geohash}
-                        onChange={(event) =>
-                            setForm((prev) => ({ ...prev, geohash: event.target.value }))
-                        }
-                    />
-                </div>
-                {success ? (
-                    <p role="status" aria-live="polite" style={{ color: "var(--brand-success)", fontWeight: 500, fontSize: "var(--fs-small)" }}>
-                        Building updated successfully. Redirecting...
+                    <h1 className="dashboard-title">Edit building</h1>
+                    <p className="dashboard-subtitle">
+                        {savedName ? `Update the details for ${savedName}.` : "Update the building profile details."}
                     </p>
-                ) : error ? (
-                    <p role="alert" aria-live="assertive" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)" }}>{error}</p>
-                ) : null}
+                </div>
+            </div>
 
-                <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "flex-end" }}>
+            <form onSubmit={handleSubmit} className="card form-card">
+                <section className="form-section" aria-labelledby="edit-building-identity">
+                    <div className="form-section-intro">
+                        <h2 id="edit-building-identity">Building</h2>
+                        <p>The name, use and status appear across the dashboard, reports and the 3D model.</p>
+                    </div>
+                    <div className="form-grid form-grid-3">
+                        <Field id="building_name" label="Building name">
+                            <input
+                                id="building_name"
+                                className="input"
+                                value={form.building_name}
+                                onChange={update("building_name")}
+                                required
+                            />
+                        </Field>
+                        <Field id="building_type" label="Building type">
+                            <select id="building_type" className="select" value={form.building_type} onChange={update("building_type")}>
+                                {BUILDING_TYPE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </Field>
+                        <Field id="lifecycle_state" label="Status">
+                            <select id="lifecycle_state" className="select" value={form.lifecycle_state} onChange={update("lifecycle_state")}>
+                                {LIFECYCLE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </Field>
+                    </div>
+                </section>
+
+                <section className="form-section" aria-labelledby="edit-building-location">
+                    <div className="form-section-intro">
+                        <h2 id="edit-building-location">Location</h2>
+                        <p>Change the address and clear the coordinates to have them worked out again.</p>
+                    </div>
+                    <div className="form-grid">
+                      <Field id="physical_address" label="Physical address" wide>
+                            <AddressSearchInput
+                                value={form.physical_address}
+                                onChange={update("physical_address")}
+                                onCoordinatesFound={(lat, lon) => {
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        latitude: String(lat),
+                                        longitude: String(lon),
+                                    }));
+                                }}
+                                disabled={saving}
+                            />
+                        </Field>
+                        <Field id="timezone" label="Timezone">
+                            <input id="timezone" className="input" value={form.timezone} onChange={update("timezone")} />
+                        </Field>
+                        <Field id="geohash" label="Geohash">
+                            <input id="geohash" className="input" value={form.geohash} onChange={update("geohash")} />
+                        </Field>
+                        <Field id="latitude" label="Latitude">
+                            <input id="latitude" className="input" value={form.latitude} onChange={update("latitude")} inputMode="decimal" />
+                        </Field>
+                        <Field id="longitude" label="Longitude">
+                            <input id="longitude" className="input" value={form.longitude} onChange={update("longitude")} inputMode="decimal" />
+                        </Field>
+                    </div>
+                </section>
+
+                <section className="form-section" aria-labelledby="edit-building-size">
+                    <div className="form-section-intro">
+                        <h2 id="edit-building-size">Size and supply</h2>
+                        <p>Used for energy intensity, circuit load and the shape of the 3D model.</p>
+                    </div>
+                    <div className="form-grid form-grid-3">
+                        <Field id="square_footage" label="Floor area (m²)">
+                            <input id="square_footage" className="input" value={form.square_footage} onChange={update("square_footage")} inputMode="numeric" />
+                        </Field>
+                        <Field id="floors_above_ground" label="Floors above ground">
+                            <input
+                                id="floors_above_ground"
+                                className="input"
+                                value={form.floors_above_ground}
+                                onChange={update("floors_above_ground")}
+                                inputMode="numeric"
+                                placeholder="Shapes the 3D model"
+                            />
+                        </Field>
+                        <Field id="max_occupancy" label="Maximum occupancy">
+                            <input id="max_occupancy" className="input" value={form.max_occupancy} onChange={update("max_occupancy")} inputMode="numeric" />
+                        </Field>
+                        <Field id="nominal_voltage" label="Nominal voltage (V)">
+                            <input id="nominal_voltage" className="input" value={form.nominal_voltage} onChange={update("nominal_voltage")} inputMode="numeric" />
+                        </Field>
+                        <Field id="max_current_threshold" label="Circuit limit (A)">
+                            <input
+                                id="max_current_threshold"
+                                className="input"
+                                value={form.max_current_threshold}
+                                onChange={update("max_current_threshold")}
+                                inputMode="decimal"
+                                placeholder="60"
+                            />
+                        </Field>
+                        <Field id="solar_capacity_kw" label="Rooftop solar (kWp)">
+                            <input
+                                id="solar_capacity_kw"
+                                className="input"
+                                value={form.solar_capacity_kw}
+                                onChange={update("solar_capacity_kw")}
+                                inputMode="decimal"
+                                placeholder="0 if none"
+                            />
+                        </Field>
+                    </div>
+                </section>
+
+                <div className="form-footer">
+                    {success ? (
+                        <p role="status" aria-live="polite" className="form-footer-status is-success">
+                            Building updated successfully. Redirecting...
+                        </p>
+                    ) : error ? (
+                        <p role="alert" aria-live="assertive" className="form-footer-status is-error">{error}</p>
+                    ) : null}
                     <button
                         type="button"
                         className="btn btn-secondary"
@@ -459,11 +406,7 @@ export default function EditBuildingPage({
                     >
                         Cancel
                     </button>
-                    <button
-                        type="submit"
-                        className="btn btn-primary"
-                        disabled={saving}
-                    >
+                    <button type="submit" className="btn btn-primary" disabled={saving}>
                         {saving ? "Saving..." : "Save changes"}
                     </button>
                 </div>
