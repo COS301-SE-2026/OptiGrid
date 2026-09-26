@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getTabSessionPath } from "../../../lib/tab-session";
 
 type LifeCycleState = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED";
 type energySorting = "none" | "desc" | "asc";
@@ -72,11 +73,11 @@ export default function ManagerBuildings() {
         let isMounted = true;
         const load = async () => {
             try {
-                const response = await fetch("/api/buildings/manager", {
+                const response = await fetch(getTabSessionPath("/api/buildings/manager"), {
                     method: "GET",
                     cache: "no-store",
                 });
-
+                
                 const payload = (await response.json()) as BuildingResponse;
 
                 if (!response.ok) {

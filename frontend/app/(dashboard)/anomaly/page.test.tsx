@@ -22,6 +22,7 @@ jest.mock("recharts", () => {
 });
 
 const mockUseBuildings = jest.fn();
+let mockStatusUpdateOk = true;
 
 jest.mock("@/lib/useBuildings", () => ({
   useBuildings: () => mockUseBuildings(),
@@ -33,8 +34,9 @@ afterAll(() => jest.useRealTimers());
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockStatusUpdateOk = true;
   mockUseBuildings.mockReturnValue({ data: MOCK_BUILDINGS, isLoading: false, error: null });
-  (global.fetch as jest.Mock) = jest.fn((url: string) => {
+  (global.fetch as jest.Mock) = jest.fn((url: string, init?: RequestInit) => {
     if (url.includes("/api/anomalies/portfolio")) {
       return Promise.resolve({
         ok: true,
@@ -48,6 +50,21 @@ beforeEach(() => {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ data: MOCK_THRESHOLDS }),
+      });
+    }
+    if (url.includes("/api/anomalies/") && url.endsWith("/status")) {
+      const status = JSON.parse(String(init?.body)).status;
+      return Promise.resolve({
+        ok: mockStatusUpdateOk,
+        json: () => Promise.resolve(mockStatusUpdateOk
+          ? {
+              data: {
+                status,
+                resolved_timestamp: "2026-09-24T10:00:00.000Z",
+                resolved_by: "Tali Seaba",
+              },
+            }
+          : { message: "Unable to update anomaly status." }),
       });
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
@@ -360,9 +377,24 @@ describe("ManagerAnomalyPage", () => {
       });
     };
 
-    it("changes anomaly status to Resolved", async () => {
+    it("persists the resolved status and moves the anomaly to history", async () => {
       await resolveAnomaly();
-      expect(within(getTableRow("Sandton HQ")).getByText("Resolved")).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/anomalies/a1/status",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ status: "Resolved" }),
+        })
+      );
+      expect(getTableCell("Sandton HQ")).toBeUndefined();
+
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      const historicModal = screen.getByRole("heading", { name: /historic alerts/i }).closest(".modal")!;
+      expect(within(historicModal as HTMLElement).getByText("Sandton HQ")).toBeInTheDocument();
+      expect(
+        within(historicModal as HTMLElement).getAllByText("Resolved").some((element) => element.tagName === "SPAN")
+      ).toBe(true);
+      expect(within(historicModal as HTMLElement).getByText("Tali Seaba")).toBeInTheDocument();
     });
 
     it("closes the resolve modal after confirming", async () => {
@@ -423,14 +455,45 @@ describe("ManagerAnomalyPage", () => {
       });
     };
 
-    it("changes anomaly status to Ignored", async () => {
+    it("persists the ignored status and moves the anomaly to history", async () => {
       await ignoreAnomaly();
-      expect(within(getTableRow("Sandton HQ")).getByText("Ignored")).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/anomalies/a1/status",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ status: "Ignored" }),
+        })
+      );
+      expect(getTableCell("Sandton HQ")).toBeUndefined();
+
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      const historicModal = screen.getByRole("heading", { name: /historic alerts/i }).closest(".modal")!;
+      expect(
+        within(historicModal as HTMLElement).getAllByText("Ignored").some((element) => element.tagName === "SPAN")
+      ).toBe(true);
     });
 
     it("closes the ignore modal after confirming", async () => {
       await ignoreAnomaly();
       expect(screen.queryByRole("heading", { name: /ignore anomaly/i })).not.toBeInTheDocument();
+    });
+
+    it("keeps the anomaly active and reports an API failure", async () => {
+      await renderPage();
+      mockStatusUpdateOk = false;
+      fireEvent.click(getTableRow("Sandton HQ"));
+      const detailsModal = screen.getByRole("heading", { name: /anomaly details/i }).closest(".modal")!;
+      fireEvent.click(within(detailsModal as HTMLElement).getByRole("button", { name: /ignore/i }));
+      const modal = screen.getByRole("heading", { name: /ignore anomaly/i }).closest(".modal")!;
+
+      await act(async () => {
+        fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /^ignore$/i }));
+        await Promise.resolve();
+      });
+
+      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
+      expect(screen.getByText("Unable to update anomaly status.")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /ignore anomaly/i })).toBeInTheDocument();
     });
   });
 

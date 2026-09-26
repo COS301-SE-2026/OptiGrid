@@ -9,6 +9,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
     default: {
         user: {
             findUnique: jest.fn(),
+            findMany: jest.fn(),
             upsert: jest.fn(),
             update: jest.fn(),
         },
@@ -25,10 +26,49 @@ jest.mock('@supabase/supabase-js', () => ({
 const mockedPrisma = prisma as unknown as {
     user: {
         findUnique: jest.Mock;
+        findMany: jest.Mock;
         upsert: jest.Mock;
         update: jest.Mock;
     };
 };
+
+describe('User management queries', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it.each([
+        ['VIEWER', authServices.getViewersService],
+        ['BUILDING_MANAGER', authServices.getManagersService],
+        ['ADMIN', authServices.getAdminsService],
+    ])('returns createdAt and flattened building ids for %s users', async (roleType, getUsers) => {
+        const createdAt = new Date('2026-09-20T08:00:00.000Z');
+        mockedPrisma.user.findMany.mockResolvedValue([{
+            userId: 'user-1',
+            email: 'user@example.com',
+            firstName: null,
+            lastName: null,
+            roleType,
+            createdAt,
+            buildingAccess: [{ building_id: 'building-1' }],
+        }]);
+
+        await expect(getUsers()).resolves.toEqual([{
+            userId: 'user-1',
+            email: 'user@example.com',
+            firstName: null,
+            lastName: null,
+            roleType,
+            createdAt,
+            buildingIds: ['building-1'],
+            buildingAccess: undefined,
+        }]);
+        expect(mockedPrisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { roleType },
+            select: expect.objectContaining({ createdAt: true }),
+        }));
+    });
+});
 
 const mockedCreateClient = createClient as jest.MockedFunction<typeof createClient>;
 // Supabase method used by login service.

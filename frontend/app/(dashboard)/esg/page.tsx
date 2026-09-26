@@ -1,24 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LivingEnvironment } from '@/components/LivingEnvironment';
-
-interface Building {
-  id: string;
-  name: string;
-  location?: string;
-}
-
-
-const BUILDINGS: Building[] = [
-  { id: 'b1', name: 'My house', location: 'Johannesburg' },
-  { id: 'b2', name: 'Office', location: 'Cape Town' },
-  { id: 'b3', name: 'leonardo', location: 'Durban' },
-];
+import { useBuildings } from '@/lib/useBuildings';
 
 export default function EsgDashboardPage() {
-  const [selectedId, setSelectedId] = useState<string>(BUILDINGS[0]?.id ?? '');
-  const selected = BUILDINGS.find((b) => b.id === selectedId);
+  const { data: buildings, isLoading, isError } = useBuildings();
+  const [selectedId, setSelectedId] = useState<string>('');
+
+  useEffect(() => {
+    if (buildings && buildings.length > 0 && !selectedId) {
+      setSelectedId(buildings[0].id);
+    }
+  }, [buildings, selectedId]);
+
+  const selected = buildings?.find((b) => b.id === selectedId);
+
+  if (isLoading) {
+    return <div className="dashboard-page"><div className="dashboard-shell"><main className="dashboard-main"><p>Loading buildings...</p></main></div></div>;
+  }
+  
+  if (isError) {
+    return <div className="dashboard-page"><div className="dashboard-shell"><main className="dashboard-main"><p>Error loading buildings.</p></main></div></div>;
+  }
 
   return (
     <div className="dashboard-page">
@@ -46,10 +50,9 @@ export default function EsgDashboardPage() {
                   onChange={(e) => setSelectedId(e.target.value)}
                   style={{ minWidth: 220 }}
                 >
-                  {BUILDINGS.map((b) => (
+                  {buildings?.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
-                      {b.location ? `, ${b.location}` : ''}
                     </option>
                   ))}
                 </select>

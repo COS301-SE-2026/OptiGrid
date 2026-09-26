@@ -6,6 +6,7 @@ import {
     recoverAccount,
     getManagersController,
     getViewersController,
+    getAdminsController,
     assignManagerController,
     removeManagerController,
     googleAuthLoginController,
@@ -382,6 +383,7 @@ router.get('/viewers', authenticateRequest, reqRole([UserRole.ADMIN]), getViewer
  *                   example: Internal Server Error
  */
 router.get('/managers', authenticateRequest, reqRole([UserRole.ADMIN]), getManagersController);
+router.get('/admins', authenticateRequest, reqRole([UserRole.ADMIN]), getAdminsController);
 /**
  * @swagger
  * /auth/assign:

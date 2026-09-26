@@ -2,6 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
+import { getTabSessionPath, stripTabSessionPath } from "../../lib/tab-session";
+
+const subscribeToHydration = () => () => {};
+
+function useHasHydrated(): boolean {
+    return useSyncExternalStore(subscribeToHydration, () => true, () => false);
+}
 
 const navigation = [
     { label: "Dashboard", href: "/dashboard" },
@@ -25,18 +33,20 @@ const navigation = [
 
 export function NavLinks({ role }: { readonly role?: string }) {
     const pathname = usePathname();
+    const hasHydrated = useHasHydrated();
     return (
         <nav className="dashboard-nav" aria-label="Dashboard">
             {navigation
                 .filter((item) => !item.roles || (role && item.roles.includes(role)))
                 .map((item) => {
+                    const cleanPathname = stripTabSessionPath(pathname);
                     const active =
-                        pathname === item.href ||
-                        pathname.startsWith(item.href + "/");
+                        cleanPathname === item.href ||
+                        cleanPathname.startsWith(item.href + "/");
                     return (
                         <Link
                             key={item.href}
-                            href={item.href}
+                            href={hasHydrated ? getTabSessionPath(item.href) : item.href}
                             className={`dashboard-link ${active ? "dashboard-link-active" : ""
                                 }`}
                             aria-current={active ? "page" : undefined}

@@ -421,6 +421,7 @@ export const getViewersService = async () => {
             firstName: true,
             lastName: true,
             roleType: true,
+            createdAt: true,
             buildingAccess: {
                 select: {
                     building_id: true
@@ -449,6 +450,7 @@ export const getManagersService = async () => {
             firstName: true,
             lastName: true,
             roleType: true,
+            createdAt: true,
             buildingAccess: {
                 select: {
                     building_id: true
@@ -552,4 +554,33 @@ export const googleAuthLogin = async (accessToken: string, email: string, firstN
         roleType: role,
     });
     return {user,accessToken};
+};
+
+export const getAdminsService = async () => {
+    const admins = await prisma.user.findMany({
+        where: {
+            roleType: "ADMIN"
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            createdAt: true,
+            buildingAccess: {
+                select: {
+                    building_id: true
+                }
+            }
+        },
+    });
+
+    return admins.map(admin => ({
+        ...admin,
+        buildingIds: admin.buildingAccess.map(
+            building => building.building_id
+        ),
+        buildingAccess: undefined
+    }));
 };

@@ -28,7 +28,11 @@ export interface EsgHealthScore {
 }
 
 export interface ScenarioParams {
-   hvacReduction?: number;
+  energyEfficiency?: number;
+  renewables?: number;
+  hvacLoad?: number;
+  lighting?: number;
+  hvacReduction?: number;
   loadShiftHours?: number;
   solarAddition?: number;
   waterReduction?: number;

@@ -11,6 +11,7 @@ import {
   updateBuildingController, getManagerBuildingsController, getBuildingSeriesController,
   getLiveSensorReadingsController,
 } from '../controllers/building.controller';
+import esgRoutes from './esg.routes';
 
 const router = Router();
 
@@ -579,6 +580,8 @@ router.get('/:building_id/series', getBuildingSeriesController);
  */
 router.delete('/:building_id', deleteBuildingController);
 router.patch('/:building_id', updateBuildingController);
+
+router.use('/:building_id/esg', esgRoutes);
 
 /**
  * @swagger

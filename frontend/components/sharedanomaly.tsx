@@ -1218,7 +1218,7 @@ export function HistoricAlertsModal({
     const matchesSearch =
       !searchQuery ||
       anomaly.anomaly_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      anomaly.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (anomaly.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       anomaly.building_name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
@@ -1319,6 +1319,7 @@ interface ConfirmAnomalyActionModalProps {
   confirmColor: string;
   onConfirm: () => void;
   onCancel: () => void;
+  pending?: boolean;
 }
 
 export function ConfirmAnomalyActionModal({
@@ -1330,6 +1331,7 @@ export function ConfirmAnomalyActionModal({
   confirmColor,
   onConfirm,
   onCancel,
+  pending = false,
 }: Readonly<ConfirmAnomalyActionModalProps>) {
   if (!open || !anomaly) return null;
 
@@ -1343,7 +1345,7 @@ export function ConfirmAnomalyActionModal({
         <p><strong>Description:</strong> {anomaly.description}</p>
       </div>
       <div style={{ display: "flex", gap: "var(--space-3)" }}>
-        <button type="button" onClick={onCancel} className="btn btn-secondary" style={{ flex: 1 }}>
+        <button type="button" onClick={onCancel} className="btn btn-secondary" style={{ flex: 1 }} disabled={pending}>
           Cancel
         </button>
         <button
@@ -1351,8 +1353,9 @@ export function ConfirmAnomalyActionModal({
           onClick={onConfirm}
           className="btn"
           style={{ flex: 1, backgroundColor: confirmColor, color: "#FFFFFF" }}
+          disabled={pending}
         >
-          {confirmLabel}
+          {pending ? "Saving..." : confirmLabel}
         </button>
       </div>
     </Modal>
