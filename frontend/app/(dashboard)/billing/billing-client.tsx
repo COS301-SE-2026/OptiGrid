@@ -219,13 +219,13 @@ function ScheduleBar() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 10,
+              fontSize: 15,
               fontWeight: "var(--fw-semibold)",
               color: "#FFFFFF",
               fontFamily: "var(--font-mono)",
             }}
           >
-            {span >= 3 ? `${slot.startHour}–${slot.endHour}` : ""}
+            {span >= 3 ? `${slot.startHour}-${slot.endHour}` : ""}
           </div>
         );
       })}
@@ -361,7 +361,7 @@ export default function BillingClient() {
             className="dashboard-section-title"
             style={{ marginBottom: "var(--space-1)" }}
           >
-            choose a building
+            Choose a building
           </h2>
           <p
             className="dashboard-section-meta"

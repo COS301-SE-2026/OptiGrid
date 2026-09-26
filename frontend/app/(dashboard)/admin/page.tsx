@@ -5,6 +5,7 @@ import Link from "next/link";
 import DeleteModal from "@/components/DeleteModal";
 import { useRouter } from "next/navigation";
 import { getTabSessionPath } from "../../../lib/tab-session";
+import { CurvedSelect } from "@/components/curvedselect";
 
 type lifecycle_state = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED" | "INACTIVE";
 
@@ -230,20 +231,21 @@ export default function AdminPage() {
                   <label className="label" htmlFor="lifecycle-filter" style={{ whiteSpace: "nowrap" }}>
                     Lifecycle:
                   </label>
-                  <select
-                    id="lifecycle-filter"
-                    value={lifecycleFilter}
-                    onChange={(e) => setLifecycleFilter(e.target.value)}
-                    className="select"
-                    style={{ flex: 1 }}
-                    aria-label="Filter buildings by lifecycle state"
-                  >
-                    <option value="all">All states</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                    <option value="PROVISIONING">Provisioning</option>
-                    <option value="PROVISIONING_FAILED">Provisioning failed</option>
-                  </select>
+                  <div style={{ flex: 1 }}>
+                    <CurvedSelect
+                      id="lifecycle-filter"
+                      value={lifecycleFilter}
+                      onChange={setLifecycleFilter}
+                      options={[
+                        { value: "all", label: "All states" },
+                        { value: "ACTIVE", label: "Active" },
+                        { value: "INACTIVE", label: "Inactive" },
+                        { value: "PROVISIONING", label: "Provisioning" },
+                        { value: "PROVISIONING_FAILED", label: "Provisioning failed" },
+                      ]}
+                      ariaLabel="Filter buildings by lifecycle state"
+                    />
+                  </div>
                 </div>
 
                 <div

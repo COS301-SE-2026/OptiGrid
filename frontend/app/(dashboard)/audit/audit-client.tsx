@@ -3,6 +3,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import { formatDateTime } from "@/lib/formatDate";
 import { PageHeading } from "@/components/PageHeading";
+import { CurvedSelect } from "@/components/curvedselect";
 
 type AuditLog = {
     log_id: string;
@@ -242,17 +243,16 @@ export default function AuditClient() {
                         gap: "var(--space-2)" 
                     }}>
                         <label className="label" htmlFor="audit-action">Action</label>
-                        <select
+                        <CurvedSelect
                             id="audit-action"
-                            className="select"
                             value={actionFilter}
-                            onChange={(e) => {
-                                setActionFilter(e.target.value);
-                                if (e.target.value !== "all") setPageFilter("all");
+                            onChange={(value) => {
+                                setActionFilter(value);
+                                if (value !== "all") setPageFilter("all");
                             }}
-                        >
-                            {ACTION_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
-                        </select>
+                            options={ACTION_FILTERS}
+                            ariaLabel="Filter by action type"
+                        />
                     </div>
 
                     <div style={{
@@ -260,17 +260,16 @@ export default function AuditClient() {
                         gap: "var(--space-2)"
                     }}>
                         <label className="label" htmlFor="audit-page">Page</label>
-                        <select
+                        <CurvedSelect
                             id="audit-page"
-                            className="select"
                             value={pageFilter}
-                            onChange={(e) => {
-                                setPageFilter(e.target.value);
-                                if (e.target.value !== "all") setActionFilter("all");
+                            onChange={(value) => {
+                                setPageFilter(value);
+                                if (value !== "all") setActionFilter("all");
                             }}
-                        >
-                            {PAGE_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
-                        </select>
+                            options={PAGE_FILTERS}
+                            ariaLabel="Filter by page"
+                        />
                     </div>
 
                     <div style={{ 
@@ -278,9 +277,13 @@ export default function AuditClient() {
                         gap: "var(--space-2)" 
                     }}>
                         <label className="label" htmlFor="audit-severity">Severity</label>
-                        <select id="audit-severity" className="select" value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
-                            {SEVERITY_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
-                        </select>
+                        <CurvedSelect
+                            id="audit-severity"
+                            value={severityFilter}
+                            onChange={setSeverityFilter}
+                            options={SEVERITY_FILTERS}
+                            ariaLabel="Filter by severity"
+                        />
                     </div>
 
 
