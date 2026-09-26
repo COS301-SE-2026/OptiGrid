@@ -187,7 +187,7 @@ describe('Recommendation integration tests', () => {
 			.put(`/api/buildings/${buildingId}/recommendations/tariffs`)
 			.set(unassignedAdminAuthHeaders)
 			.send(payload);
-		expect(unassignedAdminResponse.status).toBe(403);
+		expect(unassignedAdminResponse.status).toBe(200);
 	});
 
 	it("should_apply_a_rec", async () => {

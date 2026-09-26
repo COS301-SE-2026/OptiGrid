@@ -5,6 +5,9 @@ import { analyticsQueue } from '../../../backend/core/src/services/bullmq';
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
     __esModule: true,
     default: {
+        user: {
+            findUnique: jest.fn(),
+        },
         userBuildingAccess: {
             findFirst: jest.fn(),
         },
@@ -32,7 +35,11 @@ jest.mock('../../../backend/core/src/services/bullmq', () => ({
 }));
 
 describe("Recommendation Services Unit Tests", () => {
-    beforeEach(() => {jest.clearAllMocks(); });
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue({ roleType: "VIEWER", tenantId: "tenant-123" });
+        (prisma.building.findUnique as jest.Mock).mockResolvedValue({ building_id: "build-123", tenant_id: "tenant-123" });
+    });
 
     it("should_successfully_apply_recommendation", async () => {
         (prisma.userBuildingAccess.findFirst as jest.Mock).mockResolvedValue({ user_id: "user-123", building_id: "build-123" });
