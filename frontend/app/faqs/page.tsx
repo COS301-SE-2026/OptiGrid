@@ -22,8 +22,8 @@ export default async function FaqsPage() {
                             <h1>Frequently Asked Questions</h1>
                             <p className="text-muted">
                                 {user
-                                    ? "Everything you need to know about OptiGrid"
-                                    : "What OptiGrid does, what you get with an account, and how to get started"}
+                                    ? "Quick answers about using OptiGrid."
+                                    : "Quick answers for anyone new to OptiGrid."}
                             </p>
                         </div>
                         <FAQAccordion category={categories} />

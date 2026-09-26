@@ -4,108 +4,150 @@ export type FAQCategory = { category: string, items: FAQItem[] };
 export const Categories: FAQCategory[] = [
     {
         category: "Sign Up & Account",
-        items: [{
-            question: "How do I create an OptiGrid account?",
-            answer: "Click 'Get started free' on the landing page, fill in your first name, last name, email address, and a password of at least 8 characters, then re-enter the password to confirm it. Once the account is created you are signed in and taken straight to your dashboard.",
-        },
-        { question: "Can I sign up with an email that is already registered?",answer: "No. If the email address is already in use, the sign up form shows a message telling you to log in instead. Use a different email or log in to your existing account.",
-            },],
-    },
-    {category: "Login & Session",
-        items: [ {
-                question: "How do I log in?",
-                answer: "Navigate to the Login page, enter your registered email address and password, and click 'Log in'. You will be taken to your dashboard on success.",
-            },
-            {question: "How do I log out?",
-                answer: "Click the 'Logout' button at the bottom of the sidebar in any dashboard page. Your session will be cleared and you will be redirected to the login page.",
-            },{question: "Why was I sent back to the login page?",
-                answer: "Your session expired or the browser cookie was cleared. Any dashboard page checks for a valid session and sends you to the login page when it does not find one, so logging in again will get you back.",
-            },],
-    },
-    {category: "Appearance",
-        items: [{question: "Does OptiGrid support dark mode?",
-                answer: "Yes. Open Settings from the sidebar and use the theme card, which shows the mode you are in and a button to switch to the other one.",
+        items: [
+            {
+                question: "How do I create an account?",
+                answer: "Click Get started free on the home page. Fill in your name and email. Then pick a password of at least 8 characters.",
             },
             {
-                question: "Is my theme preference saved?",
-                answer: "Your choice is remembered in the browser you set it in, so if you also use OptiGrid on another computer you will need to set it there as well.",
+                question: "Can I use an email that is already registered?",
+                answer: "No. The form will ask you to log in instead.",
+            },
+        ],
+    },
+    {
+        category: "Login & Session",
+        items: [
+            {
+                question: "How do I log in?",
+                answer: "Open the login page and enter your email and password. Click Log in to reach your dashboard.",
+            },
+            {
+                question: "How do I log out?",
+                answer: "Use the Logout button at the bottom of the sidebar.",
+            },
+            {
+                question: "Why was I sent back to the login page?",
+                answer: "Your session ended. Log in again to carry on where you left off.",
+            },
+            {
+                question: "Can I use two accounts at the same time?",
+                answer: "Yes. Each browser tab keeps its own login.",
+            },
+        ],
+    },
+    {
+        category: "Appearance",
+        items: [
+            {
+                question: "Does OptiGrid have a dark mode?",
+                answer: "Yes. Open Settings and press the theme button.",
+            },
+            {
+                question: "Is my theme saved?",
+                answer: "It is. OptiGrid remembers your choice for your account.",
             },
         ],
     },
     {
         category: "Buildings",
         items: [
-            {question: "How do I add a building?",
-                answer: "Click '+ Add building' at the top of the dashboard. Only the building name is required, so you can fill in as much of the rest as you have to hand. Saving returns you to the dashboard with the new building in the list.",
-            },{
-                question: "Why should I fill in the floor area?",
-                answer: "It is what makes the efficiency comparison work. OptiGrid divides a building's energy use by its floor area, so a building with no floor area recorded is left out of the efficiency ratio on the Compare page.",
+            {
+                question: "How do I add a building?",
+                answer: "Click + Add building on the dashboard. Only the name is required.",
+            },
+            {
+                question: "What does the Validate button do?",
+                answer: "It looks up the address you typed. The latitude and longitude are then filled in for you.",
+            },
+            {
+                question: "Why should I add the floor area?",
+                answer: "Energy use is compared per square metre. Without a floor area the building is left out of that comparison.",
+            },
+            {
+                question: "What is the 3D view?",
+                answer: "Open any building to see a model of it. Each sensor sits in its zone and glows with its live load.",
+            },
+            {
+                question: "How do I add a sensor?",
+                answer: "Open the building and click Sensors. Use Register sensor to add a new one.",
             },
         ],
     },
     {
         category: "Live Readings",
         items: [
-            {question: "What does the Live page show?",
-                answer: "It lists your buildings with the demand each one is drawing right now in kW, the energy it has used so far today in kWh, and a status badge. The busiest buildings are sorted to the top.",
-            },{question: "How often does it update?",
-                answer: "Readings stream in as the sensors report them, and the page refreshes the rest of the building details every five seconds. The line under the heading tells you whether the connection is live and when the page last updated.",
+            {
+                question: "What does the Live page show?",
+                answer: "It shows how much power each building is using right now. You can also see the energy used so far today.",
             },
             {
-                question: "Why is a building showing as Offline?",
-                answer: "No reading has arrived from it in the last five minutes, so the figures shown next to it are stale. Buildings that are reporting normally show a Normal badge instead.",
-            },
-        ],
-    },
-    {category: "Compare Buildings",
-        items: [{question: "How do I compare two buildings?",
-                answer: "Open Compare, pick a building in each of the two selectors, then choose a date range and whether you want to compare cost or energy. The chart redraws to plot both buildings over that period.",
-            },
-            {
-                question: "What does the key insights panel tell me?",
-                answer: "It gives you an efficiency ratio, which weighs the two buildings against each other once their energy use is measured per square metre, and the total difference between them over the period you picked.",
-            },
-            {
-                question: "Why is there no efficiency ratio for my comparison?",
-                answer: "That figure needs the floor area of both buildings. If either one has no floor area recorded, the ratio cannot be worked out and only the total difference is shown.",
-            },
-        ],
-    },
-    {category: "Demand Forecast",items: [{
-                question: "What does the Demand Forecast page show?",
-                answer: "It shows a combined chart of historical energy consumption (kWh) and an ML-driven short-term demand forecast for a selected building, including a confidence band around the prediction.", },{
-                question: "How accurate are the forecasts?",
-                answer: "Forecast accuracy is measured by MAPE (Mean Absolute Percentage Error). The model accuracy card in the forecast summary shows the current MAPE for the selected building so you can judge how much to rely on it.",
-            },
-            {question: "How do I generate a forecast for a different building?",
-                answer: "Use the building selector on the Forecast page to pick any building in your portfolio, then click 'Run forecast'. The chart and summary metrics update once it finishes.",},{
-
-                question: "What is the peak demand figure in the forecast summary?",
-                answer: "It is the highest single predicted demand value within the forecast window, along with the timestamp it is expected to occur. Use it to plan ahead for peak tariff periods.",
-            },{
-                question: "What is the difference between the weekly and monthly horizon?",
-                answer: "Weekly projects the next seven days at an hourly resolution, which suits day to day planning. Monthly projects the next twelve weeks and is better for spotting seasonal movement.",},
-            {question: "What is the shaded area around the forecast line?",
-                answer: "That is the confidence range. The prediction itself is the dashed line, and the shading shows the span the actual demand is expected to fall within. A wider band means there is more uncertainty in that part of the forecast.",
+                question: "Why is a building marked Offline?",
+                answer: "No reading has arrived from it in the last five minutes.",
             },
         ],
     },
     {
-    category: "Insights",
-            items: [ {
+        category: "Heatmap",
+        items: [
+            {
+                question: "What does the heatmap show?",
+                answer: "Your buildings on a map. Sites that use more energy stand out in a stronger colour.",
+            },
+            {
+                question: "Can I look at the past or the future?",
+                answer: "Yes. Drag the timeline to look back up to 90 days. You can also look up to 90 days ahead.",
+            },
+            {
+                question: "Why is my building missing from the map?",
+                answer: "It has no location yet. Edit the building and use Validate on its address.",
+            },
+        ],
+    },
+    {
+        category: "Compare Buildings",
+        items: [
+            {
+                question: "How do I compare two buildings?",
+                answer: "Open Compare and pick a building in each box. Choose a date range and whether to compare cost or energy.",
+            },
+            {
+                question: "Why is there no efficiency ratio?",
+                answer: "Both buildings need a floor area for this number to work.",
+            },
+        ],
+    },
+    {
+        category: "Demand Forecast",
+        items: [
+            {
+                question: "How do I run a forecast?",
+                answer: "Pick a building and a horizon on the Forecast page. Then click Run forecast.",
+            },
+            {
+                question: "What is the difference between weekly and monthly?",
+                answer: "Weekly shows the next seven days hour by hour. Monthly covers the next twelve weeks.",
+            },
+            {
+                question: "What is the shaded band on the chart?",
+                answer: "It is the range the real demand will most likely fall in. A wide band means the forecast is less certain.",
+            },
+            {
+                question: "How accurate is the forecast?",
+                answer: "Look at the MAPE figure below the chart. A lower number means a closer forecast.",
+            },
+        ],
+    },
+    {
+        category: "Insights",
+        items: [
+            {
                 question: "What are insights?",
-                answer: "They are load shifting suggestions worked out from your consumption and forecast data. Each one describes the strategy, the load it proposes to move, the window it applies to, and the estimated monthly saving in Rand.",
-            },{
-                question: "What do the statuses on a recommendation mean?",
-                answer: "Pending is waiting on a decision and Applying has been approved and is being put into effect. Implemented has been carried out, Dismissed was reviewed and turned down, and Expired passed its window before anyone acted on it.",
+                answer: "Tips for moving load to cheaper hours. Each one shows the monthly saving in Rand.",
             },
             {
-                question: "Can I approve a recommendation myself?",
-                answer: "Approving and dismissing is handled by the team that runs the building, so those buttons only appear for them. You can still read every recommendation and its estimated saving, and raise anything worth acting on with them.",
-            },
-            {
-                question: "What does the confidence score mean?",
-                answer: "It reflects how strongly the underlying forecast supports the suggested shift. Treat a lower confidence score as a reason to sanity check the saving against what you know about the site before relying on it.",
+                question: "Can I approve an insight?",
+                answer: "Building managers and administrators can approve or dismiss them. Viewers can still read every one.",
             },
         ],
     },
@@ -114,34 +156,70 @@ export const Categories: FAQCategory[] = [
         items: [
             {
                 question: "What is an anomaly alert?",
-                answer: "It is raised when a reading moves outside the range expected for that building and measurement. The measurements covered are voltage, current, power, and energy. The alert points at the specific measure that moved.",
+                answer: "A warning that a reading is outside its normal range.",
             },
             {
-                question: "What should I do when I see one?",
-                answer: "The Anomaly page gives you a read-only view of alerts across your buildings. Check whether the reading lines up with something you already know about, such as planned work on site, and pass anything unexpected to the team that manages that building.",
+                question: "What should I do when I get one?",
+                answer: "First check for a known reason like work on site. If there is none, let the building manager know.",
+            },
+        ],
+    },
+    {
+        category: "ESG",
+        items: [
+            {
+                question: "What does the ESG page show?",
+                answer: "A tree that reflects your building's health score. It grows fuller as the score goes up.",
+            },
+            {
+                question: "What do the sliders do?",
+                answer: "They let you test a change before you make it. Reset to Baseline puts everything back.",
+            },
+        ],
+    },
+    {
+        category: "Compliance",
+        items: [
+            {
+                question: "What is in the compliance report?",
+                answer: "A summary of last month's energy use in line with ISO 50001. You can download it as a PDF or a JSON file.",
+            },
+            {
+                question: "What does Verify Data Integrity do?",
+                answer: "It checks that no record was changed after it was saved.",
+            },
+        ],
+    },
+    {
+        category: "Tariff Rates",
+        items: [
+            {
+                question: "Who can change tariff rates?",
+                answer: "Only administrators can. Rates are set for each season and time of day.",
             },
         ],
     },
 ];
+
 export const PublicCategories: FAQCategory[] = [
     {
         category: "About OptiGrid",
         items: [
             {
                 question: "What is OptiGrid?",
-                answer: "OptiGrid is an energy intelligence platform for teams that run more than one building. It brings meter and sensor readings, anomaly detection, demand forecasting, and cost tracking into one workspace so decisions are made from data rather than from guesswork.",
+                answer: "An energy platform for people who run more than one building. It shows where your energy goes and how to use less.",
             },
             {
-                question: "Who is OptiGrid for?",
-                answer: "Facility and portfolio teams who need to keep energy spend under control across several sites. Roles range from viewers who read the numbers, to building managers who act on alerts and recommendations, to administrators who manage users and tariffs.",
+                question: "Who is it for?",
+                answer: "Facility teams and building owners who want to cut energy costs.",
             },
             {
-                question: "What does OptiGrid need from my buildings?",
-                answer: "Meter, BMS, or IoT gateway readings for the buildings you want to track. Details such as floor area are optional, though recording them unlocks the per square metre efficiency comparison between buildings.",
+                question: "What do I need to get started?",
+                answer: "Your buildings need meters or sensors that send readings. Everything else is set up in the app.",
             },
             {
-                question: "Which currency are the figures shown in?",
-                answer: "Costs and savings are shown in South African Rand and worked out from the tariff rates configured for your organisation.",
+                question: "Which currency does it use?",
+                answer: "All costs are shown in South African Rand.",
             },
         ],
     },
@@ -149,16 +227,12 @@ export const PublicCategories: FAQCategory[] = [
         category: "Sign Up & Account",
         items: [
             {
-                question: "How do I create an OptiGrid account?",
-                answer: "Click 'Get started free', fill in your first name, last name, email address, and a password of at least 8 characters, then re-enter the password to confirm it. Once the account is created you are signed in and taken straight to your dashboard.",
-            },
-            {
-                question: "Can I sign up with an email that is already registered?",
-                answer: "No. If the email address is already in use, the sign up form tells you to log in instead. Use a different email or log in to your existing account.",
+                question: "How do I create an account?",
+                answer: "Click Get started free. Fill in your name and email and pick a password.",
             },
             {
                 question: "Do I need to install anything?",
-                answer: "No. OptiGrid runs in the browser, so once you have an account you can open it from any computer without setting up software.",
+                answer: "No. OptiGrid runs in your web browser.",
             },
         ],
     },
@@ -166,52 +240,63 @@ export const PublicCategories: FAQCategory[] = [
         category: "What You Can Do",
         items: [
             {
-                question: "What does the dashboard show?",
-                answer: "Every building in your portfolio with its energy use and cost figures, so you can see how the whole estate is performing before drilling into a single site.",
-            },
-            {
                 question: "Can I see readings as they happen?",
-                answer: "Yes. The Live page lists your buildings with the demand each one is drawing right now in kW and the energy used so far today in kWh. Readings stream in as sensors report them, and a building with nothing arriving for five minutes is flagged as offline.",
+                answer: "Yes. The Live page updates every few seconds.",
             },
             {
-                question: "How does OptiGrid compare two buildings?",
-                answer: "Pick two buildings, a date range, and whether you are comparing cost or energy. The chart plots both over that period, and the insights panel gives the total difference along with an efficiency ratio once floor area is recorded for both.",
+                question: "Can I see my buildings on a map?",
+                answer: "Yes. A heatmap shows which sites use the most energy. You can also look back or ahead in time.",
             },
             {
-                question: "What can OptiGrid forecast?",
-                answer: "Short term demand for any building in your portfolio, plotted against historical consumption with a confidence range around the prediction. Weekly covers the next seven days hour by hour and monthly covers the next twelve weeks.",
+                question: "Is there a 3D view?",
+                answer: "Each building has a 3D model with its sensors placed inside.",
             },
             {
-                question: "How accurate are the forecasts?",
-                answer: "Accuracy is reported as MAPE, the mean absolute percentage error, and shown per building so you can judge how much weight to give a prediction.",
+                question: "Can OptiGrid predict demand?",
+                answer: "It can. Forecasts reach up to twelve weeks ahead.",
+            },
+            {
+                question: "Can I compare buildings?",
+                answer: "Pick any two and compare their cost or energy over time.",
             },
         ],
     },
-    {category: "Alerts & Recommendations",
-        items: [{
-                question: "What is an anomaly alert?",answer: "It is raised when a reading moves outside the range expected for that building. Voltage, current, power, and energy are each covered, and the alert points at the specific measure that moved.",
-            },
-            {
-                question: "What are insights?",
-                answer: "Load shifting suggestions worked out from your consumption and forecast data. Each one describes the strategy, the load it proposes to move, the window it applies to, and the estimated monthly saving in Rand.",
-            },
-                {
-                question: "Does OptiGrid change anything at my site on its own?",answer: "No. Recommendations are put to the team that runs the building, and it is up to them to approve or dismiss each one.",
-            },
-        ],},
     {
-        category: "Access & Support",items: [{
-                question: "Can different people see different things?",
-                answer: "Yes. Access follows the role on the account, so administrators, building managers, and viewers each see the pages that suit their work.",
+        category: "Alerts & Reports",
+        items: [
+            {
+                question: "How will I know if something is wrong?",
+                answer: "OptiGrid raises an alert when a reading looks unusual.",
             },
             {
-                question: "Is there a record of what changes?",
-                answer: "Administrators and building managers have an audit trail covering activity on the platform, which is useful when you need to trace who changed what.",
-                },
-            {question: "Where do I find guides once I have signed up?",
-                answer: "The help centre opens from the sidebar after you log in. It holds the user manual, video tutorials with written steps, and a support contact form.",
+                question: "Will it help me save money?",
+                answer: "Yes. It suggests moving load to cheaper hours and shows what you would save.",
             },
-    {question: "How do I reach the team before signing up?",
-                answer: "Use the Contact link in the footer to send us a message and we will get back to you.",
-            },],},
+            {
+                question: "Does OptiGrid change anything on site by itself?",
+                answer: "No. Your team decides what to act on.",
+            },
+            {
+                question: "Can I get reports for an audit?",
+                answer: "You can download an ISO 50001 report with a digital signature.",
+            },
+            {
+                question: "What is the ESG score?",
+                answer: "A score from 0 to 100 for how green a building runs. Sliders let you test changes before you make them.",
+            },
+        ],
+    },
+    {
+        category: "Access & Support",
+        items: [
+            {
+                question: "Can different people see different things?",
+                answer: "Yes. What you see depends on your role.",
+            },
+            {
+                question: "How do I contact the team?",
+                answer: "Use the Contact link at the bottom of the page.",
+            },
+        ],
+    },
 ];

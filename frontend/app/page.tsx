@@ -65,6 +65,24 @@ function LightbulbIcon() {
     );
 }
 
+function MapIcon() {
+    return (
+        <FeatureIcon>
+            <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+            <path d="M9 4v14M15 6v14" />
+        </FeatureIcon>
+    );
+}
+
+function CubeIcon() {
+    return (
+        <FeatureIcon>
+            <path d="M12 2 3 7v10l9 5 9-5V7l-9-5z" />
+            <path d="M3 7l9 5 9-5M12 12v10" />
+        </FeatureIcon>
+    );
+}
+
 function ReceiptIcon() {
     return (
         <FeatureIcon>
@@ -78,35 +96,42 @@ const features: { icon: ReactNode; title: string; description: string }[] = [
     {
         icon: <MonitorIcon />,
         title: "Monitor your portfolio",
-        description:
-            "Live kWh, peak load, and cost metrics for every building in one place.",
+        description: "See live power and today's energy use for every building on one screen.",
     },
     {
-        icon: <BarChartIcon />,
-        title: "Benchmark performance",
-        description:
-            "Compare buildings side by side to surface inefficiencies and best practices.",
+        icon: <MapIcon />,
+        title: "See usage on a map",
+        description: "A heatmap shows which sites use the most energy. Slide back in time or look ahead.",
     },
     {
-        icon: <TrendingUpIcon />,
-        title: "Forecast tomorrow's demand",
-        description:
-            "ML-driven predictions help you plan procurement and avoid peak tariffs.",
+        icon: <CubeIcon />,
+        title: "Explore each building in 3D",
+        description: "Turn a model of the building around and find the sensor that is working too hard.",
     },
     {
         icon: <AlertIcon />,
         title: "Catch anomalies early",
-        description: "Voltage, current, power, and energy are watched for readings outside the expected range."
+        description: "You get an alert when a reading leaves its normal range.",
+    },
+    {
+        icon: <BarChartIcon />,
+        title: "Benchmark performance",
+        description: "Put two buildings side by side and find out which one uses energy better.",
+    },
+    {
+        icon: <TrendingUpIcon />,
+        title: "Forecast tomorrow's demand",
+        description: "Plan your week with an hourly forecast. Switch to twelve weeks for the long view.",
     },
     {
         icon: <LightbulbIcon />,
         title: "Act on load shifting insights",
-        description: "Recommendations set out the load to move, the window, and the estimated monthly saving."
+        description: "Each tip names the load to move and what you could save every month.",
     },
     {
         icon: <ReceiptIcon />,
         title: "Keep tariffs and costs current",
-        description: "Tariff rates keep every cost and saving figure tied to what you actually pay."
+        description: "Enter your summer and winter rates. Every cost then matches your real bill.",
     },
 ];
 
@@ -114,32 +139,42 @@ const outcomes = [
     {
         metric: "18%",
         title: "Peak load reduction",
-        description: "Automated curtailment plans keep demand under contract limits.",
+        description: "Moving load out of peak hours keeps demand under your contract limit.",
     },
     {
         metric: "4.8%",
         title: "Forecast error",
-        description: "Short term load forecasts reduce procurement guesswork.",
+        description: "Our forecasts stay close to what your buildings really use.",
     },
     {
         metric: "120+",
         title: "Buildings online",
-        description: "Connect meters, BMS, and IoT gateways in days, not months.",
+        description: "Meters and sensors connect in days rather than months.",
     },
     {
         metric: "5s",
         title: "Live refresh",
-        description: "Building details refresh every five seconds as sensors report in."
+        description: "Readings on screen are never more than a few seconds old.",
     },
     {
         metric: "4",
         title: "Measures watched",
-        description: "Voltage, current, power, and energy are each monitored for anomalies."
+        description: "Every reading is checked on four measures for unusual jumps.",
     },
     {
         metric: "12 weeks",
         title: "Forecast horizon",
-        description: "Weekly and monthly views cover the next seven days out to twelve weeks."
+        description: "Look one week ahead in detail or twelve weeks ahead for the bigger picture.",
+    },
+    {
+        metric: "ISO 50001",
+        title: "Audit ready reports",
+        description: "Download a signed report that your auditor can check against the records.",
+    },
+    {
+        metric: "0 to 100",
+        title: "ESG health score",
+        description: "Try a change with a slider and watch your score move before you spend anything.",
     },
 ];
 
@@ -149,16 +184,21 @@ export default function LandingPage() {
             <PublicNav signedIn={false} anchorPrefix="" />
 
             <main>
-                <section className="landing-hero">
+                <section className="landing-hero landing-screen">
                     <div className="landing-shell landing-hero-grid">
                         <div className="landing-hero-content">
                             <p className="landing-kicker">Energy intelligence platform</p>
                             <h1>Cut energy costs across every building you operate.</h1>
                             <p className="landing-lede text-muted">
-                                OptiGrid unifies IoT telemetry, anomaly detection, and
-                                demand forecasting so facility teams act on data instead
-                                of guessing.
+                                OptiGrid shows what each of your buildings uses right now.
+                                It warns you when something looks wrong. It also tells you
+                                what to change to pay less.
                             </p>
+                            <div className="landing-actions">
+                                <a href="#features" className="btn btn-secondary">
+                                    See what it does
+                                </a>
+                            </div>
                             <div className="landing-metrics">
                                 <div className="metric-card">
                                     <span className="metric">4.8%</span>
@@ -183,6 +223,12 @@ export default function LandingPage() {
                                     </p>
                                 </div>
                                 <span className="badge badge-success">Normal</span>
+                            </div>
+                            <div className="landing-panel-alert">
+                                <span className="landing-panel-alert-dot" aria-hidden="true" />
+                                <p>
+                                    <strong>Rosebank Tower</strong> is drawing 22% more than usual.
+                                </p>
                             </div>
                             <div className="landing-panel-list">
                                 <div className="landing-panel-row">
@@ -230,14 +276,14 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="features" className="landing-section landing-section-alt" style={{ scrollMarginTop: "72px" }}>
+                <section id="features" className="landing-section landing-section-alt landing-screen" style={{ scrollMarginTop: "var(--landing-nav-height)" }}>
                     <div className="landing-shell">
                         <div className="landing-section-header">
                             <p className="landing-kicker">What you can do</p>
                             <h2>One view for every building.</h2>
                             <p className="text-muted">
-                                Surface anomalies, compare portfolios, and track every
-                                tariff shift in a single operational workspace.
+                                Everything you need to run your sites sits in one place.
+                                Start with the live view and dig deeper when you need to.
                             </p>
                         </div>
                         <div className="landing-feature-grid">
@@ -252,14 +298,14 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="outcomes" className="landing-section" style={{ scrollMarginTop: "72px" }}>
+                <section id="outcomes" className="landing-section landing-screen" style={{ scrollMarginTop: "var(--landing-nav-height)" }}>
                     <div className="landing-shell">
                         <div className="landing-section-header">
                             <p className="landing-kicker">Operational impact</p>
                             <h2>Move from raw telemetry to decisions.</h2>
                             <p className="text-muted">
-                                OptiGrid blends real time monitoring with predictive
-                                analytics to keep teams ahead of tariffs and downtime.
+                                Clear numbers help your team act sooner. Less time goes
+                                into guessing and more into saving.
                             </p>
                         </div>
                         <div className="landing-outcomes-grid">

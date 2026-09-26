@@ -892,6 +892,10 @@ select.input {
     background: radial-gradient(circle, color-mix(in srgb, var(--brand-secondary) 25%, transparent) 0%, transparent 65%);
 }
 
+.landing-page {
+    --landing-nav-height: 76px;
+}
+
 .landing-shell {
     width: min(1280px, 100%);
     margin: 0 auto;
@@ -1085,7 +1089,7 @@ select.input {
 
 .landing-feature-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--space-4);
 }
 
@@ -1109,8 +1113,74 @@ select.input {
 
 .landing-outcomes-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--space-4);
+}
+
+.landing-panel-alert {
+    background: color-mix(in srgb, var(--brand-warning) 8%, var(--brand-surface));
+    font-size: var(--fs-small);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid color-mix(in srgb, var(--brand-warning) 40%, var(--brand-border));
+    border-radius: var(--radius-md);
+}
+
+.landing-panel-alert p {
+    margin: 0;
+}
+
+.landing-panel-alert-dot {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--brand-warning);
+}
+
+@media (min-width: 981px) {
+    .landing-screen {
+        display: flex;
+        align-items: center;
+        min-height: calc(100vh - var(--landing-nav-height, 72px));
+        min-height: calc(100svh - var(--landing-nav-height, 72px));
+        padding: var(--space-7) 0;
+    }
+
+}
+
+@media (min-width: 981px) and (max-height: 820px) {
+    .landing-screen {
+        padding: var(--space-4) 0;
+    }
+
+    .landing-screen .landing-feature-grid,
+    .landing-screen .landing-outcomes-grid {
+        gap: var(--space-3);
+    }
+
+    .landing-screen .landing-feature-card,
+    .landing-screen .landing-outcome-card {
+        gap: var(--space-1);
+    }
+
+    .landing-screen .landing-section-header {
+        margin-bottom: var(--space-4);
+    }
+
+    .landing-screen .landing-feature-card,
+    .landing-screen .landing-outcome-card {
+        padding: var(--space-4);
+    }
+}
+
+@media (min-width: 981px) and (max-width: 1180px) {
+    .landing-feature-grid,
+    .landing-outcomes-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .landing-outcome-card {
