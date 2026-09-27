@@ -71,6 +71,13 @@ type ComplianceReport = {
 
 const numericHeaderStyle: CSSProperties = { textAlign: "right" };
 
+const SEVERITY_TONES: Record<string, string> = {
+    critical: "badge-critical",
+    high: "badge-danger",
+    medium: "badge-warning",
+    low: "badge-default",
+};
+
 function readable(value: string | null): string {
     if (!value){ 
         return "Unspecified";
@@ -132,7 +139,7 @@ export default function ComplianceClient() {
             <tr key={site.building_id}>
                 <td>{site.name}</td>
                 <td className="text-muted">{readable(site.type)}</td>
-                <td style={{ textAlign: "right" }}>{formatNumber(site.usage_kwh)}</td>
+                <td style={{ textAlign: "right" }}>{formatNumber(site.usage_kwh, 0)}</td>
                 <td style={{ textAlign: "right" }}>{site.cost_zar === null ? "No data" : `R ${formatNumber(site.cost_zar)}`}</td>
                 <td style={{ textAlign: "right" }}>{site.share_of_total === null ? "No data" : `${formatNumber(site.share_of_total, 1)}%`}</td>
             </tr>
@@ -231,12 +238,12 @@ export default function ComplianceClient() {
                     gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", 
                     gap: "var(--space-4)" 
                 }}>
-                    <Metric label="Total consumption" value={`${formatNumber(data.energy_performance.total_usage_kwh)} kWh`} />
-                    <Metric label="Average per day" value={`${formatNumber(data.energy_performance.average_daily_kwh)} kWh`} />
+                    <Metric label="Total consumption" value={`${formatNumber(data.energy_performance.total_usage_kwh, 0)} kWh`} />
+                    <Metric label="Average per day" value={`${formatNumber(data.energy_performance.average_daily_kwh, 0)} kWh`} />
                     <Metric label="Energy spend" value={`R ${formatNumber(data.energy_performance.total_cost_zar)}`} />
                     <Metric label="Energy intensity" value={data.energy_performance.intensity_kwh_per_sqft === null
                         ? "No floor data"
-                        : `${formatNumber(data.energy_performance.intensity_kwh_per_sqft, 4)} per sqft`}
+                        : `${formatNumber(data.energy_performance.intensity_kwh_per_sqft, 2)} kWh/m²`}
                     />
                 </div>
             </section>
@@ -281,7 +288,8 @@ export default function ComplianceClient() {
                 }}>
                     <div className="card" style={{ 
                         display: "grid", 
-                        gap: "var(--space-3)" 
+                        gap: "var(--space-3)",
+                        alignContent: "start"
                     }}>
                         <h3 className="dashboard-section-title">Anomalies raised</h3>
                         <div style={{ 
@@ -299,14 +307,15 @@ export default function ComplianceClient() {
                                 gap: "var(--space-2)", 
                                 flexWrap: "wrap" 
                             }}>
-                            {severityEntries.map(([severity, count]) => (<span key={severity} className="badge badge-default">{readable(severity)}: {count}</span>))}
+                            {severityEntries.map(([severity, count]) => (<span key={severity} className={`badge ${SEVERITY_TONES[severity.toLowerCase()] ?? "badge-default"}`}>{readable(severity)}: {count}</span>))}
                             </div>
                         )}
                     </div>
 
                     <div className="card" style={{ 
                         display: "grid", 
-                        gap: "var(--space-3)" 
+                        gap: "var(--space-3)",
+                        alignContent: "start"
                     }}>
                         <h3 className="dashboard-section-title">Actions recorded</h3>
                         <div style={{ 

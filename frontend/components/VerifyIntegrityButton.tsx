@@ -32,11 +32,6 @@ const BREAK_REASONS: Record<string, string> = {
     missing_hash: "an entry carries no signature"
 };
 
-const PRIMARY_BUTTON_STYLE = {
-    color: "#FFFFFF",
-    backgroundColor: "#3A6B7C"
-};
-
 function CheckIcon() {
     return (
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
@@ -102,7 +97,6 @@ export default function VerifyIntegrityButton({ state, onVerify, variant = "seco
         <button
             type="button"
             className={`btn ${variant === "primary" ? "btn-primary" : "btn-secondary"} integrity-button`}
-            style={variant === "primary" ? PRIMARY_BUTTON_STYLE : undefined}
             onClick={onVerify}
             disabled={checking}
             aria-busy={checking}

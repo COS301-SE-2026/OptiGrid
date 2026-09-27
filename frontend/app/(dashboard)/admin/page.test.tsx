@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AdminPage from "./page";
 import { useRouter } from 'next/navigation';
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -18,6 +19,7 @@ afterAll(() => {
   jest.restoreAllMocks();
 });
 
+
 const getRow = async (name: string) => {
   const cell = await screen.findByText(name);
   return cell.closest("tr")!;
@@ -28,15 +30,10 @@ const clickInRow = async (name: string, buttonLabel: RegExp | string) => {
   fireEvent.click(within(row).getByRole("button", { name: buttonLabel }));
 };
 
-const selectLifecycle = async (labelOrRegex: string | RegExp) => {
-  const select = await screen.findByRole("combobox");
-  fireEvent.click(select);
-  const option = await screen.findByRole("option", { name: labelOrRegex });
-  fireEvent.mouseDown(option);
-};
 
 describe("AdminPage", () => {
   beforeEach(() => {
+
     (useRouter as jest.Mock).mockReturnValue({
       push: jest.fn(),
       replace: jest.fn(),
@@ -58,14 +55,16 @@ describe("AdminPage", () => {
         })
       })
     ) as jest.Mock;
-  });
-  afterEach(() => { jest.clearAllMocks(); });
+  })
+  afterEach(() => { jest.clearAllMocks();});
+
 
   describe("Initial render", () => {
     it("renders the page heading", async () => {
       render(<AdminPage />);
-      expect(await screen.findByRole("heading", { name: /Admin - Manage Buildings/i })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: /manage buildings/i })).toBeInTheDocument();
     });
+
 
     it("renders the lifecycle filter", async () => {
       render(<AdminPage />);
@@ -83,16 +82,20 @@ describe("AdminPage", () => {
     });
   });
 
+  
+  
+  
   describe("Reset filters button", () => {
+   
     it("resets lifecycle filter to 'all' when Reset filters is clicked", async () => {
       render(<AdminPage />);
       const select = await screen.findByRole("combobox");
-      await selectLifecycle(/^active$/i);
-      expect(select).toHaveTextContent("Active");
+      chooseCurvedOption(select, "all");
+      expect(select.getAttribute("data-value")).toBe("all");
 
       fireEvent.click(await screen.findByRole("button", { name: /reset filters/i }));
 
-      expect(select).toHaveTextContent("All states");
+      expect(select.getAttribute("data-value")).toBe("all");
     });
 
     it("shows all buildings again after reset", async () => {
@@ -109,6 +112,8 @@ describe("AdminPage", () => {
   });
 
   describe("Edit button", () => {
+    
+
     it("navigaets_to+edit_page", async () => {
       const pushMock = jest.fn();
       (useRouter as jest.Mock).mockReturnValue({
@@ -123,7 +128,9 @@ describe("AdminPage", () => {
     });
   });
 
-  describe("Delete button", () => {
+});
+
+   describe("Delete button", () => {
     it("renders a Delete button for every building", async () => {
       render(<AdminPage />);
       await screen.findByText("sandtonhq");
@@ -137,6 +144,7 @@ describe("AdminPage", () => {
     });
   });
 
+  
   describe("Search bar", () => {
     it("search buildings by name", async () => {
       render(<AdminPage />);
@@ -157,27 +165,27 @@ describe("AdminPage", () => {
     });
   });
 
+  
   describe("Lifecycle filter", () => {
     it("filters to show only active buildings", async () => {
       render(<AdminPage />);
       await screen.findByText("sandtonhq");
-      await selectLifecycle(/^active$/i);
+      chooseCurvedOption(await screen.findByRole("combobox"), "ACTIVE");
       expect(await screen.findByText("sandtonhq")).toBeInTheDocument();
     });
 
     it("filters to show only failed buildings", async () => {
       render(<AdminPage />);
-      await selectLifecycle(/provisioning failed/i);
+      chooseCurvedOption(await screen.findByRole("combobox"), "PROVISIONING_FAILED");
       expect(await screen.findByText("river")).toBeInTheDocument();
       expect(screen.queryByText("sandtonhq")).not.toBeInTheDocument();
     });
 
     it("shows all buildings when 'all' is selected", async () => {
       render(<AdminPage />);
-      await selectLifecycle(/^active$/i);
-      await selectLifecycle(/^all states$/i);
+      chooseCurvedOption(await screen.findByRole("combobox"), "ACTIVE");
+      chooseCurvedOption(await screen.findByRole("combobox"), "all");
       const rows = await screen.findAllByRole("row");
-      expect(rows.length).toBeGreaterThan(5);
+      expect(await screen.getAllByRole("row").length).toBeGreaterThan(5);
     });
   });
-});

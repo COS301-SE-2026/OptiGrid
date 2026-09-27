@@ -10,6 +10,6 @@
 		"venv": "python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt"
 	},
 	"devDependencies": {
-		"snyk": "^1.1304.0"
+		"snyk": "^1.1307.2"
 	}
 }

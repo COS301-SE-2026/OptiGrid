@@ -48,9 +48,9 @@ describe("LivingEnvironment", () => {
       expect(screen.getByRole("heading", { name: /living environment/i })).toBeInTheDocument();
     });
 
-    it("renders the Building Performance heading", () => {
+    it("renders the Scenario Performance heading", () => {
       renderEnv();
-      expect(screen.getByRole("heading", { name: /building performance/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /scenario performance/i })).toBeInTheDocument();
     });
 
     it("renders the 'what is affecting' panel heading", () => {

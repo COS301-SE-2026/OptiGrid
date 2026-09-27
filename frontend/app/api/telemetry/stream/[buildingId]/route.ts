@@ -1,6 +1,16 @@
+import { getForwardHeaders } from "@/lib/coreProxy";
+
 const CORE_URL = process.env.CORE_URL ?? "http://core:4000"; // NOSONAR
 
 export const dynamic = "force-dynamic";
+
+function upstreamHeaders(request: Request): Record<string, string> {
+  const headers: Record<string, string> = { Accept: "text/event-stream" };
+  getForwardHeaders(request)?.forEach((value, name) => {
+    headers[name] = value;
+  });
+  return headers;
+}
 
 export async function GET(
   request: Request,
@@ -12,9 +22,7 @@ export async function GET(
     const upstream = await fetch(
       `${CORE_URL}/api/telemetry/stream/${encodeURIComponent(buildingId)}`,
       {
-        headers: {
-          Accept: "text/event-stream",
-        },
+        headers: upstreamHeaders(request),
         cache: "no-store",
         signal: request.signal,
       },

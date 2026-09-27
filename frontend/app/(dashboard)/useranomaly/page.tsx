@@ -31,22 +31,24 @@ export default function ViewerAnomalyPage() {
     async function fetchData() {
       try {
         const anomaliesRes = await fetch("/api/anomalies/portfolio?take=1000");
-        
-        if (anomaliesRes.ok) {
-          const payload = await anomaliesRes.json();
-          const allAnomalies: Anomaly[] = payload.data || [];
-          
-          const oneWeekAgo = new Date();
-          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-          
-          setAnomalies(allAnomalies.filter((a: Anomaly) => {
-            const isRecent = new Date(a.detected_timestamp) >= oneWeekAgo;
-            return (a.status === "Open" || a.status === "In_Progress") && isRecent;
-          }));
-          setHistoricAnomalies(allAnomalies);
-        }
+        if (!anomaliesRes.ok) throw new Error("Unable to load anomaly alerts.");
+
+        const payload = await anomaliesRes.json();
+        const allAnomalies: Anomaly[] = payload.data || [];
+
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        setAnomalies(allAnomalies.filter((a: Anomaly) => {
+          const isRecent = new Date(a.detected_timestamp) >= oneWeekAgo;
+          return (a.status === "Open" || a.status === "In_Progress") && isRecent;
+        }));
+        setHistoricAnomalies(allAnomalies.filter(
+          (a: Anomaly) => a.status === "Resolved" || a.status === "Ignored"
+        ));
       } catch (err) {
         console.error("Failed to fetch viewer dashboard data", err);
+        setToastMessage(err instanceof Error ? err.message : "Unable to load anomaly alerts.");
       } finally {
         setLoading(false);
       }
@@ -89,7 +91,7 @@ export default function ViewerAnomalyPage() {
     <div className="dashboard-page">
       <AnomalyToast message={toastMessage} onClose={() => setToastMessage(null)} />
       <div className="dashboard-shell">
-        <main className="dashboard-main" role="main" aria-label="Anomaly viewer main content">
+        <div className="dashboard-main">
           <div className="dashboard-header">
             <div>
               <h1 className="dashboard-title">Anomaly Alerts</h1>
@@ -118,7 +120,7 @@ export default function ViewerAnomalyPage() {
             onRowClick={handleViewDetails}
             pageLoading={loading || chart.chartLoading}
           />
-        </main>
+        </div>
       </div>
 
       <AnomalyDetailsModal

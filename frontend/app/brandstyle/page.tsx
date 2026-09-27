@@ -389,29 +389,8 @@ export default function OptiGridStyleGuide() {
         fontFamily: "var(--font-body)",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          maxWidth: "1200px",
-          margin: "0 auto",
-          minHeight: "100vh",
-        }}
-      >
-        <aside
-          style={{
-            width: "280px",
-            padding: "var(--space-6)",
-            backgroundColor: "var(--brand-surface)",
-            borderRight: "1px solid var(--brand-border)",
-            position: "sticky",
-            top: 0,
-            height: "100vh",
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-5)",
-          }}
-        >
+      <div className="brand-guide">
+        <aside className="brand-guide-nav">
           <div>
             <div
               style={{
@@ -471,14 +450,7 @@ export default function OptiGridStyleGuide() {
           </nav>
         </aside>
 
-        <main
-          style={{
-            flex: 1,
-            padding: "var(--space-8)",
-            maxWidth: "900px",
-            backgroundColor: "var(--brand-surface)",
-          }}
-        >
+        <main className="brand-guide-main">
           <section style={{ marginBottom: "var(--space-8)" }}>
             <div
               style={{

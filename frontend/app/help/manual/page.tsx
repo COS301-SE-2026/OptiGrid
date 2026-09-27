@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
 import dashboardScreenshot from "./dashboard screenshot.png";
 import landingsignup from "./landingsignup.png";
@@ -37,15 +38,28 @@ function ManualScreenshot({ src, alt, maxHeight = "400px" }: ScreenshotProps) {
 
 export default function UserManualPage() {
   return (
-    <div className="dashboard-page">
+    <div className="landing-page">
+      <header className="navbar landing-nav" role="banner" aria-label="Site header">
+        <div className="landing-shell landing-nav-inner">
+          <Link href="/help" className="landing-wordmark" aria-label="OptiGrid help centre home">
+            OptiGrid
+          </Link>
+          <div className="landing-nav-actions">
+            <Link href="/help" className="btn btn-secondary">
+              Help centre
+            </Link>
+            <Link href="/dashboard" className="btn btn-primary">
+              Back to dashboard
+            </Link>
+          </div>
+        </div>
+      </header>
       <main role="main" aria-label="User manual main content">
         <div
           style={{
             display: "flex",
-            alignItems: "center",
             justifyContent: "center",
-            minHeight: "100vh",
-            padding: "var(--space-6)",
+            padding: "var(--space-6) var(--space-5)",
           }}
         >
           <div
@@ -56,7 +70,7 @@ export default function UserManualPage() {
               padding: "var(--space-6)",
             }}
           >
-            <h1 style={{ marginBottom: "var(--space-5)" }}>Optigrid - User Manual</h1>
+            <h1 style={{ marginBottom: "var(--space-5)" }}>OptiGrid User Manual</h1>
 
             <div style={{ display: "grid", gap: "var(--space-6)" }}>
               <section aria-label="Introduction">
@@ -64,7 +78,7 @@ export default function UserManualPage() {
                   1. Introduction
                 </h2>
                 <p className="text-muted" style={{ marginBottom: "var(--space-3)" }}>
-                  Optigrid is a centralised, intelligent energy management system
+                  OptiGrid is a centralised, intelligent energy management system
                   that integrates data ingestion, predictive analytics, and optimisation
                   insights to improve operational efficiency and sustainability.
                 </p>

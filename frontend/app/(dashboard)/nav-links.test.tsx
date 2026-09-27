@@ -16,13 +16,18 @@ describe("NavLinks audit visibility", () => {
     it.each(["ADMIN"])("shows Audit to %s users", (role) => {
         render(<NavLinks role={role} />);
 
-        expect(screen.getByRole("link", { name: "Audit" })).toHaveAttribute("href", "/audit");
+        expect(screen.getByRole("link", { name: "Audit" })).toHaveAttribute("href", expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/audit$/));
     });
 
     it.each(["VIEWER", "BUILDING_MANAGER"])("hides Audit from %s users", (role) => {
         render(<NavLinks role={role} />);
 
         expect(screen.queryByRole("link", { name: "Audit" })).not.toBeInTheDocument();
+    });
+
+    it.each(["ADMIN", "BUILDING_MANAGER", "VIEWER"])("offers the heatmap to %s users", (role) => {
+        render(<NavLinks role={role} />);
+        expect(screen.getByRole("link", { name: "Heatmap" })).toHaveAttribute("href", expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/heatmap$/));
     });
 
     it("marks Audit active on nested audit routes", () => {

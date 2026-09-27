@@ -3,11 +3,29 @@ import { analyticsQueue } from './bullmq';
 import { Prisma, RecommendationStatus } from '@prisma/client';
 import { approveTradeoff, buildTradeoffProfile, readTradeoffInputs, type ApprovedTradeoff } from '../lib/comfortTradeoff';
 
-export interface UpdateTariffPayload {
-  peak_rate_zar: number;
-  off_peak_rate_zar: number;
-  season_name:string;
-}
+const checkBuildingAccess = async (userId: string, buildingId: string) => {
+  const user = await prisma.user.findUnique({ where: { userId } });
+  const building = await prisma.building.findUnique({ where: { building_id: buildingId } });
+  
+  if(!building) throw new Error("Building not found");
+  if(!user) throw new Error("Access Denied");
+  
+  if(user.roleType === "ADMIN") {
+    if(user.tenantId !== building.tenant_id) throw new Error("Access Denied");
+  }
+  else {
+    const access = await prisma.userBuildingAccess.findFirst({
+      where:{
+        user_id: userId,
+        building_id: buildingId
+      }
+    });
+    if (!access) throw new Error("Access Denied");
+  }
+  return building;
+};
+
+import { TariffStructure } from '../types/tariff';
 
 export interface ApplySelection {
   savings_level?: number;
@@ -18,13 +36,7 @@ export interface ReviewResult {
 }
 
 const helper = async(userId: string, buildingId:string, recommendationId: string) => {
-  const access = await prisma?.userBuildingAccess.findFirst({
-    where: {
-      user_id: userId,
-      building_id: buildingId
-    },
-  });
-  if(!access) throw new Error("Access Denied");
+  await checkBuildingAccess(userId, buildingId);
 
   const rec = await prisma?.optimisationRecommendation.findUnique({
     where: {
@@ -86,19 +98,52 @@ export const applyRecommendation = async (userId: string, buildingId: string, re
 };
 
 export const viewRecommendationService = async (userId:string, buildingId: string, status?:string, limit: number=10) => {
-  const access = await prisma.userBuildingAccess.findFirst({
+  await checkBuildingAccess(userId, buildingId);
+
+  const days = new Date();
+  days.setDate(days.getDate() - 4);
+
+  await prisma.optimisationRecommendation.deleteMany({
     where: {
-      user_id: userId,
-      building_id: buildingId
+      building_id: buildingId,
+      expires_at: {
+        lt: days
+      }
     }
   });
-  if(!access) throw new Error("Access Denied");
+  await prisma.optimisationRecommendation.updateMany({
+    where: {
+      building_id: buildingId,
+      status: "Pending",
+      expires_at: {
+        lt: new Date()
+      }
+    },
+    data: {
+      status: "Expired"
+    }
+  });
 
   //rec short for recommendations, fetching them here
   const rec = await prisma.optimisationRecommendation.findMany({
     where: {
       building_id: buildingId,
-      ...(status && {status:status as RecommendationStatus})
+      ...(status && {status:status as RecommendationStatus}),
+      OR: [
+        {
+          expires_at: {
+            gt: new Date()
+          }
+        },
+        {
+          status: {
+            notIn: [
+              "Pending", 
+              "Expired"
+            ]
+          }
+        }
+      ]
     },
     take: limit,
     orderBy: {
@@ -121,21 +166,8 @@ export const viewRecommendationService = async (userId:string, buildingId: strin
   });
 }
 
-export const updateTariffService = async(userId:string, buildingId: string, payload: UpdateTariffPayload) => {
-  const building = await prisma.building.findUnique({
-    where: {
-      building_id: buildingId
-    }
-  });
-  if(!building) throw new Error("Building not found");
-
-  const access = await prisma.userBuildingAccess.findFirst({
-    where: {
-      user_id: userId,
-      building_id: buildingId
-    }
-  });
-  if(!access) throw new Error("Access Denied");
+export const updateTariffService = async(userId:string, buildingId: string, payload: TariffStructure) => {
+  await checkBuildingAccess(userId, buildingId);
 
   const tariff = await prisma.utilityTariff.findFirst({
     where: {
@@ -148,18 +180,14 @@ export const updateTariffService = async(userId:string, buildingId: string, payl
         tariff_id: tariff.tariff_id
       },
       data: {
-        peak_rate_zar: payload.peak_rate_zar,
-        off_peak_rate_zar: payload.off_peak_rate_zar,
-        season_name: payload.season_name,
+        tariff_structure: payload as any
       }
     });
   } else {
     await prisma.utilityTariff.create({
       data: {
         building_id: buildingId,
-        peak_rate_zar: payload.peak_rate_zar,
-        off_peak_rate_zar: payload.off_peak_rate_zar,
-        season_name: payload.season_name,
+        tariff_structure: payload as any
       }
     });
   }

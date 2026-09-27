@@ -283,8 +283,8 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         },
         {
             label: 'Energy intensity',
-            value: report.energy_performance.intensity_kwh_per_sqft === null ? 'No floor data' : `${formatNumber(report.energy_performance.intensity_kwh_per_sqft, 4)}`,
-            note: 'kWh per sqft',
+            value: report.energy_performance.intensity_kwh_per_sqft === null ? 'No floor data' : `${formatNumber(report.energy_performance.intensity_kwh_per_sqft, 2)}`,
+            note: 'kWh per square metre',
             accent: palette.secondary
         },
         {

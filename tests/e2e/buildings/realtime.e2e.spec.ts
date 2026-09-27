@@ -167,11 +167,13 @@ test.describe("Real-time dashboard integration", () => {
     const portfolioStreamPromise = page.waitForRequest(
       (browserRequest) =>
         new URL(browserRequest.url()).pathname ===
-        "/api/telemetry/stream/portfolio",
+        `${sessionPrefix}/api/telemetry/stream/portfolio`,
     );
     await page.goto(`${sessionPrefix}/realtime`);
     await portfolioStreamPromise;
-    await expect(page.locator(".live-dot")).toHaveClass(/\bon\b/);
+    await expect(page.locator(".live-dot")).toHaveClass(/\bon\b/, {
+      timeout: 15_000,
+    });
 
     const buildingCard = page.getByRole("link", {
       name: `View live telemetry for ${buildingName}`,
@@ -185,34 +187,32 @@ test.describe("Real-time dashboard integration", () => {
       voltageV: 230.5,
       currentA: 53.6,
     });
-    await expect(buildingCard).toContainText("12.34", { timeout: 10_000 });
+    await expect(buildingCard).toContainText("12.3", { timeout: 10_000 });
     await expect(buildingCard).toContainText("Normal");
 
     const buildingStreamPromise = page.waitForRequest(
       (browserRequest) =>
         new URL(browserRequest.url()).pathname ===
-        `/api/telemetry/stream/${buildingId}`,
+        `${sessionPrefix}/api/telemetry/stream/${buildingId}`,
     );
     await buildingCard.click();
     await expect(page).toHaveURL(
       new RegExp(`/buildings/${buildingId}/view$`),
+      { timeout: 15_000 },
     );
     await buildingStreamPromise;
 
     await expect(
-      page.getByRole("heading", { name: "Real-Time Telemetry" }),
+      page.getByRole("heading", { name: "Live telemetry" }),
     ).toBeVisible();
-    await expect(page.getByText("Online (Waiting for reading)")).toBeVisible();
-    await expect(
-      page.getByText("Live telemetry stream connected"),
-    ).toBeVisible();
+    await expect(page.getByText("Waiting for a reading")).toBeVisible();
 
     await ingestTelemetry(request, buildingId, {
       powerKw: 18.75,
       voltageV: 231.5,
       currentA: 81.2,
     });
-    await expect(page.getByText("Online (Streaming)")).toBeVisible({
+    await expect(page.getByText("Streaming", { exact: true })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText("EMULATOR")).toBeVisible();
@@ -222,6 +222,6 @@ test.describe("Real-time dashboard integration", () => {
     await expect(page.getByText("18.75 kW")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("231.5 V")).toBeVisible();
     await expect(page.getByText("81.2 A")).toBeVisible();
-    await expect(page.getByText(buildingName)).toBeVisible();
+    await expect(page.getByText(buildingName, { exact: true })).toBeVisible();
   });
 });

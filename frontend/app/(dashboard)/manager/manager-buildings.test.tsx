@@ -2,10 +2,7 @@ import ManagerBuildings from "./manager-buildings";
 import React from "react";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import userEvent from "@testing-library/user-event";
-
-
-
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 const mockBuildings = [
     {
@@ -61,18 +58,6 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
-
-
-async function selectCurvedOption(
-    user: ReturnType<typeof userEvent.setup>,
-    comboboxName: string | RegExp,
-    optionLabel: string | RegExp
-) {
-    await user.click(screen.getByLabelText(comboboxName));
-    const option = await screen.findByRole("option", { name: optionLabel });
-    await user.click(option);
-}
-
 describe("ManagerBuildings", () => {
     it("renders the page heading", async () => {
         await renderPage();
@@ -117,9 +102,7 @@ describe("ManagerBuildings", () => {
 
     it("filters the buildings by lifecycle state", async () => {
         await renderPage();
-        const user = userEvent.setup();
-        await selectCurvedOption(user, /lifecycle/i, "Active");
-      
+        chooseCurvedOption(screen.getByLabelText(/Lifecycle:/i), "ACTIVE");
 
         expect(screen.getByText("Sandton HQ")).toBeInTheDocument();
         expect(screen.queryByText("Green Park")).not.toBeInTheDocument();
@@ -128,17 +111,14 @@ describe("ManagerBuildings", () => {
 
     it("sorts the buildings by energy usage highest to lowest", async () => {
         await renderPage();
-       const user = userEvent.setup();
-       await selectCurvedOption(user, /energy usage/i, "Highest to lowest");
-
+        chooseCurvedOption(screen.getByLabelText(/Energy usage:/i), "desc");
         const names = tableRows().map((row) => within(row).getAllByRole("cell")[0].textContent,);
         expect(names).toEqual(["Green Park", "Sandton HQ", "River Tower"]);
     });
 
     it("sorts buildings by energy usage lowest to highest and keeps unknown usage last", async () => {
         await renderPage();
-        const user=userEvent.setup();
-        await selectCurvedOption(user, /energy usage/i, "Lowest to highest");
+        chooseCurvedOption(screen.getByLabelText(/Energy usage:/i), "asc");
 
         const names = tableRows().map((row) => within(row).getAllByRole("cell")[0].textContent,);
         expect(names).toEqual(["Sandton HQ", "Green Park", "River Tower"]);
@@ -146,15 +126,9 @@ describe("ManagerBuildings", () => {
 
     it("resets the filters when Reset filters button is clicked", async () => {
         await renderPage();
-
-        const user =userEvent.setup();
-
-        await selectCurvedOption(user, /lifecycle/i, "Active");
-        expect(screen.queryByText("Green Park")).not.toBeInTheDocument();
-
-
+        chooseCurvedOption(screen.getByLabelText(/Lifecycle:/i), "ACTIVE");
         fireEvent.click(screen.getByRole("button", { name: /reset filters/i }));
-        expect(screen.getByLabelText(/lifecycle/i)).toHaveTextContent("All states");
+        expect(screen.getByLabelText(/Lifecycle:/i)).toHaveAttribute("data-value", "all");
         expect(screen.getByText("Green Park")).toBeInTheDocument();
     });
 

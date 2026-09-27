@@ -293,6 +293,7 @@ export default function SensorsClient({
                 </div>
                 <div style={{ display: "flex", gap: "var(--space-3)" }}>
                     <Link href={`/buildings/${buildingId}/view`} className="btn btn-secondary">Back to building</Link>
+                    <Link href={`/buildings/${buildingId}/view#digital-twin`} className="btn btn-secondary">View in 3D</Link>
                     {canManageSensors && (
                         <button type="button" onClick={openRegisterModal} className="btn btn-primary" disabled={!building}>Register sensor</button>
                     )}

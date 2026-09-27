@@ -1,7 +1,8 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import UserManagementPage from "./page";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 beforeAll(() => {
   jest.spyOn(window, "confirm").mockImplementation(() => true);
@@ -25,8 +26,8 @@ beforeEach(() => {
           json: async () => ({
             data: [
               {
-                buildingId: "b1",
-                buildingName: "Building-123 A",
+                building_id: "b1",
+                building_name: "Building-123 A",
               },
             ],
           }),
@@ -45,6 +46,23 @@ beforeEach(() => {
                 email: "alice@test.com",
                 roleType: "VIEWER",
                 buildingIds: [],
+                createdAt: "2026-09-22T08:00:00.000Z",
+              },
+              {
+                userId: "u2",
+                firstName: "Charlie",
+                email: "charlie@test.com",
+                roleType: "VIEWER",
+                buildingIds: [],
+                createdAt: "2026-09-20T08:00:00.000Z",
+              },
+              {
+                userId: "u3",
+                firstName: null,
+                email: "nameless@test.com",
+                roleType: "VIEWER",
+                buildingIds: [],
+                createdAt: "2026-09-21T08:00:00.000Z",
               },
             ],
           }),
@@ -63,6 +81,34 @@ beforeEach(() => {
                 email: "bob@test.com",
                 roleType: "BUILDING_MANAGER",
                 buildingIds: [],
+                createdAt: "2026-09-23T08:00:00.000Z",
+              },
+              {
+                userId: "m2",
+                firstName: "Zoe",
+                email: "zoe@test.com",
+                roleType: "BUILDING_MANAGER",
+                buildingIds: [],
+                createdAt: "2026-09-19T08:00:00.000Z",
+              },
+            ],
+          }),
+        } as Response;
+      }
+
+      if (url.includes("role=admins")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: [
+              {
+                userId: "admin-1",
+                firstName: "Tali",
+                email: "tali@example.com",
+                roleType: "ADMIN",
+                buildingIds: [],
+                createdAt: "2026-09-18T08:00:00.000Z",
               },
             ],
           }),
@@ -87,11 +133,12 @@ afterEach(() => {
 const getSortSelect = () => screen.getByRole("combobox", { name: /sort users by/i });
 const getSearchInput = () =>
   screen.getByPlaceholderText(/name or email/i);
-
-const selectSortOption = (labelOrRegex: string | RegExp) => {
-  fireEvent.click(getSortSelect());
-  const option = screen.getByRole("option", { name: labelOrRegex });
-  fireEvent.mouseDown(option);
+const getViewerNames = () => {
+  const table = screen.getByRole("table", { name: /viewers and their assigned buildings/i });
+  return within(table)
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => within(row).getAllByRole("cell")[0].textContent?.trim());
 };
 
 describe("UserManagementPage", () => {
@@ -217,21 +264,56 @@ describe("UserManagementPage", () => {
 
       await screen.findByText("Alice");
 
-      expect(getSortSelect()).toHaveTextContent("Latest Added");
+      expect(
+        getSortSelect().getAttribute("data-value")
+      ).toBe("latest");
     });
 
     it.each([
-      ["Oldest Added", "Oldest Added"],
-      ["Name A-Z", "Name A-Z"],
-      ["Name Z-A", "Name Z-A"],
-    ])("changes to %s", async (label, expectedText) => {
+      ["Oldest Added", "oldest"],
+      ["Name A-Z", "name_asc"],
+      ["Name Z-A", "name_desc"],
+    ])("changes to %s", async (_, value) => {
       render(<UserManagementPage />);
 
       await screen.findByText("Alice");
 
-      selectSortOption(label);
+      chooseCurvedOption(getSortSelect(), value);
 
-      expect(getSortSelect()).toHaveTextContent(expectedText);
+      expect(
+        getSortSelect().getAttribute("data-value")
+      ).toBe(value);
+    });
+
+    it("reports the fetched administrator count", async () => {
+      render(<UserManagementPage />);
+      await screen.findByText("Alice");
+
+      const adminLabel = screen.getByText("Admins");
+      expect(adminLabel.parentElement).toHaveTextContent("1");
+    });
+
+    it.each([
+      ["name_asc", ["Alice", "Charlie", "nameless@test.com"]],
+      ["name_desc", ["nameless@test.com", "Charlie", "Alice"]],
+      ["latest", ["Alice", "nameless@test.com", "Charlie"]],
+      ["oldest", ["Charlie", "nameless@test.com", "Alice"]],
+    ])("orders the displayed rows for %s", async (value, expectedNames) => {
+      render(<UserManagementPage />);
+      await screen.findByText("Alice");
+
+      chooseCurvedOption(getSortSelect(), value);
+
+      expect(getViewerNames()).toEqual(expectedNames);
+    });
+
+    it("uses email as the sortable and searchable name when firstName is null", async () => {
+      render(<UserManagementPage />);
+      await screen.findAllByText("nameless@test.com");
+
+      fireEvent.change(getSearchInput(), { target: { value: "nameless" } });
+
+      expect(getViewerNames()).toEqual(["nameless@test.com"]);
     });
   });
 
@@ -239,10 +321,9 @@ describe("UserManagementPage", () => {
     it("resets sort filter to 'latest'", async () => {
       render(<UserManagementPage />);
       await screen.findByText("Alice");
-      selectSortOption("Oldest Added");
-      expect(getSortSelect()).toHaveTextContent("Oldest Added");
+      chooseCurvedOption(getSortSelect(), "oldest");
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
-      expect(getSortSelect()).toHaveTextContent("Latest Added");
+      expect(getSortSelect().getAttribute("data-value")).toBe("latest");
     });
 
     it("clears search query", async () => {
@@ -297,11 +378,12 @@ describe("UserManagementPage", () => {
       await screen.findByText("Bob");
 
       fireEvent.click(
-        screen.getByRole("button", {
+        screen.getAllByRole("button", {
           name: /^assign$/i,
-        })
+        })[0]
       );
 
+     
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: /assign building/i })).toBeInTheDocument();
       });

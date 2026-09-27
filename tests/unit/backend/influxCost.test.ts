@@ -2,6 +2,15 @@ jest.mock("@influxdata/influxdb-client", () => ({
   InfluxDB: jest.fn(),
 }));
 
+jest.mock("../../../backend/core/src/lib/prisma", () => ({
+  __esModule: true,
+  default: {
+      utilityTariff: {
+          findFirst: jest.fn().mockResolvedValue(null)
+      }
+  }
+}));
+
 import { resolveCostZar, UTILITY_COST_USD_PER_KWH, UTILITY_COST_ZAR_PER_KWH, ZAR_PER_USD } from "../../../backend/core/src/lib/influx";
 
 describe("resolveCostZar", () => {

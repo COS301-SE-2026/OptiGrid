@@ -45,6 +45,7 @@ export default function ManagerAnomalyPage() {
   const [thresholds, setThresholds] = useState<AlertThreshold[]>([]);
   const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
   const [summary, setSummary] = useState<AnomalySummary | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -54,13 +55,13 @@ export default function ManagerAnomalyPage() {
           fetch("/api/thresholds/portfolio")
         ]);
         
-        if (anomaliesRes.ok) {
-          const payload = await anomaliesRes.json();
-          const allAnomalies: Anomaly[] = payload.data || [];
-          setSummary(payload.summary || null);
-          setAnomalies(allAnomalies.filter(a => a.status === "Open" || a.status === "In_Progress"));
-          setHistoricAnomalies(allAnomalies.filter(a => a.status === "Resolved" || a.status === "Ignored"));
-        }
+        if (!anomaliesRes.ok) throw new Error("Unable to load anomaly alerts.");
+
+        const payload = await anomaliesRes.json();
+        const allAnomalies: Anomaly[] = payload.data || [];
+        setSummary(payload.summary || null);
+        setAnomalies(allAnomalies.filter(a => a.status === "Open" || a.status === "In_Progress"));
+        setHistoricAnomalies(allAnomalies.filter(a => a.status === "Resolved" || a.status === "Ignored"));
 
         if (thresholdsRes.ok) {
           const payload = await thresholdsRes.json();
@@ -68,6 +69,7 @@ export default function ManagerAnomalyPage() {
         }
       } catch (err) {
         console.error("Failed to fetch live dashboard data", err);
+        setToastMessage(err instanceof Error ? err.message : "Unable to load anomaly alerts.");
       }
     }
     fetchData();
@@ -140,33 +142,45 @@ export default function ManagerAnomalyPage() {
     setShowIgnoreModal(true);
   };
 
-  const confirmResolve = () => {
-    if (selectedAnomaly) {
-      setAnomalies((prev) =>
-        prev.map((a) =>
-          a.anomaly_id === selectedAnomaly.anomaly_id
-            ? { ...a, status: "Resolved", resolved_timestamp: new Date().toISOString(), resolved_by: "Tali Seaba" }
-            : a
-        )
-      );
+  const updateSelectedAnomalyStatus = async (status: "Resolved" | "Ignored") => {
+    if (!selectedAnomaly || isUpdatingStatus) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      const response = await fetch(`/api/anomalies/${selectedAnomaly.anomaly_id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || `Unable to mark anomaly as ${status.toLowerCase()}.`);
+      }
+
+      const updatedAnomaly: Anomaly = {
+        ...selectedAnomaly,
+        ...(payload?.data || {}),
+        status,
+        resolved_timestamp: payload?.data?.resolved_timestamp || new Date().toISOString(),
+      };
+      setAnomalies((current) => current.filter((anomaly) => anomaly.anomaly_id !== updatedAnomaly.anomaly_id));
+      setHistoricAnomalies((current) => [
+        updatedAnomaly,
+        ...current.filter((anomaly) => anomaly.anomaly_id !== updatedAnomaly.anomaly_id),
+      ]);
+      setShowResolveModal(false);
+      setShowIgnoreModal(false);
+      setSelectedAnomaly(null);
+    } catch (error) {
+      console.error(`Failed to mark anomaly as ${status}`, error);
+      setToastMessage(error instanceof Error ? error.message : "Unable to update anomaly status.");
+    } finally {
+      setIsUpdatingStatus(false);
     }
-    setShowResolveModal(false);
-    setSelectedAnomaly(null);
   };
 
-  const confirmIgnore = () => {
-    if (selectedAnomaly) {
-      setAnomalies((prev) =>
-        prev.map((a) =>
-          a.anomaly_id === selectedAnomaly.anomaly_id
-            ? { ...a, status: "Ignored", resolved_timestamp: new Date().toISOString(), resolved_by: "Tali Seaba" }
-            : a
-        )
-      );
-    }
-    setShowIgnoreModal(false);
-    setSelectedAnomaly(null);
-  };
+  const confirmResolve = () => updateSelectedAnomalyStatus("Resolved");
+  const confirmIgnore = () => updateSelectedAnomalyStatus("Ignored");
 
   const handleSaveThreshold = () => {
     if (editingThreshold) {
@@ -229,7 +243,7 @@ export default function ManagerAnomalyPage() {
     <div className="dashboard-page">
       <AnomalyToast message={toastMessage} onClose={() => setToastMessage(null)} />
       <div className="dashboard-shell">
-        <main className="dashboard-main" role="main" aria-label="Anomaly alert main content">
+        <div className="dashboard-main">
           <div className="dashboard-header">
             <div>
               <h1 className="dashboard-title">Anomaly Alerts</h1>
@@ -244,7 +258,7 @@ export default function ManagerAnomalyPage() {
                   setShowThresholdModal(true);
                 }}
                 className="btn btn-primary"
-                style={{ backgroundColor: "#3A6B7C", color: "#FFFFFF" }}
+               
               >
                 Configure Threshold {thresholds.length > 0 ? `(${thresholds.length})` : ""}
               </button>
@@ -267,68 +281,31 @@ export default function ManagerAnomalyPage() {
             formatChartTime={formatChartTime}
             formatDate={formatDate}
             onRowClick={handleViewDetails}
-            buildingFilterLabel="Building:"
+            buildingFilterLabel="Building"
           />
-        </main>
+        </div>
       </div>
 
       {notifications.length > 0 && (
-        <div
-          style={{
-            position: "fixed",
-            top: "var(--space-5)",
-            right: "var(--space-5)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-3)",
-            maxWidth: "400px",
-          }}
-          role="alert"
-          aria-live="polite"
-        >
+        <div className="alert-stack" role="alert" aria-live="polite">
           {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className="card"
-              style={{
-                padding: "var(--space-4)",
-                borderLeft: "4px solid #8B1E3F",
-                backgroundColor: "var(--brand-surface)",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                    <span
-                      className="badge"
-                      style={{
-                        backgroundColor: "#8B1E3F",
-                        color: "#FFFFFF",
-                        padding: "var(--space-1) var(--space-2)",
-                        borderRadius: "var(--radius-pill)",
-                        fontSize: "var(--fs-small)",
-                        fontWeight: "var(--fw-medium)",
-                      }}
-                    >
-                      Critical
-                    </span>
-                    <span style={{ fontWeight: "var(--fw-semibold)" }}>{notification.building}</span>
-                  </div>
-                  <p style={{ marginTop: "var(--space-1)", fontSize: "var(--fs-body)" }}>{notification.message}</p>
-                </div>
+            <div key={notification.id} className="card alert-popup">
+              <div className="alert-popup-head">
+                <span className="badge badge-critical">Critical</span>
+                <span className="alert-popup-title">{notification.building}</span>
                 <button
                   type="button"
+                  className="alert-popup-close"
                   onClick={() => setNotifications((prev) => prev.filter((n) => n.id !== notification.id))}
-                  style={{ background: "none", border: "none", color: "var(--brand-ink-muted)", cursor: "pointer", fontSize: "1.2rem" }}
                   aria-label="Dismiss notification"
                 >
-                  x
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
-              <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
-                {notification.timestamp}
-              </div>
+              <p className="alert-popup-message">{notification.message}</p>
+              <p className="alert-popup-time">{notification.timestamp}</p>
             </div>
           ))}
         </div>
@@ -365,6 +342,7 @@ export default function ManagerAnomalyPage() {
         confirmLabel="Resolve"
         confirmColor="#2F7D5D"
         onConfirm={confirmResolve}
+        pending={isUpdatingStatus}
         onCancel={() => {
           setShowResolveModal(false);
           setSelectedAnomaly(null);
@@ -379,6 +357,7 @@ export default function ManagerAnomalyPage() {
         confirmLabel="Ignore"
         confirmColor="#7A7A7A"
         onConfirm={confirmIgnore}
+        pending={isUpdatingStatus}
         onCancel={() => {
           setShowIgnoreModal(false);
           setSelectedAnomaly(null);
@@ -508,7 +487,7 @@ export default function ManagerAnomalyPage() {
           >
             Cancel
           </button>
-          <button type="button" onClick={handleSaveThreshold} className="btn btn-primary" style={{ flex: 1, backgroundColor: "#3A6B7C", color: "#FFFFFF" }}>
+          <button type="button" onClick={handleSaveThreshold} className="btn btn-primary" style={{ flex: 1 }}>
             {editingThreshold ? "Update Threshold" : "Save Threshold"}
           </button>
         </div>

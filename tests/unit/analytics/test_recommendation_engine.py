@@ -226,3 +226,54 @@ def test_peak_shaving_stores_the_weather_behind_its_comfort_score(mock_temperatu
     peak_rec = recs[0]
     assert peak_rec["applicable_range"]["tradeoff_inputs"] == {"outside_temp_c": 30.0}
     assert peak_rec["applicable_range"]["predicted_comfort_score"] == 23
+
+def test_get_season(engine):
+    seasons = [
+        {"name": "Summer", "startMonth": 9, "endMonth": 5},
+        {"name": "Winter", "startMonth": 6, "endMonth": 8}
+    ]
+    assert engine.get_season(datetime(2026, 1, 15), seasons) == "Summer"
+    assert engine.get_season(datetime(2026, 7, 15), seasons) == "Winter"
+    assert engine.get_season(datetime(2026, 9, 15), seasons) == "Summer"
+
+def test_get_tou_period(engine):
+    schedule = {
+        "weekday": [{"period": "Peak", "startHour": 17, "endHour": 19}],
+        "saturday": [{"period": "Standard", "startHour": 7, "endHour": 12}],
+        "sunday": [{"period": "Off-Peak", "startHour": 0, "endHour": 24}]
+    }
+    assert engine.get_tou_period(datetime(2026, 9, 1, 18, 0), schedule) == "Peak"
+    assert engine.get_tou_period(datetime(2026, 9, 5, 8, 0), schedule) == "Standard"
+    assert engine.get_tou_period(datetime(2026, 9, 6, 12, 0), schedule) == "Off-Peak"
+
+def test_get_current_rate(engine):
+    tariff = {
+        "seasons": [{"name": "Summer", "startMonth": 9, "endMonth": 5}],
+        "tou_schedule": {"weekday": [{"period": "Peak", "startHour": 17, "endHour": 19}]},
+        "blocks": [{"rates": {"Summer": {"Peak": 2.50, "Standard": 1.50}}}]
+    }
+    assert engine.get_current_rate(datetime(2026, 9, 1, 18, 0), tariff) == 2.50
+    assert engine.get_current_rate(datetime(2026, 9, 1, 18, 0), tariff, peak_only=True) == 2.50
+
+@patch("backend.analytics.src.recommendation_engine.datetime")
+def test_generate_prepaid_purchase_advice(mock_datetime, engine):
+    mock_datetime.now.return_value = datetime(2026, 9, 25, tzinfo=timezone.utc)
+    mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+    
+    tariffs = [{
+        "tariff_structure": {
+            "seasons": [{"name": "Summer", "startMonth": 9, "endMonth": 5}],
+            "blocks": [
+                {"max_kwh": 600, "rates": {"Summer": {"Flat": 2.0}}},
+                {"max_kwh": None, "rates": {"Summer": {"Flat": 3.0}}}
+            ]
+        }
+    }]
+    
+    rec = engine.generate_prepaid_purchase_advice("b1", 800, tariffs)
+    assert rec is not None
+    assert rec["recommendation_category"] == "finance"
+    assert rec["estimated_monthly_savings"] == 100.0
+    
+    rec2 = engine.generate_prepaid_purchase_advice("b1", 400, tariffs)
+    assert rec2 is None

@@ -161,6 +161,7 @@ export function CurvedSelect({
         aria-describedby={ariaDescribedBy}
         aria-label={ariaLabel}
         aria-invalid={hasError || undefined}
+        data-value={value}
         disabled={disabled}
         onClick={() => !disabled && setOpen((o) => !o)}
         onKeyDown={onKeyDown}
@@ -213,6 +214,7 @@ export function CurvedSelect({
                 role="option"
                 aria-selected={isSelected}
                 aria-disabled={opt.disabled || undefined}
+                data-value={opt.value}
                 onMouseEnter={() => setHighlight(idx)}
                 onMouseDown={(e) => {
                   e.preventDefault();

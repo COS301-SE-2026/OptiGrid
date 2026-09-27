@@ -1,24 +1,13 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AuditClient from "./audit-client";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 const mockUseInfiniteQuery = jest.fn();
 const mockFetchNextPage = jest.fn();
 jest.mock("@tanstack/react-query", () => ({
     useInfiniteQuery: (options: unknown) => mockUseInfiniteQuery(options),
 }));
-
-async function selectCurvedOption(
-    user: ReturnType<typeof userEvent.setup>,
-    comboboxName: string | RegExp,
-    optionLabel: string | RegExp
-) {
-    await user.click(screen.getByLabelText(comboboxName));
-    const option = await screen.findByRole("option", { name: optionLabel });
-    await user.click(option);
-}
-
-
 
 const logsData = [
     {
@@ -114,17 +103,14 @@ describe("AuditClient", () => {
 
     it("refetches when the action filter changes", async () => {
         render(<AuditClient />);
-        const user = userEvent.setup();
-        await selectCurvedOption(user, "Action", "Login");
-        
+        chooseCurvedOption(screen.getByLabelText("Action"), "LOGIN");
         expect(lastQueryKey()).toEqual(["audit-logs", "LOGIN", "all", "all", "", ""]);
     });
 
     it("refetches when the page filter changes", async () => {
         render(<AuditClient />);
-        const user = userEvent.setup();
 
-        await selectCurvedOption(user, "Page", "Live");
+        chooseCurvedOption(screen.getByLabelText("Page"), "LIVE");
 
         expect(lastQueryKey()).toEqual(["audit-logs", "all", "LIVE", "all", "", ""]);
     });
@@ -133,8 +119,7 @@ describe("AuditClient", () => {
         render(<AuditClient />);
         const user = userEvent.setup();
 
-        await selectCurvedOption(user, "Severity", "Error");
-
+        chooseCurvedOption(screen.getByLabelText("Severity"), "error");
         await user.type(screen.getByLabelText("From"), "2026-08-01");
 
         expect(lastQueryKey()).toEqual(["audit-logs", "all", "all", "error", "2026-08-01", ""]);
@@ -144,10 +129,8 @@ describe("AuditClient", () => {
         render(<AuditClient />);
         const user = userEvent.setup();
 
-        await selectCurvedOption(user, "Action", "Deleted");
-        await selectCurvedOption(user, "Page", "Compare");
-
-        
+        chooseCurvedOption(screen.getByLabelText("Action"), "DELETE");
+        chooseCurvedOption(screen.getByLabelText("Page"), "COMPARE");
         await user.click(screen.getByRole("button", { name: "Reset" }));
         expect(lastQueryKey()).toEqual(["audit-logs", "all", "all", "all", "", ""]);
     });

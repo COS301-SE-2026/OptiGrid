@@ -9,7 +9,7 @@ describe("UserManualPage", () => {
   describe("structure", () => {
     it("renders the page title", () => {
       render(<UserManualPage />);
-      expect(screen.getByRole("heading", { name: /optigrid - user manual/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /optigrid user manual/i })).toBeInTheDocument();
     });
 
     it("renders all  section headings (h2)", () => {

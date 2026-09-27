@@ -827,6 +827,7 @@ class AnalyticsEngine:
         std_usage = df['usage'].std()        
         forecast_peak = ml_metrics.get("forecast_peak", 0.0) 
         threshold_kw = mean_usage + (0.2 * std_usage)
+        total_kwh = df['usage'].sum() if 'usage' in df.columns else 0.0
 
         recs_data = self.synthesizer.generate_data_driven_rec(
             building_id=building_id,
@@ -835,6 +836,7 @@ class AnalyticsEngine:
             thresold_kw=threshold_kw,
             tariffs=tariffs,
             anomalies=anomalies,
+            cumulative_kwh=total_kwh,
             time_window= time_window_type
         )
         recs_not_data = self.synthesizer.generate_non_data_driven_recs(

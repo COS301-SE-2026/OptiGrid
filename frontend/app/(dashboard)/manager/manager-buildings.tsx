@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getTabSessionPath } from "../../../lib/tab-session";
 import { CurvedSelect } from "@/components/curvedselect";
 
 type LifeCycleState = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED";
@@ -73,11 +74,11 @@ export default function ManagerBuildings() {
         let isMounted = true;
         const load = async () => {
             try {
-                const response = await fetch("/api/buildings/manager", {
+                const response = await fetch(getTabSessionPath("/api/buildings/manager"), {
                     method: "GET",
                     cache: "no-store",
                 });
-
+                
                 const payload = (await response.json()) as BuildingResponse;
 
                 if (!response.ok) {
@@ -149,16 +150,22 @@ export default function ManagerBuildings() {
                 <div className="card" style={{ marginBottom: "var(--space-5)" }}>
                     <div
                         style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                            display: "flex",
+                            flexDirection: "row",
+                            flexWrap: "wrap",
                             gap: "var(--space-4)",
-                            alignItems: "end",
+                            alignItems: "center",
                         }}
                     >
-                        <div style={{ display: "grid", gap: "var(--space-2)" }}>
-                            <label className="label" htmlFor="lifecycle-filter" style={{ margin: 0 }}>
-                                Lifecycle
-                            </label>
+                        <div
+                            style={{
+                                gap: "var(--space-2)",
+                                display: "flex",
+                                alignItems: "center",
+                                flex: 1,
+                            }}
+                        >
+                            <label className="label" htmlFor="lifecycle-filter" style={{ whiteSpace: "nowrap" }}>Lifecycle:</label>
                             <CurvedSelect
                                 id="lifecycle-filter"
                                 value={lifecycleFilter}
@@ -172,11 +179,15 @@ export default function ManagerBuildings() {
                                 ariaLabel="Filter buildings by lifecycle state"
                             />
                         </div>
-
-                        <div style={{ display: "grid", gap: "var(--space-2)" }}>
-                            <label className="label" htmlFor="energy-sort" style={{ margin: 0 }}>
-                                Energy usage
-                            </label>
+                        <div
+                            style={{
+                                display: "flex",
+                                flex: 1,
+                                alignItems: "center",
+                                gap: "var(--space-2)",
+                            }}
+                        >
+                            <label className="label" htmlFor="energy-sort" style={{ whiteSpace: "nowrap" }}>Energy usage:</label>
                             <CurvedSelect
                                 id="energy-sort"
                                 value={energySorting}
@@ -189,20 +200,16 @@ export default function ManagerBuildings() {
                                 ariaLabel="Sort buildings by energy usage"
                             />
                         </div>
-
-                        <div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setLifecycleFilter("all");
-                                    setEnergySorting("none");
-                                }}
-                                className="btn btn-secondary"
-                                style={{ width: "100%" }}
-                            >
-                                Reset filters
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setLifecycleFilter("all");
+                                setEnergySorting("none");
+                            }}
+                            className="btn btn-secondary"
+                        >
+                            Reset filters
+                        </button>
                     </div>
                 </div>
             </section>
@@ -273,8 +280,6 @@ export default function ManagerBuildings() {
                                                             style={{
                                                                 padding: "var(--space-1) var(--space-3)",
                                                                 fontSize: "var(--fs-small)",
-                                                                backgroundColor: "#3A6B7C",
-                                                                color: "#FFFFFF",
                                                             }}
                                                         >
                                                             Edit

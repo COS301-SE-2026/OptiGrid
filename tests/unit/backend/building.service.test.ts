@@ -538,6 +538,8 @@ describe('getBuildingDetails', () => {
 		});
 		const query = (mockedPrisma as any).building.findUnique.mock.calls[0][0];
 		expect(query.select.hardware_auth_token).toBeUndefined();
+		expect(query.select.floors_above_ground).toBe(true);
+		expect(query.select.solar_capacity_kw).toBe(true);
 	});
 
 	it('throws_when_the_user_has_no_access_to_the_building', async () => {

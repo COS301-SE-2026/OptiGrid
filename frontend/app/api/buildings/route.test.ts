@@ -53,7 +53,7 @@ describe("buildings route", () => {
 		expect(headers.get("Idempotency-Key")).toBe("create-key-from-client");
 	});
 
-	it("strips unsupported location fields before forwarding create requests", async () => {
+	it("forwards supported building fields and strips unsupported fields", async () => {
 		const request = new Request("http://localhost/api/buildings", {
 			method: "POST",
 			headers: {
@@ -67,9 +67,14 @@ describe("buildings route", () => {
 				square_footage: 500,
 				max_occupancy: 50,
 				timezone: "Africa/Johannesburg",
+				nominal_voltage: 230,
 				geohash: "abc123",
 				latitude: -26.1,
 				longitude: 28.1,
+				floors_above_ground: 4,
+				solar_capacity_kw: 12.5,
+				lifecycle_state: "ACTIVE",
+				hardware_auth_token: "secret",
 			}),
 		});
 
@@ -84,6 +89,12 @@ describe("buildings route", () => {
 			square_footage: 500,
 			max_occupancy: 50,
 			timezone: "Africa/Johannesburg",
+			nominal_voltage: 230,
+			geohash: "abc123",
+			latitude: -26.1,
+			longitude: 28.1,
+			floors_above_ground: 4,
+			solar_capacity_kw: 12.5,
 		});
 	});
 });

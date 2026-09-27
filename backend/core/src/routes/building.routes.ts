@@ -9,7 +9,9 @@ import {
   getPortfolioConsumptionController,
   listBuildingsController,
   updateBuildingController, getManagerBuildingsController, getBuildingSeriesController,
+  getLiveSensorReadingsController,
 } from '../controllers/building.controller';
+import esgRoutes from './esg.routes';
 
 const router = Router();
 
@@ -380,6 +382,7 @@ router.get('/portfolio-consumption', getPortfolioConsumptionController);
  *         description: Building not found
  */
 router.get('/:building_id', getBuildingDetailsController);
+router.get('/:building_id/sensors/live', getLiveSensorReadingsController);
 /**
  * @swagger
  * /api/buildings/{building_id}/energy-consumption:
@@ -577,6 +580,8 @@ router.get('/:building_id/series', getBuildingSeriesController);
  */
 router.delete('/:building_id', deleteBuildingController);
 router.patch('/:building_id', updateBuildingController);
+
+router.use('/:building_id/esg', esgRoutes);
 
 /**
  * @swagger

@@ -5,6 +5,18 @@ import { useMutation } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import { useBuildings } from "@/lib/useBuildings";
 import { PageHeading } from "@/components/PageHeading";
+import { CurvedSelect } from "@/components/curvedselect";
+import { ChartLegend } from "@/components/ChartLegend";
+import {
+    SERIES_COLOURS,
+    axisTick,
+    formatAxisNumber,
+    gridStroke,
+    niceAxis,
+    seriesDot,
+    tooltipContentStyle,
+    tooltipLabelStyle,
+} from "@/lib/chartTheme";
 import {
     Area,
     CartesianGrid,
@@ -16,7 +28,6 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
-import { CurvedSelect } from "@/components/curvedselect";
 
 type ForecastParams = {
     building_id: string;
@@ -71,8 +82,8 @@ function formatXTick(ts: string, horizon: "weekly" | "monthly"): string {
         return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
     }
     const monthDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
-    const hour = String(d.getUTCHours()).padStart(2, "0");
-    return `${monthDay} ${hour}:00`;
+    if (d.getHours() === 0) return monthDay;
+    return `${monthDay} ${String(d.getHours()).padStart(2, "0")}:00`;
 }
 
 function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
@@ -217,24 +228,6 @@ function Spinner() {
     );
 }
 
-/*function ChevronDown() {
-    return (
-        <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    );
-}*/
-
 function Skeleton({ style }: Readonly<{ style?: CSSProperties }>) {
     return <div className="skeleton" style={style} aria-hidden="true" />;
 }
@@ -341,14 +334,26 @@ function ForecastChartContainer({
             </div>
         );
     }
-    
-    console.log(`[DEBUG] horizon=${horizon} chartData.length=${chartData.length} chartData=${JSON.stringify(chartData)}`);
+
+    const midnightTicks = horizon === "weekly"
+        ? chartData.filter((point) => new Date(point.timestamp).getHours() === 0).map((point) => point.timestamp)
+        : [];
+    const useMidnightTicks = midnightTicks.length >= 2;
+    const yAxis = niceAxis(
+        Math.max(0, ...chartData.map((point) => Math.max(point.kwh ?? 0, point.yhat ?? 0, point.yhat_range?.[1] ?? 0))),
+    );
 
     return (
         <>
-            <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
-                Historical and predicted energy demand for {selectedBuildingName}
-            </p>
+            <ChartLegend
+                items={[
+                    { label: "Historical", colour: SERIES_COLOURS[0] },
+                    { label: "Predicted", colour: SERIES_COLOURS[0], variant: "dashed" },
+                    ...(hasConfidenceBand
+                        ? [{ label: "Confidence range", colour: SERIES_COLOURS[0], variant: "band" as const }]
+                        : []),
+                ]}
+            />
             <AccessibleChart
                 caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in kWh`}
                 categoryLabel="Timestamp"
@@ -368,62 +373,53 @@ function ForecastChartContainer({
                         : []),
                 ]}
             >
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart
                     data={chartData}
-                    margin={{ top: 16, right: 20, left: 10, bottom: 0 }}
+                    margin={{ top: 20, right: 8, left: 0, bottom: 0 }}
                 >
-                    <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="var(--brand-border)"
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                     <XAxis
                         dataKey="timestamp"
                         tickFormatter={(ts) => formatXTick(ts, horizon)}
-                        interval={tickInterval}
-                        tick={{
-                            fill: "var(--brand-ink-muted)",
-                            fontSize: 10,
-                        }}
+                        ticks={useMidnightTicks ? midnightTicks : undefined}
+                        interval={useMidnightTicks ? 0 : tickInterval}
+                        tick={axisTick}
                         axisLine={false}
                         tickLine={false}
+                        padding={{ left: 12, right: 12 }}
                     />
                     <YAxis
-                        domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
-                        tickFormatter={(val) => `${val.toLocaleString()}`}
-                        tick={{
-                            fill: "var(--brand-ink-muted)",
-                            fontSize: 10,
-                        }}
+                        domain={yAxis.domain}
+                        ticks={yAxis.ticks}
+                        tickFormatter={formatAxisNumber}
+                        tick={axisTick}
                         axisLine={false}
                         tickLine={false}
-                        label={{
-                            value: "kWh",
-                            angle: -90,
-                            position: "insideLeft",
-                            style: { fill: "var(--brand-ink-muted)", fontSize: 10 }
-                        }}
+                        width={52}
                     />
                     <Tooltip
-                        contentStyle={{
-                            backgroundColor: "var(--brand-surface)",
-                            border: "1px solid var(--brand-border)",
-                            borderRadius: "12px",
-                            color: "var(--brand-ink)",
-                            fontSize: "var(--fs-small)",
-                        }}
+                        contentStyle={tooltipContentStyle}
+                        labelStyle={tooltipLabelStyle}
                         cursor={{ stroke: "var(--brand-border)" }}
                         labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon)}
-                        formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy"]}
+                        formatter={(value: number | [number, number], name: string) => [
+                            Array.isArray(value)
+                                ? `${value[0].toLocaleString()} to ${value[1].toLocaleString()} kWh`
+                                : `${value.toLocaleString()} kWh`,
+                            name,
+                        ]}
                     />
                     {hasConfidenceBand ? (
                         <Area
                             type="monotone"
                             dataKey="yhat_range"
-                            fill="var(--brand-primary)"
-                            fillOpacity={0.15}
+                            name="Confidence range"
+                            fill={SERIES_COLOURS[0]}
+                            fillOpacity={0.14}
                             stroke="none"
                             connectNulls={false}
+                            activeDot={false}
                         />
                     ) : null}
                     {nowTs && (
@@ -432,7 +428,7 @@ function ForecastChartContainer({
                             stroke="var(--brand-ink-muted)"
                             strokeDasharray="4 3"
                             label={{
-                                value: "now",
+                                value: "Now",
                                 position: "top",
                                 fill: "var(--brand-ink-muted)",
                                 fontSize: 11,
@@ -442,71 +438,27 @@ function ForecastChartContainer({
                     <Line
                         type="monotone"
                         dataKey="kwh"
-                        stroke="var(--brand-primary)"
+                        name="Historical"
+                        stroke={SERIES_COLOURS[0]}
                         strokeWidth={2}
-                        dot={{ r: 4, strokeWidth: 0 }}
-                        activeDot={{ r: 5 }}
+                        dot={showActualDots ? seriesDot(SERIES_COLOURS[0]) : false}
+                        activeDot={seriesDot(SERIES_COLOURS[0], 5)}
                         connectNulls={true}
                     />
                     <Line
                         type="monotone"
                         dataKey="yhat"
-                        stroke="var(--brand-primary)"
+                        name="Predicted"
+                        stroke={SERIES_COLOURS[0]}
                         strokeWidth={2}
-                        strokeDasharray="4 2"
-                        dot={{ r: 4, strokeWidth: 0 }}
-                        activeDot={{ r: 5 }}
+                        strokeDasharray="5 3"
+                        dot={showForecastDots ? seriesDot(SERIES_COLOURS[0]) : false}
+                        activeDot={seriesDot(SERIES_COLOURS[0], 5)}
                         connectNulls={true}
                     />
                 </ComposedChart>
             </ResponsiveContainer>
             </AccessibleChart>
-
-            <div
-                className="text-muted"
-                style={{
-                    marginTop: "var(--space-3)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-4)",
-                    fontSize: "var(--fs-small)"
-                }}
-            >
-                <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                    <span
-                        style={{
-                            width: 16,
-                            borderTop: "2px solid var(--brand-primary)",
-                            display: "inline-block",
-                        }}
-                    />
-                    <span>Historical</span>
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                    <span
-                        style={{
-                            width: 16,
-                            borderTop: "2px dashed var(--brand-primary)",
-                            display: "inline-block",
-                        }}
-                    />
-                    <span>Predicted</span>
-                </span>
-                {hasConfidenceBand && (
-                    <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                        <span
-                            style={{
-                                width: 16,
-                                height: 4,
-                                backgroundColor: "var(--brand-primary)",
-                                opacity: 0.15,
-                                display: "inline-block",
-                            }}
-                        />
-                        <span>Confidence range</span>
-                    </span>
-                )}
-            </div>
 
             <div
                 style={{
@@ -603,13 +555,6 @@ export default function ForecastPage() {
     const selectedBuildingName =
         buildings.find((building) => building.id === buildingId)?.name ?? "Selected building";
 
-    const selectStyle: CSSProperties = {
-        appearance: "none",
-        WebkitAppearance: "none",
-        MozAppearance: "none",
-        paddingRight: "var(--space-6)",
-    };
-
     return (
         <div>
             <PageHeading
@@ -630,36 +575,19 @@ export default function ForecastPage() {
                         <label
                             htmlFor="building-select"
                             className="label"
-                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
                         >
                             Building
                         </label>
                         <div style={{ position: "relative" }}>
                             <CurvedSelect
-                           id="building-select"
-                           value={buildingId}
-                         disabled={buildingsLoading || buildings.length === 0}
-                         onChange={setBuildingId}
-                  placeholder={buildingsLoading ? "Loading buildings…" : "Select building"}
-            options={buildings.map((b) => ({
-           value: b.id,
-           label: b.name,
-         }))}
-           ariaLabel="Select a building for forecast"
-         />
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    right: "12px",
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--brand-ink-muted)",
-                                    pointerEvents: "none",
-                                }}
-                                aria-hidden="true"
-                            >
-                                
-                            </span>
+                                id="building-select"
+                                value={buildingId}
+                                disabled={buildingsLoading || buildings.length === 0}
+                                onChange={setBuildingId}
+                                placeholder={buildingsLoading ? "Loading buildings..." : "Select building"}
+                                options={buildings.map((b) => ({ value: b.id, label: b.name }))}
+                                ariaLabel="Select a building for forecast"
+                            />
                         </div>
                     </div>
 
@@ -667,41 +595,24 @@ export default function ForecastPage() {
                         <label
                             htmlFor="horizon-select"
                             className="label"
-                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
                         >
                             Horizon
                         </label>
                         <div style={{ position: "relative" }}>
                             <CurvedSelect
-                           id="horizon-select"
-                           value={horizon}
-                           onChange={(value) => setHorizon(value as "weekly" | "monthly")}
-                        options={[
-                           { value: "weekly", label: "Weekly (Next 7 Days)" },
-                           { value: "monthly", label: "Monthly (Next 12 Weeks)" },
-                        ]}
-                           ariaLabel="Select forecast horizon"
-                        />
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    right: "12px",
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--brand-ink-muted)",
-                                    pointerEvents: "none",
-                                }}
-                                aria-hidden="true"
-                            >
-                                
-                            </span>
+                                id="horizon-select"
+                                value={horizon}
+                                onChange={(value) => setHorizon(value as "weekly" | "monthly")}
+                                options={[
+                                    { value: "weekly", label: "Weekly, next 7 days" },
+                                    { value: "monthly", label: "Monthly, next 12 weeks" },
+                                ]}
+                                ariaLabel="Select forecast horizon"
+                            />
                         </div>
                     </div>
 
-                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
-                        <span className="label" style={{ opacity: 0 }}>
-                            Run
-                        </span>
+                    <div style={{ display: "grid" }}>
                         <button
                             type="button"
                             disabled={!canRun}
@@ -712,11 +623,7 @@ export default function ForecastPage() {
                                 })
                             }
                             className="btn btn-primary"
-                            style={{
-                                width: "100%",
-                                backgroundColor: "#3A6B7C",
-                                color: "#FFFFFF",
-                            }}
+                            style={{ width: "100%", height: 38 }}
                         >
                             {isPending && <Spinner />}
                             Run forecast
@@ -734,9 +641,9 @@ export default function ForecastPage() {
 
             <section className="card dashboard-section" aria-label="Demand forecast chart">
                 <div className="dashboard-section-header">
-                    <h2 className="dashboard-section-title">Demand Trend</h2>
+                    <h2 className="dashboard-section-title">Demand trend</h2>
                     <span className="dashboard-section-meta">
-                        {horizon === "monthly" ? "Next 12 weeks" : "Next 7 days"}
+                        {horizon === "monthly" ? "Next 12 weeks" : "Next 7 days"}, in kWh
                     </span>
                 </div>
 

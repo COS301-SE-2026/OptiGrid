@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, type ChangeEvent, type FocusEvent, type SubmitEvent} from "react";
+import {useEffect, useState, type ChangeEvent, type FocusEvent, type SubmitEvent} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {getSubmitResult, hasErrors, shouldShowError, type SignupErrors, type SignupTouched } from "./logic";
@@ -16,6 +16,11 @@ export default function SignupPage() {
     const [touched, setTouched] = useState<SignupTouched>({});
     const [loading, setLoading] = useState(false);
     const [apiError, setApiError] = useState("");
+    const [hydrated, setHydrated] = useState(false);
+
+    useEffect(() => {
+        setHydrated(true);
+    }, []);
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
@@ -85,7 +90,6 @@ export default function SignupPage() {
                     <Link href="/" className="landing-wordmark">
                         OptiGrid
                     </Link>
-                    <p className="landing-kicker">OptiGrid Access</p>
                     <h1>Create your account</h1>
                     <p className="text-muted auth-lede">
                         Monitor usage, catch anomalies, and start saving in minutes.
@@ -106,14 +110,14 @@ export default function SignupPage() {
                                 value={formData.firstName}
                                 onChange={handleChange}
                                 onBlur={handleBlur}
-                                disabled={loading}
+                                disabled={!hydrated || loading}
                                 aria-invalid={showError("firstName")}
                                 aria-describedby={
                                     showError("firstName") ? "firstName-error" : undefined
                                 }
                                 className={inputClass}
                                 style={showError("firstName") ? errorStyle : undefined}
-                                placeholder="Abdelrahman"
+                                placeholder="Lerato"
                                 suppressHydrationWarning
                             />
                             {showError("firstName") && (
@@ -139,14 +143,14 @@ export default function SignupPage() {
                                 value={formData.lastName}
                                 onChange={handleChange}
                                 onBlur={handleBlur}
-                                disabled={loading}
+                                disabled={!hydrated || loading}
                                 aria-invalid={showError("lastName")}
                                 aria-describedby={
                                     showError("lastName") ? "lastName-error" : undefined
                                 }
                                 className={inputClass}
                                 style={showError("lastName") ? errorStyle : undefined}
-                                placeholder="Esam"
+                                placeholder="Mokoena"
                                 suppressHydrationWarning
                             />
                             {showError("lastName") && (
@@ -173,14 +177,14 @@ export default function SignupPage() {
                             value={formData.email}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             aria-invalid={showError("email")}
                             aria-describedby={
                                 showError("email") ? "email-error" : undefined
                             }
                             className={inputClass}
                             style={showError("email") ? errorStyle : undefined}
-                            placeholder="abdelrahman.esam@company.io"
+                            placeholder="you@company.co.za"
                             suppressHydrationWarning
                         />
                         {showError("email") && (
@@ -205,7 +209,7 @@ export default function SignupPage() {
                             value={formData.password}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             ariaInvalid={showError("password")}
                             ariaDescribedBy={
                                 showError("password") ? "password-error" : undefined
@@ -236,7 +240,7 @@ export default function SignupPage() {
                             value={formData.confirmPassword}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            disabled={loading}
+                            disabled={!hydrated || loading}
                             ariaInvalid={showError("confirmPassword")}
                             ariaDescribedBy={
                                 showError("confirmPassword")
@@ -260,12 +264,8 @@ export default function SignupPage() {
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={!hydrated || loading}
                         className="btn btn-primary auth-submit"
-                        style={{
-                            backgroundColor: "#3A6B7C",
-                            color: "#FFFFFF",
-                        }}
                     >
                         {loading ? "Creating account..." : "Create account"}
                     </button>

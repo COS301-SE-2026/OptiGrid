@@ -12,7 +12,7 @@ services:
     volumes:
       - ./infrastructure/docker/.data/redis:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,13 +38,13 @@ services:
       - influxdb_data:/var/lib/influxdb2
       - influxdb_config:/etc/influxdb2
     healthcheck:
-      test: ["CMD-SHELL", "influx ping || exit 1"]
+      test: [ "CMD-SHELL", "influx ping || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   ingestion-api:
-    build: 
+    build:
       context: .
       dockerfile: ./backend/ingestion/Dockerfile
     command: uvicorn backend.ingestion.src.main:app --host 0.0.0.0 --port 8000
@@ -70,38 +70,38 @@ services:
       influxdb:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()\""]
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()\"" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   ingestion-worker:
-      build: 
-        context: .
-        dockerfile: ./backend/ingestion/Dockerfile
-      command: python -m backend.ingestion.src.queue_worker
-      deploy:
-        resources:
-          limits:
-            memory: 256M
-            cpus: "0.5"
-      environment:
-        - REDIS_HOST=redis
-        - REDIS_PORT=6379
-        - INFLUXDB_URL=http://influxdb:8086
-        - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?INFLUXDB_TOKEN hasto be set}
-        - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
-        - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
-      volumes:
-        - .:/app
-      depends_on:
-        redis:
-          condition: service_healthy
-        influxdb:
-          condition: service_healthy
+    build:
+      context: .
+      dockerfile: ./backend/ingestion/Dockerfile
+    command: python -m backend.ingestion.src.queue_worker
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?INFLUXDB_TOKEN hasto be set}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
 
   seeder:
-    build: 
+    build:
       context: .
       dockerfile: ./backend/ingestion/Dockerfile
     command: python -m backend.ingestion.src.seeder
@@ -123,36 +123,9 @@ services:
       influxdb:
         condition: service_healthy
 
-  emulator-worker:
-    build: 
-      context: .
-      dockerfile: ./backend/ingestion/Dockerfile
-    command: python -m backend.ingestion.src.sensor_emulator
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.5"
-    environment:
-      - API_INGEST_URL=http://ingestion-api:8000/api/telemetry/ingest
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?INFLUXDB_TOKEN hasto be set}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-OptiGrid}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-EnergyData}
-    volumes:
-      - .:/app
-    depends_on:
-      redis:
-        condition: service_healthy
-      seeder:
-        condition: service_completed_successfully
-      ingestion-api:
-        condition: service_healthy
 
   analytics-worker:
-    build: 
+    build:
       context: .
       dockerfile: ./backend/analytics/Dockerfile
     command: python -m backend.analytics.src.queue_worker
@@ -179,7 +152,7 @@ services:
         condition: service_healthy
 
   analytics-batch:
-    build: 
+    build:
       context: .
       dockerfile: ./backend/analytics/Dockerfile
     command: python -m backend.analytics.src.batch_worker

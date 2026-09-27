@@ -124,10 +124,7 @@ describe("VerifyIntegrityButton", () => {
         render(<VerifyPanel variant="primary" />);
         const button = screen.getByRole("button", { name: "Verify Data Integrity" });
         expect(button).toHaveClass("btn-primary");
-        expect(button).toHaveStyle({ 
-            backgroundColor: "#3A6B7C", 
-            color: "#FFFFFF" 
-        });
+        expect(button).not.toHaveAttribute("style");
     });
 
     it("keeps the outlined style by default", () => {
