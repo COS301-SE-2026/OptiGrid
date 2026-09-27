@@ -162,7 +162,7 @@ services:
       context: ../../
       dockerfile: backend/ingestion/Dockerfile
     restart: unless-stopped
-    command: ["python", "-m", "backend.ingestion.src.sensor_emulator"]
+    command: ["python", "-m", "emulator.sensor_emulator"]
     deploy:
       resources:
         limits:
