@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ForecastPage from "./page";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 const mockUseQuery = jest.fn();
 const mockUseMutation = jest.fn();
@@ -106,7 +107,7 @@ describe("ForecastPage", () => {
         render(<ForecastPage />);
 
         const user = userEvent.setup();
-        await user.selectOptions(screen.getByLabelText(/building/i), "1");
+        chooseCurvedOption(screen.getByLabelText(/building/i), "1");
 
         const runButton = screen.getByRole("button", { name: "Run forecast" });
         expect(runButton).not.toBeDisabled();
@@ -125,8 +126,8 @@ describe("ForecastPage", () => {
         render(<ForecastPage />);
 
         const user = userEvent.setup();
-        await user.selectOptions(screen.getByLabelText(/building/i), "1");
-        await user.selectOptions(screen.getByLabelText(/horizon/i), "monthly");
+        chooseCurvedOption(screen.getByLabelText(/building/i), "1");
+        chooseCurvedOption(screen.getByLabelText(/horizon/i), "monthly");
 
         const runButton = screen.getByRole("button", { name: "Run forecast" });
         await user.click(runButton);
@@ -168,7 +169,7 @@ describe("ForecastPage", () => {
     render(<ForecastPage />);
 
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(/building/i), "1");
+    chooseCurvedOption(screen.getByLabelText(/building/i), "1");
     await user.click(screen.getByRole("button", { name: /run forecast/i }));
 
     //assert

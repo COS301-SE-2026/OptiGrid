@@ -1,6 +1,7 @@
 import { render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import InsightsClient from "./insights-client";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 const mockUseQuery = jest.fn();
 const mockUseMutation = jest.fn();
@@ -85,7 +86,7 @@ function renderPage(role = "ADMIN") {
 
 async function selectBuilding() {
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(/building/i), "1");
+    chooseCurvedOption(screen.getByLabelText(/building/i), "1");
     return user;
 }
 
@@ -173,9 +174,9 @@ describe("InsightsPage", () => {
     it("filters by status", async () => {
         setupQueries();
         renderPage();
-        const user = await selectBuilding();
+        await selectBuilding();
 
-        await user.selectOptions(screen.getByLabelText(/status/i), "Pending");
+        chooseCurvedOption(screen.getByLabelText(/status/i), "Pending");
 
         const lastCall = mockUseQuery.mock.calls.at(-1)?.[0];
         expect(lastCall.queryKey).toEqual(["recommendations", "1", "Pending"]);

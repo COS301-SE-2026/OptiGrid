@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import { useBuildings } from "@/lib/useBuildings";
 import { PageHeading } from "@/components/PageHeading";
+import { CurvedSelect } from "@/components/curvedselect";
 import { ChartLegend } from "@/components/ChartLegend";
 import {
     SERIES_COLOURS,
@@ -578,23 +579,15 @@ export default function ForecastPage() {
                             Building
                         </label>
                         <div style={{ position: "relative" }}>
-                            <select
+                            <CurvedSelect
                                 id="building-select"
-                                className="select"
                                 value={buildingId}
                                 disabled={buildingsLoading || buildings.length === 0}
-                                onChange={(e) => setBuildingId(e.target.value)}
-                                aria-label="Select a building for forecast"
-                            >
-                                <option value="">
-                                    {buildingsLoading ? "Loading buildings..." : "Select building"}
-                                </option>
-                                {buildings.map((b) => (
-                                    <option key={b.id} value={b.id}>
-                                        {b.name}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={setBuildingId}
+                                placeholder={buildingsLoading ? "Loading buildings..." : "Select building"}
+                                options={buildings.map((b) => ({ value: b.id, label: b.name }))}
+                                ariaLabel="Select a building for forecast"
+                            />
                         </div>
                     </div>
 
@@ -606,16 +599,16 @@ export default function ForecastPage() {
                             Horizon
                         </label>
                         <div style={{ position: "relative" }}>
-                            <select
+                            <CurvedSelect
                                 id="horizon-select"
-                                className="select"
                                 value={horizon}
-                                onChange={(e) => setHorizon(e.target.value as "weekly" | "monthly")}
-                                aria-label="Select forecast horizon"
-                            >
-                                <option value="weekly">Weekly, next 7 days</option>
-                                <option value="monthly">Monthly, next 12 weeks</option>
-                            </select>
+                                onChange={(value) => setHorizon(value as "weekly" | "monthly")}
+                                options={[
+                                    { value: "weekly", label: "Weekly, next 7 days" },
+                                    { value: "monthly", label: "Monthly, next 12 weeks" },
+                                ]}
+                                ariaLabel="Select forecast horizon"
+                            />
                         </div>
                     </div>
 
