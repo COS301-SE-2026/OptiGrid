@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { ChartLegend } from "./ChartLegend";
 import { humanise } from "../lib/labels";
+import { CurvedSelect } from "./curvedselect";
 import {
   SERIES_COLOURS,
   axisTick,
@@ -304,52 +305,50 @@ export function FilterBar(props: Readonly<FilterBarProps>) {
     <div className="card filter-bar">
       <div className="filter-field">
         <label className="label" htmlFor="building-filter">{buildingFilterLabel}</label>
-        <select
+        <CurvedSelect
           id="building-filter"
           value={selectedBuilding}
-          onChange={(e) => onBuildingChange(e.target.value)}
-          className="select"
-          aria-label="Filter by building"
-        >
-          <option value="all">All buildings</option>
-          {buildings.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
+          onChange={onBuildingChange}
+          options={[
+            { value: "all", label: "All buildings" },
+            ...buildings.map((b) => ({ value: b.id, label: b.name })),
+          ]}
+          ariaLabel="Filter by building"
+        />
       </div>
 
       <div className="filter-field">
         <label className="label" htmlFor="status-filter">Status</label>
-        <select
+        <CurvedSelect
           id="status-filter"
           value={statusFilter}
-          onChange={(e) => onStatusChange(e.target.value)}
-          className="select"
-          aria-label="Filter by status"
-        >
-          <option value="all">All statuses</option>
-          <option value="Open">Open</option>
-          <option value="In_Progress">In progress</option>
-          <option value="Resolved">Resolved</option>
-          <option value="Ignored">Ignored</option>
-        </select>
+          onChange={onStatusChange}
+          options={[
+            { value: "all", label: "All statuses" },
+            { value: "Open", label: "Open" },
+            { value: "In_Progress", label: "In progress" },
+            { value: "Resolved", label: "Resolved" },
+            { value: "Ignored", label: "Ignored" },
+          ]}
+          ariaLabel="Filter by status"
+        />
       </div>
 
       <div className="filter-field">
         <label className="label" htmlFor="severity-filter">Severity</label>
-        <select
+        <CurvedSelect
           id="severity-filter"
           value={severityFilter}
-          onChange={(e) => onSeverityChange(e.target.value)}
-          className="select"
-          aria-label="Filter by severity"
-        >
-          <option value="all">All severities</option>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-          <option value="critical">Critical</option>
-        </select>
+          onChange={onSeverityChange}
+          options={[
+            { value: "all", label: "All severities" },
+            { value: "low", label: "Low" },
+            { value: "medium", label: "Medium" },
+            { value: "high", label: "High" },
+            { value: "critical", label: "Critical" },
+          ]}
+          ariaLabel="Filter by severity"
+        />
       </div>
 
       <div className="filter-field filter-field-grow">
@@ -551,27 +550,25 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
           </span>
         </div>
         <div className="dashboard-section-controls">
-          <select
-            value={chartMetric}
-            onChange={(e) => onMetricChange(e.target.value as MetricType)}
-            className="select"
-            style={{ minWidth: "120px" }}
-            aria-label="Select metric for chart"
-          >
-            <option value="power">Energy (kWh)</option>
-            <option value="cost">Cost (R)</option>
-          </select>
-          <select
-            value={selectedBuilding}
-            onChange={(e) => onBuildingChange(e.target.value)}
-            className="select"
-            style={{ minWidth: "150px" }}
-            aria-label="Select building for chart"
-          >
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+          <div style={{ minWidth: 150 }}>
+            <CurvedSelect
+              value={chartMetric}
+              onChange={(value) => onMetricChange(value as MetricType)}
+              options={[
+                { value: "power", label: "Energy (kWh)" },
+                { value: "cost", label: "Cost (R)" },
+              ]}
+              ariaLabel="Select metric for chart"
+            />
+          </div>
+          <div style={{ minWidth: 190 }}>
+            <CurvedSelect
+              value={selectedBuilding}
+              onChange={onBuildingChange}
+              options={buildings.map((b) => ({ value: b.id, label: b.name }))}
+              ariaLabel="Select building for chart"
+            />
+          </div>
         </div>
       </div>
 
@@ -1229,19 +1226,21 @@ export function HistoricAlertsModal({
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
           <label className="label" htmlFor={`historic-status-${idPrefix}`}>Status:</label>
-          <select
-            id={`historic-status-${idPrefix}`}
-            value={statusFilter}
-            onChange={(e) => onStatusFilterChange(e.target.value)}
-            className="select"
-            style={{ minWidth: "120px" }}
-          >
-            <option value="all">All</option>
-            <option value="Open">Open</option>
-            <option value="In_Progress">In Progress</option>
-            <option value="Resolved">Resolved</option>
-            <option value="Ignored">Ignored</option>
-          </select>
+          <div style={{ minWidth: 150 }}>
+            <CurvedSelect
+              id={`historic-status-${idPrefix}`}
+              value={statusFilter}
+              onChange={onStatusFilterChange}
+              options={[
+                { value: "all", label: "All" },
+                { value: "Open", label: "Open" },
+                { value: "In_Progress", label: "In Progress" },
+                { value: "Resolved", label: "Resolved" },
+                { value: "Ignored", label: "Ignored" },
+              ]}
+              ariaLabel="Filter historic alerts by status"
+            />
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flex: 1 }}>
           <label className="label" htmlFor={`historic-search-${idPrefix}`}>Search:</label>

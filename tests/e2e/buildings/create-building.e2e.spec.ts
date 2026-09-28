@@ -65,7 +65,8 @@ test.describe("Create building", () => {
     await expect(page).toHaveURL(/\/buildings\/add$/);
 
     await page.getByLabel(/Building name/).fill(buildingName);
-    await page.getByLabel("Building type").selectOption("Commercial");
+    await page.getByLabel("Building type").click();
+    await page.getByRole("option", { name: "Commercial", exact: true }).click();
     await page.getByLabel("Physical address").fill(buildingAddress);
     await page.getByLabel(/Floor area/).fill("5000");
     await page.getByLabel("Maximum occupancy").fill("200");

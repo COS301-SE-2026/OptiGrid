@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getTabSessionPath } from "../../../lib/tab-session";
+import { CurvedSelect } from "@/components/curvedselect";
 
 type LifeCycleState = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED";
 type energySorting = "none" | "desc" | "asc";
@@ -165,19 +166,18 @@ export default function ManagerBuildings() {
                             }}
                         >
                             <label className="label" htmlFor="lifecycle-filter" style={{ whiteSpace: "nowrap" }}>Lifecycle:</label>
-                            <select
+                            <CurvedSelect
                                 id="lifecycle-filter"
                                 value={lifecycleFilter}
-                                className="select"
-                                onChange={(e) => setLifecycleFilter(e.target.value)}
-                                style={{ flex: 1 }}
-                                aria-label="Filter buildings by lifecycle state"
-                            >
-                                <option value="all">All states</option>
-                                <option value="ACTIVE">Active</option>
-                                <option value="PROVISIONING">Provisioning</option>
-                                <option value="PROVISIONING_FAILED">Provisioning failed</option>
-                            </select>
+                                onChange={setLifecycleFilter}
+                                options={[
+                                    { value: "all", label: "All states" },
+                                    { value: "ACTIVE", label: "Active" },
+                                    { value: "PROVISIONING", label: "Provisioning" },
+                                    { value: "PROVISIONING_FAILED", label: "Provisioning failed" },
+                                ]}
+                                ariaLabel="Filter buildings by lifecycle state"
+                            />
                         </div>
                         <div
                             style={{
@@ -188,18 +188,17 @@ export default function ManagerBuildings() {
                             }}
                         >
                             <label className="label" htmlFor="energy-sort" style={{ whiteSpace: "nowrap" }}>Energy usage:</label>
-                            <select
+                            <CurvedSelect
                                 id="energy-sort"
-                                className="select"
                                 value={energySorting}
-                                onChange={(e) => setEnergySorting(e.target.value as energySorting)}
-                                style={{ flex: 1 }}
-                                aria-label="Sort buildings by energy usage"
-                            >
-                                <option value="none">No sorting</option>
-                                <option value="desc">Highest to lowest</option>
-                                <option value="asc">Lowest to highest</option>
-                            </select>
+                                onChange={(value) => setEnergySorting(value as energySorting)}
+                                options={[
+                                    { value: "none", label: "No sorting" },
+                                    { value: "desc", label: "Highest to lowest" },
+                                    { value: "asc", label: "Lowest to highest" },
+                                ]}
+                                ariaLabel="Sort buildings by energy usage"
+                            />
                         </div>
                         <button
                             type="button"

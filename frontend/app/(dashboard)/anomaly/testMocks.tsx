@@ -155,13 +155,7 @@ export const getHistoricModal = () => {
   return heading.closest(".modal") || heading.closest("[class*='modal']") || heading.parentElement!;
 };
 
-export const getSeverityFilter = () => {
-  const selects = screen.getAllByRole("combobox");
-  return selects.find((select) => {
-    const options = Array.from((select as HTMLSelectElement).options);
-    return options.some((option) => option.value === "critical" || option.value === "high");
-  }) as HTMLSelectElement;
-};
+export const getSeverityFilter = () => document.getElementById("severity-filter") as HTMLElement;
 
 export const getSearchInput = () => screen.getByRole("textbox") as HTMLInputElement;
 

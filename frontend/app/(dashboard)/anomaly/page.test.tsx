@@ -14,6 +14,7 @@ import {
   getTableRow,
   findKpiLabel
 } from "./testMocks";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 jest.mock("recharts", () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -86,11 +87,11 @@ async function renderPage() {
 
 
 const getBuildingFilter = () =>
-  document.getElementById("building-filter") as HTMLSelectElement;
+  document.getElementById("building-filter") as HTMLElement;
 const getStatusFilter = () =>
-  document.getElementById("status-filter") as HTMLSelectElement;
+  document.getElementById("status-filter") as HTMLElement;
 const getSeverityFilter = () =>
-  document.getElementById("severity-filter") as HTMLSelectElement;
+  document.getElementById("severity-filter") as HTMLElement;
 const getSearchInput = () =>
   document.getElementById("search-input") as HTMLInputElement;
 
@@ -210,9 +211,9 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value } });
+      chooseCurvedOption(filter, value);
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
-      expect(filter.value).toBe("all");
+      expect(filter).toHaveAttribute("data-value", "all");
     });
 
     it("clears search query", async () => {
@@ -228,7 +229,7 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getBuildingFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "b1" } });
+      chooseCurvedOption(filter, "b1");
       expect(getTableCell("Hillcrest")).toBeUndefined();
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
       expect(getTableCell("Hillcrest")).toBeInTheDocument();
@@ -240,7 +241,7 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getBuildingFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "b999" } });
+      chooseCurvedOption(filter, "b3");
       expect(within(getAnomaliesSection()).getByText(/no anomalies found/i)).toBeInTheDocument();
     });
   });
@@ -256,7 +257,7 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value } });
+      chooseCurvedOption(filter, value);
       expect(getTableCell(expected)).toBeInTheDocument();
       expect(getTableCell(unexpected)).toBeUndefined();
     });
