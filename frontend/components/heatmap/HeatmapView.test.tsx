@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { useSearchParams } from "next/navigation";
 import HeatmapView from "./HeatmapView";
 import type { MapCanvasProps } from "./MapCanvas";
+import type { TowerFeatureCollection } from "@/lib/heatmap";
 import { useTelemetryStream, type TelemetryData } from "@/lib/useTelemetryStream";
 
 jest.mock("next/navigation", () => ({
@@ -17,13 +18,15 @@ jest.mock("@/lib/useTelemetryStream", () => ({
 jest.mock("./MapCanvas", () => ({
     __esModule: true,
     default: (props: MapCanvasProps) => {
+        const { toTowerCollection } = jest.requireActual("@/lib/heatmap");
+        const towers: TowerFeatureCollection = toTowerCollection(props.collection, 12);
         const first = props.collection.features[0]?.properties.buildingId ?? null;
         return (
             <div data-testid="map">
                 <span>{`${props.collection.features.length} on map, selected ${props.selectedId ?? "none"}, placing ${String(props.placing)}`}</span>
                 <span data-testid="map-values">{props.collection.features.map((feature) => `${feature.properties.buildingId}=${feature.properties.value}`).join(" ")}</span>
                 <span data-testid="map-mode">{`tilted ${String(props.tilted)}`}</span>
-                <span data-testid="map-towers">{props.towers.features.map((feature) => `${feature.properties.buildingId}=${Math.round(feature.properties.height)}`).join(" ")}</span>
+                <span data-testid="map-towers">{towers.features.map((feature) => `${feature.properties.buildingId}=${Math.round(feature.properties.height)}`).join(" ")}</span>
                 <button type="button" onClick={() => props.onSelect(first)}>Map pick</button>
                 <button type="button" onClick={() => props.onPlace({ longitude: 28.23111149, latitude: -25.75555549 })}>Map place</button>
                 <button type="button" onClick={() => first && props.onHover({ buildingId: first, x: 20, y: 30 })}>Map hover</button>
@@ -365,8 +368,10 @@ describe("tower view", () => {
         await waitFor(() => expect(screen.getByTestId("map-towers")).toHaveTextContent("b1="));
         expect(screen.getByTestId("map-towers")).toHaveTextContent("b2=");
         expect(screen.getByTestId("map-mode")).toHaveTextContent("tilted false");
+        expect(screen.getByText("Colours compare each site with the busiest one.")).toBeInTheDocument();
         await userEvent.click(screen.getByRole("button", { name: /towers/i }));
         expect(screen.getByTestId("map-mode")).toHaveTextContent("tilted true");
+        expect(screen.getByText("Taller towers use more. The busiest site sets the scale.")).toBeInTheDocument();
     });
 });
 
