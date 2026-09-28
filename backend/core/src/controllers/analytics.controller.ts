@@ -3,6 +3,7 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma';
+import { queryMeasuredDemandSeries } from '../lib/influx';
 import { analyticsQueue } from '../services/bullmq';
 
 type NormalizedForecastPoint = {
@@ -40,31 +41,38 @@ function toFiniteNumber(value: unknown): number | null {
     return null;
 }
 
-const authorizeBuildingAccess = async (userId: string | undefined, buildingId: string, res: Response): Promise<boolean> => {
+type AuthorizedBuilding = { building_id: string; timezone: string | null };
+
+const authorizeBuildingAccess = async (
+    userId: string | undefined,
+    buildingId: string,
+    res: Response,
+): Promise<AuthorizedBuilding | null> => {
     if (!userId) {
         res.status(401).json({ status: 'error', message: 'Unauthorized' });
-        return false;
+        return null;
     }
     if (!isValidBuildingId(buildingId)) {
         res.status(400).json({ status: 'error', message: 'Building ID must be a valid UUID or legacy building id.' });
-        return false;
+        return null;
     }
     const authorizedBuildings = await prisma.building.findMany({
         where: { authorized_users: { some: { user_id: userId } } },
-        select: { building_id: true }
+        select: { building_id: true, timezone: true }
     });
-    if (!authorizedBuildings.some(b => b.building_id === buildingId)) {
+    const authorizedBuilding = authorizedBuildings.find(b => b.building_id === buildingId);
+    if (!authorizedBuilding) {
         res.status(403).json({ status: 'error', message: 'Access Denied: You do not have permission to view this forecast.' });
-        return false;
+        return null;
     }
-    return true;
+    return authorizedBuilding;
 };
 
 export const refreshAnalyticsController = async (req: Request, res: Response) => {
     try {
         const { building_id } = req.params;
-        const isAuth = await authorizeBuildingAccess(req.user?.id, building_id, res);
-        if (!isAuth) return;
+        const authorizedBuilding = await authorizeBuildingAccess(req.user?.id, building_id, res);
+        if (!authorizedBuilding) return;
 
         //removed prev code, added enqueing to bullmq
         await analyticsQueue.add("refresh_building", { building_id });
@@ -84,8 +92,8 @@ export const getForecastController = async (req: Request, res: Response) => {
         const { building_id } = req.params;
         const horizon = (req.query?.horizon === 'monthly' || req.body?.horizon === 'monthly') ? 'monthly' : 'weekly';
 
-        const isAuth = await authorizeBuildingAccess(req.user?.id, building_id, res);
-        if (!isAuth) return;
+        const authorizedBuilding = await authorizeBuildingAccess(req.user?.id, building_id, res);
+        if (!authorizedBuilding) return;
 
         // fetch analytics data from appropriate table based on horizon
         const directAnalyticsRows = horizon === 'monthly'
@@ -138,14 +146,7 @@ export const getForecastController = async (req: Request, res: Response) => {
         const futureForecasts = normalizedForecastSeries.filter(p => new Date(p.timestamp).getTime() >= nowMs);
         const seriesToUse = futureForecasts.length > 0 ? futureForecasts : normalizedForecastSeries;
 
-        const historicalKwh = seriesToUse.length > 0
-            ? seriesToUse[0].yhat
-            : Number(analytics.todays_usage) || 0;
-
-        const synthesisedHistorical = [{
-            timestamp: analytics.updated_at || new Date().toISOString(),
-            kwh: historicalKwh
-        }];
+        const measuredHistory = await queryMeasuredDemandSeries(building_id, horizon);
 
         let peak_kwh = Number(analytics.forecast_peak) || 0;
         let peak_timestamp = analytics.updated_at || new Date().toISOString();
@@ -160,13 +161,19 @@ export const getForecastController = async (req: Request, res: Response) => {
 
         //building final response with historical data, forecast and summary metric
         const result = {
-            historical: synthesisedHistorical, 
+            historical: measuredHistory,
             forecast: seriesToUse, 
             summary: {
                 peak_kwh,
                 peak_timestamp,
                 avg_daily_kwh: Number(analytics.forecast_avg_day) || 0,
-                mape: Number(analytics.model_mape) || 0
+                mape: toFiniteNumber(analytics.model_mape)
+            },
+            metadata: {
+                timezone: authorizedBuilding.timezone || 'UTC',
+                value_unit: horizon === 'monthly' ? 'kWh/week' : 'kW',
+                average_unit: horizon === 'monthly' ? 'kWh/week' : 'kWh/day',
+                accuracy_metric: 'MAPE'
             }
         };
 

@@ -56,6 +56,11 @@ export type UsageSeriesPoint = {
     cost_zar: number;
 };
 
+export type MeasuredDemandPoint = {
+    timestamp: string;
+    kwh: number;
+};
+
 function fluxString(value: string): string {
     return JSON.stringify(value);
 }
@@ -455,6 +460,63 @@ export const queryUsageSeries = async (buildingId: string, timeRange: string): P
     }
 
     console.warn(`[InfluxDB] Failed to query telemetry series for building ${buildingId}. Returning fallback. Error:`, lastError);
+    return [];
+};
+
+// Return only sensor-tagged raw readings so forecast charts never present seeded
+// fallback data as measured history. Hourly means are demand (kW); summing those
+// one-hour intervals into weeks produces weekly energy (kWh).
+export const queryMeasuredDemandSeries = async (
+    buildingId: string,
+    horizon: 'weekly' | 'monthly',
+): Promise<MeasuredDemandPoint[]> => {
+    if (!InfluxDB) {
+        return [];
+    }
+
+    const range = horizon === 'monthly' ? '12w' : '7d';
+    const weeklyAggregation = horizon === 'monthly'
+        ? '|> group()\n        |> aggregateWindow(every: 1w, fn: sum, createEmpty: false)'
+        : '|> group()';
+    const influxClient = new InfluxDB({ url, token });
+    const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
+    let lastError: unknown;
+
+    for (const bucketName of uniqueBuckets(buildingId)) {
+        const fluxQuery = `
+        from(bucket: ${fluxString(bucketName)})
+        |> range(start: -${range})
+        |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
+        |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
+        |> filter(fn: (r) => r["_field"] == "usage")
+        |> filter(fn: (r) => exists r.sensor_id and r.sensor_id != "")
+        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+        |> group(columns: ["_time"])
+        |> sum(column: "_value")
+        ${weeklyAggregation}
+        |> sort(columns: ["_time"])
+        `;
+
+        try {
+            const points: MeasuredDemandPoint[] = [];
+            for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
+                const row = tableMeta.toObject(values);
+                const value = toFiniteNumber(row._value);
+                const timestamp = row._time ? String(row._time) : null;
+                if (timestamp && value !== null) {
+                    points.push({ timestamp, kwh: value });
+                }
+            }
+            return points;
+        } catch (error: any) {
+            lastError = error;
+            if (!isMissingBucketError(error)) {
+                break;
+            }
+        }
+    }
+
+    console.warn(`[InfluxDB] Failed to query measured demand for building ${buildingId}. Returning no history. Error:`, lastError);
     return [];
 };
 

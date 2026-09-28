@@ -179,6 +179,32 @@ describe('Influx usage queries', () => {
         }));
     });
 
+    it('returns only measured demand in forecast-compatible intervals', async () => {
+        iterateRows.mockImplementationOnce(async function* () {
+            yield {
+                values: [],
+                tableMeta: {
+                    toObject: () => ({
+                        _time: '2026-07-12T00:00:00Z',
+                        _value: 420,
+                    }),
+                },
+            };
+        });
+        const { queryMeasuredDemandSeries } = await import('../../../backend/core/src/lib/influx');
+
+        await expect(queryMeasuredDemandSeries('abc', 'monthly')).resolves.toEqual([
+            { timestamp: '2026-07-12T00:00:00Z', kwh: 420 },
+        ]);
+
+        const query = iterateRows.mock.calls[0][0];
+        expect(query).toContain('r["_measurement"] == "energy_telemetry"');
+        expect(query).toContain('exists r.sensor_id');
+        expect(query).toContain('aggregateWindow(every: 1h');
+        expect(query).toContain('aggregateWindow(every: 1w');
+        expect(query).not.toContain('energy_telemetry_downsampled');
+    });
+
     it('queries an absolute date range and falls back when the building bucket is missing', async () => {
         iterateRows
             .mockImplementationOnce(() => { throw new Error('could not find bucket building-abc'); })

@@ -14,7 +14,12 @@ jest.mock('../../../backend/core/src/services/bullmq', () => ({
 	analyticsQueue: { add: jest.fn() },
 }));
 
+jest.mock('../../../backend/core/src/lib/influx', () => ({
+	queryMeasuredDemandSeries: jest.fn(),
+}));
+
 import prisma from '../../../backend/core/src/lib/prisma';
+import { queryMeasuredDemandSeries } from '../../../backend/core/src/lib/influx';
 import { analyticsQueue } from '../../../backend/core/src/services/bullmq';
 import { getForecastController, refreshAnalyticsController } from '../../../backend/core/src/controllers/analytics.controller';
 
@@ -25,6 +30,7 @@ const mockedPrisma = prisma as unknown as {
 	$queryRaw: jest.Mock;
 };
 const mockedQueue = analyticsQueue.add as jest.Mock;
+const mockedMeasuredDemand = queryMeasuredDemandSeries as jest.Mock;
 const buildingId = '11111111-1111-4111-8111-111111111111';
 const request = (overrides: Record<string, unknown> = {}) => ({
 	user: { id: 'user-123' },
@@ -39,6 +45,10 @@ const response = () => ({
 } as unknown as Response);
 
 describe('Analytics Controller', () => {
+	beforeEach(() => {
+		mockedMeasuredDemand.mockResolvedValue([]);
+	});
+
 	afterEach(() => {
 		jest.clearAllMocks();
 	});
@@ -89,7 +99,10 @@ describe('Analytics Controller', () => {
 		} as unknown as Response;
 
 		mockedPrisma.building.findMany.mockResolvedValue([
-			{ building_id: '11111111-1111-4111-8111-111111111111' },
+			{ building_id: '11111111-1111-4111-8111-111111111111', timezone: 'Africa/Johannesburg' },
+		]);
+		mockedMeasuredDemand.mockResolvedValue([
+			{ timestamp: '2026-05-20T22:00:00Z', kwh: 118.4 },
 		]);
 		mockedPrisma.$queryRaw
 			.mockResolvedValueOnce([])
@@ -108,7 +121,7 @@ describe('Analytics Controller', () => {
 
 		expect(res.status).toHaveBeenCalledWith(200);
 		expect(res.json).toHaveBeenCalledWith({
-			historical: [{ timestamp: '2026-05-20T23:16:06.839Z', kwh: 300 }],
+			historical: [{ timestamp: '2026-05-20T22:00:00Z', kwh: 118.4 }],
 			forecast: [
 				{
 					timestamp: '2026-05-21T12:00:00Z',
@@ -123,7 +136,14 @@ describe('Analytics Controller', () => {
 				avg_daily_kwh: 120.2,
 				mape: 2.1,
 			},
+			metadata: {
+				timezone: 'Africa/Johannesburg',
+				value_unit: 'kW',
+				average_unit: 'kWh/day',
+				accuracy_metric: 'MAPE',
+			},
 		});
+		expect(mockedMeasuredDemand).toHaveBeenCalledWith(buildingId, 'weekly');
 	});
 
 	it('returns 400 when the building id is not a UUID', async () => {
@@ -217,8 +237,9 @@ describe('Analytics Controller', () => {
 		expect(res.status).toHaveBeenCalledWith(200);
 		expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
 			forecast: [{ timestamp: '2099-01-01T00:00:00Z', yhat: 8, yhat_lower: 6, yhat_upper: 10 }],
-			historical: [{ timestamp: '2026-01-01T00:00:00Z', kwh: 8 }],
+			historical: [],
 		}));
+		expect(mockedMeasuredDemand).toHaveBeenCalledWith(buildingId, 'monthly');
 	});
 
 	it('returns an empty forecast when stored JSON is malformed', async () => {
@@ -240,7 +261,23 @@ describe('Analytics Controller', () => {
 		expect(res.status).toHaveBeenCalledWith(200);
 		expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
 			forecast: [],
-			historical: [{ timestamp: '2026-01-01T00:00:00Z', kwh: 12 }],
+			historical: [],
+		}));
+	});
+
+	it('returns null when forecast accuracy is unavailable', async () => {
+		mockedPrisma.building.findMany.mockResolvedValue([{ building_id: buildingId, timezone: null }]);
+		mockedPrisma.$queryRaw.mockResolvedValueOnce([{
+			forecast_series: [{ timestamp: '2099-01-01T00:00:00Z', yhat: 12 }],
+			model_mape: null,
+		}]);
+		const res = response();
+
+		await getForecastController(request(), res);
+
+		expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+			summary: expect.objectContaining({ mape: null }),
+			metadata: expect.objectContaining({ timezone: 'UTC' }),
 		}));
 	});
 
