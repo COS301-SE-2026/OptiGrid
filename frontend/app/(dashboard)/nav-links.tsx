@@ -140,9 +140,13 @@ export function NavLinks({ role }: { readonly role?: string }) {
                         return null;
                     }
                     return (
-                        <div key={section.title} className="dashboard-nav-section" role="group" aria-label={section.title}>
+                        <div key={section.title} className="dashboard-nav-section">
                             <p className="dashboard-nav-title" aria-hidden="true">{section.title}</p>
-                            {items.map(renderLink)}
+                            <ul className="dashboard-nav-list" aria-label={section.title}>
+                                {items.map((item) => (
+                                    <li key={item.href}>{renderLink(item)}</li>
+                                ))}
+                            </ul>
                         </div>
                     );
                 })}

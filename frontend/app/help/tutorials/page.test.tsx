@@ -1,9 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import TutorialsPage from "./page";
-import { existsSync } from "fs";
+import { existsSync } from "node:fs";
 
-jest.mock("fs", () => ({
-    ...jest.requireActual("fs"),
+jest.mock("node:fs", () => ({
+    ...jest.requireActual("node:fs"),
     existsSync: jest.fn(),
 }));
 

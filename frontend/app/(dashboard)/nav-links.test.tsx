@@ -56,14 +56,14 @@ describe("NavLinks layout", () => {
     it("only shows the sections which a role can use", () => {
         render(<NavLinks role="VIEWER" />);
 
-        expect(screen.getByRole("group", { name: "Monitoring" })).toBeInTheDocument();
-        expect(within(screen.getByRole("group", { name: "Monitoring" })).getByRole("link", { name: "Anomaly" })).toHaveAttribute("href", expect.stringMatching(/\/useranomaly$/));
-        expect(screen.queryByRole("group", { name: "Administration" })).not.toBeInTheDocument();
+        expect(screen.getByRole("list", { name: "Monitoring" })).toBeInTheDocument();
+        expect(within(screen.getByRole("list", { name: "Monitoring" })).getByRole("link", { name: "Anomaly" })).toHaveAttribute("href", expect.stringMatching(/\/useranomaly$/));
+        expect(screen.queryByRole("list", { name: "Administration" })).not.toBeInTheDocument();
     });
 
     it("lists the manager tools under Administration", () => {
         render(<NavLinks role="BUILDING_MANAGER" />);
-        const admin = screen.getByRole("group", { name: "Administration" });
+        const admin = screen.getByRole("list", { name: "Administration" });
 
         expect(within(admin).getByRole("link", { name: "Manage" })).toHaveAttribute("href", expect.stringMatching(/\/manager$/));
         expect(within(admin).queryByRole("link", { name: "Tariff rates" })).not.toBeInTheDocument();

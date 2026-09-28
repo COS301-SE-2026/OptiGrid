@@ -504,7 +504,8 @@ export function toTowerCollection(collection: HeatmapFeatureCollection, zoom: nu
             const [longitude, latitude] = feature.geometry.coordinates;
             const metres = metresPerPixel(latitude, zoom);
             const reporting = feature.properties.reporting === 1;
-            const share = reporting ? Math.max(MIN_TOWER_SHARE, peak > 0 ? feature.properties.value / peak : 0) : 0;
+            const ratio = peak > 0 ? feature.properties.value / peak : 0;
+            const share = reporting ? Math.max(MIN_TOWER_SHARE, ratio) : 0;
             return {
                 type: "Feature" as const,
                 id: feature.id,

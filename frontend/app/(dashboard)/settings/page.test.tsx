@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SettingsPage from "./page";
 
@@ -546,13 +546,11 @@ it.each([
 
 
     describe("Deleting and recovering an account", () => {
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     render(<SettingsPage />);
     fireEvent.click(screen.getByRole("button", { name: /^Delete Account$/i }));
     const modal = screen.getByRole("dialog");
-    await act(async () => {
-      fireEvent.click(within(modal).getByRole("button", { name: /^Delete Account$/i }));
-    });
+    fireEvent.click(within(modal).getByRole("button", { name: /^Delete Account$/i }));
   };
 
   it("does not offer a recover button on the settings page", () => {
@@ -561,7 +559,8 @@ it.each([
   });
 
   it("deactivates the account, logs out and sends the user to the login page", async () => {
-    await confirmDelete();
+    confirmDelete();
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/login?deleted=1"));
 
     const calls = (global.fetch as jest.Mock).mock.calls.map(([url, init]) => [url, init?.method]);
     expect(calls).toContainEqual(["/api/accounts/me/deactivate", "POST"]);
@@ -581,9 +580,9 @@ it.each([
       ),
     );
 
-    await confirmDelete();
+    confirmDelete();
 
-    expect(screen.getByText(/last active administrator cannot be removed/i)).toBeInTheDocument();
+    expect(await screen.findByText(/last active administrator cannot be removed/i)).toBeInTheDocument();
     expect((global.fetch as jest.Mock).mock.calls.map(([url]) => url)).not.toContain("/api/auth/logout");
     expect(mockPush).not.toHaveBeenCalled();
   });

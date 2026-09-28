@@ -25,7 +25,7 @@ describe("InsightsClient on open", () => {
         expect(screen.getByText("Rosebank Tower", { selector: ".dashboard-section-meta" })).toBeInTheDocument();
     });
 
-    it("still asks for a building when no vuilding ia assigned", () => {
+    it("still asks for a building when no building is assigned", () => {
         mockUseQuery.mockImplementation((options: { queryKey?: unknown[] }) =>
             options?.queryKey?.[0] === "buildings" ? { data: [] } : { data: [] },
         );

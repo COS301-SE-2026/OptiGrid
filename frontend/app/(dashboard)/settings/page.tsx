@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "@/app/theme-provider";
+import { MoonIcon, SunIcon } from "@/app/theme-toggle";
+import { openDialog } from "@/lib/openDialog";
 
 
 interface UserProfile {
@@ -43,30 +45,6 @@ function profileFromSession(user: Record<string, unknown>): UserProfile {
   };
 }
 
-function SunIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  );
-}
-
 export default function SettingsPage() {
   const router = useRouter();
   const { theme, toggle } = useTheme();
@@ -78,6 +56,13 @@ export default function SettingsPage() {
   const [showToast, setShowToast] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (showDeleteModal) {
+      openDialog(deleteDialogRef.current);
+    }
+  }, [showDeleteModal]);
 
   const showToastMessage = (message: string) => {
     setToastMessage(message);
@@ -265,7 +250,7 @@ export default function SettingsPage() {
               <h2 className="dashboard-section-title settings-card-title">Theme</h2>
               <div className="settings-row">
                 <div className="settings-row-label">
-                  {theme === "light" ? <SunIcon /> : <MoonIcon />}
+                  {theme === "light" ? <SunIcon size={20} /> : <MoonIcon size={20} />}
                   <span>{theme === "light" ? "Light Mode" : "Dark Mode"}</span>
                 </div>
                 <button type="button" onClick={handleThemeToggle} className="btn btn-secondary">
@@ -314,66 +299,48 @@ export default function SettingsPage() {
           </div>
 
           {showDeleteModal && (
-            <div
-              className="modal-overlay"
-              style={{
-                position: "fixed",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "var(--space-4)",
-              }}
-              onClick={(e) => {
-                if (e.target === e.currentTarget) {
-                  setShowDeleteModal(false);
-                }
-              }}
-              role="dialog"
-              aria-modal="true"
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setShowDeleteModal(false);
-                }
-              }}
+            <dialog
+              ref={deleteDialogRef}
+              className="modal"
+              aria-label="Delete Account"
+              style={{ maxWidth: "500px", width: "100%" }}
+              onClose={() => setShowDeleteModal(false)}
             >
-              <div className="modal" style={{ maxWidth: "500px", width: "100%" }}>
-                <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
-                  <h2 style={{ color: "var(--brand-danger)", marginBottom: "var(--space-2)" }}>
-                    Delete Account
-                  </h2>
-                  <p className="text-muted">
-                    You will be logged out and lose access straight away. Your data is kept for now.
-                  </p>
-                  <p className="text-muted" style={{ marginTop: "var(--space-2)" }}>
-                    Changed your mind later? Log in with the same email and password and choose Recover account.
-                  </p>
-                </div>
+              <div style={{ textAlign: "center", marginBottom: "var(--space-4)" }}>
+                <h2 style={{ color: "var(--brand-danger)", marginBottom: "var(--space-2)" }}>
+                  Delete Account
+                </h2>
+                <p className="text-muted">
+                  You will be logged out and lose access straight away. Your data is kept for now.
+                </p>
+                <p className="text-muted" style={{ marginTop: "var(--space-2)" }}>
+                  Changed your mind later? Log in with the same email and password and choose Recover account.
+                </p>
+              </div>
 
-                <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowDeleteModal(false);
-                    }}
-                    className="btn btn-secondary"
-                    style={{ flex: 1 }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDeleteAccount}
-                    className="btn btn-danger"
-                    style={{ flex: 1 }}
-                    disabled={deleting}
-                  >
-                    {deleting ? "Deleting..." : "Delete Account"}
-                  </button>
-                </div>
+              <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  className="btn btn-danger"
+                  style={{ flex: 1 }}
+                  disabled={deleting}
+                >
+                  {deleting ? "Deleting..." : "Delete Account"}
+                </button>
               </div>
-              </div>
-)}
+            </dialog>
+          )}
  
           {showToast && (
             <div

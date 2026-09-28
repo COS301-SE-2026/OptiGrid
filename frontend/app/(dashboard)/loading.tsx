@@ -1,7 +1,7 @@
 export default function DashboardLoading() {
     return (
         <div className="page-loading" aria-busy="true">
-            <span className="sr-only" role="status">Loading page</span>
+            <output className="sr-only">Loading page</output>
             <div className="skeleton page-loading-title" />
             <div className="skeleton page-loading-subtitle" />
             <div className="page-loading-cards">

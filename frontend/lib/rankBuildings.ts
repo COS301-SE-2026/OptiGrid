@@ -3,7 +3,7 @@ type RankedBuilding = {
     todayKwh?: number | null;
 };
 
-// busiest building first. use z the original order to breaks ties
+// busiest building first. the original order breaks ties
 export function rankByUsage<T extends RankedBuilding>(buildings: readonly T[]): T[] {
     return buildings
         .map((building, index) => ({ building, index }))
