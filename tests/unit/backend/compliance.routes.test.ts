@@ -9,7 +9,7 @@ import complianceRoutes from '../../../backend/core/src/routes/compliance.routes
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
     __esModule: true,
     default: {
-        auditLog: { findMany: jest.fn(), count: jest.fn() },
+        auditLog: { findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
         carbonLedgerEntry: { findMany: jest.fn() },
         building: { findMany: jest.fn() },
         anomaly: { findMany: jest.fn() },
@@ -32,11 +32,13 @@ jest.mock('../../../backend/core/src/services/carbonIntegrity.service', () => ({
         building_id: buildingId,
         month,
         status: 'INCOMPLETE',
-        verified: false,
+        verified: true,
         algorithm: 'SHA-256',
         records_checked: 0,
         expected_days: 31,
         missing_dates: [],
+        source_complete_days: 0,
+        source_incomplete_dates: [],
         current_hash: null,
         broken_at: null,
         verified_at: new Date().toISOString()
@@ -92,6 +94,7 @@ function serveLedger(rows: Row[]) {
     (prisma.auditLog.count as jest.Mock).mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
         (where.chain_index ? rows.length : 2)
     );
+    (prisma.auditLog.findFirst as jest.Mock).mockResolvedValue(rows.length > 0 ? rows[rows.length - 1] : null);
 }
 
 function serveReportData() {
@@ -185,7 +188,12 @@ describe('Compliance Routes', () => {
             end: '2026-08-31T23:59:59.999Z',
             days: 31
         });
-        expect(queryUsageBetween).toHaveBeenCalledWith('b1', new Date('2026-08-01T00:00:00.000Z'), new Date('2026-09-01T00:00:00.000Z'));
+        expect(queryUsageBetween).toHaveBeenCalledWith(
+            'b1',
+            new Date('2026-08-01T00:00:00.000Z'),
+            new Date('2026-09-01T00:00:00.000Z'),
+            5000
+        );
         expect(prisma.anomaly.findMany).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
                 detected_timestamp: {
@@ -194,6 +202,40 @@ describe('Compliance Routes', () => {
                 }
             })
         }));
+        expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
+        expect(response.body.data.audit_trail.integrity).toMatchObject({
+            verified: false,
+            verification_status: 'NOT_RUN',
+            records_checked: 0
+        });
+    });
+
+    it('uses signed ledger energy and withholds a retained partial-period cost', async () => {
+        jest.useFakeTimers({ now: new Date('2026-09-14T10:00:00.000Z'), doNotFake: [...REAL_TIMERS] });
+        serveLedger(buildLedger(2));
+        serveReportData();
+        (prisma.carbonLedgerEntry.findMany as jest.Mock).mockResolvedValue([{
+            building_id: 'b1',
+            period_date: new Date('2026-08-01T00:00:00.000Z'),
+            total_kwh: 600,
+            total_kg_co2e: 558,
+            reading_count: 24
+        }]);
+
+        const response = await request(createComplianceApp()).get('/api/compliance/report?format=json');
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.energy_performance).toMatchObject({
+            total_usage_kwh: 600,
+            total_cost_zar: null,
+            source: 'carbon_ledger'
+        });
+        expect(response.body.data.energy_performance.intensity_kwh_per_sqm).toBeCloseTo(6.4583, 4);
+        expect(response.body.data.organisation.sites[0]).toMatchObject({
+            usage_kwh: 600,
+            cost_zar: null,
+            carbon_kg_co2e: 558
+        });
     });
 
     it('closes the JSON report with the chain head as the digital signature', async () => {
