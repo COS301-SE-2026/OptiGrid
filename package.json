@@ -104,7 +104,18 @@
 		"overrides": {
 			"@types/react": "^19.0.0",
 			"@types/react-dom": "^19.0.0",
-			"@influxdata/influxdb-client-apis": "^1.35.0"
+			"@influxdata/influxdb-client-apis": "^1.35.0",
+			"tar": ">=7.5.17",
+			"postcss": ">=8.5.23",
+			"mysql2": ">=3.23.1",
+			"undici": ">=6.28.0",
+			"uuid": ">=11.1.1",
+			"valibot": ">=1.4.2",
+			"cookie": ">=0.7.0",
+			"sharp": ">=0.35.4",
+			"image-size": ">=2.0.3",
+			"deepmerge-ts": ">=8.0.0",
+			"maplibre-gl": ">=6.4.1"
 		}
 	},
 	"dependencies": {
