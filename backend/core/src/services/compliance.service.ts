@@ -1,7 +1,9 @@
+import { createHash } from 'crypto';
 import prisma from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { queryUsageBetween, resolveCostZar } from '../lib/influx';
 import { computeRecordHash, GENESIS_HASH, HASH_ALGORITHM, type ChainableAuditRecord } from '../lib/hashChain';
+import { verifyCarbonLedgerMonth, type CarbonIntegrityResult } from './carbonIntegrity.service';
 
 const BATCH_SIZE = 500;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -195,8 +197,16 @@ export interface ComplianceReport {
             type: string | null;
             usage_kwh: number | null;
             cost_zar: number | null;
+            carbon_kg_co2e: number | null;
             share_of_total: number | null;
         }[];
+    };
+    carbon_accounting: {
+        total_kg_co2e: number;
+        ledger_entries: number;
+        expected_entries: number;
+        scope_status: 'VALID' | 'TAMPERED' | 'INCOMPLETE';
+        buildings: CarbonIntegrityResult[];
     };
     energy_performance: {
         total_usage_kwh: number;
@@ -231,6 +241,7 @@ export interface ComplianceReport {
         algorithm: string;
         value: string | null;
         records_covered: number;
+        source: 'carbon_ledger' | 'audit_log';
         signed_at: string;
     };
 }
@@ -243,6 +254,26 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
     const buildings = await prisma.building.findMany({
         where: { building_id: { in: allowedBuildingIds } }
     });
+
+    const carbonRows = await prisma.carbonLedgerEntry.findMany({
+        where: {
+            building_id: { in: allowedBuildingIds },
+            period_date: { gte: period.start, lt: period.endExclusive }
+        },
+        orderBy: [{ building_id: 'asc' }, { period_date: 'asc' }]
+    });
+    const carbonByBuilding = new Map<string, number>();
+    for (const row of carbonRows) {
+        carbonByBuilding.set(
+            row.building_id,
+            (carbonByBuilding.get(row.building_id) ?? 0) + Number(row.total_kg_co2e)
+        );
+    }
+
+    const monthKey = `${period.start.getUTCFullYear()}-${String(period.start.getUTCMonth() + 1).padStart(2, '0')}`;
+    const carbonIntegrity = await Promise.all(buildings.map((building) =>
+        verifyCarbonLedgerMonth(building.building_id, monthKey)
+    ));
 
     const usageByBuilding = new Map<string, { kwh: number | null; cost: number | null }>();
     await Promise.all(buildings.map(async (building) => {
@@ -319,6 +350,7 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
                 type: building.building_type ? String(building.building_type) : null,
                 usage_kwh: usage?.kwh ?? null,
                 cost_zar: usage?.cost ?? null,
+                carbon_kg_co2e: carbonByBuilding.get(building.building_id) ?? null,
                 share_of_total: shareOf(usage?.kwh ?? null)
             };
     }).sort((a, b) => (b.usage_kwh ?? -1) - (a.usage_kwh ?? -1));
@@ -341,6 +373,22 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
     const implemented = recommendations.filter((row) => statusOf(row.status) === 'implemented').length;
     const pending = recommendations.filter((row) => statusOf(row.status) === 'pending' || statusOf(row.status) === 'pending_execution').length;
     const pendingSaving = recommendations.filter((row) => statusOf(row.status) === 'pending' || statusOf(row.status) === 'pending_execution').reduce((sum, row) => sum + (Number(row.estimated_monthly_savings) || 0), 0);
+    let carbonScopeStatus: ComplianceReport['carbon_accounting']['scope_status'] = 'VALID';
+    if (carbonIntegrity.some((entry) => entry.status === 'TAMPERED')) {
+        carbonScopeStatus = 'TAMPERED';
+    } else if (carbonIntegrity.some((entry) => entry.status === 'INCOMPLETE')) {
+        carbonScopeStatus = 'INCOMPLETE';
+    }
+
+    const carbonHeads = carbonIntegrity
+        .filter((entry): entry is CarbonIntegrityResult & { current_hash: string } => Boolean(entry.current_hash))
+        .map((entry) => `${entry.building_id}:${entry.current_hash}`)
+        .sort();
+    const carbonSignature = carbonHeads.length > 0
+        ? createHash('sha256').update(carbonHeads.join('\n')).digest('hex')
+        : null;
+    const carbonRecordsCovered = carbonIntegrity.reduce((sum, entry) => sum + entry.records_checked, 0);
+    const totalCarbon = Array.from(carbonByBuilding.values()).reduce((sum, value) => sum + value, 0);
 
     return {
         standard: 'ISO 50001:2018',
@@ -362,6 +410,13 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
             total_cost_zar: Number(totalCost.toFixed(2)),
             average_daily_kwh: Number((totalUsage / period.days).toFixed(2)),
             intensity_kwh_per_sqft: totalFloorArea > 0 ? Number((totalUsage / totalFloorArea).toFixed(4)) : null
+        },
+        carbon_accounting: {
+            total_kg_co2e: Number(totalCarbon.toFixed(2)),
+            ledger_entries: carbonRows.length,
+            expected_entries: period.days * buildings.length,
+            scope_status: carbonScopeStatus,
+            buildings: carbonIntegrity
         },
         significant_energy_users: sites.slice(0, 5).map((site) => ({
             building_id: site.building_id,
@@ -388,8 +443,9 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
         },
         digital_signature: {
             algorithm: HASH_ALGORITHM,
-            value: integrity.current_hash,
-            records_covered: integrity.records_checked,
+            value: carbonSignature ?? integrity.current_hash,
+            records_covered: carbonSignature ? carbonRecordsCovered : integrity.records_checked,
+            source: carbonSignature ? 'carbon_ledger' : 'audit_log',
             signed_at: generatedAt.toISOString()
         }
     };
