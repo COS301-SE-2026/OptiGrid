@@ -1,6 +1,7 @@
 const iterateRows = jest.fn();
 const getQueryApi = jest.fn(() => ({ iterateRows }));
 const InfluxDB = jest.fn(() => ({ getQueryApi }));
+const mockFindFirst = jest.fn();
 
 jest.mock('@influxdata/influxdb-client', () => ({
     InfluxDB,
@@ -10,7 +11,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
     __esModule: true,
     default: {
         utilityTariff: {
-            findFirst: jest.fn().mockResolvedValue(null)
+            findFirst: mockFindFirst
         }
     }
 }));
@@ -21,6 +22,7 @@ describe('Influx usage queries', () => {
         iterateRows.mockReset();
         getQueryApi.mockClear();
         InfluxDB.mockClear();
+        mockFindFirst.mockReset().mockResolvedValue(null);
         process.env.INFLUXDB_BUCKET = 'EnergyData';
         process.env.INFLUXDB_ORG = 'optigrid';
         process.env.INFLUXDB_TOKEN = 'dummy';
@@ -145,6 +147,62 @@ describe('Influx usage queries', () => {
         expect(iterateRows.mock.calls[0][0]).toContain('"energy_telemetry_downsampled"');
         expect(iterateRows.mock.calls[0][0]).toContain('"energy_telemetry"');
         expect(iterateRows.mock.calls[0][0]).toContain('aggregateWindow(every: 1d');
+    });
+
+    it('keeps telemetry series available when tariff metadata cannot be loaded', async () => {
+        iterateRows.mockImplementationOnce(async function* () {
+            yield {
+                values: [],
+                tableMeta: {
+                    toObject: () => ({
+                        _time: '2026-07-10T00:00:00Z',
+                        _field: 'usage_kwh',
+                        _value: 12,
+                    }),
+                },
+            };
+        });
+        mockFindFirst.mockRejectedValueOnce(new Error('tariff schema mismatch'));
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        const { queryUsageSeries } = await import('../../../backend/core/src/lib/influx');
+
+        try {
+            await expect(queryUsageSeries('abc', '7d')).resolves.toEqual([
+                { timestamp: '2026-07-10T00:00:00Z', kwh: 12, cost_zar: 30 },
+            ]);
+        } finally {
+            warn.mockRestore();
+        }
+
+        expect(mockFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+            select: { tariff_structure: true },
+        }));
+    });
+
+    it('returns only measured demand in forecast-compatible intervals', async () => {
+        iterateRows.mockImplementationOnce(async function* () {
+            yield {
+                values: [],
+                tableMeta: {
+                    toObject: () => ({
+                        _time: '2026-07-12T00:00:00Z',
+                        _value: 420,
+                    }),
+                },
+            };
+        });
+        const { queryMeasuredDemandSeries } = await import('../../../backend/core/src/lib/influx');
+
+        await expect(queryMeasuredDemandSeries('abc', 'monthly')).resolves.toEqual([
+            { timestamp: '2026-07-12T00:00:00Z', kwh: 420 },
+        ]);
+
+        const query = iterateRows.mock.calls[0][0];
+        expect(query).toContain('r["_measurement"] == "energy_telemetry"');
+        expect(query).toContain('exists r.sensor_id');
+        expect(query).toContain('aggregateWindow(every: 1h');
+        expect(query).toContain('aggregateWindow(every: 1w');
+        expect(query).not.toContain('energy_telemetry_downsampled');
     });
 
     it('queries an absolute date range and falls back when the building bucket is missing', async () => {

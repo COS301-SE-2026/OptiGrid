@@ -188,7 +188,13 @@ describe('Analytics API Integration', () => {
 		expect(response.body.summary.peak_kwh).toBe(300);
 		expect(response.body.summary.avg_daily_kwh).toBe(120.2);
 		expect(response.body.summary.mape).toBe(2.1);
-		expect(response.body.historical[0].kwh).toBe(300);
+		expect(response.body.historical).toEqual([]);
+		expect(response.body.metadata).toEqual({
+			timezone: 'UTC',
+			value_unit: 'kW',
+			average_unit: 'kWh/day',
+			accuracy_metric: 'MAPE',
+		});
 		expect(response.body.forecast[0].yhat).toBe(300);
 		expect(response.body.forecast[0].yhat_lower).toBe(300);
 		expect(response.body.forecast[0].yhat_upper).toBe(300);
@@ -366,7 +372,7 @@ describe('Analytics API Integration', () => {
 		expect(response.body.summary.peak_kwh).toBe(215);
 		expect(response.body.summary.avg_daily_kwh).toBe(180.5);
 		expect(response.body.summary.mape).toBe(1.5);
-		expect(response.body.historical[0].kwh).toBe(210);
+		expect(response.body.historical).toEqual([]);
 		expect(response.body.forecast).toHaveLength(2);
 		expect(response.body.forecast[0]).toEqual({
 			timestamp: '2026-07-23T00:00:00Z',
@@ -428,7 +434,8 @@ describe('Analytics API Integration', () => {
 		expect(response.body.summary.peak_kwh).toBe(720);
 		expect(response.body.summary.avg_daily_kwh).toBe(280.0);
 		expect(response.body.summary.mape).toBe(3.8);
-		expect(response.body.historical[0].kwh).toBe(700);
+		expect(response.body.historical).toEqual([]);
+		expect(response.body.metadata.value_unit).toBe('kWh/week');
 		expect(response.body.forecast).toHaveLength(3);
 		expect(response.body.forecast[0].yhat).toBe(700);
 		expect(response.body.forecast[1].yhat).toBe(720);
