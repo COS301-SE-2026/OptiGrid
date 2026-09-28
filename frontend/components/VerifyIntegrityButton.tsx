@@ -11,13 +11,14 @@ type ChainBreak = {
 
 export type ChainVerification = {
     verified: boolean;
+    verification_status: "NOT_RUN" | "VERIFIED" | "FAILED";
     algorithm: string;
     records_checked: number;
     current_hash: string | null;
     chain_started_at: string | null;
     chain_updated_at: string | null;
     broken_at: ChainBreak | null;
-    verified_at: string;
+    verified_at: string | null;
 };
 
 export type VerifyState =

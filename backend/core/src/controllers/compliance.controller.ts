@@ -504,14 +504,17 @@ export const getComplianceReport = async (req: Request, res: Response): Promise<
             return;
         }
 
-        const report = await buildComplianceReport(allowedBuildingIds);
         const format = String(req.query.format ?? 'json').toLowerCase();
+        const isDownload = String(req.query.download ?? '') === '1';
+        const report = await buildComplianceReport(allowedBuildingIds, {
+            verifyAuditTrail: format === 'pdf' || isDownload
+        });
         if (format === 'pdf') {
             renderReportPdf(report, res);
             return;
         }
 
-        if (String(req.query.download ?? '') === '1') {
+        if (isDownload) {
             const periodStart = new Date(report.period.start);
             const fileName = `OptiGrid_ISO50001_Compliance_${periodStart.getUTCFullYear()}-${pad(periodStart.getUTCMonth() + 1)}.json`;
             res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

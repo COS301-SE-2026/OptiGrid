@@ -7,6 +7,7 @@ import { verifyCarbonLedgerMonth, type CarbonIntegrityResult } from './carbonInt
 
 // Keep memory bounded while avoiding dozens of network round trips for mature ledgers.
 const BATCH_SIZE = 2_000;
+const COMPLIANCE_TELEMETRY_TIMEOUT_MS = 5_000;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -38,13 +39,14 @@ export interface ChainBreak {
 
 export interface ChainVerification {
     verified: boolean;
+    verification_status: 'NOT_RUN' | 'VERIFIED' | 'FAILED';
     algorithm: string;
     records_checked: number;
     current_hash: string | null;
     chain_started_at: string | null;
     chain_updated_at: string | null;
     broken_at: ChainBreak | null;
-    verified_at: string;
+    verified_at: string | null;
 }
 
 const chainSelect = {
@@ -156,6 +158,7 @@ export const verifyAuditChain = async (): Promise<ChainVerification> => {
 
     return {
         verified: brokenAt === null && recordsChecked > 0,
+        verification_status: brokenAt === null && recordsChecked > 0 ? 'VERIFIED' : 'FAILED',
         algorithm: HASH_ALGORITHM,
         records_checked: recordsChecked,
         current_hash: recordsChecked > 0 ? previousHash : null,
@@ -163,6 +166,29 @@ export const verifyAuditChain = async (): Promise<ChainVerification> => {
         chain_updated_at: chainUpdatedAt,
         broken_at: brokenAt,
         verified_at: new Date().toISOString()
+    };
+};
+
+const getAuditChainSnapshot = async (): Promise<ChainVerification> => {
+    const latestEntry = await prisma.auditLog.findFirst({
+        where: { chain_index: { not: null } },
+        orderBy: { chain_index: 'desc' },
+        select: {
+            current_hash: true,
+            timestamp: true
+        }
+    });
+
+    return {
+        verified: false,
+        verification_status: 'NOT_RUN',
+        algorithm: HASH_ALGORITHM,
+        records_checked: 0,
+        current_hash: latestEntry?.current_hash ?? null,
+        chain_started_at: null,
+        chain_updated_at: toIso(latestEntry?.timestamp),
+        broken_at: null,
+        verified_at: null
     };
 };
 
@@ -233,7 +259,10 @@ export interface ComplianceReport {
     };
 }
 
-export const buildComplianceReport = async (allowedBuildingIds: string[]): Promise<ComplianceReport> => {
+export const buildComplianceReport = async (
+    allowedBuildingIds: string[],
+    options: { verifyAuditTrail?: boolean } = {}
+): Promise<ComplianceReport> => {
     const generatedAt = new Date();
     const period = previousCalendarMonth(generatedAt);
     const periodStart = period.start;
@@ -242,51 +271,37 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
         where: { building_id: { in: allowedBuildingIds } }
     });
 
-    const carbonRows = await prisma.carbonLedgerEntry.findMany({
+    const carbonRowsPromise = prisma.carbonLedgerEntry.findMany({
         where: {
             building_id: { in: allowedBuildingIds },
             period_date: { gte: period.start, lt: period.endExclusive }
         },
         orderBy: [{ building_id: 'asc' }, { period_date: 'asc' }]
     });
-    const carbonByBuilding = new Map<string, number>();
-    const ledgerUsageByBuilding = new Map<string, number>();
-    const ledgerRowsByBuilding = new Map<string, number>();
-    for (const row of carbonRows) {
-        carbonByBuilding.set(
-            row.building_id,
-            (carbonByBuilding.get(row.building_id) ?? 0) + Number(row.total_kg_co2e)
-        );
-        ledgerUsageByBuilding.set(
-            row.building_id,
-            (ledgerUsageByBuilding.get(row.building_id) ?? 0) + Number(row.total_kwh)
-        );
-        ledgerRowsByBuilding.set(row.building_id, (ledgerRowsByBuilding.get(row.building_id) ?? 0) + 1);
-    }
 
     const monthKey = `${period.start.getUTCFullYear()}-${String(period.start.getUTCMonth() + 1).padStart(2, '0')}`;
-    const carbonIntegrity = await Promise.all(buildings.map((building) =>
+    const carbonIntegrityPromise = Promise.all(buildings.map((building) =>
         verifyCarbonLedgerMonth(building.building_id, monthKey)
     ));
-    const carbonIntegrityByBuilding = new Map(
-        carbonIntegrity.map((entry) => [entry.building_id, entry])
-    );
-
-    const usageByBuilding = new Map<string, { kwh: number | null; cost: number | null }>();
-    await Promise.all(buildings.map(async (building) => {
+    const usageEntriesPromise = Promise.all(buildings.map(async (building) => {
         try {
-            const usage = await queryUsageBetween(building.building_id, period.start, period.endExclusive);
+            const usage = await queryUsageBetween(
+                building.building_id,
+                period.start,
+                period.endExclusive,
+                COMPLIANCE_TELEMETRY_TIMEOUT_MS
+            );
             const kwh = typeof usage === 'number' ? usage : usage?.total_kwh ?? null;
             const cost = typeof usage === 'number' ? null : resolveCostZar(Number(usage?.total_cost_zar ?? 0), Number(usage?.total_cost_usd ?? 0), Number(usage?.total_kwh ?? 0));
-            usageByBuilding.set(building.building_id, { kwh, cost });
+            return [building.building_id, { kwh, cost }] as const;
         } 
         catch (error) {
             console.error(`[Compliance] usage lookup failed for ${building.building_id}:`, error);
-            usageByBuilding.set(building.building_id, { kwh: null, cost: null });
+            return [building.building_id, { kwh: null, cost: null }] as const;
         }
     }));
 
-    const anomalies = await prisma.anomaly.findMany({
+    const anomaliesPromise = prisma.anomaly.findMany({
         where: {
             building_id: { 
                 in: allowedBuildingIds 
@@ -302,13 +317,13 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
         }
     });
 
-    const recommendations = await prisma.$queryRaw<{ status: string | null; estimated_monthly_savings: unknown }[]>(Prisma.sql
+    const recommendationsPromise = prisma.$queryRaw<{ status: string | null; estimated_monthly_savings: unknown }[]>(Prisma.sql
         `SELECT status::text AS status, estimated_monthly_savings
          FROM public.optimisation_recommendations
          WHERE "building_id"::text IN (${Prisma.join(allowedBuildingIds)}) AND "generated_date" >= ${periodStart}AND "generated_date" <= ${periodEnd}`
     ).catch(() => []);
 
-    const entriesInPeriod = await prisma.auditLog.count({
+    const entriesInPeriodPromise = prisma.auditLog.count({
         where: { 
             timestamp: 
             { 
@@ -318,7 +333,7 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
     }
     });
 
-    const totalChainedEntries = await prisma.auditLog.count({
+    const totalChainedEntriesPromise = prisma.auditLog.count({
         where: 
         { 
             chain_index: { 
@@ -327,7 +342,44 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
         }
     });
 
-    const integrity = await verifyAuditChain();
+    const [
+        carbonRows,
+        carbonIntegrity,
+        usageEntries,
+        anomalies,
+        recommendations,
+        entriesInPeriod,
+        totalChainedEntries,
+        integrity
+    ] = await Promise.all([
+        carbonRowsPromise,
+        carbonIntegrityPromise,
+        usageEntriesPromise,
+        anomaliesPromise,
+        recommendationsPromise,
+        entriesInPeriodPromise,
+        totalChainedEntriesPromise,
+        options.verifyAuditTrail ? verifyAuditChain() : getAuditChainSnapshot()
+    ]);
+
+    const carbonByBuilding = new Map<string, number>();
+    const ledgerUsageByBuilding = new Map<string, number>();
+    const ledgerRowsByBuilding = new Map<string, number>();
+    for (const row of carbonRows) {
+        carbonByBuilding.set(
+            row.building_id,
+            (carbonByBuilding.get(row.building_id) ?? 0) + Number(row.total_kg_co2e)
+        );
+        ledgerUsageByBuilding.set(
+            row.building_id,
+            (ledgerUsageByBuilding.get(row.building_id) ?? 0) + Number(row.total_kwh)
+        );
+        ledgerRowsByBuilding.set(row.building_id, (ledgerRowsByBuilding.get(row.building_id) ?? 0) + 1);
+    }
+    const carbonIntegrityByBuilding = new Map(
+        carbonIntegrity.map((entry) => [entry.building_id, entry])
+    );
+    const usageByBuilding = new Map<string, { kwh: number | null; cost: number | null }>(usageEntries);
     const usageMatchesLedger = (liveUsage: number | null, ledgerUsage: number): boolean => {
         if (liveUsage === null) {
             return false;
@@ -499,7 +551,7 @@ export const buildComplianceReport = async (allowedBuildingIds: string[]): Promi
         },
         digital_signature: {
             algorithm: HASH_ALGORITHM,
-            value: carbonSignature ?? integrity.current_hash,
+            value: carbonSignature ?? (integrity.verified ? integrity.current_hash : null),
             records_covered: carbonSignature ? carbonRecordsCovered : integrity.records_checked,
             source: carbonSignature ? 'carbon_ledger' : 'audit_log',
             signed_at: generatedAt.toISOString()

@@ -9,7 +9,7 @@ import complianceRoutes from '../../../backend/core/src/routes/compliance.routes
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
     __esModule: true,
     default: {
-        auditLog: { findMany: jest.fn(), count: jest.fn() },
+        auditLog: { findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
         carbonLedgerEntry: { findMany: jest.fn() },
         building: { findMany: jest.fn() },
         anomaly: { findMany: jest.fn() },
@@ -94,6 +94,7 @@ function serveLedger(rows: Row[]) {
     (prisma.auditLog.count as jest.Mock).mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
         (where.chain_index ? rows.length : 2)
     );
+    (prisma.auditLog.findFirst as jest.Mock).mockResolvedValue(rows.length > 0 ? rows[rows.length - 1] : null);
 }
 
 function serveReportData() {
@@ -187,7 +188,12 @@ describe('Compliance Routes', () => {
             end: '2026-08-31T23:59:59.999Z',
             days: 31
         });
-        expect(queryUsageBetween).toHaveBeenCalledWith('b1', new Date('2026-08-01T00:00:00.000Z'), new Date('2026-09-01T00:00:00.000Z'));
+        expect(queryUsageBetween).toHaveBeenCalledWith(
+            'b1',
+            new Date('2026-08-01T00:00:00.000Z'),
+            new Date('2026-09-01T00:00:00.000Z'),
+            5000
+        );
         expect(prisma.anomaly.findMany).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
                 detected_timestamp: {
@@ -196,6 +202,12 @@ describe('Compliance Routes', () => {
                 }
             })
         }));
+        expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
+        expect(response.body.data.audit_trail.integrity).toMatchObject({
+            verified: false,
+            verification_status: 'NOT_RUN',
+            records_checked: 0
+        });
     });
 
     it('uses signed ledger energy and withholds a retained partial-period cost', async () => {

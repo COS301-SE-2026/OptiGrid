@@ -403,7 +403,12 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
     return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 };
 };
 
-export const queryUsageBetween = async (buildingId: string, start: Date, stop: Date): Promise<UsageTotals> => {
+export const queryUsageBetween = async (
+    buildingId: string,
+    start: Date,
+    stop: Date,
+    timeoutMs = 30000
+): Promise<UsageTotals> => {
     if (!InfluxDB) {
         return { 
             total_kwh: 0, 
@@ -413,7 +418,7 @@ export const queryUsageBetween = async (buildingId: string, start: Date, stop: D
     }
 
     const influxClient = new InfluxDB({ url, token });
-    const queryAPI = influxClient.getQueryApi(org, { timeout: 30000 });
+    const queryAPI = influxClient.getQueryApi(org, { timeout: timeoutMs });
     let lastError: unknown;
 
     for (const bucket of uniqueBuckets(buildingId)) {

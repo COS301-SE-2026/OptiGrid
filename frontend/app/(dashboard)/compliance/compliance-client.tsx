@@ -75,6 +75,7 @@ type ComplianceReport = {
         total_chained_entries: number;
         integrity: {
             verified: boolean;
+            verification_status: "NOT_RUN" | "VERIFIED" | "FAILED";
             algorithm: string;
             records_checked: number;
             current_hash: string | null;
@@ -147,7 +148,10 @@ export default function ComplianceClient() {
                 throw new Error(payload?.message || "Unable to load the compliance report.");
             }
             return payload.data as ComplianceReport;
-        }
+        },
+        staleTime: 60_000,
+        gcTime: 5 * 60_000,
+        refetchOnWindowFocus: false
     });
 
     const verification = useIntegrityVerification();
@@ -205,7 +209,9 @@ export default function ComplianceClient() {
         );
     }
 
-    const integrity = data.audit_trail.integrity;
+    const integrity = verification.state.phase === "done"
+        ? verification.state.result
+        : data.audit_trail.integrity;
     const severityEntries = Object.entries(data.nonconformities.by_severity);
     const hasIncompleteCarbonCoverage = data.carbon_accounting.scope_status === "INCOMPLETE";
     const consumptionLabel = hasIncompleteCarbonCoverage ? "Recorded consumption" : "Total consumption";
@@ -224,6 +230,8 @@ export default function ComplianceClient() {
     } else if (integrity.broken_at) {
         auditBadgeTone = "badge-danger";
         auditBadgeLabel = "Chain broken";
+    } else if (integrity.verification_status === "NOT_RUN") {
+        auditBadgeLabel = "Verification required";
     }
 
     let carbonBadgeTone = "badge-warning";
