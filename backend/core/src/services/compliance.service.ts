@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import prisma from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { queryUsageBetween, resolveCostZar } from '../lib/influx';
-import { computeRecordHash, GENESIS_HASH, HASH_ALGORITHM, type ChainableAuditRecord } from '../lib/hashChain';
+import { computeRecordHash, GENESIS_HASH, HASH_ALGORITHM, toChainableAuditRecord } from '../lib/hashChain';
 import { verifyCarbonLedgerMonth, type CarbonIntegrityResult } from './carbonIntegrity.service';
 
 const BATCH_SIZE = 500;
@@ -71,24 +71,6 @@ type ChainRow = {
     [K in keyof typeof chainSelect]: unknown;
 };
 
-const toChainableRecord = (row: ChainRow): ChainableAuditRecord => ({
-    log_id: String(row.log_id),
-    user_id: (row.user_id as string | null) ?? null,
-    building_id: (row.building_id as string | null) ?? null,
-    action_type: String(row.action_type),
-    target_table: String(row.target_table),
-    service: (row.service as string | null) ?? null,
-    operation: (row.operation as string | null) ?? null,
-    severity: row.severity === null || row.severity === undefined ? null : String(row.severity),
-    error_code: (row.error_code as string | null) ?? null,
-    request_id: (row.request_id as string | null) ?? null,
-    old_value: row.old_value ?? null,
-    new_value: row.new_value ?? null,
-    metadata: row.metadata ?? null,
-    ip_address: (row.ip_address as string | null) ?? null,
-    timestamp: (row.timestamp as Date | null) ?? null
-});
-
 const toIso = (value: unknown): string | null => {
     if (!value) {
         return null;
@@ -152,7 +134,7 @@ export const verifyAuditChain = async (): Promise<ChainVerification> => {
                 break;
             }
 
-            if (computeRecordHash(toChainableRecord(row), storedPrev) !== storedHash) {
+            if (computeRecordHash(toChainableAuditRecord(row), storedPrev) !== storedHash) {
                 brokenAt = {
                     log_id: String(row.log_id),
                     chain_index: String(row.chain_index),
