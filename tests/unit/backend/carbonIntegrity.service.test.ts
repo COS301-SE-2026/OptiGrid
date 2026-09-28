@@ -66,6 +66,8 @@ describe('monthly carbon ledger verification', () => {
             records_checked: 30,
             expected_days: 30,
             missing_dates: [],
+            source_complete_days: 30,
+            source_incomplete_dates: [],
             broken_at: null,
             current_hash: rows[29].current_hash
         });
@@ -106,6 +108,26 @@ describe('monthly carbon ledger verification', () => {
         expect(result.verified).toBe(false);
         expect(result.broken_at).toBeNull();
         expect(result.missing_dates).toHaveLength(30);
+    });
+
+    it('separates valid hashes from incomplete source coverage', async () => {
+        const rows = buildMonth(30);
+        rows[4].reading_count = 0;
+        rows[4].current_hash = computeCarbonRecordHash(rows[4], rows[4].prev_hash);
+        for (let index = 5; index < rows.length; index += 1) {
+            rows[index].prev_hash = rows[index - 1].current_hash;
+            rows[index].current_hash = computeCarbonRecordHash(rows[index], rows[index].prev_hash);
+        }
+        const { store } = memoryStore(rows);
+
+        const result = await verifyCarbonLedgerMonth(buildingId, '2026-09', store);
+
+        expect(result).toMatchObject({
+            status: 'INCOMPLETE',
+            verified: true,
+            source_complete_days: 29,
+            source_incomplete_dates: ['2026-09-05']
+        });
     });
 
     it('rejects invalid month input', async () => {

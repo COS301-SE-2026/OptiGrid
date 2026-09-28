@@ -3,7 +3,7 @@ const findMany = jest.fn();
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
     __esModule: true,
     default: {
-        auditLog: { findMany, count: jest.fn() },
+        auditLog: { findMany, findFirst: jest.fn(), count: jest.fn() },
         building: { findMany: jest.fn() },
         anomaly: { findMany: jest.fn() },
         $queryRaw: jest.fn()
