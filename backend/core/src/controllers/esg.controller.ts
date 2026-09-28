@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { InfluxDB } from '@influxdata/influxdb-client';
+import { z } from 'zod';
+import { UTILITY_COST_ZAR_PER_KWH } from '../lib/influx';
 
 const url = process.env.INFLUXDB_URL || process.env.INFLUX_URL || 'http://influxdb:8086'; // NOSONAR
 const token = process.env.INFLUXDB_TOKEN || process.env.INFLUX_TOKEN || 'dummy';
@@ -9,6 +11,46 @@ const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'Ener
 const influx = new InfluxDB({ url, token });
 
 const toIsoDate = (value: Date | string): string => new Date(value).toISOString().slice(0, 10);
+const DEFAULT_SCENARIO = {
+    energyEfficiency: 60,
+    renewables: 55,
+    hvacLoad: 55,
+    lighting: 60
+} as const;
+const percentage = z.coerce.number().finite().min(0).max(100);
+const scenarioSchema = z.object({
+    energyEfficiency: percentage.default(DEFAULT_SCENARIO.energyEfficiency),
+    renewables: percentage.default(DEFAULT_SCENARIO.renewables),
+    hvacLoad: percentage.default(DEFAULT_SCENARIO.hvacLoad),
+    lighting: percentage.default(DEFAULT_SCENARIO.lighting),
+    projectionMonths: z.coerce.number().int().min(1).max(60).default(12)
+});
+
+type ScenarioControls = z.infer<typeof scenarioSchema>;
+
+const clamp = (value: number, minimum: number, maximum: number): number =>
+    Math.max(minimum, Math.min(maximum, value));
+
+const weightedEnvironmentalScore = (controls: ScenarioControls): number => Math.round(
+    controls.energyEfficiency * 0.35
+    + controls.renewables * 0.30
+    + controls.hvacLoad * 0.20
+    + controls.lighting * 0.15
+);
+
+const scenarioReductionFactor = (controls: ScenarioControls): number => {
+    const efficiencyChange = (controls.energyEfficiency - DEFAULT_SCENARIO.energyEfficiency) / 100;
+    const renewableChange = (controls.renewables - DEFAULT_SCENARIO.renewables) / 100;
+    const hvacChange = (controls.hvacLoad - DEFAULT_SCENARIO.hvacLoad) / 100;
+    const lightingChange = (controls.lighting - DEFAULT_SCENARIO.lighting) / 100;
+    const energyReduction = clamp(
+        efficiencyChange * 0.20 + hvacChange * 0.10 + lightingChange * 0.05,
+        -0.35,
+        0.35
+    );
+    const renewableOffset = clamp(renewableChange * 0.30, -0.30, 0.30);
+    return clamp(1 - (1 - energyReduction) * (1 - renewableOffset), -0.50, 0.50);
+};
 
 const authorizeBuildingAccess = async (userId: string | undefined, buildingId: string, res: Response): Promise<boolean> => {
     if (!userId) {
@@ -231,47 +273,89 @@ export const simulateEsgScenarioController = async (req: Request, res: Response)
         const isAuth = await authorizeBuildingAccess(req.user?.id, building_id, res);
         if (!isAuth) return;
 
-        const params = req.body;
-        
-        const energyEff = (params.energyEfficiency || 60) / 100;
-        const renewables = (params.renewables || 55) / 100;
-        const hvac = (params.hvacLoad || 55) / 100;
-        const lighting = (params.lighting || 60) / 100;
-        
-        const months = params.projectionMonths || 12;
+        const parsed = scenarioSchema.safeParse(req.body ?? {});
+        if (!parsed.success) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Scenario inputs must be percentages from 0 to 100 and projectionMonths must be from 1 to 60.'
+            });
+        }
+        const params = parsed.data;
+        const ledgerRows = await prisma.carbonLedgerEntry.findMany({
+            where: {
+                building_id,
+                reading_count: { gt: 0 },
+                integrity_status: { not: 'TAMPERED' }
+            },
+            orderBy: { period_date: 'desc' },
+            take: 30,
+            select: {
+                total_kwh: true,
+                total_kg_co2e: true
+            }
+        });
+        const ledgerDays = ledgerRows.length;
+        const monthlyScale = ledgerDays > 0 ? 30 / ledgerDays : 0;
+        const baselineMonthlyKwh = ledgerDays > 0
+            ? ledgerRows.reduce((sum, row) => sum + Number(row.total_kwh), 0) * monthlyScale
+            : null;
+        const baselineMonthlyCarbon = ledgerDays > 0
+            ? ledgerRows.reduce((sum, row) => sum + Number(row.total_kg_co2e), 0) * monthlyScale
+            : null;
+        const baselineScore = weightedEnvironmentalScore({
+            ...DEFAULT_SCENARIO,
+            projectionMonths: params.projectionMonths
+        });
+        const scenarioScore = weightedEnvironmentalScore(params);
+        const reductionFactor = scenarioReductionFactor(params);
+        const months = params.projectionMonths;
         const forecast = [];
-        let currentBaseScore = (energyEff * 0.35 + renewables * 0.3 + hvac * 0.2 + lighting * 0.15) * 100;
         
         for (let i = 0; i < months; i++) {
             const date = new Date();
             date.setMonth(date.getMonth() + i);
             
             const monthStr = date.toISOString().slice(0,7);
-            const crypto = require('crypto');
-            const baselineCarbon = 5000 + crypto.randomInt(500);
-            const scenarioCarbon = baselineCarbon * (1 - (energyEff * 0.2)) * (1 - (renewables * 0.3));
+            const scenarioCarbon = baselineMonthlyCarbon === null
+                ? null
+                : baselineMonthlyCarbon * (1 - reductionFactor);
             
             forecast.push({
                 month: monthStr,
-                baselineScore: Math.round(currentBaseScore - 10), // fake baseline
-                scenarioScore: Math.round(currentBaseScore),
-                baselineCarbon: Math.round(baselineCarbon),
-                scenarioCarbon: Math.round(scenarioCarbon)
+                baselineScore,
+                scenarioScore,
+                baselineCarbon: baselineMonthlyCarbon === null ? null : Math.round(baselineMonthlyCarbon),
+                scenarioCarbon: scenarioCarbon === null ? null : Math.round(scenarioCarbon)
             });
         }
         
-        const totalCarbonAvoided = forecast.reduce((sum, p) => sum + (p.baselineCarbon - p.scenarioCarbon), 0);
+        const totalCarbonAvoided = baselineMonthlyCarbon === null
+            ? null
+            : baselineMonthlyCarbon * reductionFactor * months;
+        const totalEnergyAvoided = baselineMonthlyKwh === null
+            ? null
+            : baselineMonthlyKwh * reductionFactor * months;
         
         const result = {
             buildingId: building_id,
             params,
             forecast,
             impact: {
-                scoreDelta: Math.round(currentBaseScore - (currentBaseScore - 10)),
-                totalCarbonAvoided: Math.round(totalCarbonAvoided),
-                equivalentTrees: Math.round(totalCarbonAvoided / 21),
-                carbonReduction: Math.round((totalCarbonAvoided / forecast.reduce((sum, p) => sum + p.baselineCarbon, 0)) * 100),
-                estimatedCostSavings: Math.round(totalCarbonAvoided * 0.15)
+                scoreDelta: scenarioScore - baselineScore,
+                totalCarbonAvoided: totalCarbonAvoided === null ? null : Math.round(totalCarbonAvoided),
+                equivalentTrees: totalCarbonAvoided === null ? null : Math.round(totalCarbonAvoided / 21),
+                carbonReduction: Math.round(reductionFactor * 100),
+                estimatedCostSavings: totalEnergyAvoided === null
+                    ? null
+                    : Math.round(totalEnergyAvoided * UTILITY_COST_ZAR_PER_KWH)
+            },
+            methodology: {
+                deterministic: true,
+                baselineSource: ledgerDays > 0 ? 'carbon_ledger' : 'unavailable',
+                ledgerDays,
+                baselineMonthlyKwh: baselineMonthlyKwh === null ? null : Number(baselineMonthlyKwh.toFixed(2)),
+                baselineMonthlyKgCo2e: baselineMonthlyCarbon === null ? null : Number(baselineMonthlyCarbon.toFixed(2)),
+                estimatedTariffZarPerKwh: UTILITY_COST_ZAR_PER_KWH
             }
         };
 

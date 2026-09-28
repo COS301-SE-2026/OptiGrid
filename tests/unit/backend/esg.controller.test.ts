@@ -13,6 +13,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 		},
 		carbonLedgerEntry: {
 			findFirst: jest.fn(),
+			findMany: jest.fn(),
 		},
 	},
 }));
@@ -65,6 +66,11 @@ describe('ESG Controller Unit Tests', () => {
             emission_factor_kg_co2e_per_kwh: 0.93,
             integrity_status: 'VALID'
         });
+        (prisma.carbonLedgerEntry.findMany as jest.Mock).mockResolvedValue([{
+            total_kwh: 100,
+            total_kg_co2e: 93,
+            emission_factor_kg_co2e_per_kwh: 0.93
+        }]);
     });
 
     describe('getEsgHealthScoreController', () => {
@@ -171,12 +177,17 @@ describe('ESG Controller Unit Tests', () => {
             expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
                 buildingId: mockBuildingId,
                 impact: expect.objectContaining({
-                    scoreDelta: expect.any(Number),
+                    scoreDelta: 10,
                     totalCarbonAvoided: expect.any(Number),
                     equivalentTrees: expect.any(Number),
                     carbonReduction: expect.any(Number)
                 }),
-                forecast: expect.any(Array)
+                forecast: expect.any(Array),
+                methodology: expect.objectContaining({
+                    deterministic: true,
+                    baselineSource: 'carbon_ledger',
+                    ledgerDays: 1
+                })
             }));
             
             const payload = jsonMock.mock.calls[0][0];
@@ -191,7 +202,48 @@ describe('ESG Controller Unit Tests', () => {
             
             const payload = jsonMock.mock.calls[0][0];
             // Verify fallback defaults work
-            expect(payload.forecast[0].scenarioScore).toBe(57);
+            expect(payload.forecast[0].scenarioScore).toBe(58);
+            expect(payload.impact.totalCarbonAvoided).toBe(0);
+        });
+
+        it('returns identical results for identical inputs', async () => {
+            req.body = { energyEfficiency: 80, renewables: 70, projectionMonths: 3 };
+            await simulateEsgScenarioController(req as Request, res as Response);
+            const first = jsonMock.mock.calls[0][0];
+
+            jsonMock.mockClear();
+            await simulateEsgScenarioController(req as Request, res as Response);
+            const second = jsonMock.mock.calls[0][0];
+
+            expect(second).toEqual(first);
+        });
+
+        it('rejects percentages outside the supported range', async () => {
+            req.body = { energyEfficiency: 101 };
+
+            await simulateEsgScenarioController(req as Request, res as Response);
+
+            expect(statusMock).toHaveBeenCalledWith(400);
+            expect(prisma.carbonLedgerEntry.findMany).not.toHaveBeenCalled();
+        });
+
+        it('marks carbon and cost projections unavailable without a signed ledger baseline', async () => {
+            (prisma.carbonLedgerEntry.findMany as jest.Mock).mockResolvedValue([]);
+            req.body = { projectionMonths: 2 };
+
+            await simulateEsgScenarioController(req as Request, res as Response);
+
+            const payload = jsonMock.mock.calls[0][0];
+            expect(payload.forecast).toHaveLength(2);
+            expect(payload.forecast[0].baselineCarbon).toBeNull();
+            expect(payload.impact.totalCarbonAvoided).toBeNull();
+            expect(payload.impact.estimatedCostSavings).toBeNull();
+            expect(payload.methodology).toEqual(expect.objectContaining({
+                baselineSource: 'unavailable',
+                ledgerDays: 0,
+                baselineMonthlyKwh: null,
+                baselineMonthlyKgCo2e: null
+            }));
         });
     });
 });

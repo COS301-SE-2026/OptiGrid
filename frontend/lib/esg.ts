@@ -53,8 +53,8 @@ export interface ForecastDataPoint {
   month: string;
   baselineScore: number;
   scenarioScore: number;
-  baselineCarbon: number;
-  scenarioCarbon: number;
+  baselineCarbon: number | null;
+  scenarioCarbon: number | null;
 }
 
 export interface ScenarioResult {
@@ -65,10 +65,18 @@ export interface ScenarioResult {
   impact: {
 
     scoreDelta: number;
-    totalCarbonAvoided: number;
-    equivalentTrees: number;
+    totalCarbonAvoided: number | null;
+    equivalentTrees: number | null;
     carbonReduction: number;
-    estimatedCostSavings: number;
+    estimatedCostSavings: number | null;
+  };
+  methodology: {
+    deterministic: true;
+    baselineSource: "carbon_ledger" | "unavailable";
+    ledgerDays: number;
+    baselineMonthlyKwh: number | null;
+    baselineMonthlyKgCo2e: number | null;
+    estimatedTariffZarPerKwh: number;
   };
 }
 
