@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getTabSessionPath } from "../../../../lib/tab-session";
 import { FormAlert } from "@/components/FormAlert";
 import { BUILDING_TYPE_OPTIONS } from "@/lib/buildingOptions";
+import { CurvedSelect } from "@/components/curvedselect";
 import { AddressSearchInput } from "@/components/AddressSearchInput";
 
 
@@ -190,18 +191,13 @@ export default function AddBuildingPage() {
                             />
                         </Field>
                         <Field id="building_type" label="Building type">
-                            <select
+                            <CurvedSelect
                                 id="building_type"
-                                name="building_type"
-                                className="select"
                                 value={form.building_type}
-                                onChange={handleChange}
+                                onChange={(value) => setForm((previous) => ({ ...previous, building_type: value }))}
+                                options={BUILDING_TYPE_OPTIONS}
                                 disabled={loading}
-                            >
-                                {BUILDING_TYPE_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
+                            />
                         </Field>
                     </div>
                 </section>

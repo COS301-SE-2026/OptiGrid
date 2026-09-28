@@ -5,6 +5,7 @@ import Link from "next/link";
 import DeleteModal from "@/components/DeleteModal";
 import { useRouter } from "next/navigation";
 import { getTabSessionPath } from "../../../lib/tab-session";
+import { CurvedSelect } from "@/components/curvedselect";
 
 type lifecycle_state = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED" | "INACTIVE";
 
@@ -205,19 +206,19 @@ export default function AdminPage() {
             <div className="card filter-bar">
               <div className="filter-field">
                 <label className="label" htmlFor="lifecycle-filter">Status</label>
-                <select
+                <CurvedSelect
                   id="lifecycle-filter"
                   value={lifecycleFilter}
-                  onChange={(e) => setLifecycleFilter(e.target.value)}
-                  className="select"
-                  aria-label="Filter buildings by lifecycle state"
-                >
-                  <option value="all">All states</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="PROVISIONING">Provisioning</option>
-                  <option value="PROVISIONING_FAILED">Provisioning failed</option>
-                </select>
+                  onChange={setLifecycleFilter}
+                  options={[
+                    { value: "all", label: "All states" },
+                    { value: "ACTIVE", label: "Active" },
+                    { value: "INACTIVE", label: "Inactive" },
+                    { value: "PROVISIONING", label: "Provisioning" },
+                    { value: "PROVISIONING_FAILED", label: "Provisioning failed" },
+                  ]}
+                  ariaLabel="Filter buildings by lifecycle state"
+                />
               </div>
 
               <div className="filter-field filter-field-grow">

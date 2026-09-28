@@ -15,6 +15,7 @@ import {
   getSeverityFilter,
   getSearchInput
 } from "../anomaly/testMocks";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 jest.mock("recharts", () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -146,7 +147,7 @@ describe("ViewerAnomalyPage", () => {
         await renderPage();
         const severityFilterEl = getSeverityFilter();
         if (severityFilterEl) {
-          fireEvent.change(severityFilterEl, { target: { value: "critical" } });
+          chooseCurvedOption(severityFilterEl, "critical");
           expect(getTableCell("Sandton HQ")).toBeInTheDocument();
           expect(getTableCell("College")).toBeUndefined();
         }
@@ -156,7 +157,7 @@ describe("ViewerAnomalyPage", () => {
         await renderPage();
         const severityFilterEl = getSeverityFilter();
         if (severityFilterEl) {
-          fireEvent.change(severityFilterEl, { target: { value: "high" } });
+          chooseCurvedOption(severityFilterEl, "high");
           expect(getTableCell("College")).toBeInTheDocument();
           expect(getTableCell("Sandton HQ")).toBeUndefined();
         }

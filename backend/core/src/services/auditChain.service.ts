@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
-import { computeRecordHash, GENESIS_HASH, type ChainableAuditRecord } from '../lib/hashChain';
+import { computeRecordHash, GENESIS_HASH, toChainableAuditRecord } from '../lib/hashChain';
 
 const CHAIN_LOCK_KEY = 728314905;
 type AuditCreateData = Record<string, unknown>;
@@ -19,24 +19,6 @@ const supportsChaining = (store: ChainCapableStore): boolean =>
     typeof store.$transaction === 'function'
     && typeof store.$executeRaw === 'function'
     && typeof store.auditLog.findFirst === 'function';
-
-const asChainableRecord = (data: AuditCreateData): ChainableAuditRecord => ({
-    log_id: String(data.log_id),
-    user_id: (data.user_id as string | null) ?? null,
-    building_id: (data.building_id as string | null) ?? null,
-    action_type: String(data.action_type),
-    target_table: String(data.target_table),
-    service: (data.service as string | null) ?? null,
-    operation: (data.operation as string | null) ?? null,
-    severity: data.severity === undefined || data.severity === null ? null : String(data.severity),
-    error_code: (data.error_code as string | null) ?? null,
-    request_id: (data.request_id as string | null) ?? null,
-    old_value: data.old_value ?? null,
-    new_value: data.new_value ?? null,
-    metadata: data.metadata ?? null,
-    ip_address: (data.ip_address as string | null) ?? null,
-    timestamp: (data.timestamp as Date | string | null) ?? null
-});
 
 export const appendChainedAuditLog = async (store: ChainCapableStore, data: AuditCreateData): Promise<unknown> => {
     if (!supportsChaining(store)) {
@@ -67,7 +49,7 @@ export const appendChainedAuditLog = async (store: ChainCapableStore, data: Audi
                 ...prepared,
                 chain_index: nextIndex,
                 prev_hash: previousHash,
-                current_hash: computeRecordHash(asChainableRecord(prepared), previousHash)
+                current_hash: computeRecordHash(toChainableAuditRecord(prepared), previousHash)
             }
         });
     });

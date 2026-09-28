@@ -16,6 +16,7 @@
 		"db:generate": "prisma generate",
 		"db:migrate": "prisma migrate dev",
 		"db:deploy": "prisma migrate deploy",
+		"audit:repair": "tsx src/tools/repairAuditChain.ts",
 		"pretest": "node ./scripts/prisma-generate-dummy.mjs --schema=./prisma/schema.prisma"
 	},
 	"dependencies": {

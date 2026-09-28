@@ -288,6 +288,12 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
             accent: palette.secondary
         },
         {
+            label: 'Carbon emissions',
+            value: `${formatNumber(report.carbon_accounting.total_kg_co2e)} kg CO2e`,
+            note: `${report.carbon_accounting.ledger_entries} signed daily entries`,
+            accent: report.carbon_accounting.scope_status === 'VALID' ? palette.success : palette.secondary
+        },
+        {
             label: 'Nonconformities',
             value: `${report.nonconformities.total}`,
             note: `${report.nonconformities.open} still open`,
@@ -335,15 +341,54 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         ])
     );
 
-    drawSectionHeader('Audit trail integrity', 'Every ledger entry is chained to the one before it. Any edit or deletion breaks the chain.');
+    drawSectionHeader('Carbon ledger integrity', 'Daily building emissions are chained independently. Missing days are incomplete; altered links are tampered.');
+    const carbon = report.carbon_accounting;
+    let carbonStatusAccent = palette.secondary;
+    if (carbon.scope_status === 'VALID') {
+        carbonStatusAccent = palette.success;
+    } else if (carbon.scope_status === 'TAMPERED') {
+        carbonStatusAccent = palette.danger;
+    }
+    drawStatGrid([
+        {
+            label: 'Scope status',
+            value: readable(carbon.scope_status),
+            note: `${carbon.ledger_entries} of ${carbon.expected_entries} expected entries`,
+            accent: carbonStatusAccent
+        },
+        {
+            label: 'Emissions',
+            value: `${formatNumber(carbon.total_kg_co2e)} kg CO2e`,
+            note: report.period.label
+        },
+        {
+            label: 'Buildings checked',
+            value: formatNumber(carbon.buildings.length, 0),
+            note: 'Independently chained'
+        }
+    ], 3);
+
+    drawSectionHeader('Audit trail integrity', 'Every audit entry is chained to the one before it. Any edit or deletion breaks the chain.');
 
     const integrity = report.audit_trail.integrity;
+    let auditStatus = 'Unavailable';
+    if (integrity.verified) {
+        auditStatus = 'Verified';
+    } else if (integrity.broken_at) {
+        auditStatus = 'Broken';
+    }
+    let auditStatusAccent = palette.secondary;
+    if (integrity.verified) {
+        auditStatusAccent = palette.success;
+    } else if (integrity.broken_at) {
+        auditStatusAccent = palette.danger;
+    }
     drawStatGrid([
         {
             label: 'Chain status',
-            value: integrity.verified ? 'Verified' : 'Broken',
+            value: auditStatus,
             note: integrity.algorithm,
-            accent: integrity.verified ? palette.success : palette.danger
+            accent: auditStatusAccent
         },
         {
             label: 'Records covered',
@@ -390,9 +435,9 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
     });
 
     doc.font('Helvetica').fontSize(7.5).fillColor(palette.bandText).text(
-            `${report.digital_signature.algorithm} chain head over ${formatNumber(report.digital_signature.records_covered, 0)} ledger entries`, right - 260, signatureY + 14, { 
+            `${report.digital_signature.algorithm} ${readable(report.digital_signature.source)} head over ${formatNumber(report.digital_signature.records_covered, 0)} entries`, right - 280, signatureY + 14, {
                 align: 'right',
-                width: 244,  
+                width: 264,
                 lineBreak: false 
             }
         );
@@ -403,7 +448,7 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
             lineGap: 3
         });
 
-    doc.font('Helvetica').fontSize(7).fillColor(palette.bandText).text('Recompute this value from the audit ledger to confirm the report has not been altered.',
+    doc.font('Helvetica').fontSize(7).fillColor(palette.bandText).text(`Recompute this value from the ${readable(report.digital_signature.source).toLowerCase()} to confirm the report has not been altered.`,
             left + 16, signatureY + signatureHeight - 18, { 
                 width: contentWidth - 32, 
                 lineBreak: false 

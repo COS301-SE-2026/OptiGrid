@@ -10,6 +10,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
     __esModule: true,
     default: {
         auditLog: { findMany: jest.fn(), count: jest.fn() },
+        carbonLedgerEntry: { findMany: jest.fn() },
         building: { findMany: jest.fn() },
         anomaly: { findMany: jest.fn() },
         $queryRaw: jest.fn()
@@ -22,7 +23,29 @@ jest.mock('../../../backend/core/src/lib/influx', () => ({
 }));
 
 jest.mock('../../../backend/core/src/utils/auth.utils', () => ({
-    getAllowedBuildingIds: jest.fn()
+    getAllowedBuildingIds: jest.fn(),
+    checkBuildingAccess: jest.fn()
+}));
+
+jest.mock('../../../backend/core/src/services/carbonIntegrity.service', () => ({
+    verifyCarbonLedgerMonth: jest.fn(async (buildingId: string, month: string) => ({
+        building_id: buildingId,
+        month,
+        status: 'INCOMPLETE',
+        verified: false,
+        algorithm: 'SHA-256',
+        records_checked: 0,
+        expected_days: 31,
+        missing_dates: [],
+        current_hash: null,
+        broken_at: null,
+        verified_at: new Date().toISOString()
+    })),
+    listCarbonLedgerMonth: jest.fn()
+}));
+
+jest.mock('../../../backend/core/src/workers/carbonLedger.worker', () => ({
+    backfillCarbonLedger: jest.fn()
 }));
 
 type Row = Record<string, unknown>;
@@ -93,6 +116,7 @@ function serveReportData() {
         total_cost_usd: 0, 
         total_cost_zar: 12500 
     });
+    (prisma.carbonLedgerEntry.findMany as jest.Mock).mockResolvedValue([]);
 }
 
 function collectBinary(response: any, callback: (error: Error | null, body: Buffer) => void) {
@@ -187,7 +211,8 @@ describe('Compliance Routes', () => {
         expect(response.body.data.digital_signature).toMatchObject({
             algorithm: 'SHA-256',
             value: rows[2].current_hash,
-            records_covered: 3
+            records_covered: 3,
+            source: 'audit_log'
         });
     });
 

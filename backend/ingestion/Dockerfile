@@ -31,6 +31,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
 COPY backend/ingestion/src ./backend/ingestion/src
+COPY emulator ./emulator
 USER appuser
 
 CMD ["uvicorn", "backend.ingestion.src.main:app", "--host", "0.0.0.0", "--port", "8000"]

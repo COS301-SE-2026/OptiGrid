@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ForecastPage from "./page";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 const mockUseQuery = jest.fn();
 const mockUseMutation = jest.fn();
@@ -52,6 +53,16 @@ const resultData = {
         avg_daily_kwh: 1200,
         mape: 4.8,
     },
+    metadata: {
+        timezone: "Africa/Johannesburg",
+        value_unit: "kW",
+        average_unit: "kWh/day",
+        accuracy_metric: "MAPE",
+    },
+};
+
+type TestForecastResult = Omit<typeof resultData, "summary"> & {
+    summary: Omit<typeof resultData.summary, "mape"> & { mape: number | null };
 };
 
 function setupQueries() {
@@ -68,7 +79,7 @@ function setupMutation({
     data,
     isPending = false,
 }: {
-    data?: typeof resultData | undefined;
+    data?: TestForecastResult | undefined;
     isPending?: boolean;
 } = {}) {
     const mutate = jest.fn();
@@ -106,7 +117,7 @@ describe("ForecastPage", () => {
         render(<ForecastPage />);
 
         const user = userEvent.setup();
-        await user.selectOptions(screen.getByLabelText(/building/i), "1");
+        chooseCurvedOption(screen.getByLabelText(/building/i), "1");
 
         const runButton = screen.getByRole("button", { name: "Run forecast" });
         expect(runButton).not.toBeDisabled();
@@ -125,8 +136,8 @@ describe("ForecastPage", () => {
         render(<ForecastPage />);
 
         const user = userEvent.setup();
-        await user.selectOptions(screen.getByLabelText(/building/i), "1");
-        await user.selectOptions(screen.getByLabelText(/horizon/i), "monthly");
+        chooseCurvedOption(screen.getByLabelText(/building/i), "1");
+        chooseCurvedOption(screen.getByLabelText(/horizon/i), "monthly");
 
         const runButton = screen.getByRole("button", { name: "Run forecast" });
         await user.click(runButton);
@@ -137,6 +148,48 @@ describe("ForecastPage", () => {
         });
     });
 
+    it("queues and polls when a building has no generated forecast", async () => {
+        jest.useFakeTimers();
+        setupQueries();
+        setupMutation();
+        global.fetch = jest.fn()
+            .mockResolvedValueOnce({
+                ok: false,
+                status: 404,
+                json: async () => ({ message: "Forecast models are currently being generated." }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 202,
+                json: async () => ({ status: "accepted" }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => resultData,
+            });
+
+        try {
+            render(<ForecastPage />);
+            const mutationOptions = mockUseMutation.mock.calls[0][0] as {
+                mutationFn: (params: { building_id: string; horizon: "monthly" }) => Promise<typeof resultData>;
+            };
+            const resultPromise = mutationOptions.mutationFn({ building_id: "1", horizon: "monthly" });
+
+            await jest.advanceTimersByTimeAsync(1_500);
+
+            await expect(resultPromise).resolves.toEqual(resultData);
+            expect(global.fetch).toHaveBeenNthCalledWith(
+                2,
+                "/api/analytics/refresh/1",
+                { method: "POST" },
+            );
+            expect(global.fetch).toHaveBeenCalledTimes(3);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it("renders KPI values when a forecast result exists", () => {
         setupQueries();
         setupMutation({ data: resultData });
@@ -144,9 +197,11 @@ describe("ForecastPage", () => {
 
         expect(screen.queryByText(/Configure the controls above/i)).toBeNull();
         expect(screen.getByText(/Demand Trend/i)).toBeInTheDocument();
-        expect(screen.getByText(/250 kWh/)).toBeInTheDocument();
-        expect(screen.getByText(/1,?200 kWh/)).toBeInTheDocument();
+        expect(screen.getByText(/250 kW/)).toBeInTheDocument();
+        expect(screen.getByText(/1,?200 kWh\/day/)).toBeInTheDocument();
         expect(screen.getByText(/MAPE 4.8%/)).toBeInTheDocument();
+        expect(screen.getAllByText(/May 20, 20:00/).length).toBeGreaterThan(0);
+        expect(screen.getByText("Forecast error")).toBeInTheDocument();
         expect(screen.getByText("Predicted")).toBeInTheDocument();
         expect(screen.queryByText("95% interval")).toBeNull();
     });
@@ -160,7 +215,13 @@ describe("ForecastPage", () => {
             peak_timestamp: "2026-05-20T23:16:06.839Z",
             avg_daily_kwh: 120.2,
             mape: 2.1
-        }
+        },
+        metadata: {
+            timezone: "Africa/Johannesburg",
+            value_unit: "kW",
+            average_unit: "kWh/day",
+            accuracy_metric: "MAPE"
+        },
     };
 
     setupQueries();
@@ -168,12 +229,47 @@ describe("ForecastPage", () => {
     render(<ForecastPage />);
 
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(/building/i), "1");
+    chooseCurvedOption(screen.getByLabelText(/building/i), "1");
     await user.click(screen.getByRole("button", { name: /run forecast/i }));
 
     //assert
-    expect(await screen.findByText(/350\.5 kWh/)).toBeInTheDocument();
-    expect(await screen.findByText(/120\.2 kWh/)).toBeInTheDocument();
+    expect(await screen.findByText(/350\.5 kW/)).toBeInTheDocument();
+    expect(await screen.findByText(/120\.2 kWh\/day/)).toBeInTheDocument();
     expect(await screen.findByText(/MAPE 2\.1%/)).toBeInTheDocument();
 });
+
+    it("does not present missing model error as zero percent", () => {
+        setupQueries();
+        setupMutation({
+            data: {
+                ...resultData,
+                summary: { ...resultData.summary, mape: null },
+            },
+        });
+
+        render(<ForecastPage />);
+
+        expect(screen.getByText("Accuracy unavailable")).toBeInTheDocument();
+        expect(screen.queryByText(/MAPE 0%/)).toBeNull();
+    });
+
+    it("labels monthly forecasts as weekly energy", () => {
+        setupQueries();
+        setupMutation({
+            data: {
+                ...resultData,
+                metadata: {
+                    ...resultData.metadata,
+                    value_unit: "kWh/week",
+                    average_unit: "kWh/week",
+                },
+            },
+        });
+
+        render(<ForecastPage />);
+        chooseCurvedOption(screen.getByLabelText(/horizon/i), "monthly");
+
+        expect(screen.getByText("Peak weekly energy")).toBeInTheDocument();
+        expect(screen.getByText(/250 kWh\/week/)).toBeInTheDocument();
+    });
 });

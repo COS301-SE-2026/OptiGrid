@@ -14,6 +14,7 @@ type Site = {
     type: string | null;
     usage_kwh: number | null;
     cost_zar: number | null;
+    carbon_kg_co2e: number | null;
     share_of_total: number | null;
 };
 
@@ -38,6 +39,19 @@ type ComplianceReport = {
         average_daily_kwh: number;
         intensity_kwh_per_sqft: number | null;
     };
+    carbon_accounting: {
+        total_kg_co2e: number;
+        ledger_entries: number;
+        expected_entries: number;
+        scope_status: "VALID" | "TAMPERED" | "INCOMPLETE";
+        buildings: Array<{
+            building_id: string;
+            status: "VALID" | "TAMPERED" | "INCOMPLETE";
+            records_checked: number;
+            expected_days: number;
+            missing_dates: string[];
+        }>;
+    };
     nonconformities: {
         total: number;
         open: number;
@@ -59,12 +73,14 @@ type ComplianceReport = {
             records_checked: number;
             current_hash: string | null;
             chain_updated_at: string | null;
+            broken_at: { reason: string } | null;
         };
     };
     digital_signature: {
         algorithm: string;
         value: string | null;
         records_covered: number;
+        source: "carbon_ledger" | "audit_log";
         signed_at: string;
     };
 };
@@ -132,7 +148,7 @@ export default function ComplianceClient() {
 
     const renderSites = (sites: Site[]) => {
         if (sites.length === 0) {
-            return (<tr><td colSpan={5} className="dashboard-empty">No sites are in scope for this report.</td></tr>);
+            return (<tr><td colSpan={6} className="dashboard-empty">No sites are in scope for this report.</td></tr>);
         }
 
         return sites.map((site) => (
@@ -141,6 +157,7 @@ export default function ComplianceClient() {
                 <td className="text-muted">{readable(site.type)}</td>
                 <td style={{ textAlign: "right" }}>{formatNumber(site.usage_kwh, 0)}</td>
                 <td style={{ textAlign: "right" }}>{site.cost_zar === null ? "No data" : `R ${formatNumber(site.cost_zar)}`}</td>
+                <td style={{ textAlign: "right" }}>{site.carbon_kg_co2e === null ? "Not generated" : formatNumber(site.carbon_kg_co2e)}</td>
                 <td style={{ textAlign: "right" }}>{site.share_of_total === null ? "No data" : `${formatNumber(site.share_of_total, 1)}%`}</td>
             </tr>
         ));
@@ -184,6 +201,25 @@ export default function ComplianceClient() {
 
     const integrity = data.audit_trail.integrity;
     const severityEntries = Object.entries(data.nonconformities.by_severity);
+    let auditBadgeTone = "badge-default";
+    let auditBadgeLabel = "Chain unavailable";
+    if (integrity.verified) {
+        auditBadgeTone = "badge-success";
+        auditBadgeLabel = "Chain verified";
+    } else if (integrity.broken_at) {
+        auditBadgeTone = "badge-danger";
+        auditBadgeLabel = "Chain broken";
+    }
+
+    let carbonBadgeTone = "badge-warning";
+    let carbonBadgeLabel = "Ledger incomplete";
+    if (data.carbon_accounting.scope_status === "VALID") {
+        carbonBadgeTone = "badge-success";
+        carbonBadgeLabel = "Ledger verified";
+    } else if (data.carbon_accounting.scope_status === "TAMPERED") {
+        carbonBadgeTone = "badge-danger";
+        carbonBadgeLabel = "Ledger tampered";
+    }
     return (
         <div>
             <PageHeading 
@@ -248,6 +284,28 @@ export default function ComplianceClient() {
                 </div>
             </section>
 
+            <section className="dashboard-section" aria-label="Carbon accounting">
+                <div className="dashboard-section-header">
+                    <h2 className="dashboard-section-title">Carbon accounting</h2>
+                    <span className={`badge ${carbonBadgeTone}`}>{carbonBadgeLabel}</span>
+                </div>
+                <div className="card" style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: "var(--space-4)"
+                }}>
+                    <Metric label="Total emissions" value={`${formatNumber(data.carbon_accounting.total_kg_co2e)} kg CO2e`} />
+                    <Metric label="Signed daily entries" value={data.carbon_accounting.ledger_entries.toLocaleString()} />
+                    <Metric label="Expected daily entries" value={data.carbon_accounting.expected_entries.toLocaleString()} />
+                    <Metric label="Buildings checked" value={data.carbon_accounting.buildings.length.toLocaleString()} />
+                </div>
+                {data.carbon_accounting.scope_status === "INCOMPLETE" && (
+                    <p className="text-muted" style={{ margin: "var(--space-2) 0 0", fontSize: "var(--fs-small)" }}>
+                        Historical carbon entries have not been generated for every site and day in this reporting period.
+                    </p>
+                )}
+            </section>
+
             <section className="dashboard-section" aria-label="Sites in scope">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Sites in scope</h2>
@@ -268,6 +326,7 @@ export default function ComplianceClient() {
                                     <th scope="col">Type</th>
                                     <th scope="col" style={numericHeaderStyle}>Consumption (kWh)</th>
                                     <th scope="col" style={numericHeaderStyle}>Cost</th>
+                                    <th scope="col" style={numericHeaderStyle}>Carbon (kg CO2e)</th>
                                     <th scope="col" style={numericHeaderStyle}>Share</th>
                                 </tr>
                             </thead>
@@ -336,7 +395,7 @@ export default function ComplianceClient() {
             <section className="dashboard-section" aria-label="Audit trail">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Audit trail</h2>
-                    <span className={`badge ${integrity.verified ? "badge-success" : "badge-danger"}`}>{integrity.verified ? "Chain verified" : "Chain broken"}</span>
+                    <span className={`badge ${auditBadgeTone}`}>{auditBadgeLabel}</span>
                 </div>
                 <div className="card" style={{ 
                     display: "grid", 
@@ -355,7 +414,7 @@ export default function ComplianceClient() {
                     <span className="signature-label">Digital signature</span>
                     <p className="signature-value">{data.digital_signature.value ?? "No signed entries yet"}</p>
                     <p className="signature-note">
-                        {data.digital_signature.algorithm} chain head over {data.digital_signature.records_covered.toLocaleString()} ledger entries, signed {formatDateTime(data.digital_signature.signed_at)}.
+                        {data.digital_signature.algorithm} {readable(data.digital_signature.source)} head over {data.digital_signature.records_covered.toLocaleString()} entries, signed {formatDateTime(data.digital_signature.signed_at)}.
                     </p>
                 </div>
             </section>

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useId } from "react";
 import { openDialog } from "@/lib/openDialog";
+import { CurvedSelect } from "@/components/curvedselect";
 
 interface User {
   user_id: string;
@@ -303,18 +304,18 @@ export default function UserManagementPage() {
           <section aria-label="Filters and controls" className="card filter-bar">
             <div className="filter-field">
               <label className="label" htmlFor="sort-filter">Sort by</label>
-              <select
+              <CurvedSelect
                 id="sort-filter"
                 value={sortFilter}
-                onChange={(e) => setSortFilter(e.target.value)}
-                className="select"
-                aria-label="Sort users by"
-              >
-                <option value="latest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="name_asc">Name, A to Z</option>
-                <option value="name_desc">Name, Z to A</option>
-              </select>
+                onChange={setSortFilter}
+                options={[
+                  { value: "latest", label: "Newest first" },
+                  { value: "oldest", label: "Oldest first" },
+                  { value: "name_asc", label: "Name, A to Z" },
+                  { value: "name_desc", label: "Name, Z to A" },
+                ]}
+                ariaLabel="Sort users by"
+              />
             </div>
 
             <div className="filter-field filter-field-grow">
@@ -558,45 +559,35 @@ export default function UserManagementPage() {
 
             <div>
               <label className="label" htmlFor="building-select-dialog">Building</label>
-              <select
+              <CurvedSelect
                 id="building-select-dialog"
                 value={selectedBuildingId}
-                onChange={(e) => setSelectedBuildingId(e.target.value)}
-                className="select"
-                aria-label="Select a building to assign or remove"
-              >
-                <option value="">Select a building...</option>
-                {Action === "assign" ? (
-                  buildings
-                    .filter((b) => {
-                      const user = users.find((u) => u.user_id === selectedUserId);
-                      const isManager = user?.role_type === "BUILDING_MANAGER";
-                      const assigned = user?.building_ids.includes(b.building_id);
-                      const assignedToAnyManager = users.some((u) =>
-                        u.role_type === "BUILDING_MANAGER" && u.building_ids.includes(b.building_id)
-                      );
-                      if (assigned) return false;
-                      if (isManager && assignedToAnyManager) return false;
-                      return true;
-                    })
-                    .map((b) => (
-                      <option key={b.building_id} value={b.building_id}>
-                        {b.building_name}
-                      </option>
-                    ))
-                ) : (
-                  buildings
-                    .filter((b) =>
-                      users
-                        .find((u) => u.user_id === selectedUserId)?.building_ids.includes(b.building_id)
-                    )
-                    .map((b) => (
-                      <option key={b.building_id} value={b.building_id}>
-                        {b.building_name}
-                      </option>
-                    ))
-                )}
-              </select>
+                onChange={setSelectedBuildingId}
+                placeholder="Select a building..."
+                options={
+                  Action === "assign"
+                    ? buildings
+                        .filter((b) => {
+                          const user = users.find((u) => u.user_id === selectedUserId);
+                          const isManager = user?.role_type === "BUILDING_MANAGER";
+                          const assigned = user?.building_ids.includes(b.building_id);
+                          const assignedToAnyManager = users.some((u) =>
+                            u.role_type === "BUILDING_MANAGER" && u.building_ids.includes(b.building_id)
+                          );
+                          if (assigned) return false;
+                          if (isManager && assignedToAnyManager) return false;
+                          return true;
+                        })
+                        .map((b) => ({ value: b.building_id, label: b.building_name }))
+                    : buildings
+                        .filter((b) =>
+                          users
+                            .find((u) => u.user_id === selectedUserId)?.building_ids.includes(b.building_id)
+                        )
+                        .map((b) => ({ value: b.building_id, label: b.building_name }))
+                }
+                ariaLabel="Select a building to assign or remove"
+              />
               {Action === "assign" && selectedBuildingId && (
                 <div className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-1)" }}>
                   Building will be assigned to{" "}

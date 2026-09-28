@@ -9,6 +9,7 @@ import { startAnomalySubscriber } from './services/anomaly.subscriber';
 import { startTelemetrySubscriber, stopTelemetrySubscriber } from './services/telemetry.subscriber';
 import { syncThresholdsToRedis } from './services/threshold.services';
 import { startEscalationWorker } from './workers/escalation.worker';
+import { startCarbonLedgerWorker } from './workers/carbonLedger.worker';
 import { AuditEventWorker } from './workers/auditEvent.worker';
 import { redis } from './lib/redis';
 import prisma from './lib/prisma';
@@ -17,6 +18,7 @@ import { startTelemetry } from './services/telemetryPubSub.service';
 export function startServer(port = Number(process.env.PORT ?? 4000)): Server {
     const app = createApp(port);
     let auditEventWorker: AuditEventWorker | undefined;
+    let carbonLedgerWorker: ReturnType<typeof startCarbonLedgerWorker> | undefined;
     const server = app.listen(port, () => {
         console.log(`Core service (OptiGrid API) listening on port ${port}`);
         console.log(`Swagger docs available at http://localhost:${port}/api-docs`);
@@ -27,8 +29,9 @@ export function startServer(port = Number(process.env.PORT ?? 4000)): Server {
         startTelemetrySubscriber().catch(console.error);
         startEscalationWorker();
         startTelemetry();
-        
+
         if (process.env.NODE_ENV !== 'test') {
+            carbonLedgerWorker = startCarbonLedgerWorker();
             auditEventWorker = new AuditEventWorker(redis.duplicate(), prisma);
             auditEventWorker.start().catch(error => {
                 console.error('[AuditEventWorker] Stopped unexpectedly:', error);
@@ -37,6 +40,7 @@ export function startServer(port = Number(process.env.PORT ?? 4000)): Server {
     });
     server.once('close', () => {
         if (auditEventWorker) void auditEventWorker.stop();
+        carbonLedgerWorker?.stop();
         void stopTelemetrySubscriber();
     });
     initWebSocketServer(server);

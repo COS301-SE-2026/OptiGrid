@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, fireEvent,  act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AddBuildingPage from "./page";
+import { chooseCurvedOption, openCurvedSelect } from "@/test-utils/curvedSelect";
 
 const mockPush = jest.fn();
  
@@ -106,7 +107,7 @@ describe("AddBuildingPage", () => {
 
     it("defaults building type to 'Commercial'", () => {
       render(<AddBuildingPage />);
-      expect((getField("building_type") as HTMLSelectElement).value).toBe("Commercial");
+      expect(getField("building_type")).toHaveAttribute("data-value", "Commercial");
     });
 
     it("leaves the timezone field empty with 'Africa/Johannesburg' shown as a placeholder", () => {
@@ -127,16 +128,15 @@ describe("AddBuildingPage", () => {
     types.forEach((type) => {
       it(`renders the ${type} option`, () => {
         render(<AddBuildingPage />);
-        const select = getField("building_type") as HTMLSelectElement;
-        const values = Array.from(select.options).map((o) => o.text);
+        const values = openCurvedSelect(getField("building_type")).map((option) => option.textContent ?? "");
         expect(values.some((v) => v.toLowerCase() === type.toLowerCase())).toBe(true);
       });
     });
 
     it("updates building type when changed", () => {
       render(<AddBuildingPage />);
-      fill("building_type", "Industrial");
-      expect((getField("building_type") as HTMLSelectElement).value).toBe("Industrial");
+      chooseCurvedOption(getField("building_type"), "Industrial");
+      expect(getField("building_type")).toHaveAttribute("data-value", "Industrial");
     });
   });
 

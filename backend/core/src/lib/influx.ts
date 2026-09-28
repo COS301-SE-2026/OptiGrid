@@ -56,6 +56,11 @@ export type UsageSeriesPoint = {
     cost_zar: number;
 };
 
+export type MeasuredDemandPoint = {
+    timestamp: string;
+    kwh: number;
+};
+
 function fluxString(value: string): string {
     return JSON.stringify(value);
 }
@@ -170,6 +175,32 @@ async function queryBucketTotals(queryApi: any, buildingId: string, rangeClause:
     return totals;
 }
 
+async function queryBucketReadingCount(
+    queryApi: any,
+    buildingId: string,
+    rangeClause: string,
+    bucketName: string
+): Promise<number> {
+    const fluxQuery = `
+        from(bucket: ${fluxString(bucketName)})
+        |> ${rangeClause}
+        |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
+        |> filter(fn: (r) => ${measurementFilter()})
+        |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
+        |> group()
+        |> count(column: "_value")
+    `;
+
+    let count = 0;
+    for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
+        const value = toFiniteNumber(tableMeta.toObject(values)._value);
+        if (value !== null) {
+            count += value;
+        }
+    }
+    return Math.max(0, Math.trunc(count));
+}
+
 async function queryBucketPeakUsage(
     queryApi: any,
     buildingId: string,
@@ -277,17 +308,28 @@ async function queryBucketUsageSeries(
         }
         points.set(timestamp, point);
     }
-    //i need the following for the tariffs, fallbacks to the the flat rate
-    //if structure is incorrect 
-    const buildingTariffRecord = await prisma.utilityTariff.findFirst({
-        where: {
-            building_id: buildingId
-        },
-        orderBy: {
-            created_at: "desc"
-        }
-    });
-        let tariffStructure: TariffStructure = {
+    // Tariff metadata enriches cost values, but energy series must remain usable
+    // when the tariff table is unavailable or temporarily out of sync.
+    let buildingTariffRecord: { tariff_structure: unknown } | null = null;
+    try {
+        buildingTariffRecord = await prisma.utilityTariff.findFirst({
+            where: {
+                building_id: buildingId
+            },
+            orderBy: {
+                created_at: "desc"
+            },
+            select: {
+                tariff_structure: true
+            }
+        });
+    } catch (error) {
+        console.warn(
+            `[Tariff] Failed to load tariff for building ${buildingId}. Using recorded or flat-rate cost. Error:`,
+            error,
+        );
+    }
+    let tariffStructure: TariffStructure = {
         type: "flat",
         seasons: [{
             name: "Flat",
@@ -444,6 +486,118 @@ export const queryUsageSeries = async (buildingId: string, timeRange: string): P
     }
 
     console.warn(`[InfluxDB] Failed to query telemetry series for building ${buildingId}. Returning fallback. Error:`, lastError);
+    return [];
+};
+
+export const queryTelemetryReadingCountBetween = async (
+    buildingId: string,
+    start: Date,
+    stop: Date
+): Promise<number> => {
+    if (!InfluxDB) {
+        return 0;
+    }
+
+    const influxClient = new InfluxDB({ url, token });
+    const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
+    let lastError: unknown;
+
+    for (const bucketName of uniqueBuckets(buildingId)) {
+        try {
+            return await queryBucketReadingCount(
+                queryApi,
+                buildingId,
+                absoluteRangeClause(start, stop),
+                bucketName
+            );
+        } catch (error: any) {
+            lastError = error;
+            if (!isMissingBucketError(error)) {
+                break;
+            }
+        }
+    }
+
+    console.warn(
+        `[InfluxDB] Failed to count telemetry readings for building ${buildingId}. Returning zero. Error:`,
+        lastError
+    );
+    return 0;
+};
+
+function measuredDemandFluxQuery(
+    bucketName: string,
+    buildingId: string,
+    horizon: 'weekly' | 'monthly',
+): string {
+    const range = horizon === 'monthly' ? '12w' : '7d';
+    const weeklyAggregation = horizon === 'monthly'
+        ? '|> group()\n        |> aggregateWindow(every: 1w, fn: sum, createEmpty: false)'
+        : '|> group()';
+
+    return `
+        from(bucket: ${fluxString(bucketName)})
+        |> range(start: -${range})
+        |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
+        |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
+        |> filter(fn: (r) => r["_field"] == "usage")
+        |> filter(fn: (r) => exists r.sensor_id and r.sensor_id != "")
+        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+        |> group(columns: ["_time"])
+        |> sum(column: "_value")
+        ${weeklyAggregation}
+        |> sort(columns: ["_time"])
+    `;
+}
+
+async function queryBucketMeasuredDemand(
+    queryApi: any,
+    bucketName: string,
+    buildingId: string,
+    horizon: 'weekly' | 'monthly',
+): Promise<MeasuredDemandPoint[]> {
+    const points: MeasuredDemandPoint[] = [];
+    const fluxQuery = measuredDemandFluxQuery(bucketName, buildingId, horizon);
+
+    for await (const { values, tableMeta } of queryApi.iterateRows(fluxQuery)) {
+        const row = tableMeta.toObject(values);
+        const value = toFiniteNumber(row._value);
+        const timestamp = row._time ? String(row._time) : null;
+        if (timestamp && value !== null) {
+            points.push({ timestamp, kwh: value });
+        }
+    }
+
+    return points;
+}
+
+// Return only sensor-tagged raw readings so forecast charts never present seeded
+// fallback data as measured history. Hourly means are demand (kW); summing those
+// one-hour intervals into weeks produces weekly energy (kWh).
+export const queryMeasuredDemandSeries = async (
+    buildingId: string,
+    horizon: 'weekly' | 'monthly',
+): Promise<MeasuredDemandPoint[]> => {
+    if (!InfluxDB) {
+        return [];
+    }
+
+    const influxClient = new InfluxDB({ url, token });
+    const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
+    let lastError: unknown;
+
+    for (const bucketName of uniqueBuckets(buildingId)) {
+        try {
+            return await queryBucketMeasuredDemand(queryApi, bucketName, buildingId, horizon);
+        } catch (error: any) {
+            lastError = error;
+            if (!isMissingBucketError(error)) {
+                break;
+            }
+        }
+    }
+
+    console.warn('[InfluxDB] Failed to query measured demand. Returning no history. Error:', lastError);
     return [];
 };
 
