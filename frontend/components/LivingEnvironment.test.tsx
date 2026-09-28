@@ -44,17 +44,18 @@ export const setSlider = (label: RegExp, value: number) =>
 
 describe("LivingEnvironment", () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     mockFetchEsgHealthScore.mockResolvedValue({
       buildingId: "building-1",
       score: 54,
       scoreLabel: "Operational environmental proxy",
       computedAt: "2026-09-28T12:00:00.000Z",
-      trend: 1,
+      trend: 0,
       dimensions: [
-        { dimension: "energy_efficiency", label: "Energy Efficiency", score: 80, weight: 0.35, trend: 1 },
+        { dimension: "energy_efficiency", label: "Energy Efficiency", score: 80, weight: 0.35, trend: 0 },
         { dimension: "renewables", label: "Renewable Energy", score: 0, weight: 0.3, trend: 0 },
-        { dimension: "hvacLoad", label: "HVAC Optimization", score: 60, weight: 0.2, trend: 1 },
-        { dimension: "lighting", label: "Lighting Optimization", score: 70, weight: 0.15, trend: 1 },
+        { dimension: "hvacLoad", label: "HVAC Optimization", score: 60, weight: 0.2, trend: 0 },
+        { dimension: "lighting", label: "Lighting Optimization", score: 70, weight: 0.15, trend: 0 },
       ],
       carbonIntensity: 0.93,
       carbonAccounting: {
@@ -77,6 +78,16 @@ describe("LivingEnvironment", () => {
   });
 
   describe("Initial render", () => {
+    it("shows skeletons instead of unavailable values while evidence is loading", () => {
+      mockFetchEsgHealthScore.mockReturnValue(new Promise<never>(() => undefined));
+      const { container } = renderEnv();
+
+      expect(screen.getByRole("status")).toHaveTextContent(/loading environmental evidence/i);
+      expect(container.querySelectorAll(".skeleton").length).toBeGreaterThan(0);
+      expect(screen.queryByText(/^unavailable$/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("slider")).not.toBeInTheDocument();
+    });
+
     it("renders the Environmental Performance heading", () => {
       renderEnv();
       expect(screen.getByRole("heading", { name: /environmental performance/i })).toBeInTheDocument();
@@ -99,24 +110,24 @@ describe("LivingEnvironment", () => {
   });
 
   describe("Sliders", () => {
-    it("renders Energy Efficiency slider", () => {
+    it("renders Energy Efficiency slider", async () => {
       renderEnv();
-      expect(getSlider(/energy efficiency/i)).toBeInTheDocument();
+      expect(await screen.findByRole("slider", { name: /energy efficiency/i })).toBeInTheDocument();
     });
 
-    it("renders Renewable Energy slider", () => {
+    it("renders Renewable Energy slider", async () => {
       renderEnv();
-      expect(getSlider(/renewable energy/i)).toBeInTheDocument();
+      expect(await screen.findByRole("slider", { name: /renewable energy/i })).toBeInTheDocument();
     });
 
-    it("renders HVAC Optimization slider", () => {
+    it("renders HVAC Optimization slider", async () => {
       renderEnv();
-      expect(getSlider(/hvac optimization/i)).toBeInTheDocument();
+      expect(await screen.findByRole("slider", { name: /hvac optimization/i })).toBeInTheDocument();
     });
 
-    it("renders Lighting Optimization slider", () => {
+    it("renders Lighting Optimization slider", async () => {
       renderEnv();
-      expect(getSlider(/lighting optimization/i)).toBeInTheDocument();
+      expect(await screen.findByRole("slider", { name: /lighting optimization/i })).toBeInTheDocument();
     });
   });
 
@@ -140,9 +151,9 @@ describe("LivingEnvironment", () => {
   });
 
   describe("Weightage note", () => {
-    it("renders the weightage description", () => {
+    it("renders the weightage description", async () => {
       renderEnv();
-      expect(screen.getByText(/efficiency 35%/i)).toBeInTheDocument();
+      expect(await screen.findByText(/efficiency 35%/i)).toBeInTheDocument();
       expect(screen.getByText(/renewables 30%/i)).toBeInTheDocument();
     });
   });
