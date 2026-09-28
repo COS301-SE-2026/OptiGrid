@@ -232,7 +232,7 @@ def test_train_and_forecast_weekly_positive(mock_study, engine, sample_weekly_ti
     assert res is not None
     assert "forecast_peak" in res
     assert "forecast_avg_day" in res
-    assert res["model_mape"] == 0.05  # matches mock best_value
+    assert res["model_mape"] == 5.0
     assert len(res["forecast_series"]) == 168  # 7 days * 24 hours
     assert "timestamp" in res["forecast_series"][0]
     assert "predicted_usage" in res["forecast_series"][0]
@@ -247,6 +247,7 @@ def test_train_and_forecast_weekly_insufficient_data(engine):
     res = engine.train_and_forecast_weekly(df_short)
     assert 'forecast_peak' in res
     assert len(res['forecast_series']) == 24
+    assert res['model_mape'] is None
 
 
 # tests for training and forecasting monthly
@@ -270,7 +271,7 @@ def test_train_and_forecast_monthly_positive(mock_study, engine, sample_monthly_
     assert res is not None
     assert "forecast_peak" in res
     assert "forecast_avg_day" in res
-    assert res["model_mape"] == 0.07
+    assert res["model_mape"] == 7.0
     assert len(res["forecast_series"]) == 12  # 12 weeks forecast
     assert "timestamp" in res["forecast_series"][0]
     assert "predicted_usage" in res["forecast_series"][0]
@@ -285,6 +286,7 @@ def test_train_and_forecast_monthly_insufficient_data(engine):
     res = engine.train_and_forecast_monthly(df_short)
     assert 'forecast_peak' in res
     assert len(res['forecast_series']) == 12
+    assert res['model_mape'] is None
 
 
 # tests for processing a single buidling

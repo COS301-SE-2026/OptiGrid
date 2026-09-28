@@ -69,7 +69,7 @@ class AnalyticsEngine:
                     "todays_cost": 0.0,
                     "forecast_peak": 0.0,
                     "forecast_avg_day": 0.0,
-                    "model_mape": 0.0,
+                    "model_mape": None,
                     "forecast_series": [],
                     "min_historic": 0.0,
                     "max_historic": 0.0,
@@ -245,7 +245,7 @@ class AnalyticsEngine:
             return {
                 "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
                 "forecast_avg_day": round(sum(f["predicted_usage"] for f in forecast_series), 2),
-                "model_mape": 0.0,
+                "model_mape": None,
                 "forecast_series": forecast_series,
                 "min_historic": round(df['usage'].min() if not df.empty else 0, 2),
                 "max_historic": round(df['usage'].max() if not df.empty else 0, 2),
@@ -278,9 +278,10 @@ class AnalyticsEngine:
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
-            #chnaged metric to MAE n used timeseries
+            # Select the model using percentage error so the persisted metric
+            # is a genuine MAPE value rather than an MAE with a percent sign.
             time_series_CV = TimeSeriesSplit(n_splits=3)
-            scores = cross_val_score(model, X, y, cv=time_series_CV, scoring='neg_mean_absolute_error')
+            scores = cross_val_score(model, X, y, cv=time_series_CV, scoring='neg_mean_absolute_percentage_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
@@ -338,7 +339,7 @@ class AnalyticsEngine:
         return {
             "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
             "forecast_avg_day": round(sum(daily_sums) / 7.0, 2),
-            "model_mape": round(study.best_value, 4),
+            "model_mape": round(study.best_value * 100.0, 4),
             "forecast_series": forecast_series,
             "min_historic": round(df['usage'].min(), 2),
             "max_historic": round(df['usage'].max(), 2),
@@ -365,7 +366,7 @@ class AnalyticsEngine:
             return {
                 "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
                 "forecast_avg_day": round(sum(f["predicted_usage"] for f in forecast_series) / 12.0, 2),
-                "model_mape": 0.0,
+                "model_mape": None,
                 "forecast_series": forecast_series,
                 "min_historic": round(df['usage'].min() if not df.empty else 0, 2),
                 "max_historic": round(df['usage'].max() if not df.empty else 0, 2),
@@ -402,9 +403,9 @@ class AnalyticsEngine:
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
-            #change metirc to MAE n use timeseries
+            # Keep model selection and the displayed validation metric aligned.
             time_series = TimeSeriesSplit(n_splits=2)
-            scores = cross_val_score(model, X, y, cv=time_series, scoring='neg_mean_absolute_error')
+            scores = cross_val_score(model, X, y, cv=time_series, scoring='neg_mean_absolute_percentage_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
@@ -467,7 +468,7 @@ class AnalyticsEngine:
         return {
             "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
             "forecast_avg_day": round(sum(f["predicted_usage"] for f in forecast_series) / 12.0, 2),
-            "model_mape": round(study.best_value, 4),
+            "model_mape": round(study.best_value * 100.0, 4),
             "forecast_series": forecast_series,
             "min_historic": round(df['usage'].min(), 2),
             "max_historic": round(df['usage'].max(), 2),
@@ -854,4 +855,3 @@ class AnalyticsEngine:
                 self.supabase.table("optimisation_recommendations").upsert(recs_all).execute()
             except Exception as e:
                 logger.exception("Failed to insert recommendations for: %s", building_id)
-    
