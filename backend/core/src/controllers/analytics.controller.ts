@@ -33,12 +33,18 @@ function toFiniteNumber(value: unknown): number | null {
         return value;
     }
 
-    if (typeof value === 'string') {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : null;
+    if (value === null || value === undefined || typeof value === 'boolean') {
+        return null;
     }
 
-    return null;
+    if (typeof value === 'string' && value.trim() === '') {
+        return null;
+    }
+
+    // Prisma represents PostgreSQL DECIMAL values as Decimal objects. Number()
+    // uses their numeric string representation without weakening null handling.
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
 }
 
 type AuthorizedBuilding = { building_id: string; timezone: string | null };
