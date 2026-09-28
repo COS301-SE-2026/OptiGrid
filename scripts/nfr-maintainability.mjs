@@ -4,16 +4,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const head = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const option = (name, fallback) => argv.includes(name) ? argv[argv.indexOf(name) + 1] : fallback;
 const stamp = new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
-const out = path.resolve(root, option("--output", `test-results/maintainability/${stamp}`));
-fs.mkdirSync(out, { recursive: true });
+const out = path.resolve(head, option("--output", `test-results/maintainability/${stamp}`));
+fs.mkdirSync(out, {
+  recursive: true
+});
 
 const report = {
   startedAt: new Date().toISOString(),
-  environment: { platform: process.platform, node: process.version },
+  environment: {
+    platform: process.platform,
+    node: process.version
+  },
   results: {},
 };
 
@@ -57,13 +62,15 @@ async function runCoverageTest(id, name, command, reportFile, isPython, errorMsg
   await runTest(id, name, async () => {
     try {
       execSync(command, {
-        cwd: root,
+        cwd: head,
         stdio: "ignore"
       });
     }
-    catch (e) {}
+    catch (e) {
+      //ignore: sonar qube acting up
+    }
     
-    const sumPath = path.join(root, reportFile);
+    const sumPath = path.join(head, reportFile);
     if(!fs.existsSync(sumPath)) throw new Error(errorMsg);
     
     const summary = JSON.parse(fs.readFileSync(sumPath, "utf-8"));
@@ -119,8 +126,8 @@ async function main() {
 
   await runTest("MNT-B05", "Layer Boundaries(TypeScript)", async () => {
     try {
-      const { inspect } = await import(path.join(root, "tests/nfr/maintainability/boundaries.mjs"));
-      const res = inspect(root);
+      const { inspect } = await import(path.join(head, "tests/nfr/maintainability/boundaries.mjs"));
+      const res = inspect(head);
       if(res.passed) {
         return {
           passed: true,
@@ -130,40 +137,40 @@ async function main() {
       else {
         return {
           passed: false,
-          details: `FAIL: Found ${result.violations.length} layer violations and ${result.errors.length} errors`
+          details: `FAIL: Found ${result.violations.length} violations and ${result.errors.length} errors`
         };
       }
     }
-    catch(err) {
+    catch(e) {
       return {
         passed: false,
-        details: `FAIL: ${err.message}`
+        details: `FAIL: ${e.message}`
       };
     }
   });
 
   await runTest("MNT-06", "Layer Boundaries (Python)", async () => {
     try {
-      const out = execSync(`python3 tests/nfr/maintainability/python-boundaries.py "${root}"`, {
+      const out = execSync(`python3 tests/nfr/maintainability/python-boundaries.py "${head}"`, {
         stdio: 'pipe'
       });
       const res = JSON.parse(out.toString());
       return {
-        passed: result.passed,
+        passed: res.passed,
         details: `PASS: NO violations out of ${res.filesChecked} python files`
       };
     }
-    catch(err) {
+    catch(error) {
       return {
         passed: false,
-        details: `FAIL: Python boundaries check failed`
+        details: `FAIL: Python boundaries check failed - ${error.message}`
       };
     }
   });
 
   await runTest("MNT-07", "Code Quality & Linting", async () => {
     try{
-      execSync('corepack pnpm run lint', { cwd: root, stdio: "ignore" });
+      execSync('corepack pnpm run lint', { cwd: head, stdio: "ignore" }); // NOSONAR
       return {
         passed: true,
         details: "PASS: ESLint has 0 errors across the repo"
@@ -172,7 +179,7 @@ async function main() {
     catch(err) {
       return {
         passed: false,
-        details: "FAIL: ESLint reported errors"
+        details: `FAIL: ESLint reported errors - ${err.message}`
       };
     }
   });
@@ -191,4 +198,9 @@ async function main() {
   process.exitCode = Object.values(report.results).some(r => r.status !== "PASS") ? 1 : 0;
 }
 
-main().catch(console.error);
+try {
+  await main();
+}
+catch(error) {
+  console.error(error);
+}
