@@ -32,11 +32,13 @@ jest.mock('../../../backend/core/src/services/carbonIntegrity.service', () => ({
         building_id: buildingId,
         month,
         status: 'INCOMPLETE',
-        verified: false,
+        verified: true,
         algorithm: 'SHA-256',
         records_checked: 0,
         expected_days: 31,
         missing_dates: [],
+        source_complete_days: 0,
+        source_incomplete_dates: [],
         current_hash: null,
         broken_at: null,
         verified_at: new Date().toISOString()
@@ -194,6 +196,34 @@ describe('Compliance Routes', () => {
                 }
             })
         }));
+    });
+
+    it('uses signed ledger energy and withholds a retained partial-period cost', async () => {
+        jest.useFakeTimers({ now: new Date('2026-09-14T10:00:00.000Z'), doNotFake: [...REAL_TIMERS] });
+        serveLedger(buildLedger(2));
+        serveReportData();
+        (prisma.carbonLedgerEntry.findMany as jest.Mock).mockResolvedValue([{
+            building_id: 'b1',
+            period_date: new Date('2026-08-01T00:00:00.000Z'),
+            total_kwh: 600,
+            total_kg_co2e: 558,
+            reading_count: 24
+        }]);
+
+        const response = await request(createComplianceApp()).get('/api/compliance/report?format=json');
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.energy_performance).toMatchObject({
+            total_usage_kwh: 600,
+            total_cost_zar: null,
+            source: 'carbon_ledger'
+        });
+        expect(response.body.data.energy_performance.intensity_kwh_per_sqm).toBeCloseTo(6.4583, 4);
+        expect(response.body.data.organisation.sites[0]).toMatchObject({
+            usage_kwh: 600,
+            cost_zar: null,
+            carbon_kg_co2e: 558
+        });
     });
 
     it('closes the JSON report with the chain head as the digital signature', async () => {

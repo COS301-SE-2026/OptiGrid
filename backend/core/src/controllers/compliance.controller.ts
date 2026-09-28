@@ -267,7 +267,10 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         doc.y += 14;
     };
 
-    drawSectionHeader('Energy performance', `Measured across ${report.organisation.buildings_in_scope} ${report.organisation.buildings_in_scope === 1 ? 'site' : 'sites'} over ${report.period.label}, covering all ${report.period.days} days (UTC).`);
+    const energyCoverageNote = report.carbon_accounting.scope_status === 'INCOMPLETE'
+        ? `Recorded across ${report.organisation.buildings_in_scope} ${report.organisation.buildings_in_scope === 1 ? 'site' : 'sites'} over ${report.period.label}; source-data gaps are detailed below.`
+        : `Measured across ${report.organisation.buildings_in_scope} ${report.organisation.buildings_in_scope === 1 ? 'site' : 'sites'} over ${report.period.label}, covering all ${report.period.days} days (UTC).`;
+    drawSectionHeader('Energy performance', energyCoverageNote);
     drawStatGrid([
         { 
             label: 'Total consumption', 
@@ -279,17 +282,23 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         },
         { 
             label: 'Energy spend', 
-            value: `R ${formatNumber(report.energy_performance.total_cost_zar)}`, accent: palette.secondary 
+            value: report.energy_performance.total_cost_zar === null
+                ? 'Unavailable'
+                : `R ${formatNumber(report.energy_performance.total_cost_zar)}`,
+            note: report.energy_performance.total_cost_zar === null ? 'Full-period cost data unavailable' : undefined,
+            accent: palette.secondary
         },
         {
             label: 'Energy intensity',
-            value: report.energy_performance.intensity_kwh_per_sqft === null ? 'No floor data' : `${formatNumber(report.energy_performance.intensity_kwh_per_sqft, 2)}`,
+            value: report.energy_performance.intensity_kwh_per_sqm === null ? 'No floor data' : `${formatNumber(report.energy_performance.intensity_kwh_per_sqm, 2)}`,
             note: 'kWh per square metre',
             accent: palette.secondary
         },
         {
             label: 'Carbon emissions',
-            value: `${formatNumber(report.carbon_accounting.total_kg_co2e)} kg CO2e`,
+            value: report.carbon_accounting.total_kg_co2e === null
+                ? 'Unavailable'
+                : `${formatNumber(report.carbon_accounting.total_kg_co2e)} kg CO2e`,
             note: `${report.carbon_accounting.ledger_entries} signed daily entries`,
             accent: report.carbon_accounting.scope_status === 'VALID' ? palette.success : palette.secondary
         },
@@ -341,7 +350,7 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         ])
     );
 
-    drawSectionHeader('Carbon ledger integrity', 'Daily building emissions are chained independently. Missing days are incomplete; altered links are tampered.');
+    drawSectionHeader('Carbon ledger integrity', 'Daily emissions are signed independently. Coverage gaps and cryptographic failures are reported separately.');
     const carbon = report.carbon_accounting;
     let carbonStatusAccent = palette.secondary;
     if (carbon.scope_status === 'VALID') {
@@ -353,12 +362,12 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         {
             label: 'Scope status',
             value: readable(carbon.scope_status),
-            note: `${carbon.ledger_entries} of ${carbon.expected_entries} expected entries`,
+            note: `${carbon.source_complete_entries} of ${carbon.expected_entries} site-days have telemetry`,
             accent: carbonStatusAccent
         },
         {
             label: 'Emissions',
-            value: `${formatNumber(carbon.total_kg_co2e)} kg CO2e`,
+            value: carbon.total_kg_co2e === null ? 'Unavailable' : `${formatNumber(carbon.total_kg_co2e)} kg CO2e`,
             note: report.period.label
         },
         {
@@ -367,6 +376,17 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
             note: 'Independently chained'
         }
     ], 3);
+
+    if (carbon.scope_status === 'INCOMPLETE') {
+        checkSpacing(36);
+        doc.font('Helvetica').fontSize(8.5).fillColor(palette.text).text(
+            `${carbon.source_incomplete_entries} signed site-days have no source telemetry; ${carbon.missing_entries} expected ledger entries are missing.`,
+            left,
+            doc.y,
+            { width: contentWidth }
+        );
+        doc.y += 10;
+    }
 
     drawSectionHeader('Audit trail integrity', 'Every audit entry is chained to the one before it. Any edit or deletion breaks the chain.');
 

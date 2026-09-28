@@ -35,14 +35,18 @@ type ComplianceReport = {
     };
     energy_performance: {
         total_usage_kwh: number;
-        total_cost_zar: number;
+        total_cost_zar: number | null;
         average_daily_kwh: number;
-        intensity_kwh_per_sqft: number | null;
+        intensity_kwh_per_sqm: number | null;
+        source: "carbon_ledger" | "live_telemetry" | "mixed";
     };
     carbon_accounting: {
-        total_kg_co2e: number;
+        total_kg_co2e: number | null;
         ledger_entries: number;
         expected_entries: number;
+        source_complete_entries: number;
+        source_incomplete_entries: number;
+        missing_entries: number;
         scope_status: "VALID" | "TAMPERED" | "INCOMPLETE";
         buildings: Array<{
             building_id: string;
@@ -50,6 +54,8 @@ type ComplianceReport = {
             records_checked: number;
             expected_days: number;
             missing_dates: string[];
+            source_complete_days: number;
+            source_incomplete_dates: string[];
         }>;
     };
     nonconformities: {
@@ -201,6 +207,15 @@ export default function ComplianceClient() {
 
     const integrity = data.audit_trail.integrity;
     const severityEntries = Object.entries(data.nonconformities.by_severity);
+    const hasIncompleteCarbonCoverage = data.carbon_accounting.scope_status === "INCOMPLETE";
+    const consumptionLabel = hasIncompleteCarbonCoverage ? "Recorded consumption" : "Total consumption";
+    const averageLabel = hasIncompleteCarbonCoverage ? "Recorded average per day" : "Average per day";
+    let energySourceLabel = "Live telemetry";
+    if (data.energy_performance.source === "carbon_ledger") {
+        energySourceLabel = "Signed daily ledger";
+    } else if (data.energy_performance.source === "mixed") {
+        energySourceLabel = "Signed ledger and live telemetry";
+    }
     let auditBadgeTone = "badge-default";
     let auditBadgeLabel = "Chain unavailable";
     if (integrity.verified) {
@@ -274,14 +289,20 @@ export default function ComplianceClient() {
                     gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", 
                     gap: "var(--space-4)" 
                 }}>
-                    <Metric label="Total consumption" value={`${formatNumber(data.energy_performance.total_usage_kwh, 0)} kWh`} />
-                    <Metric label="Average per day" value={`${formatNumber(data.energy_performance.average_daily_kwh, 0)} kWh`} />
-                    <Metric label="Energy spend" value={`R ${formatNumber(data.energy_performance.total_cost_zar)}`} />
-                    <Metric label="Energy intensity" value={data.energy_performance.intensity_kwh_per_sqft === null
+                    <Metric label={consumptionLabel} value={`${formatNumber(data.energy_performance.total_usage_kwh, 0)} kWh`} />
+                    <Metric label={averageLabel} value={`${formatNumber(data.energy_performance.average_daily_kwh, 0)} kWh`} />
+                    <Metric label="Energy spend" value={data.energy_performance.total_cost_zar === null
+                        ? "Unavailable for full period"
+                        : `R ${formatNumber(data.energy_performance.total_cost_zar)}`}
+                    />
+                    <Metric label="Energy intensity" value={data.energy_performance.intensity_kwh_per_sqm === null
                         ? "No floor data"
-                        : `${formatNumber(data.energy_performance.intensity_kwh_per_sqft, 2)} kWh/m²`}
+                        : `${formatNumber(data.energy_performance.intensity_kwh_per_sqm, 2)} kWh/m²`}
                     />
                 </div>
+                <p className="text-muted" style={{ margin: "var(--space-2) 0 0", fontSize: "var(--fs-small)" }}>
+                    Energy source: {energySourceLabel}.
+                </p>
             </section>
 
             <section className="dashboard-section" aria-label="Carbon accounting">
@@ -294,14 +315,20 @@ export default function ComplianceClient() {
                     gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
                     gap: "var(--space-4)"
                 }}>
-                    <Metric label="Total emissions" value={`${formatNumber(data.carbon_accounting.total_kg_co2e)} kg CO2e`} />
+                    <Metric label="Total emissions" value={data.carbon_accounting.total_kg_co2e === null
+                        ? "Unavailable due to integrity failure"
+                        : `${formatNumber(data.carbon_accounting.total_kg_co2e)} kg CO2e`}
+                    />
                     <Metric label="Signed daily entries" value={data.carbon_accounting.ledger_entries.toLocaleString()} />
-                    <Metric label="Expected daily entries" value={data.carbon_accounting.expected_entries.toLocaleString()} />
+                    <Metric label="Telemetry-backed entries" value={`${data.carbon_accounting.source_complete_entries.toLocaleString()} of ${data.carbon_accounting.expected_entries.toLocaleString()}`} />
                     <Metric label="Buildings checked" value={data.carbon_accounting.buildings.length.toLocaleString()} />
                 </div>
                 {data.carbon_accounting.scope_status === "INCOMPLETE" && (
                     <p className="text-muted" style={{ margin: "var(--space-2) 0 0", fontSize: "var(--fs-small)" }}>
-                        Historical carbon entries have not been generated for every site and day in this reporting period.
+                        {data.carbon_accounting.source_incomplete_entries.toLocaleString()} signed site-days have no source telemetry
+                        {data.carbon_accounting.missing_entries > 0
+                            ? `, and ${data.carbon_accounting.missing_entries.toLocaleString()} expected ledger entries are missing.`
+                            : "."}
                     </p>
                 )}
             </section>
