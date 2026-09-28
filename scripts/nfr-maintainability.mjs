@@ -131,13 +131,13 @@ async function main() {
       if(res.passed) {
         return {
           passed: true,
-          details: `PASS: NO violations out of ${result.filesChecked} files`
+          details: `PASS: NO violations out of ${res.filesChecked} files`
         };
       }
       else {
         return {
           passed: false,
-          details: `FAIL: Found ${result.violations.length} violations and ${result.errors.length} errors`
+          details: `FAIL: Found ${res.violations.length} violations and ${res.errors.length} errors`
         };
       }
     }

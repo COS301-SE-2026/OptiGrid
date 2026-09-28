@@ -40,10 +40,31 @@ async function runTest(id, name, testFn) {
   console.log(`${id}: ${status}`);
 }
 
+import { spawn } from "node:child_process";
+
 async function main() {
+  let serverProcess;
+  try{
+    await fetch("http://localhost:4000/health");
+  }
+  catch(error) {
+    console.log("Starting backend server for tests...");
+    serverProcess = spawn("corepack", ["pnpm", "--filter", "@optigrid/core", "run", "dev"], { cwd: root, stdio: "ignore" });
+    for (let i = 0; i < 30; i++) {
+      try {
+        await fetch("http://localhost:4000/health");
+        console.log("Backend server is ready!");
+        break;
+      }
+      catch (err) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+  }
+
   await runTest("SEC01", "SAST (Static Application Security Testing) & Dependencies", async () => {
     try {
-      execSync("npm audit --json", { cwd: root, stdio: "pipe" });
+      execSync("pnpm audit --json --prod", { cwd: root, stdio: "pipe" });
       return {
         passed: true,
         details: "pass No critical or high vulnerabilities found in dependencies via npm audit"
@@ -149,6 +170,9 @@ async function main() {
     }
   });
 
+  if (serverProcess) {
+    serverProcess.kill();
+  }
   report.completedAt = new Date().toISOString();
   save();
   console.log(`Evidence: ${out}`);
