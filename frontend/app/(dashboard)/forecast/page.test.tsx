@@ -53,6 +53,16 @@ const resultData = {
         avg_daily_kwh: 1200,
         mape: 4.8,
     },
+    metadata: {
+        timezone: "Africa/Johannesburg",
+        value_unit: "kW",
+        average_unit: "kWh/day",
+        accuracy_metric: "MAPE",
+    },
+};
+
+type TestForecastResult = Omit<typeof resultData, "summary"> & {
+    summary: Omit<typeof resultData.summary, "mape"> & { mape: number | null };
 };
 
 function setupQueries() {
@@ -69,7 +79,7 @@ function setupMutation({
     data,
     isPending = false,
 }: {
-    data?: typeof resultData | undefined;
+    data?: TestForecastResult | undefined;
     isPending?: boolean;
 } = {}) {
     const mutate = jest.fn();
@@ -187,9 +197,11 @@ describe("ForecastPage", () => {
 
         expect(screen.queryByText(/Configure the controls above/i)).toBeNull();
         expect(screen.getByText(/Demand Trend/i)).toBeInTheDocument();
-        expect(screen.getByText(/250 kWh/)).toBeInTheDocument();
-        expect(screen.getByText(/1,?200 kWh/)).toBeInTheDocument();
+        expect(screen.getByText(/250 kW/)).toBeInTheDocument();
+        expect(screen.getByText(/1,?200 kWh\/day/)).toBeInTheDocument();
         expect(screen.getByText(/MAPE 4.8%/)).toBeInTheDocument();
+        expect(screen.getAllByText(/May 20, 20:00/).length).toBeGreaterThan(0);
+        expect(screen.getByText("Forecast error")).toBeInTheDocument();
         expect(screen.getByText("Predicted")).toBeInTheDocument();
         expect(screen.queryByText("95% interval")).toBeNull();
     });
@@ -203,7 +215,13 @@ describe("ForecastPage", () => {
             peak_timestamp: "2026-05-20T23:16:06.839Z",
             avg_daily_kwh: 120.2,
             mape: 2.1
-        }
+        },
+        metadata: {
+            timezone: "Africa/Johannesburg",
+            value_unit: "kW",
+            average_unit: "kWh/day",
+            accuracy_metric: "MAPE"
+        },
     };
 
     setupQueries();
@@ -215,8 +233,43 @@ describe("ForecastPage", () => {
     await user.click(screen.getByRole("button", { name: /run forecast/i }));
 
     //assert
-    expect(await screen.findByText(/350\.5 kWh/)).toBeInTheDocument();
-    expect(await screen.findByText(/120\.2 kWh/)).toBeInTheDocument();
+    expect(await screen.findByText(/350\.5 kW/)).toBeInTheDocument();
+    expect(await screen.findByText(/120\.2 kWh\/day/)).toBeInTheDocument();
     expect(await screen.findByText(/MAPE 2\.1%/)).toBeInTheDocument();
 });
+
+    it("does not present missing model error as zero percent", () => {
+        setupQueries();
+        setupMutation({
+            data: {
+                ...resultData,
+                summary: { ...resultData.summary, mape: null },
+            },
+        });
+
+        render(<ForecastPage />);
+
+        expect(screen.getByText("Accuracy unavailable")).toBeInTheDocument();
+        expect(screen.queryByText(/MAPE 0%/)).toBeNull();
+    });
+
+    it("labels monthly forecasts as weekly energy", () => {
+        setupQueries();
+        setupMutation({
+            data: {
+                ...resultData,
+                metadata: {
+                    ...resultData.metadata,
+                    value_unit: "kWh/week",
+                    average_unit: "kWh/week",
+                },
+            },
+        });
+
+        render(<ForecastPage />);
+        chooseCurvedOption(screen.getByLabelText(/horizon/i), "monthly");
+
+        expect(screen.getByText("Peak weekly energy")).toBeInTheDocument();
+        expect(screen.getByText(/250 kWh\/week/)).toBeInTheDocument();
+    });
 });

@@ -50,7 +50,13 @@ type ForecastResult = {
         peak_kwh: number;
         peak_timestamp: string;
         avg_daily_kwh: number;
-        mape: number;
+        mape: number | null;
+    };
+    metadata?: {
+        timezone: string;
+        value_unit: string;
+        average_unit: string;
+        accuracy_metric: string;
     };
 };
 
@@ -144,18 +150,27 @@ function toFiniteNumber(value: unknown): number | undefined {
     return undefined;
 }
 
-function formatXTick(ts: string, horizon: "weekly" | "monthly"): string {
+function localHour(d: Date, timeZone: string): string {
+    return new Intl.DateTimeFormat("en", {
+        hour: "2-digit",
+        hourCycle: "h23",
+        timeZone,
+    }).format(d);
+}
+
+function formatXTick(ts: string, horizon: "weekly" | "monthly", timeZone: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
     if (horizon === "monthly") {
-        return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
+        return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone }).format(d);
     }
-    const monthDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
-    if (d.getHours() === 0) return monthDay;
-    return `${monthDay} ${String(d.getHours()).padStart(2, "0")}:00`;
+    const monthDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone }).format(d);
+    const hour = localHour(d, timeZone);
+    if (hour === "00") return monthDay;
+    return `${monthDay} ${hour}:00`;
 }
 
-function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
+function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly", timeZone: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
     if (horizon === "monthly") {
@@ -164,6 +179,7 @@ function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
             month: "short",
             day: "numeric",
             year: "numeric",
+            timeZone,
         }).format(d);
     }
     return new Intl.DateTimeFormat("en", {
@@ -173,11 +189,11 @@ function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-        timeZone: "UTC",
+        timeZone,
     }).format(d);
 }
 
-function formatPeakTimestamp(ts: string): string {
+function formatPeakTimestamp(ts: string, timeZone: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
     return new Intl.DateTimeFormat("en", {
@@ -186,8 +202,14 @@ function formatPeakTimestamp(ts: string): string {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-        timeZone: "UTC",
+        timeZone,
+        timeZoneName: "short",
     }).format(d);
+}
+
+function isLocalMidnight(ts: string, timeZone: string): boolean {
+    const d = new Date(ts);
+    return !Number.isNaN(d.getTime()) && localHour(d, timeZone) === "00";
 }
 
 function processHistoricalData(historical: HistoricalPoint[]) {
@@ -369,6 +391,8 @@ function ForecastChartContainer({
     showActualDots,
     showForecastDots,
     selectedBuildingName,
+    timeZone,
+    valueUnit,
 }: Readonly<{
     isPending: boolean;
     result: ForecastResult | undefined;
@@ -380,6 +404,8 @@ function ForecastChartContainer({
     showActualDots: boolean | { r: number; strokeWidth: number };
     showForecastDots: boolean | { r: number; strokeWidth: number };
     selectedBuildingName: string;
+    timeZone: string;
+    valueUnit: string;
 }>) {
     if (isPending) {
         return <Skeleton style={{ height: 240, width: "100%" }} />;
@@ -405,7 +431,7 @@ function ForecastChartContainer({
     }
 
     const midnightTicks = horizon === "weekly"
-        ? chartData.filter((point) => new Date(point.timestamp).getHours() === 0).map((point) => point.timestamp)
+        ? chartData.filter((point) => isLocalMidnight(point.timestamp, timeZone)).map((point) => point.timestamp)
         : [];
     const useMidnightTicks = midnightTicks.length >= 2;
     const yAxis = niceAxis(
@@ -424,15 +450,15 @@ function ForecastChartContainer({
                 ]}
             />
             <AccessibleChart
-                caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in kWh`}
+                caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in ${valueUnit}`}
                 categoryLabel="Timestamp"
-                categories={chartData.map((point) => formatTooltipLabel(point.timestamp, horizon))}
+                categories={chartData.map((point) => formatTooltipLabel(point.timestamp, horizon, timeZone))}
                 series={[
-                    { name: "Recorded (kWh)", values: chartData.map((point) => point.kwh) },
-                    { name: "Predicted (kWh)", values: chartData.map((point) => point.yhat) },
+                    { name: `Recorded (${valueUnit})`, values: chartData.map((point) => point.kwh) },
+                    { name: `Predicted (${valueUnit})`, values: chartData.map((point) => point.yhat) },
                     ...(hasConfidenceBand
                         ? [{
-                            name: "95% confidence interval (kWh)",
+                            name: `95% confidence interval (${valueUnit})`,
                             values: chartData.map((point) =>
                                 point.yhat_range
                                     ? `${point.yhat_range[0].toLocaleString()} to ${point.yhat_range[1].toLocaleString()}`
@@ -450,7 +476,7 @@ function ForecastChartContainer({
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                     <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(ts) => formatXTick(ts, horizon)}
+                        tickFormatter={(ts) => formatXTick(ts, horizon, timeZone)}
                         ticks={useMidnightTicks ? midnightTicks : undefined}
                         interval={useMidnightTicks ? 0 : tickInterval}
                         tick={axisTick}
@@ -471,11 +497,11 @@ function ForecastChartContainer({
                         contentStyle={tooltipContentStyle}
                         labelStyle={tooltipLabelStyle}
                         cursor={{ stroke: "var(--brand-border)" }}
-                        labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon)}
+                        labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon, timeZone)}
                         formatter={(value: number | [number, number], name: string) => [
                             Array.isArray(value)
-                                ? `${value[0].toLocaleString()} to ${value[1].toLocaleString()} kWh`
-                                : `${value.toLocaleString()} kWh`,
+                                ? `${value[0].toLocaleString()} to ${value[1].toLocaleString()} ${valueUnit}`
+                                : `${value.toLocaleString()} ${valueUnit}`,
                             name,
                         ]}
                     />
@@ -573,7 +599,7 @@ function ForecastChartContainer({
                 >
                     <p className="dashboard-kpi-label">Peak timestamp</p>
                     <p className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)" }}>
-                        {formatPeakTimestamp(result.summary.peak_timestamp)}
+                        {formatPeakTimestamp(result.summary.peak_timestamp, timeZone)}
                     </p>
                 </div>
             </div>
@@ -604,6 +630,9 @@ export default function ForecastPage() {
     const canRun = buildingId !== "" && !isPending && !buildingsLoading;
     const selectedBuildingName =
         buildings.find((building) => building.id === buildingId)?.name ?? "Selected building";
+    const timeZone = result?.metadata?.timezone || "UTC";
+    const valueUnit = result?.metadata?.value_unit || (horizon === "monthly" ? "kWh/week" : "kW");
+    const averageUnit = result?.metadata?.average_unit || (horizon === "monthly" ? "kWh/week" : "kWh/day");
 
     return (
         <div>
@@ -693,7 +722,7 @@ export default function ForecastPage() {
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Demand trend</h2>
                     <span className="dashboard-section-meta">
-                        {horizon === "monthly" ? "Next 12 weeks" : "Next 7 days"}, in kWh
+                        {horizon === "monthly" ? "Next 12 weeks" : "Next 7 days"}, in {valueUnit}
                     </span>
                 </div>
 
@@ -708,16 +737,18 @@ export default function ForecastPage() {
                     showActualDots={showActualDots}
                     showForecastDots={showForecastDots}
                     selectedBuildingName={selectedBuildingName}
+                    timeZone={timeZone}
+                    valueUnit={valueUnit}
                 />
             </section>
 
             <div className="dashboard-kpi-grid" aria-label="Forecast summary statistics">
                 <KpiCard
-                    label="Peak demand"
+                    label={horizon === "monthly" ? "Peak weekly energy" : "Peak demand"}
                     isPending={isPending}
                     value={
                         result
-                            ? `${result.summary.peak_kwh} kWh · ${formatPeakTimestamp(result.summary.peak_timestamp)}`
+                            ? `${result.summary.peak_kwh} ${valueUnit} · ${formatPeakTimestamp(result.summary.peak_timestamp, timeZone)}`
                             : null
                     }
                     skeletonWidth={180}
@@ -725,13 +756,17 @@ export default function ForecastPage() {
                 <KpiCard
                     label={horizon === "monthly" ? "Avg / week" : "Avg / day"}
                     isPending={isPending}
-                    value={result ? `${result.summary.avg_daily_kwh.toLocaleString()} kWh` : null}
+                    value={result ? `${result.summary.avg_daily_kwh.toLocaleString()} ${averageUnit}` : null}
                     skeletonWidth={150}
                 />
                 <KpiCard
-                    label="Model accuracy"
+                    label="Forecast error"
                     isPending={isPending}
-                    value={result ? `MAPE ${result.summary.mape}%` : null}
+                    value={result
+                        ? result.summary.mape === null
+                            ? "Accuracy unavailable"
+                            : `MAPE ${result.summary.mape}%`
+                        : null}
                     skeletonWidth={120}
                 />
             </div>
