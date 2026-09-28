@@ -530,3 +530,18 @@ def test_empty_df(engine):
     }
     engine._generate_recommendations("building", pd.DataFrame(), ml_metrics, "weekly")
     engine.supabase.table.return_value.upsert.assert_not_called()
+
+
+def test_prefers_measured_sensor_rows_over_synthetic_rows():
+    telemetry = pd.DataFrame([
+        {"building_id": "measured", "sensor_id": None, "usage": 99.0},
+        {"building_id": "measured", "sensor_id": "sensor-1", "usage": 12.0},
+        {"building_id": "fallback", "sensor_id": None, "usage": 8.0},
+    ])
+
+    result = AnalyticsEngine._prefer_measured_telemetry(telemetry)
+
+    assert result[["building_id", "usage"]].to_dict("records") == [
+        {"building_id": "measured", "usage": 12.0},
+        {"building_id": "fallback", "usage": 8.0},
+    ]
