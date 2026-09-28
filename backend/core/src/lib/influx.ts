@@ -277,17 +277,28 @@ async function queryBucketUsageSeries(
         }
         points.set(timestamp, point);
     }
-    //i need the following for the tariffs, fallbacks to the the flat rate
-    //if structure is incorrect 
-    const buildingTariffRecord = await prisma.utilityTariff.findFirst({
-        where: {
-            building_id: buildingId
-        },
-        orderBy: {
-            created_at: "desc"
-        }
-    });
-        let tariffStructure: TariffStructure = {
+    // Tariff metadata enriches cost values, but energy series must remain usable
+    // when the tariff table is unavailable or temporarily out of sync.
+    let buildingTariffRecord: { tariff_structure: unknown } | null = null;
+    try {
+        buildingTariffRecord = await prisma.utilityTariff.findFirst({
+            where: {
+                building_id: buildingId
+            },
+            orderBy: {
+                created_at: "desc"
+            },
+            select: {
+                tariff_structure: true
+            }
+        });
+    } catch (error) {
+        console.warn(
+            `[Tariff] Failed to load tariff for building ${buildingId}. Using recorded or flat-rate cost. Error:`,
+            error,
+        );
+    }
+    let tariffStructure: TariffStructure = {
         type: "flat",
         seasons: [{
             name: "Flat",
