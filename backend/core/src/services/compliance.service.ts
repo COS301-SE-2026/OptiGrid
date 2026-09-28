@@ -5,7 +5,8 @@ import { queryUsageBetween, resolveCostZar } from '../lib/influx';
 import { computeRecordHash, GENESIS_HASH, HASH_ALGORITHM, toChainableAuditRecord } from '../lib/hashChain';
 import { verifyCarbonLedgerMonth, type CarbonIntegrityResult } from './carbonIntegrity.service';
 
-const BATCH_SIZE = 500;
+// Keep memory bounded while avoiding dozens of network round trips for mature ledgers.
+const BATCH_SIZE = 2_000;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
