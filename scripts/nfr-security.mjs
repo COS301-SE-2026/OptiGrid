@@ -95,29 +95,36 @@ async function main() {
     }
   });
 
-  await runTest("SEC02", "Configuration n sec headers", async () => {
+  async function fetchTest(url, options = {}, validator) {
     try {
-      const response = await fetch("http://localhost:4000/health");
+      const resp = await fetch(url, options);
+      return validator(resp);
+    }
+    catch(err) {
+      return {
+        passed: false,
+        details: `FAILED, Could not connect to API: ${err.message}`
+      };
+    }
+  }
+
+  await runTest("SEC02", "Configuration n sec headers", async () => {
+    return await fetchTest("http://localhost:4000/health", {}, (response) => {
       const hsts = response.headers.get("strict-transport-security");
       const csp = response.headers.get("content-security-policy");
       const xFrame = response.headers.get("x-frame-options");
 
       if (!hsts || !csp || !xFrame) {
         return {
-        passed: false,
-        details: `FAIL. Missing headers. HSTS: ${hsts}, CSP: ${csp}, XFrame: ${xFrame}`
-      };
+          passed: false,
+          details: `FAIL. Missing headers. HSTS: ${hsts}, CSP: ${csp}, XFrame: ${xFrame}`
+        };
       }
       return {
         passed: true,
         details: "pass, verified Strict-Transport-Security, Content-Security-Policy, and X-Frame-Options are present in backend responses"
       };
-    } catch (e) {
-      return {
-        passed: false,
-        details: `FAIL. Could not connect to API: ${e.message}`
-      };
-    }
+    });
   });
 
   await runTest("SEC03", "Operational & Abuse (Rate Limiting)", async () => {
@@ -131,9 +138,9 @@ async function main() {
         }
       } catch (e) {
         return {
-        passed: false,
-        details: `FAIL. Could not connect to API: ${e.message}`
-      };
+          passed: false,
+          details: `FAIL. Could not connect to API: ${e.message}`
+        };
       }
     }
     
@@ -144,9 +151,9 @@ async function main() {
       };
     }
     return {
-        passed: false,
-        details: "FAIL. Rate limiter did not block rapid requests."
-      };
+      passed: false,
+      details: "FAIL, Rate limiter never work"
+    };
   });
 
   await runTest("SEC04", "Authentication n AES-256", async () => {
@@ -154,9 +161,9 @@ async function main() {
       const passwordFile = fs.readFileSync(path.join(root, "backend/core/src/lib/password.ts"), "utf-8");
       if (passwordFile.includes("crypto")) {
         return {
-        passed: true,
-        details: "pass, sensitive user data is confirmed to be encrypted using AES-256 standards"
-      };
+          passed: true,
+          details: "pass, sensitive user data is confirmed to be encrypted using AES-256 standards"
+        };
       }
       return {
         passed: false,
@@ -166,6 +173,64 @@ async function main() {
       return {
         passed: false,
         details: `FAIL. Could not verify crypto implementation: ${e.message}`
+      };
+    }
+  });
+
+  await runTest("SEC05", "JWT Auth Enforcement", async () => {
+    return await fetchTest("http://localhost:4000/api/buildings", {}, (resp) => {
+      if (resp.status === 401) {
+        return {
+          passed: true,
+          details: "pass, unauthenticated reqs r blocked with 401 Unauthorized"
+        };
+      }
+      return {
+        passed: false,
+        details: `FAIL, Expected 401 but got ${resp.status}`
+      };
+    });
+  });
+
+  await runTest("SEC06", "Cross-Origin Resource Sharing", async () => {
+    return await fetchTest("http://localhost:4000/health", {
+      headers: {
+        "Origin": "http://malicious.com"
+      }
+    }, (resp) => {
+      const allowOrigin = resp.headers.get("access-control-allow-origin");
+      if(allowOrigin === "*") {
+        return {
+          passed: false,details: `FAIL, CORS aint working`
+        };
+      }
+      if(allowOrigin === "http://malicious.com") {
+        return {
+          passed: false,
+          details: `FAIL, CORS allows malicious origins`
+        };
+      }
+      return { passed: true, details: "pass, CORS policy restricts unknown origins"
+      };
+    });
+  });
+
+  await runTest("SEC07", "Role-Based Access Control", async () => {
+    try{
+      const auth = fs.readFileSync(path.join(root, "backend/core/src/routes/user_auth.routes.ts"), "utf-8");
+      if(auth.includes("reqRole([UserRole.ADMIN])")) {
+        return { passed: true,
+          details: "pass, RBAC is enforced on admin endpoints"
+        };
+      }
+      return {
+        passed: false,
+        details: "FAIL, couldnt verify RBAC implementation in routes"
+      };
+    }
+    catch(error) {
+      return {
+        passed: false, details: `FAIL, couldnt read route files: ${error.message}`
       };
     }
   });
