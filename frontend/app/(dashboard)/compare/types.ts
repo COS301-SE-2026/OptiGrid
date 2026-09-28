@@ -5,12 +5,14 @@ export type RawBuilding = {
     building_id?: unknown;
     building_name?: unknown;
     square_footage?: unknown;
+    today_kwh?: unknown;
 };
 
 export type Building = {
     id: string;
     name: string;
     squareFootage: number | null;
+    todayKwh?: number | null;
 };
 
 export type BuildingsResponse = {

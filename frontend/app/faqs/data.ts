@@ -53,7 +53,7 @@ export const Categories: FAQCategory[] = [
         items: [
             {
                 question: "Does OptiGrid have a dark mode?",
-                answer: "Yes. Open Settings and press the theme button.",
+                answer: "Yes. Open Settings near the bottom of the sidebar and press the theme button.",
             },
             {
                 question: "Is my theme saved?",
@@ -103,6 +103,14 @@ export const Categories: FAQCategory[] = [
         category: "Heatmap",
         items: [
             {
+                question: "Is there a video guide?",
+                answer: "Yes. The Help Centre has short tutorials. There is one for the heatmap and one for the 3D view.",
+            },
+            {
+                question: "What does Towers do?",
+                answer: "It turns each site into a 3D column. A taller tower means the site uses more energy.",
+            },
+            {
                 question: "What does the heatmap show?",
                 answer: "Your buildings on a map. Sites that use more energy stand out in a stronger colour.",
             },
@@ -134,7 +142,7 @@ export const Categories: FAQCategory[] = [
         items: [
             {
                 question: "How do I run a forecast?",
-                answer: "Pick a building and a horizon on the Forecast page. Then click Run forecast.",
+                answer: "The Forecast page runs a 7 day forecast for your busiest building as soon as it opens. For another building, pick it with a horizon and click Run forecast.",
             },
             {
                 question: "What is the difference between weekly and monthly?",
@@ -161,6 +169,10 @@ export const Categories: FAQCategory[] = [
                 question: "Can I approve an insight?",
                 answer: "Building managers and administrators can approve or dismiss them. Viewers can still read every one.",
             },
+            {
+                question: "What is the Savings level slider?",
+                answer: "It lets you choose between saving more and keeping staff comfortable. The Sweet spot mark is a good place to start.",
+            },
         ],
     },
     {
@@ -173,6 +185,14 @@ export const Categories: FAQCategory[] = [
             {
                 question: "What should I do when I get one?",
                 answer: "First check for a known reason like work on site. If there is none, let the building manager know.",
+            },
+            {
+                question: "Can I close an alert?",
+                answer: "Building managers can open an alert and choose Resolve or Ignore.",
+            },
+            {
+                question: "Can I change when alerts are raised?",
+                answer: "Yes. Building managers can set their own limits with Configure Threshold.",
             },
         ],
     },

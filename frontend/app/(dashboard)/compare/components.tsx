@@ -214,11 +214,10 @@ export function ComparisonMetricCards({
 
     return (
         <div 
-            className="dashboard-kpi-grid" 
-            style={{ marginBottom: "var(--space-6)" }}
+            className="dashboard-kpi-grid"
             aria-label="Building comparison metrics"
         >
-            {buildingPairs.map(({ building, id }, index) => {
+            {buildingPairs.map(({ building }, index) => {
                 const selectedId = index === 0 ? buildingA : buildingB;
                 return (
                     <div className="card" key={`${index}-${selectedId || "empty"}`}>
@@ -273,12 +272,12 @@ export function ComparisonChart({
 }: ComparisonChartProps) {
     const renderContent = () => {
         if (loading) {
-            return <Skeleton style={{ height: 260, width: "100%" }} />;
+            return <Skeleton style={{ flex: "1 1 auto", minHeight: 280, width: "100%" }} />;
         }
 
         if (!canCompare) {
             return (
-                <div className="dashboard-empty">
+                <div className="dashboard-empty chart-empty">
                     Select two different buildings to compare.
                 </div>
             );
@@ -286,7 +285,7 @@ export function ComparisonChart({
 
         if (comparisonError) {
             return (
-                <div className="dashboard-empty" role="alert">
+                <div className="dashboard-empty chart-empty" role="alert">
                     Unable to load comparison data.
                 </div>
             );
@@ -302,6 +301,7 @@ export function ComparisonChart({
                         { label: getBuildingName(buildingB), colour: SERIES_COLOURS[1] }
                     ]}
                 />
+                <div className="chart-fill" style={{ minHeight: 280 }}>
                 <AccessibleChart
                     caption={`Comparison totals over the last ${dateRange} days, in ${metric === "R" ? "cost (rand)" : "energy (kWh)"}`}
                     categoryLabel="Period"
@@ -317,7 +317,7 @@ export function ComparisonChart({
                         }
                     ]}
                 >
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                         <XAxis
@@ -362,12 +362,13 @@ export function ComparisonChart({
                     </LineChart>
                 </ResponsiveContainer>
                 </AccessibleChart>
+                </div>
             </>
         );
     };
 
     return (
-        <section className="card dashboard-section" aria-label="Comparison chart">
+        <section className="card dashboard-section screen-fit-grow" aria-label="Comparison chart">
             <div className="dashboard-section-header">
                 <div>
                     <h2 className="dashboard-section-title">Comparison totals</h2>

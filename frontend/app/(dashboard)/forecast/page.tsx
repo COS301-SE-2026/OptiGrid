@@ -2,7 +2,7 @@
 
 import { AccessibleChart } from "../../../components/AccessibleChart";
 import { useMutation } from "@tanstack/react-query";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useBuildings } from "@/lib/useBuildings";
 import { PageHeading } from "@/components/PageHeading";
 import { ChartLegend } from "@/components/ChartLegend";
@@ -27,6 +27,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import { rankByUsage } from "@/lib/rankBuildings";
 
 type ForecastParams = {
     building_id: string;
@@ -312,14 +313,15 @@ function ForecastChartContainer({
     selectedBuildingName: string;
 }>) {
     if (isPending) {
-        return <Skeleton style={{ height: 240, width: "100%" }} />;
+        return <Skeleton style={{ flex: "1 1 auto", minHeight: 280, width: "100%" }} />;
     }
 
     if (!result) {
         return (
             <div
                 style={{
-                    height: 240,
+                    flex: "1 1 auto",
+                    minHeight: 280,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -353,6 +355,7 @@ function ForecastChartContainer({
                         : []),
                 ]}
             />
+            <div className="chart-fill" style={{ minHeight: 280 }}>
             <AccessibleChart
                 caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in kWh`}
                 categoryLabel="Timestamp"
@@ -372,7 +375,7 @@ function ForecastChartContainer({
                         : []),
                 ]}
             >
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
                     data={chartData}
                     margin={{ top: 20, right: 8, left: 0, bottom: 0 }}
@@ -382,7 +385,7 @@ function ForecastChartContainer({
                         dataKey="timestamp"
                         tickFormatter={(ts) => formatXTick(ts, horizon)}
                         ticks={useMidnightTicks ? midnightTicks : undefined}
-                        interval={useMidnightTicks ? 0 : tickInterval}
+                        interval={useMidnightTicks ? "preserveStartEnd" : tickInterval}
                         tick={axisTick}
                         axisLine={false}
                         tickLine={false}
@@ -458,6 +461,7 @@ function ForecastChartContainer({
                 </ComposedChart>
             </ResponsiveContainer>
             </AccessibleChart>
+            </div>
 
             <div
                 style={{
@@ -550,15 +554,26 @@ export default function ForecastPage() {
     const { chartData, nowTs, showActualDots, showForecastDots, hasConfidenceBand } = buildChartData(result);
     const tickInterval = horizon === "monthly" ? 0 : 23;
 
+    const autoRunDone = useRef(false);
+    useEffect(() => {
+        if (autoRunDone.current || buildingsLoading || buildings.length === 0) {
+            return;
+        }
+        autoRunDone.current = true;
+        const busiest = rankByUsage(buildings)[0];
+        setBuildingId(busiest.id);
+        mutate({ building_id: busiest.id, horizon: "weekly" });
+    }, [buildings, buildingsLoading, mutate]);
+
     const canRun = buildingId !== "" && !isPending && !buildingsLoading;
     const selectedBuildingName =
         buildings.find((building) => building.id === buildingId)?.name ?? "Selected building";
 
     return (
-        <div>
+        <div className="screen-fit">
             <PageHeading
                 title="Demand Forecast"
-                subtitle="Select a building and horizon to view its upcoming energy demand forecast."
+                subtitle="Your busiest building gets a 7 day forecast when the page opens. Pick another building or horizon at any time."
             />
 
             <section className="card dashboard-section" aria-label="Forecast controls">
@@ -646,7 +661,7 @@ export default function ForecastPage() {
                 />
             </section>
 
-            <section className="card dashboard-section" aria-label="Demand forecast chart">
+            <section className="card dashboard-section screen-fit-grow" aria-label="Demand forecast chart">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Demand trend</h2>
                     <span className="dashboard-section-meta">

@@ -1,18 +1,18 @@
+import { existsSync } from "fs";
+import { join } from "path";
 import Link from "next/link";
 
-// ok so every rendered <video> must carry a <track>
 const SILENT_CAPTIONS_URL = "/help/tutorials/no-audio.vtt";
 
 type Tutorial = {
     title: string;
     description: string;
-    sourceUrl?: string;
+    sourceUrl: string;
     posterUrl?: string;
-    // set only when a clip carries spoken narration and otherwise default to silent
+    // true only when the clip has spoken narration
     hasAudio?: boolean;
-    // defaults to SILENT_CAPTIONS_URL
     captionsUrl?: string;
-    // Text alternative required by WCAG 1.2.1 for video-only content one step per line and blank lines are ignored
+    // text alternative for the video, one step per line
     steps: string;
 };
 
@@ -20,82 +20,140 @@ function toSteps(block: string): string[] {
     return block.split("\n").map((step) => step.trim()).filter(Boolean);
 }
 
+function hasPublicFile(url: string | undefined): url is string {
+    if (!url) {
+        return false;
+    }
+    return existsSync(join(process.cwd(), "public", url));
+}
+
 const tutorials: Tutorial[] = [
     {
         title: "Add a building",
-        description: "Create a new building record so it can be tracked, compared, and included in forecasts.",
+        description: "Add a new building so OptiGrid can track it and include it in forecasts.",
         sourceUrl: "/help/tutorials/add_building.mp4",
         posterUrl: "/help/tutorials/add_building-poster.jpg",
         steps: `
             From the dashboard, select "+ Add building".
-            Enter the building name (required) and pick a building type from the dropdown.
-            Optionally add the physical address, floor area, and maximum occupancy.
-            Optionally set the nominal voltage and maximum current threshold used for alerting.
-            Optionally add the timezone and location details (geohash, latitude, longitude).
-            Select "Add building". The new building appears in your dashboard table.
+            Type the building name. It is the only field you must fill in.
+            Pick a building type from the list.
+            Enter the street address and press "Validate". The coordinates fill in for you.
+            Add the floor area and the number of floors. The 3D model uses them for its shape.
+            Set a circuit limit if yours is not 60 A. Rooftop solar has its own field.
+            Leave the timezone empty to use UTC.
+            Select "Add building". You go back to the dashboard and the new building shows in the table.
         `,
     },
     {
         title: "Compare two buildings",
-        description: "Compare building performance side by side to identify which sites are using more energy than expected.",
+        description: "Put two buildings side by side to see which one uses more.",
         sourceUrl: "/help/tutorials/compare_buildings.mp4",
         posterUrl: "/help/tutorials/compare_buildings-poster.jpg",
         steps: `
-            Open "Compare" from the main navigation.
-            Choose the first building from the left dropdown and the second from the right dropdown.
-            Pick the date range and choose whether to compare cost or energy.
-            The chart redraws to plot both buildings over the selected period.
-            Below the chart, the key insights panel reports the efficiency ratio per square metre and the total difference between the two buildings.
+            Open "Compare" from the sidebar. It opens with your two busiest buildings.
+            Pick other buildings under Building 1 and Building 2 if you want.
+            Choose a date range. You can look back up to 90 days.
+            Set Metric to Cost or Energy.
+            Each building gets a card with its total for the period.
+            The Comparison totals chart plots both buildings day by day.
+            Key insights show the efficiency ratio per m² and the total difference.
+        `,
+    },
+    {
+        title: "Use the energy heatmap",
+        description: "See which sites use the most energy on a map. You can also look back in time or ahead.",
+        sourceUrl: "/help/tutorials/heatmap.mp4",
+        posterUrl: "/help/tutorials/heatmap-poster.jpg",
+        steps: `
+            Open "Heatmap" from the sidebar.
+            Each building sits on the map as a coloured dot. Green means low use and red means high use.
+            Choose "Total" to compare overall use. "Per m²" compares use against floor area instead.
+            The cards at the top show the portfolio total and the hottest site.
+            Drag the timeline to look back up to 90 days. Anything to the right of Live is the forecast.
+            Press play to step through each period.
+            Select "Towers" to turn each site into a 3D column. A taller tower means higher use.
+            "Show all buildings" zooms out to fit every site on screen.
+            Click a dot or a row under Hotspots to open its card. It shows the rank and the portfolio share.
+            From that card you can open the 3D twin or the building details.
+            Sites without a location are listed under "Not on the map". Admins and managers can place them from the address or by hand.
+        `,
+    },
+    {
+        title: "Explore the digital twin",
+        description: "Look around a 3D model of any building and check the live load on each sensor.",
+        sourceUrl: "/help/tutorials/digital_twin.mp4",
+        posterUrl: "/help/tutorials/digital_twin-poster.jpg",
+        steps: `
+            Open a building from the dashboard table. You can also choose "Open 3D twin" on the heatmap.
+            The Digital twin section shows a model built from the building type and size.
+            Drag to turn the model and scroll to zoom. "Reset view" puts the camera back.
+            Every sensor sits in its zone and glows with its live load.
+            "Circuit load" compares each sensor with the circuit limit. "Deviation" compares it with its own normal use.
+            Cards above the model show the live load and how many sensors need attention.
+            Select a sensor in the model or in the Sensors list to see its readings.
+            Use "Full view" for a bigger model. "Exit full view" takes you back.
         `,
     },
     {
         title: "Review demand forecasts",
-        description: "Check the forecast view to see how OptiGrid projects near-term demand for your selected building.",
+        description: "Check how much energy a building is likely to need in the coming days or weeks.",
         sourceUrl: "/help/tutorials/run_forecast.mp4",
         posterUrl: "/help/tutorials/run_forecast-poster.jpg",
         steps: `
-            Open "Forecast" from the main navigation.
-            Select a building and choose either the weekly or monthly horizon.
-            Run the forecast. A chart plots predicted demand as a dashed line against recorded history.
-            The summary cards beneath the chart show the selected building, the number of forecast points, and the projected peak timestamp.
+            Open "Forecast" from the sidebar. A 7 day forecast for your busiest building runs straight away.
+            To see another one, pick a building and a horizon. Weekly looks 7 days ahead while Monthly looks 12 weeks ahead.
+            Select "Run forecast".
+            The Demand trend chart shows past use as a solid line. The forecast carries on as a dashed line.
+            A shaded band may appear around the forecast. Real demand will most likely fall inside it.
+            Cards below the chart show the peak demand and the average use.
+            Model accuracy shows the MAPE. A lower number means a closer forecast.
         `,
     },
     {
         title: "Review insights",
-        description: "Learn how to read the load shifting strategies OptiGrid suggests, and how to approve or dismiss one.",
+        description: "Read the load shifting ideas OptiGrid suggests. Managers can approve or dismiss them.",
         sourceUrl: "/help/tutorials/review_insights.mp4",
         posterUrl: "/help/tutorials/review_insights-poster.jpg",
         steps: `
-            Open "Insights" from the main navigation.
-            Select a building from the dropdown, then use the status filter to narrow the list to Pending, Applying, Implemented, Dismissed, or Expired recommendations.
-            The three summary cards show how many recommendations are active, the potential monthly savings across them, and the total number listed.
-            Each card describes the strategy in plain language, its estimated monthly saving, when it was generated, and when it expires.
-            Select "Review" on a card to open its details. From there you can Approve it, Dismiss it, or Close the dialog without acting on it. Approving moves it to the Applying status.
+            Open "Insights" from the sidebar. It opens on your busiest building.
+            Pick another building if you need to. Use the Status filter if you only want to see some recommendations.
+            The cards at the top count the active recommendations. They also add up the monthly saving on offer.
+            Each recommendation explains the idea in plain words. It also shows the saving and when to shift the load.
+            Admins and managers can select "Review" to open one.
+            Some recommendations have a Savings level slider. Drag it between Aggressive Savings and Maximum Comfort. The Sweet spot mark shows a good balance.
+            Select "Approve Recommendation" to apply it. If the slider is shown you need to pick a level first.
+            "Dismiss" rejects the recommendation. "Close" leaves it as it is.
         `,
     },
     {
         title: "View anomaly alerts",
-        description: "Find out how to check for readings that have moved outside the expected range for a building.",
+        description: "Find readings that moved outside the normal range for a building.",
         sourceUrl: "/help/tutorials/review_anomaly.mp4",
         posterUrl: "/help/tutorials/review_anomaly-poster.png",
         steps: `
-            Open "Anomaly" from the main navigation.
-            The list shows every alert raised across your buildings, with the building it belongs to and the measurement involved.
-            Alerts cover voltage, current, power, and energy, so each one points at the specific measurement that moved outside its expected range.
-            If a reading lines up with something you already know about, such as planned work on site, no action is needed. Otherwise pass it on to the team responsible for that building.
+            Open "Anomaly" from the sidebar. Building managers and viewers have this page.
+            The cards at the top count every alert. They also show how many are open or critical.
+            The Energy consumption chart compares actual use with the expected use for one building.
+            Filter the alerts by building or severity. You can also search by text.
+            Select an alert in the Current anomalies table to see its details.
+            Managers can choose "Resolve" or "Ignore" there. Viewers can read the details.
+            "View Historic Alerts" lists older alerts.
+            Managers can set their own limits with "Configure Threshold".
         `,
     },
     {
         title: "Manage your profile and settings",
-        description: "See what your profile looks like and how to switch between light and dark mode from the Settings page.",
+        description: "Update your details and switch themes. You can also log out or delete your account.",
         sourceUrl: "/help/tutorials/manage_account.mp4",
         posterUrl: "/help/tutorials/manage_account-poster.jpg",
         steps: `
-            Open "Settings" from the sidebar.
-            The Profile Information card shows your first name, last name, email address, and your role, which is read only. Edit any of the other fields, then select "Save Changes" to apply them or "Reset" to discard your edits.
-            The Theme card shows whether you are in light or dark mode, with a button to switch to the other one.
-            The Help & Contact card links straight to the Help Centre and the Contact page without leaving Settings.
-            The Account Management card holds Logout, Recover Account, and Delete Account. Select "Logout" to end your session and return to the login screen.
+            Open "Settings" near the bottom of the sidebar.
+            Profile Information shows your name and email. Your role is shown too but you cannot change it.
+            Edit a field and select "Save Changes". "Reset" undoes your edits.
+            The Theme card switches between light and dark mode.
+            Account Management holds "Logout" and "Delete Account".
+            Deleted your account by mistake? Log in with the same details and choose "Recover account".
+            Help & Contact links to the Help Centre and the Contact page.
         `,
     },
 ];
@@ -116,16 +174,18 @@ function slugify(value: string) {
 function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
     const slug = slugify(tutorial.title);
     const stepsId = `${slug}-steps`;
+    const hasVideo = hasPublicFile(tutorial.sourceUrl);
+    const poster = hasPublicFile(tutorial.posterUrl) ? tutorial.posterUrl : undefined;
 
     return (
         <li className="card help-guide-card tutorial-card" aria-label={`Tutorial: ${tutorial.title}`}>
             <div className="tutorial-card-frame">
-                {tutorial.sourceUrl ? (
+                {hasVideo ? (
                     <video
                         className="tutorial-video"
                         controls
-                        preload="none"
-                        poster={tutorial.posterUrl}
+                        preload={poster ? "none" : "metadata"}
+                        poster={poster}
                         aria-label={`Tutorial video: ${tutorial.title}`}
                         aria-describedby={stepsId}
                     >
@@ -144,23 +204,22 @@ function TutorialCard({ tutorial }: { tutorial: Tutorial }) {
                     <div
                         className="tutorial-video tutorial-video-placeholder"
                         role="img"
-                        aria-label={`${tutorial.title} video placeholder - content not yet available`}
+                        aria-label={`${tutorial.title} video coming soon`}
                     >
                         <div className="tutorial-video-placeholder-content">
-                            <span className="tutorial-video-chip">Source pending</span>
                             <div className="tutorial-video-icon" aria-hidden="true">
                                 <PlayGlyph />
                             </div>
+                            <span className="tutorial-video-chip">Video coming soon</span>
+                            <p className="tutorial-video-copy">The written steps below cover everything in the meantime.</p>
                         </div>
                     </div>
                 )}
             </div>
             <div className="tutorial-card-body">
-                <h2 style={{ fontSize: "var(--fs-h3)", fontWeight: "var(--fw-semibold)", fontFamily: "var(--font-heading)" }}>
-                    {tutorial.title}
-                </h2>
+                <h2 className="tutorial-card-title">{tutorial.title}</h2>
                 <p className="text-muted">{tutorial.description}</p>
-                {tutorial.sourceUrl && !tutorial.hasAudio ? (
+                {hasVideo && !tutorial.hasAudio ? (
                     <p className="tutorial-media-note">
                         This tutorial is a silent screen recording. The written steps below describe everything shown on screen.
                     </p>
@@ -212,9 +271,7 @@ export default function TutorialsPage() {
                             <p className="landing-kicker">Tutorial library</p>
                             <h1>Learn OptiGrid in just a few minutes.</h1>
                             <p className="text-muted">
-                                Watch short, practical guides for the most common tasks: signing up,
-                                managing your buildings, comparing performance, and checking forecasts.
-                                Every tutorial also includes written steps you can read instead of watching the video.
+                                Short videos for the tasks you do most. Each one comes with written steps you can read instead.
                             </p>
                         </div>
                         <ul className="tutorial-grid" aria-label="List of available tutorials">

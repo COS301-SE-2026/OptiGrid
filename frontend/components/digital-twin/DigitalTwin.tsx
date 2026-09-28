@@ -5,6 +5,7 @@ import Link from "next/link";
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStream, type TelemetryData } from "@/lib/useTelemetryStream";
+import { useFitToScreen } from "@/lib/useFitToScreen";
 import {
     STALE_AFTER_MS,
     buildTwinLayout,
@@ -456,6 +457,7 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
     const [lens, setLens] = useState<LoadLens>("circuit");
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [expanded, setExpanded] = useState(false);
+    useFitToScreen(stageRef, 420, !expanded);
     const [filter, setFilter] = useState("");
     const [now, setNow] = useState(() => Date.now());
     const [streamQuiet, setStreamQuiet] = useState(true);

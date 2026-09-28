@@ -6,6 +6,7 @@ import { openDialog } from "@/lib/openDialog";
 import { PageHeading } from "@/components/PageHeading";
 import { formatDate } from "@/lib/formatDate";
 import ComfortTradeoff, { type TradeoffPoint, type TradeoffProfile } from "@/components/ComfortTradeoff";
+import { rankByUsage } from "@/lib/rankBuildings";
 
 type RecommendationStatus =
     | "Pending"
@@ -445,6 +446,16 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
         isLoading: buildingsLoading,
         isError: buildingsError,
     } = useBuildings();
+
+    // we open on the busiest building so there is something shown
+    const autoPicked = useRef(false);
+    useEffect(() => {
+        if (autoPicked.current || buildings.length === 0) {
+            return;
+        }
+        autoPicked.current = true;
+        setBuildingId((current) => current || rankByUsage(buildings)[0].id);
+    }, [buildings]);
 
     const {
         data: recommendations = [],
