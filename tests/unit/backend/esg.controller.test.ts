@@ -3,6 +3,8 @@ import { getEsgHealthScoreController, simulateEsgScenarioController } from '../.
 import prisma from '../../../backend/core/src/lib/prisma';
 import { InfluxDB } from '@influxdata/influxdb-client';
 
+const mockQueryRows = jest.fn((_query, observer) => observer.complete());
+
 // Mock Prisma
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
 	__esModule: true,
@@ -24,7 +26,7 @@ jest.mock('@influxdata/influxdb-client', () => {
         InfluxDB: jest.fn().mockImplementation(() => {
             return {
                 getQueryApi: jest.fn().mockReturnValue({
-                    queryRows: jest.fn((_query, observer) => observer.complete())
+                    queryRows: (query: unknown, observer: { complete: () => void }) => mockQueryRows(query, observer)
                 })
             };
         })
@@ -42,6 +44,7 @@ describe('ESG Controller Unit Tests', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockQueryRows.mockImplementation((_query, observer) => observer.complete());
         
         jsonMock = jest.fn();
         statusMock = jest.fn().mockReturnValue({ json: jsonMock });
@@ -176,6 +179,22 @@ describe('ESG Controller Unit Tests', () => {
             ));
             expect(payload.score).toBe(weightedScore);
             expect(payload.trend).toBe(0);
+        });
+
+        it('uses explicit fallback scores when live telemetry is unavailable', async () => {
+            mockQueryRows.mockImplementationOnce((_query, observer) => {
+                observer.error(new Error('InfluxDB unavailable'));
+            });
+
+            await getEsgHealthScoreController(req as Request, res as Response);
+
+            expect(statusMock).toHaveBeenCalledWith(200);
+            expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
+                scope: expect.objectContaining({
+                    energyEvidence: 'fallback_defaults',
+                    carbonEvidence: 'ledger_backed'
+                })
+            }));
         });
     });
 

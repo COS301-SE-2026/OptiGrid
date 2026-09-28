@@ -116,19 +116,25 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
         `;
         
         const rows: any[] = [];
-        await new Promise((resolve, reject) => {
-            queryApi.queryRows(fluxQuery, {
-                next(row, tableMeta) {
-                    rows.push(tableMeta.toObject(row));
-                },
-                error(error) {
-                    reject(error);
-                },
-                complete() {
-                    resolve(true);
-                },
+        try {
+            await new Promise((resolve, reject) => {
+                queryApi.queryRows(fluxQuery, {
+                    next(row, tableMeta) {
+                        rows.push(tableMeta.toObject(row));
+                    },
+                    error(error) {
+                        reject(error);
+                    },
+                    complete() {
+                        resolve(true);
+                    },
+                });
             });
-        });
+        } catch {
+            // Carbon-ledger evidence remains useful when live telemetry is unavailable.
+            // Clear partial rows so the response is explicitly marked as fallback-based.
+            rows.length = 0;
+        }
 
         let totalPF = 0;
         let countPF = 0;
