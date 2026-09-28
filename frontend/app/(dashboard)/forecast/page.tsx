@@ -212,6 +212,10 @@ function isLocalMidnight(ts: string, timeZone: string): boolean {
     return !Number.isNaN(d.getTime()) && localHour(d, timeZone) === "00";
 }
 
+function formatForecastError(mape: number | null): string {
+    return mape === null ? "Accuracy unavailable" : `MAPE ${mape}%`;
+}
+
 function processHistoricalData(historical: HistoricalPoint[]) {
     return historical
         .map((point) => ({
@@ -633,6 +637,7 @@ export default function ForecastPage() {
     const timeZone = result?.metadata?.timezone || "UTC";
     const valueUnit = result?.metadata?.value_unit || (horizon === "monthly" ? "kWh/week" : "kW");
     const averageUnit = result?.metadata?.average_unit || (horizon === "monthly" ? "kWh/week" : "kWh/day");
+    const forecastErrorValue = result ? formatForecastError(result.summary.mape) : null;
 
     return (
         <div>
@@ -762,11 +767,7 @@ export default function ForecastPage() {
                 <KpiCard
                     label="Forecast error"
                     isPending={isPending}
-                    value={result
-                        ? result.summary.mape === null
-                            ? "Accuracy unavailable"
-                            : `MAPE ${result.summary.mape}%`
-                        : null}
+                    value={forecastErrorValue}
                     skeletonWidth={120}
                 />
             </div>

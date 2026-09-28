@@ -30,9 +30,10 @@ describe("analytics refresh [buildingId] route", () => {
             expect.objectContaining({
                 method: "POST",
                 cache: "no-store",
-                headers: expect.objectContaining({ Cookie: expect.stringContaining("optigrid_session=") }),
             }),
         );
+        const forwardedHeaders = (global.fetch as jest.Mock).mock.calls[0][1].headers as Headers;
+        expect(forwardedHeaders.get("Cookie")).toContain("optigrid_session=");
     });
 
     it("rejects requests without a session", async () => {
