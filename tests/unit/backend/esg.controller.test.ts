@@ -11,6 +11,9 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 			findMany: jest.fn(),
 			findUnique: jest.fn(),
 		},
+		carbonLedgerEntry: {
+			findFirst: jest.fn(),
+		},
 	},
 }));
 
@@ -20,7 +23,7 @@ jest.mock('@influxdata/influxdb-client', () => {
         InfluxDB: jest.fn().mockImplementation(() => {
             return {
                 getQueryApi: jest.fn().mockReturnValue({
-                    queryRows: jest.fn()
+                    queryRows: jest.fn((_query, observer) => observer.complete())
                 })
             };
         })
@@ -55,6 +58,13 @@ describe('ESG Controller Unit Tests', () => {
 
         // Mock authorization to always succeed
         (prisma.building.findMany as jest.Mock).mockResolvedValue([{ building_id: mockBuildingId }]);
+        (prisma.carbonLedgerEntry.findFirst as jest.Mock).mockResolvedValue({
+            period_date: new Date('2026-09-01T00:00:00.000Z'),
+            total_kwh: 100,
+            total_kg_co2e: 93,
+            emission_factor_kg_co2e_per_kwh: 0.93,
+            integrity_status: 'VALID'
+        });
     });
 
     describe('getEsgHealthScoreController', () => {
@@ -116,10 +126,29 @@ describe('ESG Controller Unit Tests', () => {
                         expect.objectContaining({ dimension: 'hvacLoad' }),
                         expect.objectContaining({ dimension: 'lighting' })
                     ]),
-                    carbonIntensity: expect.any(Number),
+                    carbonIntensity: 0.93,
+                    carbonAccounting: expect.objectContaining({
+                        source: 'carbon_ledger',
+                        integrityStatus: 'VALID'
+                    }),
                     energyHistory: expect.any(Array)
                 }));
             });
+        });
+
+        it('reports carbon as unavailable instead of inventing a value', async () => {
+            (prisma.carbonLedgerEntry.findFirst as jest.Mock).mockResolvedValue(null);
+
+            await getEsgHealthScoreController(req as Request, res as Response);
+
+            expect(statusMock).toHaveBeenCalledWith(200);
+            expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
+                carbonIntensity: null,
+                carbonAccounting: expect.objectContaining({
+                    source: 'unavailable',
+                    integrityStatus: 'UNAVAILABLE'
+                })
+            }));
         });
     });
 

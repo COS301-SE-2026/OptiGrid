@@ -23,7 +23,15 @@ export interface EsgHealthScore {
   computedAt: string;
   trend: -1 | 0 | 1;
   dimensions: DimensionScore[];
-  carbonIntensity: number;
+  carbonIntensity: number | null;
+  carbonAccounting: {
+    source: "carbon_ledger" | "unavailable";
+    periodDate: string | null;
+    totalKwh: number | null;
+    totalKgCo2e: number | null;
+    emissionFactorKgCo2ePerKwh: number | null;
+    integrityStatus: "PENDING" | "VALID" | "TAMPERED" | "INCOMPLETE" | "UNAVAILABLE";
+  };
   energyHistory: number[];
 }
 

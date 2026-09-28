@@ -8,6 +8,8 @@ const org = process.env.INFLUXDB_ORG || process.env.INFLUX_ORG || 'OptiGrid';
 const bucket = process.env.INFLUXDB_BUCKET || process.env.INFLUX_BUCKET || 'EnergyData';
 const influx = new InfluxDB({ url, token });
 
+const toIsoDate = (value: Date | string): string => new Date(value).toISOString().slice(0, 10);
+
 const authorizeBuildingAccess = async (userId: string | undefined, buildingId: string, res: Response): Promise<boolean> => {
     if (!userId) {
         res.status(401).json({ status: 'error', message: 'Unauthorized' });
@@ -44,6 +46,21 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
             select: { square_footage: true }
         });
         const squareFootage = building?.square_footage ? Number(building.square_footage) : 10000; // default 10k sqft
+        const carbonEntry = await prisma.carbonLedgerEntry.findFirst({
+            where: {
+                building_id,
+                reading_count: { gt: 0 },
+                integrity_status: { not: 'TAMPERED' }
+            },
+            orderBy: { period_date: 'desc' },
+            select: {
+                period_date: true,
+                total_kwh: true,
+                total_kg_co2e: true,
+                emission_factor_kg_co2e_per_kwh: true,
+                integrity_status: true
+            }
+        });
 
         const queryApi = influx.getQueryApi(org);
         const fluxQuery = `
@@ -165,6 +182,11 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
         ) || 60;
 
         const energyHistory = rows.slice(-12).map(r => r.power_kw || 0);
+        const carbonKwh = Number(carbonEntry?.total_kwh ?? 0);
+        const carbonKgCo2e = Number(carbonEntry?.total_kg_co2e ?? 0);
+        const carbonIntensity = carbonEntry && carbonKwh > 0
+            ? Number((carbonKgCo2e / carbonKwh).toFixed(6))
+            : null;
 
         const response = {
             buildingId: building_id,
@@ -177,7 +199,22 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
                 { dimension: "hvacLoad", label: "HVAC Optimization", score: hvacScore, weight: 0.2, trend: 1 },
                 { dimension: "lighting", label: "Lighting Optimization", score: lightingScore, weight: 0.15, trend: 1 }
             ],
-            carbonIntensity: 120,
+            carbonIntensity,
+            carbonAccounting: carbonEntry ? {
+                source: 'carbon_ledger',
+                periodDate: toIsoDate(carbonEntry.period_date),
+                totalKwh: carbonKwh,
+                totalKgCo2e: carbonKgCo2e,
+                emissionFactorKgCo2ePerKwh: Number(carbonEntry.emission_factor_kg_co2e_per_kwh),
+                integrityStatus: carbonEntry.integrity_status
+            } : {
+                source: 'unavailable',
+                periodDate: null,
+                totalKwh: null,
+                totalKgCo2e: null,
+                emissionFactorKgCo2ePerKwh: null,
+                integrityStatus: 'UNAVAILABLE'
+            },
             energyHistory: energyHistory.length ? energyHistory : [400, 450, 420]
         };
 
