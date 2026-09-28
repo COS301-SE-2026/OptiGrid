@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchEsgHealthScore } from '@/lib/esg';
+import { fetchEsgHealthScore, type EsgHealthScore } from '@/lib/esg';
 
 type EcosystemState = 'thriving' | 'healthy' | 'declining' | 'critical';
 
@@ -116,6 +116,8 @@ interface LivingEnvironmentProps {
 
 export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
   const [baseline, setBaseline] = useState<{ energyEfficiency: number; renewables: number; hvacLoad: number; lighting: number } | null>(null);
+  const [healthData, setHealthData] = useState<EsgHealthScore | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const [energyEfficiency, setEnergyEfficiency] = useState(60);
   const [renewables, setRenewables] = useState(55);
@@ -123,22 +125,31 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
   const [lighting, setLighting] = useState(60);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoadError(false);
     fetchEsgHealthScore(buildingId)
       .then((data) => {
-        const getScore = (dim: string) => data.dimensions.find((d: { dimension: string; score: number }) => d.dimension === dim)?.score || 60;
+        if (cancelled) return;
+        const getScore = (dim: string) => data.dimensions.find((d) => d.dimension === dim)?.score ?? 60;
         const base = {
           energyEfficiency: getScore('energy_efficiency'),
           renewables: getScore('renewables'),
           hvacLoad: getScore('hvacLoad'),
           lighting: getScore('lighting'),
         };
+        setHealthData(data);
         setBaseline(base);
         setEnergyEfficiency(base.energyEfficiency);
         setRenewables(base.renewables);
         setHvacLoad(base.hvacLoad);
         setLighting(base.lighting);
       })
-      .catch(console.error);
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [buildingId]);
 
   const healthScore = useMemo(() => {
@@ -152,6 +163,17 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
 
   const state = getEcosystemState(healthScore);
   const config = stateConfig[state];
+  const carbonIntensity = healthData?.carbonIntensity;
+  const carbonIntensityLabel = carbonIntensity === null || carbonIntensity === undefined
+    ? 'Unavailable'
+    : `${carbonIntensity.toFixed(3)} kg CO2e/kWh`;
+  const ledgerStatus = healthData?.carbonAccounting.integrityStatus ?? 'UNAVAILABLE';
+  let energyEvidence = 'Environmental evidence is loading.';
+  if (healthData?.scope.energyEvidence === 'telemetry_derived') {
+    energyEvidence = 'The score is derived from recent energy telemetry.';
+  } else if (healthData?.scope.energyEvidence === 'fallback_defaults') {
+    energyEvidence = 'The score uses fallback defaults because recent energy telemetry is unavailable.';
+  }
 
   const drivers = useMemo(
     () => buildDrivers({ energyEfficiency, renewables, hvacLoad, lighting }),
@@ -170,7 +192,7 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
             }}
           >
             <div>
-              <h2 className="dashboard-section-title">Living Environment</h2>
+              <h2 className="dashboard-section-title">Environmental Performance</h2>
               <p className="dashboard-section-meta">
                 Building <span className="metric">{buildingId}</span>
               </p>
@@ -206,21 +228,33 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
             }}
           >
             <TreeStat
-              label="Health Score"
+              label="Environmental Score"
               value={`${healthScore}`}
               accent={config.badgeClass}
             />
             <TreeStat
-              label="Leaves"
-              value={`${config.leafCount}/24`}
-              accent={config.badgeClass}
+              label="Carbon Intensity"
+              value={carbonIntensityLabel}
+              accent={carbonIntensity === null || carbonIntensity === undefined ? 'badge-warning' : 'badge-default'}
             />
             <TreeStat
-              label="Bloom"
-              value={`${config.flowerCount}/8`}
-              accent={config.badgeClass}
+              label="Carbon Ledger"
+              value={ledgerStatus === 'UNAVAILABLE' ? 'Unavailable' : ledgerStatus}
+              accent={ledgerStatus === 'VALID' ? 'badge-success' : 'badge-warning'}
             />
           </div>
+          <p
+            className="dashboard-section-meta"
+            style={{ margin: 0, padding: '0 var(--space-5) var(--space-5)' }}
+          >
+            {energyEvidence} Governance evidence is limited to carbon-ledger
+            integrity, and social metrics are not included.
+          </p>
+          {loadError && (
+            <p className="text-danger" role="alert" style={{ margin: 0, padding: '0 var(--space-5) var(--space-5)' }}>
+              Live environmental evidence is unavailable; showing default scenario values.
+            </p>
+          )}
         </section>
 
         <div className="esg-drivers">
@@ -403,7 +437,7 @@ function WhatIsAffectingPanel({
       >
         <div>
           <h2 id="affecting-heading" className="dashboard-section-title">
-            Description of what is affecting the tree.
+            Environmental score drivers
           </h2>
           <p className="dashboard-section-meta">
             Weakest signals first.
@@ -431,7 +465,7 @@ function WhatIsAffectingPanel({
         }}
       >
         <span className="dashboard-section-meta">
-          Score <span className="metric">{healthScore}</span>  tree is{' '}
+          Environmental score <span className="metric">{healthScore}</span>  tree is{' '}
           <strong>{state}</strong>
         </span>
         <span className="dashboard-section-meta">

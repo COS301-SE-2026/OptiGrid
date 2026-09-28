@@ -70,7 +70,7 @@ const authorizeBuildingAccess = async (userId: string | undefined, buildingId: s
         select: { building_id: true }
     });
     if (!authorizedBuildings.some(b => b.building_id === buildingId)) {
-        res.status(403).json({ status: 'error', message: 'Access Denied: You do not have permission to view this forecast.' });
+        res.status(403).json({ status: 'error', message: 'Access Denied: You do not have permission to view this building.' });
         return false;
     }
     return true;
@@ -135,7 +135,7 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
         let minPower = Infinity;
         let maxPower = -Infinity;
         let sumPower = 0;
-        let countPower = rows.length;
+        const countPower = rows.length;
 
         let daytimePowerSum = 0;
         let daytimeCount = 0;
@@ -221,7 +221,7 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
             renewablesScore * 0.30 + 
             hvacScore * 0.20 + 
             lightingScore * 0.15
-        ) || 60;
+        );
 
         const energyHistory = rows.slice(-12).map(r => r.power_kw || 0);
         const carbonKwh = Number(carbonEntry?.total_kwh ?? 0);
@@ -233,13 +233,14 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
         const response = {
             buildingId: building_id,
             score: finalScore,
+            scoreLabel: 'Operational environmental proxy',
             computedAt: new Date().toISOString(),
-            trend: 1,
+            trend: 0,
             dimensions: [
-                { dimension: "energy_efficiency", label: "Energy Efficiency", score: energyEffScore, weight: 0.35, trend: 1 },
+                { dimension: "energy_efficiency", label: "Energy Efficiency", score: energyEffScore, weight: 0.35, trend: 0 },
                 { dimension: "renewables", label: "Renewable Energy", score: renewablesScore, weight: 0.3, trend: 0 },
-                { dimension: "hvacLoad", label: "HVAC Optimization", score: hvacScore, weight: 0.2, trend: 1 },
-                { dimension: "lighting", label: "Lighting Optimization", score: lightingScore, weight: 0.15, trend: 1 }
+                { dimension: "hvacLoad", label: "HVAC Optimization", score: hvacScore, weight: 0.2, trend: 0 },
+                { dimension: "lighting", label: "Lighting Optimization", score: lightingScore, weight: 0.15, trend: 0 }
             ],
             carbonIntensity,
             carbonAccounting: carbonEntry ? {
@@ -256,6 +257,13 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
                 totalKgCo2e: null,
                 emissionFactorKgCo2ePerKwh: null,
                 integrityStatus: 'UNAVAILABLE'
+            },
+            scope: {
+                primaryPillar: 'environmental',
+                energyEvidence: countPower > 0 ? 'telemetry_derived' : 'fallback_defaults',
+                carbonEvidence: carbonEntry ? 'ledger_backed' : 'unavailable',
+                governanceEvidence: carbonEntry ? 'carbon_ledger_integrity_only' : 'unavailable',
+                socialMetrics: 'not_included'
             },
             energyHistory: energyHistory.length ? energyHistory : [400, 450, 420]
         };

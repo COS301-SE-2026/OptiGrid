@@ -95,7 +95,7 @@ describe('ESG Controller Unit Tests', () => {
             await getEsgHealthScoreController(req as Request, res as Response);
             
             expect(statusMock).toHaveBeenCalledWith(403);
-            expect(jsonMock).toHaveBeenCalledWith({ status: 'error', message: 'Access Denied: You do not have permission to view this forecast.' });
+            expect(jsonMock).toHaveBeenCalledWith({ status: 'error', message: 'Access Denied: You do not have permission to view this building.' });
         });
 
         it('should correctly calculate ESG health score from valid InfluxDB data', async () => {
@@ -137,6 +137,14 @@ describe('ESG Controller Unit Tests', () => {
                         source: 'carbon_ledger',
                         integrityStatus: 'VALID'
                     }),
+                    scoreLabel: 'Operational environmental proxy',
+                    scope: {
+                        primaryPillar: 'environmental',
+                        energyEvidence: 'telemetry_derived',
+                        carbonEvidence: 'ledger_backed',
+                        governanceEvidence: 'carbon_ledger_integrity_only',
+                        socialMetrics: 'not_included'
+                    },
                     energyHistory: expect.any(Array)
                 }));
             });
@@ -153,8 +161,21 @@ describe('ESG Controller Unit Tests', () => {
                 carbonAccounting: expect.objectContaining({
                     source: 'unavailable',
                     integrityStatus: 'UNAVAILABLE'
+                }),
+                scope: expect.objectContaining({
+                    energyEvidence: 'fallback_defaults',
+                    carbonEvidence: 'unavailable',
+                    governanceEvidence: 'unavailable',
+                    socialMetrics: 'not_included'
                 })
             }));
+            const payload = jsonMock.mock.calls[0][0];
+            const weightedScore = Math.round(payload.dimensions.reduce(
+                (sum: number, dimension: { score: number; weight: number }) => sum + dimension.score * dimension.weight,
+                0
+            ));
+            expect(payload.score).toBe(weightedScore);
+            expect(payload.trend).toBe(0);
         });
     });
 

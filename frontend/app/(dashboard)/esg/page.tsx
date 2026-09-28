@@ -30,11 +30,11 @@ export default function EsgDashboardPage() {
         <div className="dashboard-main">
           <header className="dashboard-header">
             <div>
-              <p className="landing-kicker">Environmental</p>
-              <h1 className="dashboard-title">ESG Dashboard</h1>
+              <p className="landing-kicker">ESG scope: Environmental</p>
+              <h1 className="dashboard-title">Environmental Performance</h1>
               <p className="dashboard-subtitle">
-                Select a building to see its living environment respond in real
-                time.
+                Operational energy and carbon indicators for each building. This
+                is not a complete ESG rating; social metrics are not yet tracked.
               </p>
             </div>
 

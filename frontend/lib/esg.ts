@@ -4,9 +4,9 @@ const API_BASE = typeof window === "undefined"
 
 export type EsgDimension =
   | "energy_efficiency"
-  | "carbon_footprint"
-  | "water_usage"
-  | "waste_management";
+  | "renewables"
+  | "hvacLoad"
+  | "lighting";
 
 export interface DimensionScore {
  
@@ -20,6 +20,7 @@ export interface DimensionScore {
 export interface EsgHealthScore {
   buildingId: string;
   score: number;
+  scoreLabel: "Operational environmental proxy";
   computedAt: string;
   trend: -1 | 0 | 1;
   dimensions: DimensionScore[];
@@ -31,6 +32,13 @@ export interface EsgHealthScore {
     totalKgCo2e: number | null;
     emissionFactorKgCo2ePerKwh: number | null;
     integrityStatus: "PENDING" | "VALID" | "TAMPERED" | "INCOMPLETE" | "UNAVAILABLE";
+  };
+  scope: {
+    primaryPillar: "environmental";
+    energyEvidence: "telemetry_derived" | "fallback_defaults";
+    carbonEvidence: "ledger_backed" | "unavailable";
+    governanceEvidence: "carbon_ledger_integrity_only" | "unavailable";
+    socialMetrics: "not_included";
   };
   energyHistory: number[];
 }
