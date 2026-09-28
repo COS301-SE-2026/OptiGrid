@@ -54,6 +54,75 @@ type ForecastResult = {
     };
 };
 
+const FORECAST_POLL_INTERVAL_MS = 1_500;
+const FORECAST_POLL_ATTEMPTS = 30;
+
+function forecastRequestBody(horizon: ForecastParams["horizon"]) {
+    return {
+        horizon,
+        horizon_days: horizon === "monthly" ? 30 : 7,
+        granularity: horizon === "monthly" ? "weekly" : "hourly",
+    };
+}
+
+async function parseResponse(response: Response): Promise<Record<string, unknown>> {
+    return response.json().catch(() => ({})) as Promise<Record<string, unknown>>;
+}
+
+function isForecastResult(payload: Record<string, unknown>): payload is ForecastResult & Record<string, unknown> {
+    return Array.isArray(payload.forecast) && payload.forecast.length > 0 &&
+        Array.isArray(payload.historical) &&
+        typeof payload.summary === "object" && payload.summary !== null;
+}
+
+function responseMessage(payload: Record<string, unknown>, fallback: string): string {
+    return typeof payload.message === "string" && payload.message.trim() ? payload.message : fallback;
+}
+
+async function fetchStoredForecast(params: ForecastParams): Promise<{
+    response: Response;
+    payload: Record<string, unknown>;
+}> {
+    const response = await fetch(`/api/analytics/forecast/${params.building_id}?horizon=${params.horizon}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(forecastRequestBody(params.horizon)),
+    });
+
+    return { response, payload: await parseResponse(response) };
+}
+
+async function waitForForecast(params: ForecastParams): Promise<ForecastResult> {
+    const initial = await fetchStoredForecast(params);
+    if (initial.response.ok && isForecastResult(initial.payload)) {
+        return initial.payload;
+    }
+    if (initial.response.status !== 404 && !initial.response.ok) {
+        throw new Error(responseMessage(initial.payload, "Failed to fetch forecast"));
+    }
+
+    const refreshResponse = await fetch(`/api/analytics/refresh/${params.building_id}`, {
+        method: "POST",
+    });
+    const refreshPayload = await parseResponse(refreshResponse);
+    if (!refreshResponse.ok && refreshResponse.status !== 429) {
+        throw new Error(responseMessage(refreshPayload, "Failed to start forecast generation"));
+    }
+
+    for (let attempt = 0; attempt < FORECAST_POLL_ATTEMPTS; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, FORECAST_POLL_INTERVAL_MS));
+        const current = await fetchStoredForecast(params);
+        if (current.response.ok && isForecastResult(current.payload)) {
+            return current.payload;
+        }
+        if (current.response.status !== 404 && !current.response.ok) {
+            throw new Error(responseMessage(current.payload, "Failed to fetch generated forecast"));
+        }
+    }
+
+    throw new Error("Forecast generation is taking longer than expected. Please try again shortly.");
+}
+
 type ChartPoint = {
     timestamp: string;
     kwh?: number;
@@ -520,26 +589,7 @@ export default function ForecastPage() {
     const { data: buildings = [], isLoading: buildingsLoading, isError: buildingsError } = useBuildings();
 
     const { mutate, isPending, data: result } = useMutation({
-        mutationFn: async (params: ForecastParams) => {
-            const response = await fetch(`/api/analytics/forecast/${params.building_id}?horizon=${params.horizon}`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    horizon: params.horizon,
-                    horizon_days: params.horizon === "monthly" ? 30 : 7,
-                    granularity: params.horizon === "monthly" ? "weekly" : "hourly",
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Failed to fetch forecast");
-            }
-
-            return response.json() as Promise<ForecastResult>;
-        },
+        mutationFn: waitForForecast,
         onMutate: () => {
             setForecastError(null);
         },

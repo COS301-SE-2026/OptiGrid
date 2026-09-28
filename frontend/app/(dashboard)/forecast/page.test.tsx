@@ -138,6 +138,48 @@ describe("ForecastPage", () => {
         });
     });
 
+    it("queues and polls when a building has no generated forecast", async () => {
+        jest.useFakeTimers();
+        setupQueries();
+        setupMutation();
+        global.fetch = jest.fn()
+            .mockResolvedValueOnce({
+                ok: false,
+                status: 404,
+                json: async () => ({ message: "Forecast models are currently being generated." }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 202,
+                json: async () => ({ status: "accepted" }),
+            })
+            .mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => resultData,
+            });
+
+        try {
+            render(<ForecastPage />);
+            const mutationOptions = mockUseMutation.mock.calls[0][0] as {
+                mutationFn: (params: { building_id: string; horizon: "monthly" }) => Promise<typeof resultData>;
+            };
+            const resultPromise = mutationOptions.mutationFn({ building_id: "1", horizon: "monthly" });
+
+            await jest.advanceTimersByTimeAsync(1_500);
+
+            await expect(resultPromise).resolves.toEqual(resultData);
+            expect(global.fetch).toHaveBeenNthCalledWith(
+                2,
+                "/api/analytics/refresh/1",
+                { method: "POST" },
+            );
+            expect(global.fetch).toHaveBeenCalledTimes(3);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it("renders KPI values when a forecast result exists", () => {
         setupQueries();
         setupMutation({ data: resultData });
