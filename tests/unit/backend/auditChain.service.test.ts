@@ -88,6 +88,23 @@ describe('audit chain hashing', () => {
 
         expect(upperHash).toBe(lowerHash);
     });
+
+    it('hashes JSON-backed values exactly as they are persisted', () => {
+        const databaseValue = baseRecord({
+            new_value: { square_footage: '5000' }
+        });
+        const prismaValue = baseRecord({
+            new_value: {
+                square_footage: {
+                    toJSON: () => '5000',
+                    internalRepresentation: [5000]
+                }
+            }
+        });
+
+        expect(computeRecordHash(prismaValue, GENESIS_HASH))
+            .toBe(computeRecordHash(databaseValue, GENESIS_HASH));
+    });
 });
 
 describe('appendChainedAuditLog', () => {

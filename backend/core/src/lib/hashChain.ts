@@ -21,7 +21,7 @@ export interface ChainableAuditRecord {
     timestamp: Date | string | null;
 }
 
-const canonicaliseData = (value: unknown): string => {
+export const canonicaliseData = (value: unknown): string => {
     if (value === null || value === undefined) {
         return 'null';
     }
@@ -35,6 +35,17 @@ const canonicaliseData = (value: unknown): string => {
     }
 
     if (typeof value === 'object') {
+        // Prisma JSON values can contain wrapper objects (for example Decimal)
+        // whose persisted representation is defined by toJSON(). Hash that
+        // representation so append-time and read-time verification agree.
+        const jsonValue = value as { toJSON?: () => unknown };
+        if (typeof jsonValue.toJSON === 'function') {
+            const serialised = jsonValue.toJSON();
+            if (serialised !== value) {
+                return canonicaliseData(serialised);
+            }
+        }
+
         const entries = Object.entries(value as Record<string, unknown>)
             .filter(([, entryValue]) => entryValue !== undefined)
             .sort(([a], [b]) => (a < b ? -1 : 1))
