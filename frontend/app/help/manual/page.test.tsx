@@ -2,6 +2,8 @@ import React from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ManualPage from "./page"; 
+import userEvent from "@testing-library/user-event";
+
 
 const LANDING_ALT =
   "Landing page with hero, live portfolio panel and call to action";
@@ -112,25 +114,36 @@ describe("ManualPage", () => {
     render(<ManualPage />);
 
     const snapshot = getSnapshotButton();
-    expect(snapshot).toHaveAttribute("tabindex", "0");
+  expect(snapshot.tagName).toBe("BUTTON");
+  expect(snapshot).toHaveAttribute("type", "button");
+  expect(snapshot).toBeEnabled();
 
-    fireEvent.click(snapshot);
+  fireEvent.click(snapshot);
 
-    expect(screen.getByRole("dialog")).toHaveAttribute("aria-label", LANDING_ALT);
+  expect(screen.getByRole("dialog")).toHaveAttribute("aria-label", LANDING_ALT);
+
+
+    
   });
 
   it.each([
-    ["Enter", "Enter"],
-    ["Space", " "],
-  ])("opens the lightbox and prevents default on %s", (_label, key) => {
-    render(<ManualPage />);
+  ["Enter", "{Enter}"],
+  ["Space", " "],
+])("opens the lightbox when %s is pressed on the focused button", async (_label, key) => {
+  const user = userEvent.setup();
+  render(<ManualPage />);
 
-    
-    const notPrevented = fireEvent.keyDown(getSnapshotButton(), { key });
+  await user.tab(); 
+  getSnapshotButton().focus();
+  expect(getSnapshotButton()).toHaveFocus();
 
-    expect(notPrevented).toBe(false);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-  });
+  await user.keyboard(key);
+
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+});
+
+
+
 
   it("ignores other keys", () => {
     render(<ManualPage />);

@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  isValidElement,
+  type ReactNode,
+} from "react";
+
+
 
 type Section = {
   id: string;
@@ -39,29 +47,52 @@ function Lightbox({
   }, [onClose]);
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
       aria-label={alt}
-      onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 100,
-        background: "color-mix(in srgb, var(--brand-ink) 78%, transparent)",
+        width: "100%",
+        height: "100%",
+        maxWidth: "none",
+        maxHeight: "none",
+        boxSizing: "border-box",
+        margin: 0,
+        border: "none",
+        background: "transparent",
         display: "grid",
         placeItems: "center",
         padding: "var(--space-5)",
-        cursor: "zoom-out",
         animation: "manual-fade-in 0.2s ease",
       }}
     >
+      <button
+        type="button"
+        aria-hidden="true"
+        tabIndex={-1}
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          padding: 0,
+          border: "none",
+          background: "color-mix(in srgb, var(--brand-ink) 78%, transparent)",
+          cursor: "zoom-out",
+        }}
+      />
+
       <button
         type="button"
         aria-label="Close enlarged image"
         onClick={onClose}
         style={{
           position: "absolute",
+          zIndex: 1,
           top: "var(--space-4)",
           right: "var(--space-4)",
           width: 40,
@@ -81,14 +112,13 @@ function Lightbox({
       </button>
 
       <figure
-        onClick={(e) => e.stopPropagation()}
         style={{
+          position: "relative",
           margin: 0,
           maxWidth: "min(1400px, 95vw)",
           maxHeight: "92vh",
           display: "grid",
           gap: "var(--space-3)",
-          cursor: "default",
         }}
       >
         <img
@@ -118,7 +148,7 @@ function Lightbox({
           </figcaption>
         )}
       </figure>
-    </div>
+    </dialog>
   );
 }
 
@@ -144,23 +174,21 @@ function Snapshot({
         gap: "var(--space-2)",
       }}
     >
-      <div
+      <button
+        type="button"
+        disabled={!clickable}
         onClick={() => {
           if (src) onOpen(src, alt, caption);
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        role={clickable ? "button" : undefined}
-        tabIndex={clickable ? 0 : undefined}
-        onKeyDown={(e) => {
-          if (clickable && (e.key === "Enter" || e.key === " ")) {
-            e.preventDefault();
-            onOpen(src!, alt, caption);
-          }
-        }}
         aria-label={clickable ? `Enlarge image: ${alt}` : undefined}
         style={{
           position: "relative",
+          width: "100%",
+          padding: 0,
+          font: "inherit",
+          color: "inherit",
           aspectRatio: "16 / 10",
           maxWidth: 560,
           margin: "0 auto",
@@ -218,7 +246,7 @@ function Snapshot({
             </span>
           </>
         ) : (
-          <div
+          <span
             style={{
               display: "grid",
               gap: "var(--space-2)",
@@ -257,9 +285,9 @@ function Snapshot({
             <span style={{ fontSize: "0.75rem" }}>
               Replace this placeholder with a screenshot
             </span>
-          </div>
+          </span>
         )}
-      </div>
+      </button>
       <figcaption
         className="dashboard-section-meta"
         style={{ fontSize: "0.95rem", textAlign: "center" }}
@@ -268,6 +296,13 @@ function Snapshot({
       </figcaption>
     </figure>
   );
+}
+
+function rowKey(row: ReactNode[]): string {
+  const first = row[0];
+  if (typeof first === "string") return first;
+  if (isValidElement(first) && first.key !== null) return String(first.key);
+  return String(first);
 }
 
 function InfoTable({
@@ -294,10 +329,10 @@ function InfoTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => (
-              <tr key={i}>
+            {rows.map((row) => (
+              <tr key={rowKey(row)}>
                 {row.map((cell, j) => (
-                  <td key={j}>{cell}</td>
+                  <td key={headers[j]}>{cell}</td>
                 ))}
               </tr>
             ))}
@@ -457,8 +492,7 @@ const SECTIONS: Section[] = [
           <a href="https://www.optigrid.co.za/" target="_blank" rel="noopener noreferrer">
             https://www.optigrid.co.za/
           </a>
-          . The landing page introduces the platform and provides options to log
-          in or create a new account.
+          {". The landing page introduces the platform and provides options to log in or create a new account."}
         </p>
 
         <h3>Creating an account</h3>
@@ -619,7 +653,6 @@ const SECTIONS: Section[] = [
           a selectable time range, and location details.
         </p>
 
-      
         <h3>Deleting a building</h3>
         <p>
           Locate the delete icon next to the building&apos;s entry. Confirm the
@@ -854,7 +887,6 @@ const SECTIONS: Section[] = [
             user account.
           </li>
         </ol>
-
       </>
     ),
     snapshot: {
@@ -1053,7 +1085,6 @@ export default function ManualPage() {
 
   return (
     <div>
-    
       <header
         style={{
           position: "relative",
@@ -1089,7 +1120,6 @@ export default function ManualPage() {
             maxWidth: 720,
           }}
         >
-          
           <h1
             style={{
               margin: 0,
@@ -1142,7 +1172,6 @@ export default function ManualPage() {
           alignItems: "start",
         }}
       >
-        
         <aside
           className="card manual-toc"
           aria-label="Manual contents"
@@ -1229,7 +1258,6 @@ export default function ManualPage() {
           </nav>
         </aside>
 
-        
         <div style={{ display: "grid", gap: "var(--space-5)", minWidth: 0 }}>
           {SECTIONS.map((section) => (
             <section
