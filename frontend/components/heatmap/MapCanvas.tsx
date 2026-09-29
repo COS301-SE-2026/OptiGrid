@@ -47,6 +47,7 @@ const DEFAULT_CENTRE: [number, number] = [28.19, -25.75];
 const HOT_STRESS = 0.8;
 const STYLE_TIMEOUT_MS = 10000;
 const BASEMAP_STYLES = { light: "https://tiles.openfreemap.org/styles/positron", dark: "https://tiles.openfreemap.org/styles/dark" };
+const MAPLIBRE_WORKER_URL = "/maplibre/maplibre-gl-worker.mjs";
 
 function fallbackStyle(dark: boolean): StyleSpecification {
     return {
@@ -220,6 +221,9 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
 
         let map: maplibregl.Map;
         try {
+            // Next.js rewrites import.meta.url while bundling MapLibre, so its
+            // inferred v6 worker URL points at the application chunk instead.
+            maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
             map = new maplibregl.Map({
                 container,
                 style: basemapFor(latest.current.dark, false),
@@ -260,6 +264,7 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
             applyMode(map, current.tilted);
             map.setFilter("halo", ["==", ["get", "buildingId"], current.selectedId ?? ""]);
             readyRef.current = true;
+            container.dataset.mapReady = "true";
             if (current.tilted) {
                 map.jumpTo({ pitch: TILT_PITCH, bearing: TILT_BEARING });
             }
@@ -325,6 +330,7 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
             clearTimeout(styleTimer);
             observer?.disconnect();
             readyRef.current = false;
+            container.dataset.mapReady = "false";
             mapRef.current = null;
             map.remove();
         };
@@ -337,6 +343,9 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
         }
         themeRef.current = dark;
         readyRef.current = false;
+        if (containerRef.current) {
+            containerRef.current.dataset.mapReady = "false";
+        }
         map.setStyle(basemapFor(dark, fallbackRef.current), { diff: false });
     }, [dark]);
 
@@ -449,5 +458,5 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
         };
     }, [reducedMotion, active]);
 
-    return <div ref={containerRef} className="heat-map-canvas" />;
+    return <div ref={containerRef} className="heat-map-canvas" data-map-ready="false" />;
 }
