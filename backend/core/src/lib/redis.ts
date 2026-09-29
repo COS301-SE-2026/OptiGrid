@@ -8,7 +8,10 @@ const createTestRedis = (): any => {
         on: () => client,
         get: async (k: string) => store.get(k) || null,
         mget: async (...keys: string[]) => keys.map(k => store.get(k) || null),
-        set: async (k: string, v: string) => { store.set(k, v); return "OK"; },
+        set: (k: string, v: string) => {
+            store.set(k, v);
+            return Promise.resolve("OK");
+        },
         keys: async (pattern: string) => Array.from(store.keys()),
         del: async (...keys: string[]) => {
             let deleted = 0;
@@ -34,7 +37,7 @@ const createTestRedis = (): any => {
             return 1;
         },
         unsubscribe: async () => 0,
-        publish: async () => 0,
+        publish: () => Promise.resolve(0),
         ping: async () => "PONG",
         llen: async () => 0,
         xadd: async () => "0-0",
