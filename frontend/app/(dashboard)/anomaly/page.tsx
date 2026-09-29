@@ -19,6 +19,7 @@ import {
   useAnomalyFilters,
   useHistoricFilterState,
   parseNumberOrNull,
+  EMPTY_BUILDINGS,
 } from "../../../components/sharedanomaly";
 
 type MetricType = "power" | "cost";
@@ -40,14 +41,18 @@ import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
 
 export default function ManagerAnomalyPage() {
   const { toastMessage, setToastMessage } = useAnomalyWebSocket();
-  const { data: buildings = [] } = useBuildings();
+  const { data: buildingData, isLoading: buildingsLoading } = useBuildings();
+  const buildings = buildingData ?? EMPTY_BUILDINGS;
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [thresholds, setThresholds] = useState<AlertThreshold[]>([]);
   const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
   const [summary, setSummary] = useState<AnomalySummary | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchData() {
       try {
         const [anomaliesRes, thresholdsRes] = await Promise.all([
@@ -58,6 +63,7 @@ export default function ManagerAnomalyPage() {
         if (!anomaliesRes.ok) throw new Error("Unable to load anomaly alerts.");
 
         const payload = await anomaliesRes.json();
+        if (cancelled) return;
         const allAnomalies: Anomaly[] = payload.data || [];
         setSummary(payload.summary || null);
         setAnomalies(allAnomalies.filter(a => a.status === "Open" || a.status === "In_Progress"));
@@ -65,14 +71,22 @@ export default function ManagerAnomalyPage() {
 
         if (thresholdsRes.ok) {
           const payload = await thresholdsRes.json();
+          if (cancelled) return;
           setThresholds(payload.data || []);
         }
       } catch (err) {
+        if (cancelled) return;
         console.error("Failed to fetch live dashboard data", err);
         setToastMessage(err instanceof Error ? err.message : "Unable to load anomaly alerts.");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     fetchData();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
@@ -281,6 +295,8 @@ export default function ManagerAnomalyPage() {
             formatChartTime={formatChartTime}
             formatDate={formatDate}
             onRowClick={handleViewDetails}
+            pageLoading={loading || buildingsLoading || (buildings.length > 0 && !selectedBuildingForChart) || chart.chartLoading}
+            anomaliesLoading={loading}
             buildingFilterLabel="Building"
           />
         </div>

@@ -375,10 +375,11 @@ interface AnomaliesTableProps {
   anomalies: Anomaly[];
   onRowClick: (anomaly: Anomaly) => void;
   formatDate: (date: string) => string;
+  loading?: boolean;
 }
 
 export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
-  const { anomalies, onRowClick, formatDate: formatDateProp } = props;
+  const { anomalies, onRowClick, formatDate: formatDateProp, loading = false } = props;
   const colSpan = 7;
 
   const handleRowClick = (e: MouseEvent<HTMLTableRowElement>, anomaly: Anomaly) => {
@@ -404,7 +405,13 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
             </tr>
           </thead>
           <tbody>
-            {anomalies.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={colSpan} className="dashboard-empty" role="status">
+                  Loading anomalies...
+                </td>
+              </tr>
+            ) : anomalies.length === 0 ? (
               <tr>
                 <td colSpan={colSpan} className="dashboard-empty">
                   No anomalies found
@@ -786,7 +793,7 @@ export function parseNumberOrNull(value: string): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
-const EMPTY_BUILDINGS: Building[] = [];
+export const EMPTY_BUILDINGS: Building[] = [];
 const SERIES_ERROR_MESSAGE = "Unable to load energy consumption data.";
 
 
@@ -822,6 +829,7 @@ interface AnomalyOverviewProps {
   formatDate: (date: string) => string;
   onRowClick: (anomaly: Anomaly) => void;
   pageLoading?: boolean;
+  anomaliesLoading?: boolean;
   buildingFilterLabel?: string;
 }
 
@@ -839,6 +847,7 @@ export function AnomalyOverview(props: Readonly<AnomalyOverviewProps>) {
     formatDate,
     onRowClick,
     pageLoading,
+    anomaliesLoading,
     buildingFilterLabel,
   } = props;
 
@@ -875,7 +884,12 @@ export function AnomalyOverview(props: Readonly<AnomalyOverviewProps>) {
         <h2 className="dashboard-section-title dashboard-page-section">
           Current anomalies
         </h2>
-        <AnomaliesTable anomalies={filters.filteredAnomalies} onRowClick={onRowClick} formatDate={formatDate} />
+        <AnomaliesTable
+          anomalies={filters.filteredAnomalies}
+          onRowClick={onRowClick}
+          formatDate={formatDate}
+          loading={anomaliesLoading}
+        />
       </section>
     </>
   );
@@ -890,15 +904,17 @@ export function useAnomalyChartData(
   const [seriesData, setSeriesData] = useState<{ timestamp: string; kwh: number; cost_zar: number }[]>([]);
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
+  const [settledBuildingId, setSettledBuildingId] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     const buildingId = resolveBuildingId(selectedBuildingForChart, buildings);
 
     if (!buildingId) {
-      setSeriesData([]);
+      setSeriesData((current) => current.length === 0 ? current : []);
       setChartError(null);
       setChartLoading(false);
+      setSettledBuildingId("");
       return () => {
         cancelled = true;
       };
@@ -930,6 +946,7 @@ export function useAnomalyChartData(
         }
       } finally {
         if (!cancelled) {
+          setSettledBuildingId(buildingId);
           setChartLoading(false);
         }
       }
@@ -1003,7 +1020,10 @@ export function useAnomalyChartData(
       }));
   }, [chartData, chartMetric]);
 
-  return { chartData, anomalyPoints, chartError, chartLoading };
+  const buildingId = resolveBuildingId(selectedBuildingForChart, buildings);
+  const isChartLoading = Boolean(buildingId) && (chartLoading || settledBuildingId !== buildingId);
+
+  return { chartData, anomalyPoints, chartError, chartLoading: isChartLoading };
 }
 
 
