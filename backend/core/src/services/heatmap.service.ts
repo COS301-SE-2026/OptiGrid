@@ -12,10 +12,12 @@ const MEASUREMENT = "energy_telemetry";
 const FIELD = "usage";
 const NO_DATA = "none";
 const MISS_TTL = 60;
+const HEATMAP_QUERY_TIMEOUT_MS = 60_000;
 
 const influx = new InfluxDB({
     url,
-    token
+    token,
+    timeout: HEATMAP_QUERY_TIMEOUT_MS
 });
 
 type HeatmapPoint = {
@@ -126,7 +128,9 @@ export const getHeatmapDataService = async (userId: string, timeframe: HeatmapTi
 };
 
 function buildFluxQuery(buildingIds: string[], timeframe: HeatmapTimeframe): string {
-    const idSet = `[${buildingIds.map(id => JSON.stringify(id)).join(", ")}]`;
+    const buildingFilter = buildingIds
+        .map(id => `r["building_id"] == ${JSON.stringify(id)}`)
+        .join(" or ");
     const isLive = timeframe === "live";
     const range = isLive ? "-5m" : timeframe;
 
@@ -149,7 +153,7 @@ function buildFluxQuery(buildingIds: string[], timeframe: HeatmapTimeframe): str
             |> range(start: ${range})
             |> filter(fn: (r) => r["_measurement"] == ${JSON.stringify(MEASUREMENT)})
             |> filter(fn: (r) => r["_field"] == ${JSON.stringify(FIELD)})
-            |> filter(fn: (r) => contains(value: r["building_id"], set: ${idSet}))
+            |> filter(fn: (r) => ${buildingFilter})
             ${shape}
     `;
 }
