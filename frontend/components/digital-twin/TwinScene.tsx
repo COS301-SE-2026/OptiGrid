@@ -21,6 +21,7 @@ import {
     type StressPalette,
     type FacadeStyle,
     type MassingBlock,
+    type MeasuredPath,
     type TwinLayout,
     type TwinLimits,
     type TwinMassing,
@@ -74,6 +75,43 @@ type VisualState = {
     refreshedAt: number;
     dirty: boolean;
 };
+
+type EnergyPath = {
+    path: MeasuredPath;
+    driver: number;
+};
+
+function updateEnergyParticle(
+    index: number,
+    paths: EnergyPath[],
+    owners: Int32Array,
+    progress: Float32Array,
+    state: VisualState,
+    step: number,
+    reducedMotion: boolean,
+    dark: boolean,
+    positions: Float32Array,
+    tint: THREE.BufferAttribute,
+    size: THREE.BufferAttribute,
+    alpha: THREE.BufferAttribute,
+): void {
+    const { path, driver } = paths[owners[index]];
+    const visual = driver >= 0 ? state.visuals[driver] : null;
+    const live = visual ? visual.live : state.anyLive;
+    const share = visual
+        ? (state.maxPower > 0 ? visual.power / state.maxPower : 0)
+        : (state.anyLive ? 0.7 : 0);
+    const colour = visual ? visual.colour : state.aggregateColour;
+
+    if (live && !reducedMotion && path.length > 0) {
+        progress[index] = (progress[index] + (step * (0.9 + 2.6 * share)) / path.length) % 1;
+    }
+    writePointAlongPath(path, progress[index], positions, index * 3);
+    tint.setXYZ(index, colour.r, colour.g, colour.b);
+    size.setX(index, live ? 0.26 + 0.2 * share : 0);
+    const fade = Math.sqrt(Math.max(0, Math.sin(progress[index] * Math.PI)));
+    alpha.setX(index, live ? (dark ? 0.95 : 0.8) * fade : 0);
+}
 
 type VisualSource = {
     state: VisualState;
@@ -388,7 +426,7 @@ function Roof({ layout, palette, dark }: Readonly<{ layout: TwinLayout; palette:
         const squash = Math.max(0.08, massing.roofRise / radius);
         return (
             <mesh position={[block.centreX, crown, block.centreZ]} rotation-z={Math.PI / 2} scale={[squash, 1, 1]}>
-                <cylinderGeometry args={[radius, radius, block.width, 24, 1, true, 0, Math.PI]} />
+                <cylinderGeometry {...{ args: [radius, radius, block.width, 24, 1, true, 0, Math.PI] as [number, number, number, number, number, boolean, number, number] }} />
                 <meshStandardMaterial color={colour} roughness={0.55} metalness={0.15} side={THREE.DoubleSide} />
             </mesh>
         );
@@ -474,14 +512,14 @@ function BuildingShell({ layout, palette, dark }: Readonly<{ layout: TwinLayout;
             </instancedMesh>
             <instancedMesh key={`posts-${mullions.length}`} ref={mullionRef} args={[undefined, undefined, mullions.length]} frustumCulled={false}>
                 <boxGeometry />
-                <meshStandardMaterial color={palette.secondary} roughness={0.5} metalness={0.3} />
+                <meshStandardMaterial {...{ color: palette.secondary, roughness: 0.5, metalness: 0.3 }} />
             </instancedMesh>
             <lineSegments geometry={outline}>
                 <lineBasicMaterial color={palette.primary} transparent opacity={dark ? 0.55 : 0.45} />
             </lineSegments>
             <mesh position={[0, height / 2, 0]}>
                 <cylinderGeometry args={[0.07, 0.07, height, 12]} />
-                <meshBasicMaterial color={palette.primary} transparent opacity={0.55} toneMapped={false} />
+                <meshBasicMaterial {...{ color: palette.primary, transparent: true, opacity: 0.55, toneMapped: false }} />
             </mesh>
             <Roof layout={layout} palette={palette} dark={dark} />
         </group>
@@ -608,9 +646,9 @@ function FloorBands({
     return (
         <group>
             {opacity !== null && (
-                <instancedMesh key={`glass-${cells.length}`} ref={glassRef} args={[undefined, undefined, cells.length]} frustumCulled={false} renderOrder={1}>
+                <instancedMesh key={`glass-${cells.length}`} ref={glassRef} {...{ args: [undefined, undefined, cells.length] as [undefined, undefined, number], frustumCulled: false, renderOrder: 1 }}>
                     <boxGeometry />
-                    <meshBasicMaterial transparent opacity={opacity} depthWrite={false} toneMapped={false} />
+                    <meshBasicMaterial {...{ transparent: true, opacity, depthWrite: false, toneMapped: false }} />
                 </instancedMesh>
             )}
             <instancedMesh key={`bands-${rims.length}`} ref={bandRef} args={[undefined, undefined, rims.length]} frustumCulled={false}>
@@ -658,7 +696,7 @@ function GridConnection({ layout, palette, dark }: Readonly<{ layout: TwinLayout
                 <cylinderGeometry args={[0.06, 0.09, sourceY, 8]} />
                 <meshStandardMaterial color={dark ? palette.secondary : palette.idle} roughness={0.6} />
             </mesh>
-            <mesh position={[sourceX, sourceY - 0.1, sourceZ]}>
+            <mesh {...{ position: [sourceX, sourceY - 0.1, sourceZ] as [number, number, number] }}>
                 <boxGeometry args={[0.1, 0.08, 1.1]} />
                 <meshStandardMaterial color={dark ? palette.secondary : palette.idle} />
             </mesh>
@@ -893,23 +931,7 @@ function EnergyFlows({
         const step = Math.min(delta, 0.1);
 
         for (let index = 0; index < owners.length; index += 1) {
-            const { path, driver } = paths[owners[index]];
-            const visual = driver >= 0 ? state.visuals[driver] : null;
-            const live = visual ? visual.live : state.anyLive;
-            let share = state.anyLive ? 0.7 : 0;
-            if (visual) {
-                share = state.maxPower > 0 ? visual.power / state.maxPower : 0;
-            }
-            const colour = visual ? visual.colour : state.aggregateColour;
-
-            if (live && !reducedMotion && path.length > 0) {
-                progress[index] = (progress[index] + (step * (0.9 + 2.6 * share)) / path.length) % 1;
-            }
-            writePointAlongPath(path, progress[index], positions, index * 3);
-            tint.setXYZ(index, colour.r, colour.g, colour.b);
-            size.setX(index, live ? 0.26 + 0.2 * share : 0);
-            const fade = Math.sqrt(Math.max(0, Math.sin(progress[index] * Math.PI)));
-            alpha.setX(index, live ? (dark ? 0.95 : 0.8) * fade : 0);
+            updateEnergyParticle(index, paths, owners, progress, state, step, reducedMotion, dark, positions, tint, size, alpha);
         }
 
         position.needsUpdate = true;
@@ -923,7 +945,7 @@ function EnergyFlows({
             <lineSegments geometry={cables}>
                 <lineBasicMaterial color={palette.primary} transparent opacity={dark ? 0.3 : 0.38} />
             </lineSegments>
-            <points geometry={particles} material={glow} frustumCulled={false} renderOrder={3} />
+            <points {...{ geometry: particles, material: glow, frustumCulled: false, renderOrder: 3 }} />
         </group>
     );
 }
@@ -981,7 +1003,7 @@ function SelectionRing({ placement, colour, reducedMotion }: Readonly<{ placemen
     });
     return (
         <mesh ref={ref} position={placement.position} rotation-x={-Math.PI / 2}>
-            <torusGeometry args={[0.72, 0.03, 8, 48, Math.PI * 1.5]} />
+            <torusGeometry {...{ args: [0.72, 0.03, 8, 48, Math.PI * 1.5] as [number, number, number, number, number] }} />
             <meshBasicMaterial color={colour} toneMapped={false} />
         </mesh>
     );

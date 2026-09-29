@@ -74,6 +74,31 @@ function windowCells(blocks: MassingBlock[], floorHeight: number, spacing: numbe
     return cells;
 }
 
+function balconyCells(blocks: MassingBlock[], floorHeight: number): WindowCell[] {
+    const cells: WindowCell[] = [];
+    for (const block of blocks) {
+        for (const face of facesOf(block)) {
+            const run = face.spanX || face.spanZ;
+            const count = Math.max(1, Math.round(run / 3.4));
+            for (let floor = 1; floor < block.floors; floor += 1) {
+                const y = (block.baseFloor + floor) * floorHeight;
+                for (let slot = 0; slot < count; slot += 1) {
+                    const offset = -run / 2 + (run / count) * (slot + 0.5);
+                    cells.push({
+                        x: block.centreX + face.normalX * 1.16 + (face.spanX ? offset : 0),
+                        y,
+                        z: block.centreZ + face.normalZ * 1.16 + (face.spanZ ? offset : 0),
+                        spin: face.rotation,
+                        width: Math.min(1.5, (run / count) * 0.56),
+                        height: 0.08,
+                    });
+                }
+            }
+        }
+    }
+    return cells;
+}
+
 function Windows({ layout, palette, dark }: Readonly<{ layout: TwinLayout; palette: ScenePalette; dark: boolean }>) {
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const cells = useMemo(
@@ -113,30 +138,10 @@ function Windows({ layout, palette, dark }: Readonly<{ layout: TwinLayout; palet
 function Balconies({ layout, palette, dark }: Readonly<{ layout: TwinLayout; palette: ScenePalette; dark: boolean }>) {
     const slabRef = useRef<THREE.InstancedMesh>(null);
     const railRef = useRef<THREE.InstancedMesh>(null);
-    const cells = useMemo(() => {
-        const found: WindowCell[] = [];
-        for (const block of layout.massing.blocks) {
-            for (const face of facesOf(block)) {
-                const run = face.spanX || face.spanZ;
-                const count = Math.max(1, Math.round(run / 3.4));
-                for (let floor = 1; floor < block.floors; floor += 1) {
-                    const y = (block.baseFloor + floor) * layout.floorHeight;
-                    for (let slot = 0; slot < count; slot += 1) {
-                        const offset = -run / 2 + (run / count) * (slot + 0.5);
-                        found.push({
-                            x: block.centreX + face.normalX * 1.16 + (face.spanX ? offset : 0),
-                            y,
-                            z: block.centreZ + face.normalZ * 1.16 + (face.spanZ ? offset : 0),
-                            spin: face.rotation,
-                            width: Math.min(1.5, (run / count) * 0.56),
-                            height: 0.08,
-                        });
-                    }
-                }
-            }
-        }
-        return found;
-    }, [layout.massing.blocks, layout.floorHeight]);
+    const cells = useMemo(
+        () => balconyCells(layout.massing.blocks, layout.floorHeight),
+        [layout.massing.blocks, layout.floorHeight],
+    );
 
     useLayoutEffect(() => {
         const slabs = slabRef.current;
@@ -162,9 +167,9 @@ function Balconies({ layout, palette, dark }: Readonly<{ layout: TwinLayout; pal
                 <boxGeometry />
                 <meshStandardMaterial color={dark ? palette.surfaceAlt : palette.surface} roughness={0.75} />
             </instancedMesh>
-            <instancedMesh key={`rail-${cells.length}`} ref={railRef} args={[undefined, undefined, cells.length]} frustumCulled={false}>
+            <instancedMesh key={`rail-${cells.length}`} ref={railRef} {...{ args: [undefined, undefined, cells.length] as [undefined, undefined, number], frustumCulled: false }}>
                 <boxGeometry />
-                <meshStandardMaterial color={palette.secondary} roughness={0.35} metalness={0.4} transparent opacity={0.65} />
+                <meshStandardMaterial {...{ color: palette.secondary, roughness: 0.35, metalness: 0.4, transparent: true, opacity: 0.65 }} />
             </instancedMesh>
         </group>
     );
@@ -313,11 +318,11 @@ function Entrance({ layout, palette, dark }: Readonly<{ layout: TwinLayout; pale
                 <meshStandardMaterial color={palette.secondary} roughness={0.45} metalness={0.35} />
             </mesh>
             <mesh position={[ground.centreX - canopyWidth / 2 + 0.12, floorHeight * 0.43, faceZ + 1.42]}>
-                <cylinderGeometry args={[0.05, 0.05, floorHeight * 0.86, 8]} />
+                <cylinderGeometry {...{ args: [0.05, 0.05, floorHeight * 0.86, 8] as [number, number, number, number] }} />
                 <meshStandardMaterial color={palette.secondary} roughness={0.5} metalness={0.4} />
             </mesh>
             <mesh position={[ground.centreX + canopyWidth / 2 - 0.12, floorHeight * 0.43, faceZ + 1.42]}>
-                <cylinderGeometry args={[0.05, 0.05, floorHeight * 0.86, 8]} />
+                <cylinderGeometry {...{ args: [0.05, 0.05, floorHeight * 0.86, 8] as [number, number, number, number] }} />
                 <meshStandardMaterial color={palette.secondary} roughness={0.5} metalness={0.4} />
             </mesh>
             <mesh position={[ground.centreX, 0.02, faceZ + 1.1]} rotation-x={-Math.PI / 2}>
