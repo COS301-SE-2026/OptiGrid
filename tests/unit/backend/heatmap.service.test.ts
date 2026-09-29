@@ -25,14 +25,19 @@ jest.mock("../../../backend/core/src/lib/redis", () => {
 });
 
 const mockIterateRows = jest.fn();
+const mockGetQueryApi = jest.fn().mockReturnValue({
+    iterateRows: (...args: any[]) => mockIterateRows(...args)
+});
 
 jest.mock("@influxdata/influxdb-client", () => {
     return {
-        InfluxDB: jest.fn().mockImplementation(() => ({
-            getQueryApi: jest.fn().mockReturnValue({
-                iterateRows: (...args: any[]) => mockIterateRows(...args)
-            })
-        }))
+        InfluxDB: jest.fn().mockImplementation((options: Record<string, unknown>) => {
+            (globalThis as typeof globalThis & { __heatmapInfluxOptions?: Record<string, unknown> })
+                .__heatmapInfluxOptions = options;
+            return {
+                getQueryApi: (...args: any[]) => mockGetQueryApi(...args)
+            };
+        })
     };
 });
 
@@ -113,6 +118,24 @@ describe("Heatmap Service Unit Tests", () => {
         expect(out.points[0].kwh_value).toBe(75.5);
         expect(out.points[1].kwh_value).toBeNull();
         expect(redis.pipeline).toHaveBeenCalled();
+    });
+
+    it("uses indexed building predicates and a longer timeout for historical queries", async () => {
+        (prisma.building.findMany as jest.Mock).mockResolvedValue([
+            { building_id: "b1", latitude: 10, longitude: 20 },
+            { building_id: "b2", latitude: 30, longitude: 40 }
+        ]);
+        (redis.mget as jest.Mock).mockResolvedValue([null, null]);
+
+        await getHeatmapDataService("user-1", "-30d");
+
+        expect((globalThis as typeof globalThis & { __heatmapInfluxOptions?: Record<string, unknown> })
+            .__heatmapInfluxOptions).toEqual(expect.objectContaining({ timeout: 60_000 }));
+        expect(mockGetQueryApi).toHaveBeenCalledWith(expect.any(String));
+        const query = mockIterateRows.mock.calls[0][0] as string;
+        expect(query).toContain('r["building_id"] == "b1"');
+        expect(query).toContain('r["building_id"] == "b2"');
+        expect(query).not.toContain("contains(value:");
     });
 
     it("should__catch_errro", async () => {
