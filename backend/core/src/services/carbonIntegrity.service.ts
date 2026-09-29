@@ -35,6 +35,8 @@ export interface CarbonIntegrityResult {
     records_checked: number;
     expected_days: number;
     missing_dates: string[];
+    source_complete_days: number;
+    source_incomplete_dates: string[];
     current_hash: string | null;
     broken_at: {
         ledger_id: string;
@@ -132,6 +134,7 @@ export const verifyCarbonLedgerMonth = async (
     const missingDates = expectedDates(period.start, period.days)
         .filter((date) => !presentDates.has(date));
     const incompleteRows = rows.filter((row) => row.reading_count === 0);
+    const sourceIncompleteDates = incompleteRows.map((row) => dateKey(row.period_date));
     const validRows = rows.slice(0, recordsChecked).filter((row) => row.reading_count > 0);
     const verifiedAt = new Date();
 
@@ -157,11 +160,15 @@ export const verifyCarbonLedgerMonth = async (
         building_id: buildingId,
         month,
         status,
-        verified: status === 'VALID',
+        // Coverage and cryptographic integrity are separate concerns. A signed
+        // zero-reading placeholder is incomplete, but its hash can still verify.
+        verified: rows.length > 0 && brokenAt === null && recordsChecked === rows.length,
         algorithm: CARBON_HASH_ALGORITHM,
         records_checked: recordsChecked,
         expected_days: period.days,
         missing_dates: missingDates,
+        source_complete_days: rows.length - incompleteRows.length,
+        source_incomplete_dates: sourceIncompleteDates,
         current_hash: currentHash,
         broken_at: brokenAt,
         verified_at: verifiedAt.toISOString()
