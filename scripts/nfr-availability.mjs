@@ -82,12 +82,15 @@ async function main() {
 
   await runTest("A05", "Ingestion API is independently available", async () => {
     try {
-      const res = await fetch("http://localhost:8000/health");
-      if (res.status === 200) {
-        return { passed: true, details: "Ingestion API is healthy" };
+      const resp = await fetch("http://localhost:8000/health");
+      if (resp.status === 200) {
+        return {passed: true, details: "Ingestion API is healthy"};
       }
-      return { passed: false, details: "FAIL. Ingestion API not returning 200" };
-    } catch (e) {
+      return {
+        passed: false, details: "FAIL. Ingestion API not returning 200"
+      };
+    }
+    catch(e) {
       return { passed: false, details: e.message };
     }
   });
@@ -95,12 +98,16 @@ async function main() {
   await runTest("A06", "Analytics Service is independently available", async () => {
     try {
       const res = await fetch("http://localhost:5001/health");
-      if (res.status === 200) {
-        return { passed: true, details: "Analytics API is healthy" };
+      if(res.status === 200) {
+        return {
+          passed: true,
+          details: "Analytics API is healthy"
+        };
       }
       return { passed: false, details: "FAIL. Analytics API not returning 200" };
-    } catch (e) {
-      return { passed: false, details: e.message };
+    }
+    catch(err) {
+      return { passed: false, details: err.message };
     }
   });
 
