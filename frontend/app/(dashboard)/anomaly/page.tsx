@@ -4,7 +4,6 @@ import { useBuildings } from "@/lib/useBuildings";
 import { useState, useMemo, useEffect } from "react";
 import {
   Anomaly,
-  AnomalySummary,
   AlertThreshold,
   AnalyticsSummary,
   AnomalyOverview,
@@ -20,6 +19,7 @@ import {
   useHistoricFilterState,
   parseNumberOrNull,
   EMPTY_BUILDINGS,
+  useAnomalyPortfolioData,
 } from "../../../components/sharedanomaly";
 
 type MetricType = "power" | "cost";
@@ -43,46 +43,31 @@ export default function ManagerAnomalyPage() {
   const { toastMessage, setToastMessage } = useAnomalyWebSocket();
   const { data: buildingData, isLoading: buildingsLoading } = useBuildings();
   const buildings = buildingData ?? EMPTY_BUILDINGS;
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const {
+    anomalies,
+    setAnomalies,
+    historicAnomalies,
+    setHistoricAnomalies,
+    summary,
+    loading,
+  } = useAnomalyPortfolioData("manager", setToastMessage);
   const [thresholds, setThresholds] = useState<AlertThreshold[]>([]);
-  const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
-  const [summary, setSummary] = useState<AnomalySummary | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchData() {
+    async function fetchThresholds() {
       try {
-        const [anomaliesRes, thresholdsRes] = await Promise.all([
-          fetch("/api/anomalies/portfolio?take=1000"),
-          fetch("/api/thresholds/portfolio")
-        ]);
-        
-        if (!anomaliesRes.ok) throw new Error("Unable to load anomaly alerts.");
-
-        const payload = await anomaliesRes.json();
-        if (cancelled) return;
-        const allAnomalies: Anomaly[] = payload.data || [];
-        setSummary(payload.summary || null);
-        setAnomalies(allAnomalies.filter(a => a.status === "Open" || a.status === "In_Progress"));
-        setHistoricAnomalies(allAnomalies.filter(a => a.status === "Resolved" || a.status === "Ignored"));
-
-        if (thresholdsRes.ok) {
-          const payload = await thresholdsRes.json();
-          if (cancelled) return;
-          setThresholds(payload.data || []);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        console.error("Failed to fetch live dashboard data", err);
-        setToastMessage(err instanceof Error ? err.message : "Unable to load anomaly alerts.");
-      } finally {
-        if (!cancelled) setLoading(false);
+        const response = await fetch("/api/thresholds/portfolio");
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (!cancelled) setThresholds(payload.data || []);
+      } catch (error) {
+        if (!cancelled) console.error("Failed to fetch anomaly thresholds", error);
       }
     }
-    fetchData();
+    void fetchThresholds();
 
     return () => {
       cancelled = true;

@@ -389,6 +389,77 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
     onRowClick(anomaly);
   };
 
+  let tableRows: ReactNode;
+  if (loading) {
+    tableRows = (
+      <tr>
+        <td colSpan={colSpan} className="dashboard-empty">
+          <output>Loading anomalies...</output>
+        </td>
+      </tr>
+    );
+  } else if (anomalies.length === 0) {
+    tableRows = (
+      <tr>
+        <td colSpan={colSpan} className="dashboard-empty">
+          No anomalies found
+        </td>
+      </tr>
+    );
+  } else {
+    tableRows = anomalies.map((anomaly) => (
+      <tr
+        key={anomaly.anomaly_id}
+        onClick={(e) => handleRowClick(e, anomaly)}
+      >
+        <td style={{ fontWeight: "var(--fw-semibold)" }}>
+          <button
+            type="button"
+            onClick={() => onRowClick(anomaly)}
+            aria-label={`View details for ${anomaly.building_name} anomaly`}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              font: "inherit",
+              fontWeight: "var(--fw-semibold)",
+              color: "inherit",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            {anomaly.building_name}
+          </button>
+        </td>
+        <td>{humanise(anomaly.anomaly_type)}</td>
+        <td>
+          <SeverityBadge severity={anomaly.severity_level} />
+        </td>
+        <td>
+          <StatusBadge status={anomaly.status} />
+        </td>
+        <td>
+          {anomaly.z_score_value != null ? (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontWeight: "var(--fw-semibold)", color: "var(--text-main)" }}>
+                {getZScoreLabel(anomaly.z_score_value)}
+              </span>
+              <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
+                {formatZScoreDeviation(anomaly.z_score_value)}
+              </span>
+            </div>
+          ) : (
+            <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>-</span>
+          )}
+        </td>
+        <td>{anomaly.description}</td>
+        <td className="text-muted" style={{ fontSize: "var(--fs-small)", whiteSpace: "nowrap" }}>
+          {formatDateProp(anomaly.detected_timestamp)}
+        </td>
+      </tr>
+    ));
+  }
+
   return (
     <div className="card" style={{ overflow: "hidden", padding: 0 }}>
       <div style={{ overflow: "auto" }}>
@@ -404,73 +475,7 @@ export function AnomaliesTable(props: Readonly<AnomaliesTableProps>) {
               <th scope="col">Detected</th>
             </tr>
           </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={colSpan} className="dashboard-empty" role="status">
-                  Loading anomalies...
-                </td>
-              </tr>
-            ) : anomalies.length === 0 ? (
-              <tr>
-                <td colSpan={colSpan} className="dashboard-empty">
-                  No anomalies found
-                </td>
-              </tr>
-            ) : (
-              anomalies.map((anomaly) => (
-                <tr
-                  key={anomaly.anomaly_id}
-                  onClick={(e) => handleRowClick(e, anomaly)}
-                >
-                  <td style={{ fontWeight: "var(--fw-semibold)" }}>
-                    <button
-                      type="button"
-                      onClick={() => onRowClick(anomaly)}
-                      aria-label={`View details for ${anomaly.building_name} anomaly`}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        font: "inherit",
-                        fontWeight: "var(--fw-semibold)",
-                        color: "inherit",
-                        cursor: "pointer",
-                        textAlign: "left",
-                      }}
-                    >
-                      {anomaly.building_name}
-                    </button>
-                  </td>
-                  <td>{humanise(anomaly.anomaly_type)}</td>
-                  <td>
-                    <SeverityBadge severity={anomaly.severity_level} />
-                  </td>
-                  <td>
-                    <StatusBadge status={anomaly.status} />
-                  </td>
-                  <td>
-                    {anomaly.z_score_value != null ? (
-                      <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span style={{ fontWeight: "var(--fw-semibold)", color: "var(--text-main)" }}>
-                          {getZScoreLabel(anomaly.z_score_value)}
-                        </span>
-                        <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>
-                          {formatZScoreDeviation(anomaly.z_score_value)}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-muted" style={{ fontSize: "var(--fs-small)" }}>-</span>
-                    )}
-                  </td>
-                  <td>{anomaly.description}</td>
-                  <td className="text-muted" style={{ fontSize: "var(--fs-small)", whiteSpace: "nowrap" }}>
-                    {formatDateProp(anomaly.detected_timestamp)}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
+          <tbody>{tableRows}</tbody>
         </table>
       </div>
     </div>
@@ -795,6 +800,67 @@ export function parseNumberOrNull(value: string): number | null {
 
 export const EMPTY_BUILDINGS: Building[] = [];
 const SERIES_ERROR_MESSAGE = "Unable to load energy consumption data.";
+
+type AnomalyPortfolioMode = "manager" | "viewer";
+
+export function useAnomalyPortfolioData(
+  mode: AnomalyPortfolioMode,
+  reportError: (message: string) => void,
+) {
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
+  const [summary, setSummary] = useState<AnomalySummary | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchPortfolio() {
+      try {
+        const response = await fetch("/api/anomalies/portfolio?take=1000");
+        if (!response.ok) throw new Error("Unable to load anomaly alerts.");
+
+        const payload = await response.json();
+        if (cancelled) return;
+
+        const allAnomalies: Anomaly[] = payload.data || [];
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const isCurrent = (anomaly: Anomaly) => {
+          const hasActiveStatus = anomaly.status === "Open" || anomaly.status === "In_Progress";
+          const isWithinViewerWindow = new Date(anomaly.detected_timestamp) >= oneWeekAgo;
+          return hasActiveStatus && (mode === "manager" || isWithinViewerWindow);
+        };
+
+        setSummary(payload.summary || null);
+        setAnomalies(allAnomalies.filter(isCurrent));
+        setHistoricAnomalies(allAnomalies.filter(
+          (anomaly) => anomaly.status === "Resolved" || anomaly.status === "Ignored",
+        ));
+      } catch (error) {
+        if (cancelled) return;
+        console.error(`Failed to fetch ${mode} anomaly data`, error);
+        reportError(error instanceof Error ? error.message : "Unable to load anomaly alerts.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void fetchPortfolio();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, reportError]);
+
+  return {
+    anomalies,
+    setAnomalies,
+    historicAnomalies,
+    setHistoricAnomalies,
+    summary,
+    loading,
+  };
+}
 
 
 export type AnomalyChartState = {

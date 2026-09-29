@@ -1,7 +1,7 @@
 "use client";
 
 import { useBuildings } from "@/lib/useBuildings";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Anomaly,
   AnalyticsSummary,
@@ -16,6 +16,7 @@ import {
   useAnomalyFilters,
   useHistoricFilterState,
   EMPTY_BUILDINGS,
+  useAnomalyPortfolioData,
 } from "../../../components/sharedanomaly";
 import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
 
@@ -25,46 +26,7 @@ export default function ViewerAnomalyPage() {
   const { toastMessage, setToastMessage } = useAnomalyWebSocket();
   const { data: buildingData, isLoading: buildingsLoading } = useBuildings();
   const buildings = buildingData ?? EMPTY_BUILDINGS;
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
-  const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchData() {
-      try {
-        const anomaliesRes = await fetch("/api/anomalies/portfolio?take=1000");
-        if (!anomaliesRes.ok) throw new Error("Unable to load anomaly alerts.");
-
-        const payload = await anomaliesRes.json();
-        if (cancelled) return;
-        const allAnomalies: Anomaly[] = payload.data || [];
-
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-        setAnomalies(allAnomalies.filter((a: Anomaly) => {
-          const isRecent = new Date(a.detected_timestamp) >= oneWeekAgo;
-          return (a.status === "Open" || a.status === "In_Progress") && isRecent;
-        }));
-        setHistoricAnomalies(allAnomalies.filter(
-          (a: Anomaly) => a.status === "Resolved" || a.status === "Ignored"
-        ));
-      } catch (err) {
-        if (cancelled) return;
-        console.error("Failed to fetch viewer dashboard data", err);
-        setToastMessage(err instanceof Error ? err.message : "Unable to load anomaly alerts.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    fetchData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { anomalies, historicAnomalies, loading } = useAnomalyPortfolioData("viewer", setToastMessage);
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showHistoricModal, setShowHistoricModal] = useState<boolean>(false);
