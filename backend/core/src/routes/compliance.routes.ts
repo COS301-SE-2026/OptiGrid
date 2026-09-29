@@ -12,8 +12,8 @@ const router = Router();
  * @swagger
  * /api/compliance/verify:
  *   get:
- *     summary: Verify audit ledger integrity
- *     description: Walks the audit ledger in order. It recomputes every SHA-256 link and reports the first break if one exists.
+ *     summary: Verify audit and carbon ledger integrity
+ *     description: Walks the audit ledger in order. It recomputes every SHA-256 link and reports the first break if one exists. The carbon ledger for the report month is checked for each building in scope, and each daily row is saved as VALID, TAMPERED or INCOMPLETE.
  *     tags:
  *       - Compliance
  *     security:
@@ -64,6 +64,20 @@ const router = Router();
  *                           enum: [prev_hash_mismatch, content_mismatch, missing_hash]
  *                     verified_at:
  *                       type: string
+ *                     carbon_ledger:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         month:
+ *                           type: string
+ *                           example: 2026-08
+ *                         scope_status:
+ *                           type: string
+ *                           enum: [VALID, TAMPERED, INCOMPLETE]
+ *                         buildings:
+ *                           type: array
+ *                           items:
+ *                             type: object
  *       '401':
  *         description: Unauthorized
  *       '500':

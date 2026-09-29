@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { Request, Response } from 'express';
-import { buildComplianceReport, verifyAuditChain, type ComplianceReport } from '../services/compliance.service';
+import { buildComplianceReport, reportMonthKey, verifyAuditChain, verifyCarbonScope, type ComplianceReport } from '../services/compliance.service';
 import { getAllowedBuildingIds } from '../utils/auth.utils';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -48,10 +48,14 @@ const readable = (value: string | null, fallback = 'Not set'): string => {
 
 export const verifyDataIntegrity = async (req: Request, res: Response): Promise<void> => {
     try {
-        const verification = await verifyAuditChain();
-        res.status(200).json({ 
-            status: 'success', 
-            data: verification 
+        const buildingIds = await getAllowedBuildingIds(req);
+        const [verification, carbonLedger] = await Promise.all([
+            verifyAuditChain(),
+            buildingIds.length > 0 ? verifyCarbonScope(buildingIds, reportMonthKey(new Date())) : null
+        ]);
+        res.status(200).json({
+            status: 'success',
+            data: { ...verification, carbon_ledger: carbonLedger }
         });
     } 
     catch (error) {
@@ -311,7 +315,7 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         {
             label: 'Corrective actions',
             value: `${report.corrective_actions.total}`,
-            note: `${report.corrective_actions.implemented} implemented`,
+            note: `${report.corrective_actions.implemented + report.corrective_actions.applying} applied, saving R ${formatNumber(report.corrective_actions.applied_monthly_saving_zar, 0)} a month`,
             accent: palette.success
         }
     ], 3);

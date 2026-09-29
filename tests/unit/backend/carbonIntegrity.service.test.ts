@@ -118,7 +118,7 @@ describe('monthly carbon ledger verification', () => {
             rows[index].prev_hash = rows[index - 1].current_hash;
             rows[index].current_hash = computeCarbonRecordHash(rows[index], rows[index].prev_hash);
         }
-        const { store } = memoryStore(rows);
+        const { store, updates } = memoryStore(rows);
 
         const result = await verifyCarbonLedgerMonth(buildingId, '2026-09', store);
 
@@ -128,6 +128,21 @@ describe('monthly carbon ledger verification', () => {
             source_complete_days: 29,
             source_incomplete_dates: ['2026-09-05']
         });
+        expect(updates).toHaveLength(2);
+        expect(updates[0].data.integrity_status).toBe('VALID');
+        expect(updates[0].where.ledger_id.in).toHaveLength(29);
+        expect(updates[1]).toMatchObject({
+            where: { ledger_id: { in: [rows[4].ledger_id] } },
+            data: { integrity_status: 'INCOMPLETE', tamper_reason: null }
+        });
+    });
+
+    it('marks every intact row valid in one write', async () => {
+        const { store, updates } = memoryStore(buildMonth(30));
+        await verifyCarbonLedgerMonth(buildingId, '2026-09', store);
+
+        expect(updates).toHaveLength(1);
+        expect(updates[0].data.integrity_status).toBe('VALID');
     });
 
     it('rejects invalid month input', async () => {

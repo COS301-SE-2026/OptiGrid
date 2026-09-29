@@ -94,6 +94,44 @@ describe("VerifyIntegrityButton", () => {
         expect(screen.queryByText(/Data Cryptographically Verified/)).not.toBeInTheDocument();
     });
 
+    it("reports the carbon ledger result next to the audit chain", async () => {
+        const user = userEvent.setup();
+        respondUsing(verifiedPayload({
+            carbon_ledger: { month: "2026-08", scope_status: "INCOMPLETE", buildings: [{ building_id: "b1", status: "INCOMPLETE" }] }
+        }));
+        render(<VerifyPanel />);
+        await user.click(screen.getByRole("button", { name: "Verify Data Integrity" }));
+        expect(await screen.findByText("Data Cryptographically Verified (SHA-256)")).toBeInTheDocument();
+        expect(screen.getByText(/Days without readings are marked INCOMPLETE/)).toBeInTheDocument();
+    });
+
+    it("tells the page as soon as a check finishes", async () => {
+        const user = userEvent.setup();
+        const onVerified = jest.fn();
+        respondUsing(verifiedPayload());
+        function Panel() {
+            const { state, run } = useIntegrityVerification(onVerified);
+            return <VerifyIntegrityButton state={state} onVerify={run} />;
+        }
+        render(<Panel />);
+        await user.click(screen.getByRole("button", { name: "Verify Data Integrity" }));
+
+        await waitFor(() => expect(onVerified).toHaveBeenCalledTimes(1));
+    });
+
+    it("fails the check when the carbon ledger was changed", async () => {
+        const user = userEvent.setup();
+        respondUsing(verifiedPayload({
+            carbon_ledger: { month: "2026-08", scope_status: "TAMPERED", buildings: [{ building_id: "b1", status: "TAMPERED" }] }
+        }));
+        render(<VerifyPanel />);
+        await user.click(screen.getByRole("button", { name: "Verify Data Integrity" }));
+
+        expect(await screen.findByText("Integrity check failed")).toBeInTheDocument();
+        expect(screen.getByText("All 1,284 audit entries checked out.")).toBeInTheDocument();
+        expect(screen.getByText(/August 2026 was changed after it was signed/)).toBeInTheDocument();
+    });
+
     it("hides the signature when the caller asks for the compact form", async () => {
         const user = userEvent.setup();
         respondUsing(verifiedPayload());

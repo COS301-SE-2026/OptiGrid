@@ -9,6 +9,14 @@ type ChainBreak = {
     reason: string;
 };
 
+export type CarbonLedgerStatus = "VALID" | "TAMPERED" | "INCOMPLETE";
+
+export type CarbonLedgerCheck = {
+    month: string;
+    scope_status: CarbonLedgerStatus;
+    buildings: Array<{ building_id: string; status: CarbonLedgerStatus }>;
+};
+
 export type ChainVerification = {
     verified: boolean;
     verification_status: "NOT_RUN" | "VERIFIED" | "FAILED";
@@ -19,6 +27,7 @@ export type ChainVerification = {
     chain_updated_at: string | null;
     broken_at: ChainBreak | null;
     verified_at: string | null;
+    carbon_ledger?: CarbonLedgerCheck | null;
 };
 
 export type VerifyState =
@@ -32,6 +41,24 @@ const BREAK_REASONS: Record<string, string> = {
     content_mismatch: "an entry was edited after it was written",
     missing_hash: "an entry carries no signature"
 };
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function monthLabel(month: string): string {
+    const [year, monthNumber] = month.split("-").map(Number);
+    return MONTH_NAMES[monthNumber - 1] ? `${MONTH_NAMES[monthNumber - 1]} ${year}` : month;
+}
+
+function carbonSummary(check: CarbonLedgerCheck): string {
+    const label = monthLabel(check.month);
+    if (check.scope_status === "TAMPERED") {
+        return `The carbon ledger for ${label} was changed after it was signed. The affected days are now marked TAMPERED.`;
+    }
+    if (check.scope_status === "INCOMPLETE") {
+        return `The carbon ledger for ${label} has no breaks. Days without readings are marked INCOMPLETE.`;
+    }
+    return `Every day in the carbon ledger for ${label} checked out and is now marked VALID.`;
+}
 
 function CheckIcon() {
     return (
@@ -51,7 +78,7 @@ function AlertIcon() {
     );
 }
 
-export function useIntegrityVerification() {
+export function useIntegrityVerification(onVerified?: () => void) {
     const [state, setState] = useState<VerifyState>({ phase: "idle" });
 
     const run = async () => {
@@ -74,6 +101,7 @@ export function useIntegrityVerification() {
                 throw new Error("The verification service returned no result.");
             }
             setState({ phase: "done", result });
+            onVerified?.();
         }
         catch (error) {
             setState({
@@ -129,8 +157,10 @@ export function IntegrityStatus({ state, showSignature = true, className }: Inte
         }
 
         const { result } = state;
+        const carbon = result.carbon_ledger;
+        const carbonDetail = carbon ? <p className="integrity-detail">{carbonSummary(carbon)}</p> : null;
 
-        if (!result.verified) {
+        if (!result.verified || carbon?.scope_status === "TAMPERED") {
             const reason = result.broken_at
                 ? BREAK_REASONS[result.broken_at.reason] ?? "the ledger does not match its signatures"
                 : "there are no signed entries to check";
@@ -140,7 +170,10 @@ export function IntegrityStatus({ state, showSignature = true, className }: Inte
                     <AlertIcon />
                     <div>
                         <strong>Integrity check failed</strong>
-                        <p className="integrity-detail">Verified {result.records_checked} of the signed entries before {reason}.</p>
+                        {result.verified
+                            ? <p className="integrity-detail">All {result.records_checked.toLocaleString()} audit entries checked out.</p>
+                            : <p className="integrity-detail">Verified {result.records_checked} of the signed entries before {reason}.</p>}
+                        {carbonDetail}
                     </div>
                 </div>
             );
@@ -152,6 +185,7 @@ export function IntegrityStatus({ state, showSignature = true, className }: Inte
                 <div>
                     <strong>Data Cryptographically Verified ({result.algorithm})</strong>
                     <p className="integrity-detail">{result.records_checked.toLocaleString()} ledger entries checked, chain unbroken.</p>
+                    {carbonDetail}
                     {showSignature && result.current_hash && (<p className="integrity-hash" title={result.current_hash}>{result.current_hash}</p>)}
                 </div>
             </div>
