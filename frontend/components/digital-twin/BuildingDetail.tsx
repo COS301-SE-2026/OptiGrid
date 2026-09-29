@@ -74,29 +74,31 @@ function windowCells(blocks: MassingBlock[], floorHeight: number, spacing: numbe
     return cells;
 }
 
-function balconyCells(blocks: MassingBlock[], floorHeight: number): WindowCell[] {
+function balconyCellsForFace(block: MassingBlock, face: Face, floorHeight: number): WindowCell[] {
     const cells: WindowCell[] = [];
-    for (const block of blocks) {
-        for (const face of facesOf(block)) {
-            const run = face.spanX || face.spanZ;
-            const count = Math.max(1, Math.round(run / 3.4));
-            for (let floor = 1; floor < block.floors; floor += 1) {
-                const y = (block.baseFloor + floor) * floorHeight;
-                for (let slot = 0; slot < count; slot += 1) {
-                    const offset = -run / 2 + (run / count) * (slot + 0.5);
-                    cells.push({
-                        x: block.centreX + face.normalX * 1.16 + (face.spanX ? offset : 0),
-                        y,
-                        z: block.centreZ + face.normalZ * 1.16 + (face.spanZ ? offset : 0),
-                        spin: face.rotation,
-                        width: Math.min(1.5, (run / count) * 0.56),
-                        height: 0.08,
-                    });
-                }
-            }
+    const run = face.spanX || face.spanZ;
+    const count = Math.max(1, Math.round(run / 3.4));
+    for (let floor = 1; floor < block.floors; floor += 1) {
+        const y = (block.baseFloor + floor) * floorHeight;
+        for (let slot = 0; slot < count; slot += 1) {
+            const offset = -run / 2 + (run / count) * (slot + 0.5);
+            cells.push({
+                x: block.centreX + face.normalX * 1.16 + (face.spanX ? offset : 0),
+                y,
+                z: block.centreZ + face.normalZ * 1.16 + (face.spanZ ? offset : 0),
+                spin: face.rotation,
+                width: Math.min(1.5, (run / count) * 0.56),
+                height: 0.08,
+            });
         }
     }
     return cells;
+}
+
+function balconyCells(blocks: MassingBlock[], floorHeight: number): WindowCell[] {
+    return blocks.flatMap((block) => (
+        facesOf(block).flatMap((face) => balconyCellsForFace(block, face, floorHeight))
+    ));
 }
 
 function Windows({ layout, palette, dark }: Readonly<{ layout: TwinLayout; palette: ScenePalette; dark: boolean }>) {

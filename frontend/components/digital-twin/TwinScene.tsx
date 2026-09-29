@@ -81,27 +81,32 @@ type EnergyPath = {
     driver: number;
 };
 
-function updateEnergyParticle(
-    index: number,
-    paths: EnergyPath[],
-    owners: Int32Array,
-    progress: Float32Array,
-    state: VisualState,
-    step: number,
-    reducedMotion: boolean,
-    dark: boolean,
-    positions: Float32Array,
-    tint: THREE.BufferAttribute,
-    size: THREE.BufferAttribute,
-    alpha: THREE.BufferAttribute,
-): void {
+type EnergyParticleFrame = {
+    paths: EnergyPath[];
+    owners: Int32Array;
+    progress: Float32Array;
+    state: VisualState;
+    step: number;
+    reducedMotion: boolean;
+    dark: boolean;
+    positions: Float32Array;
+    tint: THREE.BufferAttribute;
+    size: THREE.BufferAttribute;
+    alpha: THREE.BufferAttribute;
+};
+
+function updateEnergyParticle(index: number, frame: EnergyParticleFrame): void {
+    const { paths, owners, progress, state, step, reducedMotion, dark, positions, tint, size, alpha } = frame;
     const { path, driver } = paths[owners[index]];
     const visual = driver >= 0 ? state.visuals[driver] : null;
-    const live = visual ? visual.live : state.anyLive;
-    const share = visual
-        ? (state.maxPower > 0 ? visual.power / state.maxPower : 0)
-        : (state.anyLive ? 0.7 : 0);
-    const colour = visual ? visual.colour : state.aggregateColour;
+    const live = visual === null ? state.anyLive : visual.live;
+    let share = 0;
+    if (visual !== null && state.maxPower > 0) {
+        share = visual.power / state.maxPower;
+    } else if (visual === null && state.anyLive) {
+        share = 0.7;
+    }
+    const colour = visual === null ? state.aggregateColour : visual.colour;
 
     if (live && !reducedMotion && path.length > 0) {
         progress[index] = (progress[index] + (step * (0.9 + 2.6 * share)) / path.length) % 1;
@@ -110,7 +115,8 @@ function updateEnergyParticle(
     tint.setXYZ(index, colour.r, colour.g, colour.b);
     size.setX(index, live ? 0.26 + 0.2 * share : 0);
     const fade = Math.sqrt(Math.max(0, Math.sin(progress[index] * Math.PI)));
-    alpha.setX(index, live ? (dark ? 0.95 : 0.8) * fade : 0);
+    const liveAlpha = dark ? 0.95 : 0.8;
+    alpha.setX(index, live ? liveAlpha * fade : 0);
 }
 
 type VisualSource = {
@@ -929,9 +935,22 @@ function EnergyFlows({
         const alpha = particles.getAttribute("alpha") as THREE.BufferAttribute;
         const positions = position.array as Float32Array;
         const step = Math.min(delta, 0.1);
+        const particleFrame: EnergyParticleFrame = {
+            paths,
+            owners,
+            progress,
+            state,
+            step,
+            reducedMotion,
+            dark,
+            positions,
+            tint,
+            size,
+            alpha,
+        };
 
         for (let index = 0; index < owners.length; index += 1) {
-            updateEnergyParticle(index, paths, owners, progress, state, step, reducedMotion, dark, positions, tint, size, alpha);
+            updateEnergyParticle(index, particleFrame);
         }
 
         position.needsUpdate = true;
