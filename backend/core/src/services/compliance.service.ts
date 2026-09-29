@@ -237,12 +237,15 @@ export interface ComplianceReport {
         total: number;
         open: number;
         resolved: number;
+        raised_in_period: number;
         by_severity: Record<string, number>;
     };
     corrective_actions: {
         total: number;
         implemented: number;
+        applying: number;
         pending: number;
+        applied_monthly_saving_zar: number;
         estimated_monthly_saving_zar: number;
     };
     audit_trail: {
@@ -253,11 +256,41 @@ export interface ComplianceReport {
     digital_signature: {
         algorithm: string;
         value: string | null;
+        verified: boolean;
         records_covered: number;
         source: 'carbon_ledger' | 'audit_log';
         signed_at: string;
     };
 }
+
+type CarbonScopeStatus = ComplianceReport['carbon_accounting']['scope_status'];
+
+export interface CarbonScopeVerification {
+    month: string;
+    scope_status: CarbonScopeStatus;
+    buildings: CarbonIntegrityResult[];
+}
+
+export const reportMonthKey = (reference: Date): string => {
+    const { start } = previousCalendarMonth(reference);
+    return `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+const carbonScopeStatusOf = (results: CarbonIntegrityResult[]): CarbonScopeStatus => {
+    if (results.some((entry) => entry.status === 'TAMPERED')) {
+        return 'TAMPERED';
+    }
+    if (results.some((entry) => entry.status === 'INCOMPLETE')) {
+        return 'INCOMPLETE';
+    }
+    return 'VALID';
+};
+
+// recheck every daily carbon hash for the month and save the outcome on each ledger row
+export const verifyCarbonScope = async (buildingIds: string[], month: string): Promise<CarbonScopeVerification> => {
+    const buildings = await Promise.all(buildingIds.map((buildingId) => verifyCarbonLedgerMonth(buildingId, month)));
+    return { month, scope_status: carbonScopeStatusOf(buildings), buildings };
+};
 
 export const buildComplianceReport = async (
     allowedBuildingIds: string[],
@@ -279,10 +312,8 @@ export const buildComplianceReport = async (
         orderBy: [{ building_id: 'asc' }, { period_date: 'asc' }]
     });
 
-    const monthKey = `${period.start.getUTCFullYear()}-${String(period.start.getUTCMonth() + 1).padStart(2, '0')}`;
-    const carbonIntegrityPromise = Promise.all(buildings.map((building) =>
-        verifyCarbonLedgerMonth(building.building_id, monthKey)
-    ));
+    const monthKey = reportMonthKey(generatedAt);
+    const carbonScopePromise = verifyCarbonScope(buildings.map((building) => building.building_id), monthKey);
     const usageEntriesPromise = Promise.all(buildings.map(async (building) => {
         try {
             const usage = await queryUsageBetween(
@@ -303,25 +334,25 @@ export const buildComplianceReport = async (
 
     const anomaliesPromise = prisma.anomaly.findMany({
         where: {
-            building_id: { 
-                in: allowedBuildingIds 
-            },
-            detected_timestamp: { 
-                gte: periodStart, 
-                lte: periodEnd 
+            building_id: {
+                in: allowedBuildingIds
             }
         },
-        select: { 
-            severity_level: true, 
-            status: true 
+        select: {
+            severity_level: true,
+            status: true,
+            detected_timestamp: true
         }
     });
 
     const recommendationsPromise = prisma.$queryRaw<{ status: string | null; estimated_monthly_savings: unknown }[]>(Prisma.sql
         `SELECT status::text AS status, estimated_monthly_savings
          FROM public.optimisation_recommendations
-         WHERE "building_id"::text IN (${Prisma.join(allowedBuildingIds)}) AND "generated_date" >= ${periodStart}AND "generated_date" <= ${periodEnd}`
-    ).catch(() => []);
+         WHERE "building_id"::text IN (${Prisma.join(allowedBuildingIds)})`
+    ).catch((error) => {
+        console.error('[Compliance] recommendation lookup failed:', error);
+        return [];
+    });
 
     const entriesInPeriodPromise = prisma.auditLog.count({
         where: { 
@@ -344,7 +375,7 @@ export const buildComplianceReport = async (
 
     const [
         carbonRows,
-        carbonIntegrity,
+        carbonScope,
         usageEntries,
         anomalies,
         recommendations,
@@ -353,7 +384,7 @@ export const buildComplianceReport = async (
         integrity
     ] = await Promise.all([
         carbonRowsPromise,
-        carbonIntegrityPromise,
+        carbonScopePromise,
         usageEntriesPromise,
         anomaliesPromise,
         recommendationsPromise,
@@ -362,6 +393,7 @@ export const buildComplianceReport = async (
         options.verifyAuditTrail ? verifyAuditChain() : getAuditChainSnapshot()
     ]);
 
+    const carbonIntegrity = carbonScope.buildings;
     const carbonByBuilding = new Map<string, number>();
     const ledgerUsageByBuilding = new Map<string, number>();
     const ledgerRowsByBuilding = new Map<string, number>();
@@ -450,7 +482,12 @@ export const buildComplianceReport = async (
     const severityCounts: Record<string, number> = {};
     let openAnomalies = 0;
     let resolvedAnomalies = 0;
+    let raisedInPeriod = 0;
     for (const anomaly of anomalies) {
+        const detected = anomaly.detected_timestamp ? new Date(anomaly.detected_timestamp) : null;
+        if (detected && detected >= periodStart && detected <= periodEnd) {
+            raisedInPeriod += 1;
+        }
         const severity = (anomaly.severity_level ?? 'unspecified').toLowerCase();
         severityCounts[severity] = (severityCounts[severity] ?? 0) + 1;
         const status = String(anomaly.status ?? '').toLowerCase();
@@ -462,15 +499,14 @@ export const buildComplianceReport = async (
     }
 
     const statusOf = (value: unknown): string => String(value ?? '').toLowerCase();
-    const implemented = recommendations.filter((row) => statusOf(row.status) === 'implemented').length;
-    const pending = recommendations.filter((row) => statusOf(row.status) === 'pending' || statusOf(row.status) === 'pending_execution').length;
-    const pendingSaving = recommendations.filter((row) => statusOf(row.status) === 'pending' || statusOf(row.status) === 'pending_execution').reduce((sum, row) => sum + (Number(row.estimated_monthly_savings) || 0), 0);
-    let carbonScopeStatus: ComplianceReport['carbon_accounting']['scope_status'] = 'VALID';
-    if (carbonIntegrity.some((entry) => entry.status === 'TAMPERED')) {
-        carbonScopeStatus = 'TAMPERED';
-    } else if (carbonIntegrity.some((entry) => entry.status === 'INCOMPLETE')) {
-        carbonScopeStatus = 'INCOMPLETE';
-    }
+    const withStatus = (status: string) => recommendations.filter((row) => statusOf(row.status) === status);
+    const savingOf = (rows: typeof recommendations): number => rows.reduce((sum, row) => sum + (Number(row.estimated_monthly_savings) || 0), 0);
+    const implemented = withStatus('implemented');
+    const applying = withStatus('pending_execution');
+    const pending = withStatus('pending');
+    const appliedSaving = savingOf(implemented) + savingOf(applying);
+    const pendingSaving = savingOf(pending);
+    const carbonScopeStatus = carbonScope.scope_status;
 
     const allCarbonChainsVerified = carbonIntegrity.length === buildings.length
         && carbonIntegrity.every((entry) => entry.verified && Boolean(entry.current_hash));
@@ -482,6 +518,7 @@ export const buildComplianceReport = async (
         ? createHash('sha256').update(carbonHeads.join('\n')).digest('hex')
         : null;
     const carbonRecordsCovered = carbonIntegrity.reduce((sum, entry) => sum + entry.records_checked, 0);
+    const auditRecordsCovered = integrity.verified ? integrity.records_checked : totalChainedEntries;
     const totalCarbon = carbonScopeStatus === 'TAMPERED'
         ? null
         : Array.from(carbonByBuilding.values()).reduce((sum, value) => sum + value, 0);
@@ -536,12 +573,15 @@ export const buildComplianceReport = async (
             total: anomalies.length,
             open: openAnomalies,
             resolved: resolvedAnomalies,
+            raised_in_period: raisedInPeriod,
             by_severity: severityCounts
         },
         corrective_actions: {
             total: recommendations.length,
-            implemented,
-            pending,
+            implemented: implemented.length,
+            applying: applying.length,
+            pending: pending.length,
+            applied_monthly_saving_zar: Number(appliedSaving.toFixed(2)),
             estimated_monthly_saving_zar: Number(pendingSaving.toFixed(2))
         },
         audit_trail: {
@@ -551,8 +591,9 @@ export const buildComplianceReport = async (
         },
         digital_signature: {
             algorithm: HASH_ALGORITHM,
-            value: carbonSignature ?? (integrity.verified ? integrity.current_hash : null),
-            records_covered: carbonSignature ? carbonRecordsCovered : integrity.records_checked,
+            value: carbonSignature ?? (integrity.verification_status === 'FAILED' ? null : integrity.current_hash),
+            verified: carbonSignature !== null || integrity.verified,
+            records_covered: carbonSignature ? carbonRecordsCovered : auditRecordsCovered,
             source: carbonSignature ? 'carbon_ledger' : 'audit_log',
             signed_at: generatedAt.toISOString()
         }

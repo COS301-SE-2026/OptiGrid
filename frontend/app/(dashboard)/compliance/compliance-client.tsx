@@ -62,12 +62,15 @@ type ComplianceReport = {
         total: number;
         open: number;
         resolved: number;
+        raised_in_period: number;
         by_severity: Record<string, number>;
     };
     corrective_actions: {
         total: number;
         implemented: number;
+        applying: number;
         pending: number;
+        applied_monthly_saving_zar: number;
         estimated_monthly_saving_zar: number;
     };
     audit_trail: {
@@ -86,6 +89,7 @@ type ComplianceReport = {
     digital_signature: {
         algorithm: string;
         value: string | null;
+        verified: boolean;
         records_covered: number;
         source: "carbon_ledger" | "audit_log";
         signed_at: string;
@@ -134,7 +138,7 @@ function Metric({ label, value }: Readonly<{ label: string; value: string }>) {
 
 export default function ComplianceClient() {
     const tabSessionId = useTabSessionId();
-    const { data, isLoading, isError, error } = useQuery<ComplianceReport>({
+    const { data, isLoading, isError, error, refetch } = useQuery<ComplianceReport>({
         queryKey: ["compliance-report"],
         queryFn: async () => {
             const response = await fetch("/api/compliance/report?format=json", {
@@ -154,7 +158,9 @@ export default function ComplianceClient() {
         refetchOnWindowFocus: false
     });
 
-    const verification = useIntegrityVerification();
+    const verification = useIntegrityVerification(() => {
+        void refetch();
+    });
 
     const renderSites = (sites: Site[]) => {
         if (sites.length === 0) {
@@ -209,11 +215,15 @@ export default function ComplianceClient() {
         );
     }
 
-    const integrity = verification.state.phase === "done"
-        ? verification.state.result
-        : data.audit_trail.integrity;
+    const checkResult = verification.state.phase === "done" ? verification.state.result : null;
+    const integrity = checkResult ?? data.audit_trail.integrity;
+    const carbonStatus = checkResult?.carbon_ledger?.scope_status ?? data.carbon_accounting.scope_status;
+    const signature = data.digital_signature;
+    const signatureVerified = signature.verified
+        || (integrity.verified && signature.source === "audit_log" && signature.value === integrity.current_hash);
     const severityEntries = Object.entries(data.nonconformities.by_severity);
-    const hasIncompleteCarbonCoverage = data.carbon_accounting.scope_status === "INCOMPLETE";
+    const appliedActions = data.corrective_actions.implemented + data.corrective_actions.applying;
+    const hasIncompleteCarbonCoverage = carbonStatus === "INCOMPLETE";
     const consumptionLabel = hasIncompleteCarbonCoverage ? "Recorded consumption" : "Total consumption";
     const averageLabel = hasIncompleteCarbonCoverage ? "Recorded average per day" : "Average per day";
     let energySourceLabel = "Live telemetry";
@@ -236,10 +246,10 @@ export default function ComplianceClient() {
 
     let carbonBadgeTone = "badge-warning";
     let carbonBadgeLabel = "Ledger incomplete";
-    if (data.carbon_accounting.scope_status === "VALID") {
+    if (carbonStatus === "VALID") {
         carbonBadgeTone = "badge-success";
         carbonBadgeLabel = "Ledger verified";
-    } else if (data.carbon_accounting.scope_status === "TAMPERED") {
+    } else if (carbonStatus === "TAMPERED") {
         carbonBadgeTone = "badge-danger";
         carbonBadgeLabel = "Ledger tampered";
     }
@@ -374,6 +384,7 @@ export default function ComplianceClient() {
             <section className="dashboard-section" aria-label="Nonconformities and corrective actions">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Nonconformities and corrective actions</h2>
+                    <span className="dashboard-section-meta">All records to date</span>
                 </div>
                 <div style={{ 
                     display: "grid", 
@@ -386,15 +397,18 @@ export default function ComplianceClient() {
                         alignContent: "start"
                     }}>
                         <h3 className="dashboard-section-title">Anomalies raised</h3>
-                        <div style={{ 
-                            display: "grid", 
+                        <div style={{
+                            display: "grid",
                             gap: "var(--space-3)",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))",  
+                            gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))",
                         }}>
                             <Metric label="Total" value={String(data.nonconformities.total)} />
                             <Metric label="Open" value={String(data.nonconformities.open)} />
                             <Metric label="Closed" value={String(data.nonconformities.resolved)} />
                         </div>
+                        <p className="text-muted" style={{ margin: 0, fontSize: "var(--fs-small)" }}>
+                            Raised in {data.period.label}: {data.nonconformities.raised_in_period}
+                        </p>
                         {severityEntries.length > 0 && (
                             <div style={{ 
                                 display: "flex", 
@@ -418,11 +432,17 @@ export default function ComplianceClient() {
                             gap: "var(--space-3)" 
                         }}>
                             <Metric label="Total" value={String(data.corrective_actions.total)} />
-                            <Metric label="Implemented" value={String(data.corrective_actions.implemented)} />
+                            <Metric label="Applied" value={String(appliedActions)} />
                             <Metric label="Pending" value={String(data.corrective_actions.pending)} />
                         </div>
-                        <Metric label="Saving available per month" value={`R ${formatNumber(data.corrective_actions.estimated_monthly_saving_zar)}`}
-                        />
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                            gap: "var(--space-3)"
+                        }}>
+                            <Metric label="Saving applied per month" value={`R ${formatNumber(data.corrective_actions.applied_monthly_saving_zar)}`} />
+                            <Metric label="Saving still available" value={`R ${formatNumber(data.corrective_actions.estimated_monthly_saving_zar)}`} />
+                        </div>
                     </div>
                 </div>
             </section>
@@ -447,9 +467,12 @@ export default function ComplianceClient() {
             <section className="dashboard-section" aria-label="Digital signature">
                 <div className="signature-panel">
                     <span className="signature-label">Digital signature</span>
-                    <p className="signature-value">{data.digital_signature.value ?? "No signed entries yet"}</p>
+                    <p className="signature-value">{signature.value ?? "No signed entries yet"}</p>
                     <p className="signature-note">
-                        {data.digital_signature.algorithm} {readable(data.digital_signature.source)} head over {data.digital_signature.records_covered.toLocaleString()} entries, signed {formatDateTime(data.digital_signature.signed_at)}.
+                        {signature.algorithm} {readable(signature.source)} head over {signature.records_covered.toLocaleString()} entries, signed {formatDateTime(signature.signed_at)}.
+                        {signature.value && (signatureVerified
+                            ? " Verified against the ledger."
+                            : " Press Verify Data Integrity to confirm it.")}
                     </p>
                 </div>
             </section>

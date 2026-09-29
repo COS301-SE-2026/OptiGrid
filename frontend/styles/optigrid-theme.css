@@ -2415,6 +2415,8 @@ select.input {
 video.tutorial-video {
     object-fit: contain;
     background: #0a101e;
+}
+
 .tutorial-video.tutorial-video-placeholder {
     display: grid;
 }

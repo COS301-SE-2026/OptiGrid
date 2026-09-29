@@ -135,19 +135,25 @@ export const verifyCarbonLedgerMonth = async (
         .filter((date) => !presentDates.has(date));
     const incompleteRows = rows.filter((row) => row.reading_count === 0);
     const sourceIncompleteDates = incompleteRows.map((row) => dateKey(row.period_date));
-    const validRows = rows.slice(0, recordsChecked).filter((row) => row.reading_count > 0);
+    const checkedRows = rows.slice(0, recordsChecked);
     const verifiedAt = new Date();
 
-    if (validRows.length > 0) {
+    const markRows = async (marked: CarbonLedgerRow[], status: CarbonIntegrityStatus) => {
+        if (marked.length === 0) {
+            return;
+        }
         await store.carbonLedgerEntry.updateMany({
-            where: { ledger_id: { in: validRows.map((row) => row.ledger_id) } },
+            where: { ledger_id: { in: marked.map((row) => row.ledger_id) } },
             data: {
-                integrity_status: CarbonIntegrityStatus.VALID,
+                integrity_status: status,
                 tamper_reason: null,
                 verified_at: verifiedAt
             }
         });
-    }
+    };
+
+    await markRows(checkedRows.filter((row) => row.reading_count > 0), CarbonIntegrityStatus.VALID);
+    await markRows(checkedRows.filter((row) => row.reading_count === 0), CarbonIntegrityStatus.INCOMPLETE);
 
     let status: CarbonIntegrityResult['status'] = 'VALID';
     if (brokenAt) {
