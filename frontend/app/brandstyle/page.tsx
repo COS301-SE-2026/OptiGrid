@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import { PublicNav } from "../../components/PublicNav";
 
 import mainLogo from "./mainlogo.png";
 import secondaryLogo from "./secondarylogo.png";
@@ -381,14 +382,8 @@ export default function OptiGridStyleGuide() {
   };
 
   return (
-    <div
-      style={{
-        backgroundColor: "var(--brand-bg)",
-        color: "var(--brand-ink)",
-        minHeight: "100vh",
-        fontFamily: "var(--font-body)",
-      }}
-    >
+    <div className="landing-page" style={{ fontFamily: "var(--font-body)" }}>
+      <PublicNav signedIn={false} wide />
       <div className="brand-guide">
         <aside className="brand-guide-nav">
           <div>
@@ -414,6 +409,7 @@ export default function OptiGridStyleGuide() {
           </div>
 
           <nav
+            aria-label="Brand guide sections"
             style={{
               display: "flex",
               flexDirection: "column",
@@ -493,7 +489,7 @@ export default function OptiGridStyleGuide() {
             </div>
           </section>
 
-          <section id="intro" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="intro" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <SectionHeader number="1" title="Introduction" />
 
             <SubHeading>1.1 What is OptiGrid?</SubHeading>
@@ -521,7 +517,7 @@ export default function OptiGridStyleGuide() {
             </BodyText>
           </section>
 
-          <section id="logo" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="logo" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <SectionHeader number="2" title="Logo & Iconography" />
 
             <SubHeading>2.1 Main Logo</SubHeading>
@@ -567,7 +563,7 @@ export default function OptiGridStyleGuide() {
             </ul>
           </section>
 
-          <section id="type" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="type" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <SectionHeader number="3" title="Typography" />
 
             <SubHeading>3.1.1 Space Grotesk</SubHeading>
@@ -639,7 +635,7 @@ export default function OptiGridStyleGuide() {
             </StyledTable>
           </section>
 
-          <section id="color" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="color" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <SectionHeader number="4" title="Colour Palette" />
 
             <SubHeading>4.1 Primary Colours</SubHeading>
@@ -660,7 +656,7 @@ export default function OptiGridStyleGuide() {
             </StyledTable>
           </section>
 
-          <section id="tokens" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="tokens" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <SectionHeader number="5" title="Design Tokens" />
 
             <SubHeading>5.1 Spacing Scale</SubHeading>
@@ -670,7 +666,7 @@ export default function OptiGridStyleGuide() {
             <TokenGrid tokens={RADIUS_TOKENS} />
           </section>
 
-          <section id="components" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="components" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <SectionHeader number="6" title="Components" />
 
             <div
@@ -763,7 +759,7 @@ export default function OptiGridStyleGuide() {
             </div>
           </section>
 
-          <section id="principles" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="principles" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <SectionHeader number="7" title="Design Principles" />
 
             <SubHeading>7.1 Clarity over Decoration</SubHeading>
@@ -792,7 +788,7 @@ export default function OptiGridStyleGuide() {
             </BodyText>
           </section>
 
-          <section id="a11y" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="a11y" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <SectionHeader number="8" title="Accessibility Standards" />
             <ul
               style={{
@@ -810,7 +806,7 @@ export default function OptiGridStyleGuide() {
             </ul>
           </section>
 
-          <section id="voice" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="voice" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <SectionHeader number="9" title="Voice & Tone" />
 
             <SubHeading>9.1 Use Active Voice</SubHeading>
@@ -852,7 +848,7 @@ export default function OptiGridStyleGuide() {
             </StyledTable>
           </section>
 
-          <section id="changelog" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "var(--space-6)" }}>
+          <section id="changelog" style={{ marginBottom: "var(--space-8)", scrollMarginTop: "calc(var(--landing-nav-height) + var(--space-5))" }}>
             <div
               style={{
                 fontSize: "var(--fs-h2)",

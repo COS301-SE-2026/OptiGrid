@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
+import { NavIcon } from "./nav-icons";
 
 export function LogoutButton() {
 	const router = useRouter();
@@ -21,7 +22,8 @@ export function LogoutButton() {
 
 	return (
 		<button type="button" onClick={handleLogout} className="btn btn-secondary logout-button">
-			Logout
+			<NavIcon name="logout" />
+			<span>Logout</span>
 		</button>
 	);
 }

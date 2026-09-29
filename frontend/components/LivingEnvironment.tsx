@@ -112,9 +112,25 @@ const WEIGHTS = {
 
 interface LivingEnvironmentProps {
   readonly buildingId: string;
+  readonly buildingName?: string;
 }
 
-export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
+function weightedScore(inputs: SliderInputs): number {
+  const raw =
+    inputs.energyEfficiency * WEIGHTS.energyEfficiency +
+    inputs.renewables * WEIGHTS.renewables +
+    inputs.hvacLoad * WEIGHTS.hvacLoad +
+    inputs.lighting * WEIGHTS.lighting;
+  return Math.round(Math.max(0, Math.min(100, raw)));
+}
+
+function formatChange(change: number | null): string {
+  if (change === null) return '--';
+  if (change > 0) return `+${change}`;
+  return String(change);
+}
+
+export function LivingEnvironment({ buildingId, buildingName }: LivingEnvironmentProps) {
   const [baseline, setBaseline] = useState<{ energyEfficiency: number; renewables: number; hvacLoad: number; lighting: number } | null>(null);
   const [healthData, setHealthData] = useState<EsgHealthScore | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -160,14 +176,15 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
     };
   }, [buildingId]);
 
-  const healthScore = useMemo(() => {
-    const raw =
-      energyEfficiency * WEIGHTS.energyEfficiency +
-      renewables * WEIGHTS.renewables +
-      hvacLoad * WEIGHTS.hvacLoad +
-      lighting * WEIGHTS.lighting;
-    return Math.round(Math.max(0, Math.min(100, raw)));
-  }, [energyEfficiency, renewables, hvacLoad, lighting]);
+  const healthScore = useMemo(
+    () => weightedScore({ energyEfficiency, renewables, hvacLoad, lighting }),
+    [energyEfficiency, renewables, hvacLoad, lighting]
+  );
+  const baselineScore = baseline ? weightedScore(baseline) : null;
+  const scoreChange = baselineScore === null ? null : healthScore - baselineScore;
+  let changeTone = '';
+  if (scoreChange !== null && scoreChange > 0) changeTone = ' is-up';
+  if (scoreChange !== null && scoreChange < 0) changeTone = ' is-down';
 
   const state = getEcosystemState(healthScore);
   const config = stateConfig[state];
@@ -205,8 +222,8 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
           >
             <div>
               <h2 className="dashboard-section-title">Environmental Performance</h2>
-              <p className="dashboard-section-meta">
-                Building <span className="metric">{buildingId}</span>
+              <p className="dashboard-section-meta" style={{ margin: 'var(--space-1) 0 0' }}>
+                {buildingName ?? <>Building <span className="metric">{buildingId}</span></>}
               </p>
             </div>
             <span className={`badge ${config.badgeClass}`}>
@@ -227,7 +244,7 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
           <EcosystemVisual
             state={state}
             config={config}
-            buildingId={buildingId}
+            buildingLabel={buildingName ?? `building ${buildingId}`}
           />
 
           <div
@@ -317,7 +334,7 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
           </button>
         </header>
 
-        <div style={{ display: 'grid', gap: 'var(--space-5)', marginBottom: 'var(--space-5)' }}>
+        <div className="esg-slider-list">
           <ControlSlider
             label="Energy Efficiency"
             value={energyEfficiency}
@@ -344,16 +361,29 @@ export function LivingEnvironment({ buildingId }: LivingEnvironmentProps) {
           />
         </div>
 
-        <div
-          className="dashboard-section-meta"
-          style={{
-            marginTop: 'auto',
-            paddingTop: 'var(--space-3)',
-            borderTop: '1px solid var(--brand-border)',
-          }}
-        >
-          Weightage - efficiency 35%  renewables 30%  HVAC 20%  
-          lighting 15%.
+        <dl className="esg-scenario-summary" aria-label="Scenario result">
+          <div>
+            <dt>Baseline</dt>
+            <dd className="metric">{baselineScore ?? '--'}</dd>
+          </div>
+          <div>
+            <dt>With changes</dt>
+            <dd className="metric">{healthScore}</dd>
+          </div>
+          <div>
+            <dt>Difference</dt>
+            <dd className={`metric${changeTone}`}>{formatChange(scoreChange)}</dd>
+          </div>
+        </dl>
+
+        <div className="esg-weights">
+          <span className="dashboard-section-meta">Score weights</span>
+          <ul>
+            <li>Efficiency 35%</li>
+            <li>Renewables 30%</li>
+            <li>HVAC 20%</li>
+            <li>Lighting 15%</li>
+          </ul>
         </div>
       </section>
 
@@ -395,7 +425,7 @@ function buildDrivers(inputs: SliderInputs): Driver[] {
       value: inputs.renewables,
       weight: WEIGHTS.renewables,
       explanation:
-        'Share of the buildings consumption covered by clean sources.',
+        "Share of the building's consumption covered by clean sources.",
     },
     {
       key: 'hvacLoad',
@@ -403,7 +433,7 @@ function buildDrivers(inputs: SliderInputs): Driver[] {
       value: inputs.hvacLoad,
       weight: WEIGHTS.hvacLoad,
       explanation:
-        'How well heating, ventilation and cooling is tuned to demand.',
+        'How well the heating and cooling system follows demand.',
     },
     {
       key: 'lighting',
@@ -411,7 +441,7 @@ function buildDrivers(inputs: SliderInputs): Driver[] {
       value: inputs.lighting,
       weight: WEIGHTS.lighting,
       explanation:
-        'lighting and daylight harvesting effectiveness.',
+        'Lighting and daylight harvesting effectiveness.',
     },
   ];
 
@@ -774,7 +804,7 @@ function TreeStat({
 interface EcosystemVisualProps {
   readonly state: EcosystemState;
   readonly config: (typeof stateConfig)[EcosystemState];
-  readonly buildingId: string;
+  readonly buildingLabel: string;
 }
 
 function getTrunkDroop(state: EcosystemState): number {
@@ -795,7 +825,7 @@ function getSunOpacity(state: EcosystemState): number {
   return 1;
 }
 
-function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
+function EcosystemVisual({ state, config, buildingLabel }: EcosystemVisualProps) {
   const leaves = Array.from({ length: 24 }, (_, i) => {
     const angle = (i / 24) * Math.PI * 2;
     const radius = 38 + (i % 3) * 12;
@@ -819,7 +849,7 @@ function EcosystemVisual({ state, config, buildingId }: EcosystemVisualProps) {
 
   const trunkDroop = getTrunkDroop(state);
 
-  const description = `Living environment for building ${buildingId}. State: ${config.label}. ${config.leafCount} of 24 leaves visible, ${config.flowerCount} of 8 blooms.`;
+  const description = `Living environment for ${buildingLabel}. State: ${config.label}. ${config.leafCount} of 24 leaves visible, ${config.flowerCount} of 8 blooms.`;
 
   return (
     <div

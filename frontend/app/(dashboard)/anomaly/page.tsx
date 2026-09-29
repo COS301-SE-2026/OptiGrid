@@ -247,7 +247,7 @@ export default function ManagerAnomalyPage() {
           <div className="dashboard-header">
             <div>
               <h1 className="dashboard-title">Anomaly Alerts</h1>
-              <div className="dashboard-subtitle">Manage anomalies across your assigned buildings</div>
+              <div className="dashboard-subtitle">Manage anomalies across your assigned buildings.</div>
             </div>
             <div style={{ display: "flex", gap: "var(--space-3)" }}>
               <button

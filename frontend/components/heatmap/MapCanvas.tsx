@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { ExpressionSpecification, GeoJSONSource, MapLayerMouseEvent, MapMouseEvent, PaddingOptions, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { colourStops, parseColour, type Bounds, type HeatPalette, type HeatmapFeatureCollection, type TowerFeatureCollection } from "@/lib/heatmap";
+import { colourStops, parseColour, toTowerCollection, type Bounds, type HeatPalette, type HeatmapFeatureCollection } from "@/lib/heatmap";
 
 export type MapPalette = HeatPalette & {
     primary: string;
@@ -20,7 +20,6 @@ export type FlyTarget = {
 
 export type MapCanvasProps = {
     collection: HeatmapFeatureCollection;
-    towers: TowerFeatureCollection;
     palette: MapPalette;
     dark: boolean;
     selectedId: string | null;
@@ -119,12 +118,16 @@ function fitPadding(container: HTMLElement): PaddingOptions {
     };
 }
 
-function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection, towers: TowerFeatureCollection, palette: MapPalette, dark: boolean, tilted: boolean) {
+function updateTowers(map: maplibregl.Map, collection: HeatmapFeatureCollection) {
+    (map.getSource(TOWER_SOURCE) as GeoJSONSource | undefined)?.setData(toTowerCollection(collection, map.getZoom()));
+}
+
+function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection, palette: MapPalette, dark: boolean, tilted: boolean) {
     if (!map.getSource(SOURCE)) {
         map.addSource(SOURCE, { type: "geojson", data: collection });
     }
     if (!map.getSource(TOWER_SOURCE)) {
-        map.addSource(TOWER_SOURCE, { type: "geojson", data: towers });
+        map.addSource(TOWER_SOURCE, { type: "geojson", data: toTowerCollection(collection, map.getZoom()) });
     }
 
     map.addLayer({
@@ -149,8 +152,7 @@ function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection
             "fill-extrusion-color": pointColour(palette),
             "fill-extrusion-height": ["get", "height"],
             "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 0.82,
-            "fill-extrusion-height-transition": { duration: 700 },
+            "fill-extrusion-opacity": 0.85,
         },
     });
 
@@ -200,7 +202,7 @@ function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection
 }
 
 export default function MapCanvas(props: Readonly<MapCanvasProps>) {
-    const { collection, towers, palette, dark, selectedId, fitTo, flyTo, placing, tilted, reducedMotion, active } = props;
+    const { collection, palette, dark, selectedId, fitTo, flyTo, placing, tilted, reducedMotion, active } = props;
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const readyRef = useRef(false);
@@ -256,7 +258,7 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
         map.on("style.load", () => {
             clearTimeout(styleTimer);
             const current = latest.current;
-            addDataLayers(map, current.collection, current.towers, current.palette, current.dark, current.tilted);
+            addDataLayers(map, current.collection, current.palette, current.dark, current.tilted);
             applyMode(map, current.tilted);
             map.setFilter("halo", ["==", ["get", "buildingId"], current.selectedId ?? ""]);
             readyRef.current = true;
@@ -269,6 +271,20 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
                 map.fitBounds(current.fitTo.bounds, { padding: fitPadding(container), maxZoom: 13, duration: 0 });
             }
             firstStyle = false;
+        });
+
+        // the tower size depends on the zoom level
+        let towerFrame = 0;
+        map.on("zoom", () => {
+            if (towerFrame !== 0 || !readyRef.current || !latest.current.tilted) {
+                return;
+            }
+            towerFrame = requestAnimationFrame(() => {
+                towerFrame = 0;
+                if (readyRef.current) {
+                    updateTowers(map, latest.current.collection);
+                }
+            });
         });
 
         map.on("error", (event) => {
@@ -323,6 +339,7 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
 
         return () => {
             clearTimeout(styleTimer);
+            cancelAnimationFrame(towerFrame);
             observer?.disconnect();
             readyRef.current = false;
             mapRef.current = null;
@@ -344,20 +361,17 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
         const map = mapRef.current;
         if (map && readyRef.current) {
             (map.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(collection);
+            updateTowers(map, collection);
         }
     }, [collection]);
 
     useEffect(() => {
         const map = mapRef.current;
-        if (map && readyRef.current) {
-            (map.getSource(TOWER_SOURCE) as GeoJSONSource | undefined)?.setData(towers);
-        }
-    }, [towers]);
-
-    useEffect(() => {
-        const map = mapRef.current;
         if (!map || !readyRef.current) {
             return;
+        }
+        if (tilted) {
+            updateTowers(map, latest.current.collection);
         }
         applyMode(map, tilted);
         if (tilted) {

@@ -206,6 +206,9 @@ async function fetchPortfolioConsumption(): Promise<PortfolioConsumption> {
     return payload.data;
 }
 
+// the overview refreshe itself. we need that so the numbers stay current without a reload
+const REFRESH_MS = 60_000;
+
 const STATUS_CLASSES: Record<BuildingStatus, string> = {
     Normal: "badge-success",
     "Peak alert": "badge-warning",
@@ -301,6 +304,7 @@ export default function DashboardPage() {
     } = useQuery({
         queryKey: ["buildings"],
         queryFn: fetchBuildings,
+        refetchInterval: REFRESH_MS,
     });
 
     const {
@@ -309,6 +313,7 @@ export default function DashboardPage() {
     } = useQuery({
         queryKey: ["portfolio-consumption"],
         queryFn: fetchPortfolioConsumption,
+        refetchInterval: REFRESH_MS,
     });
 
     const deleteBuildingMutation = useMutation({
@@ -494,12 +499,12 @@ export default function DashboardPage() {
 
     const renderConsumptionChart = () => {
         if (consumptionLoading) {
-            return <Skeleton style={{ height: 200, width: "100%" }} />;
+            return <Skeleton className="chart-fill" />;
         }
 
         if (consumption.length === 0) {
             return (
-                <div className="dashboard-empty" style={{ padding: "var(--space-4)" }}>
+                <div className="dashboard-empty chart-empty">
                     <p className="text-muted">No consumption data available for the last 7 days.</p>
                 </div>
             );
@@ -507,57 +512,59 @@ export default function DashboardPage() {
 
         return (
             <>
-                <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
+                <p className="text-muted" style={{ fontSize: "var(--fs-small)", margin: "0 0 var(--space-3)" }}>
                     Daily energy consumption trend for your entire portfolio
                 </p>
-                <AccessibleChart
-                    caption="Portfolio consumption over the last 7 days, in kWh"
-                    categoryLabel="Day"
-                    categories={consumption.map((point) => point.day)}
-                    series={[
-                        {
-                            name: "Consumption (kWh)",
-                            values: consumption.map((point) => point.kwh)
-                        }
-                    ]}
-                >
-                <ResponsiveContainer width="100%" height={240}>
-                    <LineChart
-                        data={consumption}
-                        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                <div className="chart-fill">
+                    <AccessibleChart
+                        caption="Portfolio consumption over the last 7 days, in kWh"
+                        categoryLabel="Day"
+                        categories={consumption.map((point) => point.day)}
+                        series={[
+                            {
+                                name: "Consumption (kWh)",
+                                values: consumption.map((point) => point.kwh)
+                            }
+                        ]}
                     >
-                        <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-                        <XAxis
-                            dataKey="day"
-                            tick={axisTick}
-                            axisLine={false}
-                            tickLine={false}
-                            padding={{ left: 16, right: 16 }}
-                        />
-                        <YAxis
-                            tick={axisTick}
-                            axisLine={false}
-                            tickLine={false}
-                            width={52}
-                            tickFormatter={formatAxisNumber}
-                        />
-                        <Tooltip
-                            contentStyle={tooltipContentStyle}
-                            labelStyle={tooltipLabelStyle}
-                            cursor={{ stroke: "var(--brand-border)" }}
-                            formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy usage"]}
-                        />
-                        <Line
-                            type="monotone"
-                            dataKey="kwh"
-                            stroke={SERIES_COLOURS[0]}
-                            strokeWidth={2}
-                            dot={seriesDot(SERIES_COLOURS[0])}
-                            activeDot={seriesDot(SERIES_COLOURS[0], 6)}
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
-                </AccessibleChart>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                            data={consumption}
+                            margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                            <XAxis
+                                dataKey="day"
+                                tick={axisTick}
+                                axisLine={false}
+                                tickLine={false}
+                                padding={{ left: 16, right: 16 }}
+                            />
+                            <YAxis
+                                tick={axisTick}
+                                axisLine={false}
+                                tickLine={false}
+                                width={52}
+                                tickFormatter={formatAxisNumber}
+                            />
+                            <Tooltip
+                                contentStyle={tooltipContentStyle}
+                                labelStyle={tooltipLabelStyle}
+                                cursor={{ stroke: "var(--brand-border)" }}
+                                formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy usage"]}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="kwh"
+                                stroke={SERIES_COLOURS[0]}
+                                strokeWidth={2}
+                                dot={seriesDot(SERIES_COLOURS[0])}
+                                activeDot={seriesDot(SERIES_COLOURS[0], 6)}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                    </AccessibleChart>
+                </div>
             </>
         );
     };
@@ -578,71 +585,73 @@ export default function DashboardPage() {
 
     return (
         <div>
-            <div className="dashboard-header">
-                <div>
-                    <h1 className="dashboard-title">Welcome back, {firstName}</h1>
-                    <p className="dashboard-subtitle">
-                        Portfolio overview - last updated {lastUpdatedLabel}
-                    </p>
+            <div className="screen-fit dashboard-overview">
+                <div className="dashboard-header">
+                    <div>
+                        <h1 className="dashboard-title">Welcome back, {firstName}</h1>
+                        <p className="dashboard-subtitle">
+                            Portfolio overview. Last updated {lastUpdatedLabel}.
+                        </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                        <a
+                            href={getTabSessionPath("/api/reports/summary", tabSessionId)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-secondary"
+                        >
+                            Download Summary Report
+                        </a>
+                        <VerifyIntegrityButton state={ledgerVerification.state} onVerify={ledgerVerification.run} />
+                        <Link 
+                            href="/buildings/add" 
+                            className="btn btn-primary"
+                        >
+                            + Add building
+                        </Link>
+                    </div>
                 </div>
-                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                    <a
-                        href={getTabSessionPath("/api/reports/summary", tabSessionId)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-secondary"
-                    >
-                        Download Summary Report
-                    </a>
-                    <VerifyIntegrityButton state={ledgerVerification.state} onVerify={ledgerVerification.run} />
-                    <Link 
-                        href="/buildings/add" 
-                        className="btn btn-primary"
-                    >
-                        + Add building
-                    </Link>
+
+                <IntegrityStatus state={ledgerVerification.state} showSignature={false} className="integrity-output-banner" />
+
+                <div className="dashboard-kpi-grid" aria-label="Portfolio statistics">
+                    <KpiCard
+                        label="Buildings"
+                        value={String(summary.buildings)}
+                        loading={buildingsLoading}
+                        description={getBuildingCountDescription()}
+                    />
+                    <KpiCard
+                        label="Today's usage"
+                        value={formatUsage()}
+                        loading={buildingsLoading}
+                        description="Total energy consumed today across all buildings"
+                    />
+                    <KpiCard
+                        label="Est. cost"
+                        value={formatCost()}
+                        loading={buildingsLoading}
+                        description="Estimated cost based on today's energy usage"
+                    />
+                    <KpiCard
+                        label="Active alerts"
+                        value={String(summary.activeAlerts)}
+                        valueTone={summary.activeAlerts > 0 ? "warning" : "default"}
+                        loading={buildingsLoading}
+                        description={getAlertDescription()}
+                    />
                 </div>
+
+                <section className="card dashboard-section screen-fit-grow" aria-label="Portfolio consumption chart">
+                    <div className="dashboard-section-header">
+                        <h2 className="dashboard-section-title">
+                            Portfolio consumption, last 7 days
+                        </h2>
+                        <span className="dashboard-section-meta">Kilowatt-hours (kWh)</span>
+                    </div>
+                    {renderConsumptionChart()}
+                </section>
             </div>
-
-            <IntegrityStatus state={ledgerVerification.state} showSignature={false} className="integrity-output-banner" />
-
-            <div className="dashboard-kpi-grid" aria-label="Portfolio statistics">
-                <KpiCard
-                    label="Buildings"
-                    value={String(summary.buildings)}
-                    loading={buildingsLoading}
-                    description={getBuildingCountDescription()}
-                />
-                <KpiCard
-                    label="Today's usage"
-                    value={formatUsage()}
-                    loading={buildingsLoading}
-                    description="Total energy consumed today across all buildings"
-                />
-                <KpiCard
-                    label="Est. cost"
-                    value={formatCost()}
-                    loading={buildingsLoading}
-                    description="Estimated cost based on today's energy usage"
-                />
-                <KpiCard
-                    label="Active alerts"
-                    value={String(summary.activeAlerts)}
-                    valueTone={summary.activeAlerts > 0 ? "warning" : "default"}
-                    loading={buildingsLoading}
-                    description={getAlertDescription()}
-                />
-            </div>
-
-            <section className="card dashboard-section" aria-label="Portfolio consumption chart">
-                <div className="dashboard-section-header">
-                    <h2 className="dashboard-section-title">
-                        Portfolio consumption, last 7 days
-                    </h2>
-                    <span className="dashboard-section-meta">Kilowatt-hours (kWh)</span>
-                </div>
-                {renderConsumptionChart()}
-            </section>
 
             <section className="card dashboard-section dashboard-panel" aria-label="Buildings list">
                 <div className="dashboard-section-header dashboard-panel-head">

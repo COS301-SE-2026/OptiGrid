@@ -4,6 +4,13 @@ import { cookies } from "next/headers";
 import { getTabSessionPath, isTabSessionId, TAB_SESSION_HEADER } from "../../../../lib/tab-session";
 import { clearUnscopedAuthCookies, setSessionCookie, setAccessTokenCookie, shouldUseSecureCookies } from "../../../../lib/authCookies";
 
+const OAUTH_INTENT_COOKIE = "optigrid_oauth_intent";
+
+function withIntentCleared(response: NextResponse) {
+    response.cookies.set({ name: OAUTH_INTENT_COOKIE, value: "", path: "/", maxAge: 0 });
+    return response;
+}
+
 type SessionUser = {
     userId: string;
     email: string;
@@ -49,7 +56,8 @@ export async function GET(request: Request) {
             const firstName = typeof metadata.first_name === "string" ? metadata.first_name : (parts[0] || "");
             const lastName = typeof metadata.last_name === "string" ? metadata.last_name : (parts.slice(1).join(" ") || "");
             const url = process.env.CORE_URL ?? "http://localhost:4000";
-            const respCore = await fetch(`${url}/auth/oauth-login`, {
+            const recovering = cookie.get(OAUTH_INTENT_COOKIE)?.value === "recover";
+            const respCore = await fetch(`${url}/auth/${recovering ? "oauth-recover" : "oauth-login"}`, {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json" 
@@ -61,7 +69,16 @@ export async function GET(request: Request) {
                     lastName,
                 }),
             });
-            if (!respCore.ok) return NextResponse.redirect(`${actualOrigin}/login?error=OAuthSyncFailed`);
+            if (!respCore.ok) {
+                const failure = (await respCore.json().catch(() => ({}))) as { code?: string };
+                let reason = "OAuthSyncFailed";
+                if (recovering) {
+                    reason = "OAuthRecoverFailed";
+                } else if (respCore.status === 403 && failure.code === "ACCOUNT_DEACTIVATED") {
+                    reason = "OAuthDeactivated";
+                }
+                return withIntentCleared(NextResponse.redirect(`${actualOrigin}/login?error=${reason}`));
+            }
 
             const jsonData = await respCore.json();
             const resp = NextResponse.redirect(`${actualOrigin}${getTabSessionPath(next, tabSessionId)}`);
@@ -77,8 +94,8 @@ export async function GET(request: Request) {
             setSessionCookie(resp, sessionUser, tabSessionId, secure);
             setAccessTokenCookie(resp, data.session.access_token, tabSessionId, secure);
             clearUnscopedAuthCookies(resp, tabSessionId, secure);
-            return resp;
+            return withIntentCleared(resp);
         }
     }
-    return NextResponse.redirect(`${actualOrigin}/login?error=OAuthFailed`);
+    return withIntentCleared(NextResponse.redirect(`${actualOrigin}/login?error=OAuthFailed`));
 }

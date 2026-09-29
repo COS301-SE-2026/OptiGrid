@@ -1,0 +1,86 @@
+{
+    "features": [
+        {
+            "icon": "monitor",
+            "title": "Monitor your portfolio",
+            "description": "See live power and today's energy use for every building on one screen."
+        },
+        {
+            "icon": "map",
+            "title": "See usage on a map",
+            "description": "A heatmap shows which sites use the most energy. Slide back in time or look ahead."
+        },
+        {
+            "icon": "cube",
+            "title": "Explore each building in 3D",
+            "description": "Turn a model of the building around and find the sensor that is working too hard."
+        },
+        {
+            "icon": "alert",
+            "title": "Catch anomalies early",
+            "description": "You get an alert when a reading leaves its normal range."
+        },
+        {
+            "icon": "barchart",
+            "title": "Benchmark performance",
+            "description": "Put two buildings side by side and find out which one uses energy better."
+        },
+        {
+            "icon": "trendingup",
+            "title": "Forecast tomorrow's demand",
+            "description": "Plan your week with an hourly forecast. Switch to twelve weeks for the long view."
+        },
+        {
+            "icon": "lightbulb",
+            "title": "Act on load shifting insights",
+            "description": "Each tip names the load to move and what you could save every month."
+        },
+        {
+            "icon": "receipt",
+            "title": "Keep tariffs and costs current",
+            "description": "Enter your summer and winter rates. Every cost then matches your real bill."
+        }
+    ],
+    "outcomes": [
+        {
+            "metric": "18%",
+            "title": "Peak load reduction",
+            "description": "Moving load out of peak hours keeps demand under your contract limit."
+        },
+        {
+            "metric": "4.8%",
+            "title": "Forecast error",
+            "description": "Our forecasts stay close to what your buildings really use."
+        },
+        {
+            "metric": "120+",
+            "title": "Buildings online",
+            "description": "Meters and sensors connect in days rather than months."
+        },
+        {
+            "metric": "5s",
+            "title": "Live refresh",
+            "description": "Readings on screen are never more than a few seconds old."
+        },
+        {
+            "metric": "4",
+            "title": "Measures watched",
+            "description": "Every reading is checked on four measures for unusual jumps."
+        },
+        {
+            "metric": "12 weeks",
+            "title": "Forecast horizon",
+            "description": "Look one week ahead in detail or twelve weeks ahead for the bigger picture."
+        },
+        {
+            "metric": "ISO 50001",
+            "title": "Audit ready reports",
+            "description": "Download a signed report that your auditor can check against the records."
+        },
+        {
+            "metric": "0 to 100",
+            "title": "ESG health score",
+            "description": "Try a change with a slider and watch your score move before you spend anything."
+        }
+    ]
+}

@@ -115,12 +115,12 @@ describe("InsightsPage", () => {
         expect(screen.getByLabelText(/status/i)).toBeInTheDocument();
     });
 
-    it("prompts the user to pick a building before loading anything", () => {
+    it("opens on a building without waiting for a pick", () => {
         setupQueries();
         renderPage();
 
-        expect(screen.getByText(/select a building to view its optimisation recommendations/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/status/i)).toBeDisabled();
+        expect(screen.queryByText(/select a building to view its optimisation recommendations/i)).not.toBeInTheDocument();
+        expect(screen.getByLabelText(/status/i)).toBeEnabled();
     });
 
     it("lists the strategies and their estimated savings once a building is selected", async () => {

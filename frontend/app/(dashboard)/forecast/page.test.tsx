@@ -105,7 +105,7 @@ describe("ForecastPage", () => {
         expect(screen.getAllByRole("combobox")).toHaveLength(2);
         expect(
             screen.getByRole("button", { name: "Run forecast" })
-        ).toBeDisabled();
+        ).toBeEnabled();
         expect(
             screen.getByText(/Configure the controls above/i)
         ).toBeInTheDocument();

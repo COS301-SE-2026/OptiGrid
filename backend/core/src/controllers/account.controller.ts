@@ -31,6 +31,9 @@ export async function deactivateMyAccount(req: Request, res: Response) {
         if (error instanceof AccountNotFoundError) {
             return res.status(404).json({ code: error.code, message: error.message });
         }
+        if (error instanceof LastActiveAdminError) {
+            return res.status(409).json({ code: error.code, message: error.message });
+        }
 
         console.error('Account deactivation error:', error);
         return res.status(500).json({ message: 'Internal server error' });
