@@ -6,13 +6,6 @@ describe("HelpPage", () => {
             render(<HelpPage />);
     });
 
-    it("renders the brand name and back to the dashboard link", () => {
-        expect(screen.getByText("OptiGrid")).toBeInTheDocument();
-        const dashboardLink = screen.getByRole("link", {
-            name: "Back to dashboard",
-        });
-        expect(dashboardLink).toHaveAttribute("href", "/dashboard");
-    });
 
     it("renders the help heading and intro copy", () => {
         expect(

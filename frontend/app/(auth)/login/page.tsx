@@ -7,6 +7,7 @@ import { navigateAfterLogin } from "../../../lib/auth-navigation";
 import { getTabSessionId, TAB_SESSION_HEADER } from "../../../lib/tab-session";
 import GoogleAuthButton from "@/components/GoogleButton";
 import PasswordInput from "@/components/PasswordInput";
+import { OptiGridLogo } from "@/components/logo";
 
 export default function LoginPage() {
     const [formData, setFormData] = useState<LoginFormData>(initialLoginFormData);
@@ -125,8 +126,19 @@ export default function LoginPage() {
                 aria-labelledby="login-title"
             >
                 <header className="auth-header">
-                    <Link href="/" className="landing-wordmark">
-                        OptiGrid
+                    <Link
+                        href="/"
+                        aria-label="OptiGrid home"
+                        className="landing-wordmark"
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            color: "var(--brand-ink)",
+                            textDecoration: "none",
+                            marginBottom: "var(--space-3)",
+                        }}
+                    >
+                        <OptiGridLogo height={32} />
                     </Link>
                     <h1 id="login-title">Log in to your account</h1>
                     <p className="text-muted auth-lede">Sign in to see your buildings and live readings.</p>

@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { PageHeading } from "@/components/PageHeading";
+import { useEffect, useMemo, useState } from "react";
 
 type Section = {
   id: string;
@@ -15,27 +14,157 @@ type Section = {
   };
 };
 
+
+function Lightbox({
+  src,
+  alt,
+  caption,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        background: "color-mix(in srgb, var(--brand-ink) 78%, transparent)",
+        display: "grid",
+        placeItems: "center",
+        padding: "var(--space-5)",
+        cursor: "zoom-out",
+        animation: "manual-fade-in 0.2s ease",
+      }}
+    >
+      <button
+        type="button"
+        aria-label="Close enlarged image"
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          top: "var(--space-4)",
+          right: "var(--space-4)",
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          border: "1px solid var(--brand-border)",
+          background: "var(--brand-surface)",
+          color: "var(--brand-ink)",
+          fontSize: 20,
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        x
+      </button>
+
+      <figure
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          margin: 0,
+          maxWidth: "min(1400px, 95vw)",
+          maxHeight: "92vh",
+          display: "grid",
+          gap: "var(--space-3)",
+          cursor: "default",
+        }}
+      >
+        <img
+          src={src}
+          alt={alt}
+          style={{
+            width: "100%",
+            height: "auto",
+            maxHeight: "82vh",
+            objectFit: "contain",
+            borderRadius: "var(--radius-lg)",
+            border: "1px solid var(--brand-border)",
+            background: "var(--brand-surface)",
+            display: "block",
+          }}
+        />
+        {caption && (
+          <figcaption
+            style={{
+              textAlign: "center",
+              color: "var(--brand-bg)",
+              fontSize: "1rem",
+              fontWeight: "var(--fw-medium)",
+            }}
+          >
+            {caption}
+          </figcaption>
+        )}
+      </figure>
+    </div>
+  );
+}
+
 function Snapshot({
   caption,
   alt,
   src,
+  onOpen,
 }: {
   caption: string;
   alt: string;
   src?: string;
+  onOpen: (src: string, alt: string, caption: string) => void;
 }) {
+  const [hovered, setHovered] = useState(false);
+  const clickable = Boolean(src);
+
   return (
     <figure
       style={{
-        margin: "var(--space-4) 0 0",
+        margin: "var(--space-5) 0 0",
         display: "grid",
         gap: "var(--space-2)",
       }}
     >
       <div
+        onClick={() => {
+          if (src) onOpen(src, alt, caption);
+        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        role={clickable ? "button" : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        onKeyDown={(e) => {
+          if (clickable && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            onOpen(src!, alt, caption);
+          }
+        }}
+        aria-label={clickable ? `Enlarge image: ${alt}` : undefined}
         style={{
           position: "relative",
           aspectRatio: "16 / 10",
+          maxWidth: 560,
+          margin: "0 auto",
           borderRadius: "var(--radius-lg)",
           border: "1px solid var(--brand-border)",
           background:
@@ -43,19 +172,52 @@ function Snapshot({
           overflow: "hidden",
           display: "grid",
           placeItems: "center",
+          cursor: clickable ? "zoom-in" : "default",
+          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          transform: hovered && clickable ? "translateY(-2px)" : "translateY(0)",
+          boxShadow:
+            hovered && clickable
+              ? "0 12px 28px rgba(11, 17, 32, 0.18)"
+              : "var(--shadow-card)",
         }}
       >
         {src ? (
-          <img
-            src={src}
-            alt={alt}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              display: "block",
-            }}
-          />
+          <>
+            <img
+              src={src}
+              alt={alt}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+            <span
+              aria-hidden
+              style={{
+                position: "absolute",
+                bottom: 10,
+                right: 10,
+                padding: "6px 12px",
+                borderRadius: 999,
+                background:
+                  "color-mix(in srgb, var(--brand-surface) 90%, transparent)",
+                color: "var(--brand-ink)",
+                fontSize: "0.8rem",
+                fontWeight: "var(--fw-semibold)",
+                border: "1px solid var(--brand-border)",
+                opacity: hovered ? 1 : 0.85,
+                transition: "opacity 0.15s ease",
+                pointerEvents: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              Click to enlarge
+            </span>
+          </>
         ) : (
           <div
             style={{
@@ -101,7 +263,7 @@ function Snapshot({
       </div>
       <figcaption
         className="dashboard-section-meta"
-        style={{ fontSize: "0.75rem", textAlign: "center" }}
+        style={{ fontSize: "0.95rem", textAlign: "center" }}
       >
         {caption}
       </figcaption>
@@ -189,7 +351,7 @@ function AnomalyCallout({
       <p
         style={{
           margin: 0,
-          fontSize: "var(--fs-small)",
+          fontSize: "1rem",
           fontWeight: "var(--fw-semibold)",
           color: colours.text,
         }}
@@ -199,9 +361,9 @@ function AnomalyCallout({
       <div
         style={{
           margin: 0,
-          fontSize: "var(--fs-small)",
+          fontSize: "1rem",
           color: "var(--brand-ink-muted)",
-          lineHeight: 1.6,
+          lineHeight: 1.7,
         }}
       >
         {children}
@@ -863,6 +1025,11 @@ const SECTIONS: Section[] = [
 
 export default function ManualPage() {
   const [activeId, setActiveId] = useState<string>(SECTIONS[0].id);
+  const [lightbox, setLightbox] = useState<{
+    src: string;
+    alt: string;
+    caption: string;
+  } | null>(null);
 
   const toc = useMemo(
     () =>
@@ -882,19 +1049,98 @@ export default function ManualPage() {
     }
   };
 
+  const openLightbox = (src: string, alt: string, caption: string) => {
+    setLightbox({ src, alt, caption });
+  };
+
   return (
     <div>
-      <PageHeading
-        title="User Manual"
-        subtitle="Everything you need to know about OptiGrid. Version 1.0: July 2026."
-      />
+    
+      <header
+        style={{
+          position: "relative",
+          padding: "var(--space-7) var(--space-6)",
+          borderRadius: "var(--radius-lg)",
+          background:
+            "linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 16%, var(--brand-surface)) 0%, var(--brand-surface) 65%)",
+          border: "1px solid var(--brand-border)",
+          marginBottom: "var(--space-6)",
+          overflow: "hidden",
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: -60,
+            right: -60,
+            width: 260,
+            height: 260,
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, color-mix(in srgb, var(--brand-primary) 28%, transparent) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        <div
+          style={{
+            position: "relative",
+            display: "grid",
+            gap: "var(--space-3)",
+            maxWidth: 720,
+          }}
+        >
+          
+          <h1
+            style={{
+              margin: 0,
+              fontFamily: "var(--font-heading)",
+              fontSize: "clamp(2.25rem, 4.5vw, 3.25rem)",
+              fontWeight: "var(--fw-bold)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.05,
+              color: "var(--brand-ink)",
+            }}
+          >
+            OptiGrid User Manual
+          </h1>
+
+          <p
+            style={{
+              margin: 0,
+              fontSize: "1.125rem",
+              color: "var(--brand-ink-muted)",
+              lineHeight: 1.6,
+              maxWidth: 620,
+            }}
+          >
+            Everything you need to know about OptiGrid — from your first login
+            to managing sensors, forecasts, and anomaly alerts across your
+            building portfolio.
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "var(--space-3)",
+              flexWrap: "wrap",
+              marginTop: "var(--space-2)",
+            }}
+          >
+            <span className="badge badge-default">Version 1.0</span>
+            <span className="badge badge-default">July 2026</span>
+            <span className="badge badge-default">Team Coreflow</span>
+          </div>
+        </div>
+      </header>
 
       <div
         className="manual-layout"
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 220px) minmax(0, 1fr)",
-          gap: "var(--space-5)",
+          gridTemplateColumns: "minmax(0, 300px) minmax(0, 1fr)",
+          gap: "var(--space-6)",
           alignItems: "start",
         }}
       >
@@ -905,14 +1151,20 @@ export default function ManualPage() {
           style={{
             position: "sticky",
             top: "var(--space-5)",
-            padding: "var(--space-4)",
+            padding: "var(--space-5)",
             maxHeight: "calc(100vh - var(--space-6))",
             overflowY: "auto",
           }}
         >
           <p
-            className="dashboard-kpi-label"
-            style={{ marginBottom: "var(--space-3)" }}
+            style={{
+              margin: "0 0 var(--space-4)",
+              fontFamily: "var(--font-heading)",
+              fontSize: "1.25rem",
+              fontWeight: "var(--fw-bold)",
+              color: "var(--brand-ink)",
+              letterSpacing: "0.02em",
+            }}
           >
             Contents
           </p>
@@ -923,7 +1175,7 @@ export default function ManualPage() {
                 padding: 0,
                 margin: 0,
                 display: "grid",
-                gap: 2,
+                gap: 4,
               }}
             >
               {toc.map((item) => {
@@ -935,33 +1187,42 @@ export default function ManualPage() {
                       onClick={() => handleJump(item.id)}
                       style={{
                         display: "flex",
-                        gap: 8,
+                        alignItems: "center",
+                        gap: 12,
                         width: "100%",
                         textAlign: "left",
                         background: isActive
-                          ? "color-mix(in srgb, var(--brand-primary) 12%, transparent)"
+                          ? "color-mix(in srgb, var(--brand-primary) 14%, transparent)"
                           : "transparent",
                         color: isActive
                           ? "var(--brand-primary-cta)"
                           : "var(--brand-ink-muted)",
                         border: "none",
                         borderRadius: "var(--radius-md)",
-                        padding: "8px 10px",
-                        fontSize: "var(--fs-small)",
+                        padding: "10px 12px",
+                        fontSize: "1rem",
                         fontWeight: isActive
                           ? "var(--fw-semibold)"
                           : "var(--fw-regular)",
                         cursor: "pointer",
-                        transition: "background-color 0.15s ease",
+                        transition:
+                          "background-color 0.15s ease, color 0.15s ease",
                       }}
                     >
                       <span
                         className="metric"
-                        style={{ minWidth: 18, fontSize: "0.75rem" }}
+                        style={{
+                          minWidth: 26,
+                          fontSize: "0.85rem",
+                          color: isActive
+                            ? "var(--brand-primary-cta)"
+                            : "var(--brand-primary)",
+                          fontWeight: "var(--fw-semibold)",
+                        }}
                       >
                         {item.number.padStart(2, "0")}
                       </span>
-                      <span>{item.title}</span>
+                      <span style={{ lineHeight: 1.35 }}>{item.title}</span>
                     </button>
                   </li>
                 );
@@ -971,7 +1232,7 @@ export default function ManualPage() {
         </aside>
 
         
-        <div style={{ display: "grid", gap: "var(--space-5)" }}>
+        <div style={{ display: "grid", gap: "var(--space-5)", minWidth: 0 }}>
           {SECTIONS.map((section) => (
             <section
               key={section.id}
@@ -983,27 +1244,44 @@ export default function ManualPage() {
               <header
                 style={{
                   display: "flex",
-                  alignItems: "baseline",
+                  alignItems: "center",
                   gap: "var(--space-3)",
-                  marginBottom: "var(--space-4)",
-                  paddingBottom: "var(--space-3)",
+                  marginBottom: "var(--space-5)",
+                  paddingBottom: "var(--space-4)",
                   borderBottom: "1px solid var(--brand-border)",
                 }}
               >
                 <span
-                  className="metric"
+                  aria-hidden
                   style={{
-                    fontSize: "var(--fs-small)",
-                    color: "var(--brand-primary)",
-                    fontWeight: "var(--fw-semibold)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 44,
+                    height: 44,
+                    padding: "0 10px",
+                    borderRadius: "var(--radius-md)",
+                    background:
+                      "color-mix(in srgb, var(--brand-primary) 14%, transparent)",
+                    color: "var(--brand-primary-cta)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "1.1rem",
+                    fontWeight: "var(--fw-bold)",
                   }}
                 >
                   {section.number.padStart(2, "0")}
                 </span>
                 <h2
                   id={`${section.id}-heading`}
-                  className="dashboard-section-title"
-                  style={{ fontSize: "1.15rem", margin: 0 }}
+                  style={{
+                    margin: 0,
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "1.75rem",
+                    fontWeight: "var(--fw-bold)",
+                    letterSpacing: "-0.01em",
+                    color: "var(--brand-ink)",
+                    lineHeight: 1.15,
+                  }}
                 >
                   {section.title}
                 </h2>
@@ -1016,6 +1294,7 @@ export default function ManualPage() {
                   caption={section.snapshot.caption}
                   alt={section.snapshot.alt}
                   src={section.snapshot.src}
+                  onOpen={openLightbox}
                 />
               )}
             </section>
@@ -1027,7 +1306,7 @@ export default function ManualPage() {
               textAlign: "center",
               padding: "var(--space-5)",
               color: "var(--brand-ink-muted)",
-              fontSize: "var(--fs-small)",
+              fontSize: "1rem",
             }}
           >
             <p style={{ margin: 0 }}>
@@ -1040,14 +1319,23 @@ export default function ManualPage() {
         </div>
       </div>
 
+      {lightbox && (
+        <Lightbox
+          src={lightbox.src}
+          alt={lightbox.alt}
+          caption={lightbox.caption}
+          onClose={() => setLightbox(null)}
+        />
+      )}
+
       <style>{`
-        .manual-body { line-height: var(--lh-body); color: var(--brand-ink); }
-        .manual-body p { margin: 0 0 var(--space-3); }
+        .manual-body { line-height: 1.75; color: var(--brand-ink); font-size: 1.125rem; }
+        .manual-body p { margin: 0 0 var(--space-3); font-size: 1.125rem; }
         .manual-body h3 {
           font-family: var(--font-heading);
-          font-size: 0.95rem;
+          font-size: 1.3rem;
           font-weight: var(--fw-semibold);
-          margin: var(--space-4) 0 var(--space-2);
+          margin: var(--space-5) 0 var(--space-2);
           color: var(--brand-ink);
         }
         .manual-body h3:first-child { margin-top: 0; }
@@ -1056,12 +1344,18 @@ export default function ManualPage() {
           padding-left: var(--space-5);
           display: grid;
           gap: var(--space-2);
+          font-size: 1.125rem;
         }
-        .manual-body li { line-height: 1.6; }
+        .manual-body li { line-height: 1.75; }
         .manual-body a {
           color: var(--brand-primary-cta);
           text-decoration: underline;
           text-underline-offset: 2px;
+        }
+
+        @keyframes manual-fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         @media (max-width: 900px) {
