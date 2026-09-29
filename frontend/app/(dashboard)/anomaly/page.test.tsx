@@ -98,6 +98,20 @@ const getSearchInput = () =>
 
 describe("ManagerAnomalyPage", () => {
   describe("Initial render", () => {
+    it("shows a loading state instead of a false empty state while anomalies are pending", () => {
+      (global.fetch as jest.Mock) = jest.fn((url: string) => {
+        if (url.includes("/api/anomalies/portfolio")) {
+          return new Promise(() => undefined);
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      });
+
+      render(<ManagerAnomalyPage />);
+
+      expect(within(getAnomaliesSection()).getByRole("status")).toHaveTextContent("Loading anomalies...");
+      expect(within(getAnomaliesSection()).queryByText("No anomalies found")).not.toBeInTheDocument();
+    });
+
     it("loads chart data for the first assigned building instead of a placeholder id", async () => {
       const buildingId = "11111111-1111-4111-8111-111111111111";
       mockUseBuildings.mockReturnValue({

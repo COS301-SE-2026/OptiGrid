@@ -11,6 +11,7 @@ out/
 build/
 .swc/
 dist/
+frontend/public/maplibre/
 
 
 # Python for analytics
