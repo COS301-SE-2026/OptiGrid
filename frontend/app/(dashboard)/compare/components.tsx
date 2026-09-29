@@ -11,6 +11,7 @@ import {
 import { formatMetricValue } from "./format";
 import type { Building, ComparisonBuilding, Metric, TimeRange } from "./types";
 import { AccessibleChart } from "../../../components/AccessibleChart";
+import { CurvedSelect } from "@/components/curvedselect";
 import { ChartLegend } from "../../../components/ChartLegend";
 import {
     SERIES_COLOURS,
@@ -82,83 +83,67 @@ export function CompareControls({
                     <label htmlFor="building-a-select" className="label">
                         Building 1
                     </label>
-                    <select
+                    <CurvedSelect
                         id="building-a-select"
                         value={buildingA}
-                        onChange={(event) => onBuildingAChange(event.target.value)}
-                        className="select"
+                        onChange={onBuildingAChange}
+                        options={buildings.map((building) => ({ value: building.id, label: building.name }))}
+                        placeholder={buildingsLoading ? "Loading buildings..." : "Select building"}
                         disabled={disabled}
-                        aria-label="Select first building to compare"
-                    >
-                        <option value="">
-                            {buildingsLoading ? "Loading buildings..." : "Select building"}
-                        </option>
-                        {buildings.map((building) => (
-                            <option key={building.id} value={building.id}>
-                                {building.name}
-                            </option>
-                        ))}
-                    </select>
+                        ariaLabel="Select first building to compare"
+                    />
                 </div>
 
                 <div style={{ display: "grid", gap: "6px" }}>
                     <label htmlFor="building-b-select" className="label">
                         Building 2
                     </label>
-                    <select
+                    <CurvedSelect
                         id="building-b-select"
                         value={buildingB}
-                        onChange={(event) => onBuildingBChange(event.target.value)}
-                        className="select"
-                        disabled={disabled}
-                        aria-label="Select second building to compare"
-                    >
-                        <option value="">
-                            {buildingsLoading ? "Loading buildings..." : "Select building"}
-                        </option>
-                        {buildings
+                        onChange={onBuildingBChange}
+                        options={buildings
                             .filter((building) => building.id !== buildingA)
-                            .map((building) => (
-                                <option key={building.id} value={building.id}>
-                                    {building.name}
-                                </option>
-                            ))}
-                    </select>
+                            .map((building) => ({ value: building.id, label: building.name }))}
+                        placeholder={buildingsLoading ? "Loading buildings..." : "Select building"}
+                        disabled={disabled}
+                        ariaLabel="Select second building to compare"
+                    />
                 </div>
 
                 <div style={{ display: "grid", gap: "6px" }}>
                     <label htmlFor="date-range-select" className="label">
                         Date Range
                     </label>
-                    <select
+                    <CurvedSelect
                         id="date-range-select"
                         value={dateRange}
-                        onChange={(event) => onDateRangeChange(event.target.value as TimeRange)}
-                        className="select"
+                        onChange={(value) => onDateRangeChange(value as TimeRange)}
+                        options={[
+                            { value: "7", label: "Last 7 days" },
+                            { value: "30", label: "Last 30 days" },
+                            { value: "90", label: "Last 90 days" },
+                        ]}
                         disabled={disabled}
-                        aria-label="Select date range for comparison"
-                    >
-                        <option value="7">Last 7 days</option>
-                        <option value="30">Last 30 days</option>
-                        <option value="90">Last 90 days</option>
-                    </select>
+                        ariaLabel="Select date range for comparison"
+                    />
                 </div>
 
                 <div style={{ display: "grid", gap: "6px" }}>
                     <label htmlFor="metric-select" className="label">
                         Metric
                     </label>
-                    <select
+                    <CurvedSelect
                         id="metric-select"
                         value={metric}
-                        onChange={(event) => onMetricChange(event.target.value as Metric)}
-                        className="select"
+                        onChange={(value) => onMetricChange(value as Metric)}
+                        options={[
+                            { value: "R", label: "Cost" },
+                            { value: "kWh", label: "Energy" },
+                        ]}
                         disabled={disabled}
-                        aria-label="Select metric for comparison"
-                    >
-                        <option value="R">Cost</option>
-                        <option value="kWh">Energy</option>
-                    </select>
+                        ariaLabel="Select metric for comparison"
+                    />
                 </div>
             </div>
 
@@ -214,11 +199,10 @@ export function ComparisonMetricCards({
 
     return (
         <div 
-            className="dashboard-kpi-grid" 
-            style={{ marginBottom: "var(--space-6)" }}
+            className="dashboard-kpi-grid"
             aria-label="Building comparison metrics"
         >
-            {buildingPairs.map(({ building, id }, index) => {
+            {buildingPairs.map(({ building }, index) => {
                 const selectedId = index === 0 ? buildingA : buildingB;
                 return (
                     <div className="card" key={`${index}-${selectedId || "empty"}`}>
@@ -273,12 +257,12 @@ export function ComparisonChart({
 }: ComparisonChartProps) {
     const renderContent = () => {
         if (loading) {
-            return <Skeleton style={{ height: 260, width: "100%" }} />;
+            return <Skeleton style={{ flex: "1 1 auto", minHeight: 280, width: "100%" }} />;
         }
 
         if (!canCompare) {
             return (
-                <div className="dashboard-empty">
+                <div className="dashboard-empty chart-empty">
                     Select two different buildings to compare.
                 </div>
             );
@@ -286,7 +270,7 @@ export function ComparisonChart({
 
         if (comparisonError) {
             return (
-                <div className="dashboard-empty" role="alert">
+                <div className="dashboard-empty chart-empty" role="alert">
                     Unable to load comparison data.
                 </div>
             );
@@ -302,6 +286,7 @@ export function ComparisonChart({
                         { label: getBuildingName(buildingB), colour: SERIES_COLOURS[1] }
                     ]}
                 />
+                <div className="chart-fill" style={{ minHeight: 280 }}>
                 <AccessibleChart
                     caption={`Comparison totals over the last ${dateRange} days, in ${metric === "R" ? "cost (rand)" : "energy (kWh)"}`}
                     categoryLabel="Period"
@@ -317,7 +302,7 @@ export function ComparisonChart({
                         }
                     ]}
                 >
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                         <XAxis
@@ -362,12 +347,13 @@ export function ComparisonChart({
                     </LineChart>
                 </ResponsiveContainer>
                 </AccessibleChart>
+                </div>
             </>
         );
     };
 
     return (
-        <section className="card dashboard-section" aria-label="Comparison chart">
+        <section className="card dashboard-section screen-fit-grow" aria-label="Comparison chart">
             <div className="dashboard-section-header">
                 <div>
                     <h2 className="dashboard-section-title">Comparison totals</h2>

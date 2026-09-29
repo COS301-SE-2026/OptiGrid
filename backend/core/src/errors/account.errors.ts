@@ -29,7 +29,7 @@ export class LastActiveAdminError extends Error {
     readonly code = 'LAST_ACTIVE_ADMIN';
 
     constructor() {
-        super('The last active administrator cannot be permanently deleted.');
+        super('The last active administrator cannot be removed. Make another user an administrator first.');
         this.name = 'LastActiveAdminError';
     }
 }

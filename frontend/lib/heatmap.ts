@@ -447,9 +447,11 @@ export function createPortfolioStore(): PortfolioStore {
     return { ingest, replace, totals, lastReadingAt: () => lastReadingAt };
 }
 const METRES_PER_DEGREE = 111320;
-const MIN_TOWER_RADIUS = 70;
-const MAX_TOWER_RADIUS = 5000;
-const HEIGHT_TO_WIDTH = 12;
+const EARTH_CIRCUMFERENCE_M = 40075016.686;
+const TOWER_RADIUS_PX = 7;
+const TOWER_HEIGHT_PX = 160;
+const IDLE_TOWER_PX = 5;
+const MIN_TOWER_SHARE = 0.06;
 
 export type TowerFeature = {
     type: "Feature";
@@ -459,6 +461,7 @@ export type TowerFeature = {
         buildingId: string;
         name: string;
         stress: number;
+        share: number;
         height: number;
         reporting: number;
     };
@@ -482,42 +485,41 @@ export function hexagonAround(longitude: number, latitude: number, radiusMetres:
     return ring;
 }
 
-export function towerScale(points: Array<{ latitude: number; longitude: number }>): { radius: number; maxHeight: number } {
-    const bounds = boundsOf(points);
-    if (!bounds || points.length < 2) {
-        return { radius: 140, maxHeight: 140 * HEIGHT_TO_WIDTH };
-    }
-
-    const [[west, south], [east, north]] = bounds;
-    const middle = Math.max(0.05, Math.cos((((south + north) / 2) * Math.PI) / 180));
-    const across = Math.abs(east - west) * METRES_PER_DEGREE * middle;
-    const down = Math.abs(north - south) * METRES_PER_DEGREE;
-    const spread = Math.hypot(across, down);
-    const radius = clamp(spread * 0.02, MIN_TOWER_RADIUS, MAX_TOWER_RADIUS);
-    return { radius, maxHeight: radius * HEIGHT_TO_WIDTH };
+// metres covered by one screen pixel at this zoom. maplibre tiles are 512px wide
+export function metresPerPixel(latitude: number, zoom: number): number {
+    const shrink = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
+    return (EARTH_CIRCUMFERENCE_M * shrink) / (512 * 2 ** zoom);
 }
 
-export function toTowerCollection(points: HeatmapPoint[], metric: HeatmapMetric, scale: HeatmapScale): TowerFeatureCollection {
-    const { radius, maxHeight } = towerScale(points);
-    const floor = maxHeight * 0.05;
-    
+//the towers keep the same size on screen at any zoom. the busiest building sets the tallest tower
+export function toTowerCollection(collection: HeatmapFeatureCollection, zoom: number): TowerFeatureCollection {
+    const peak = collection.features.reduce(
+        (highest, feature) => (feature.properties.reporting === 1 ? Math.max(highest, feature.properties.value) : highest),
+        0,
+    );
+
     return {
         type: "FeatureCollection",
-        features: points.map((point, index) => {
-            const stress = stressOf(point, metric, scale);
+        features: collection.features.map((feature) => {
+            const [longitude, latitude] = feature.geometry.coordinates;
+            const metres = metresPerPixel(latitude, zoom);
+            const reporting = feature.properties.reporting === 1;
+            const ratio = peak > 0 ? feature.properties.value / peak : 0;
+            const share = reporting ? Math.max(MIN_TOWER_SHARE, ratio) : 0;
             return {
                 type: "Feature" as const,
-                id: index,
+                id: feature.id,
                 geometry: {
                     type: "Polygon" as const,
-                    coordinates: [hexagonAround(point.longitude, point.latitude, radius)],
+                    coordinates: [hexagonAround(longitude, latitude, TOWER_RADIUS_PX * metres)],
                 },
                 properties: {
-                    buildingId: point.buildingId,
-                    name: point.name,
-                    stress: stress ?? 0,
-                    height: stress === null ? floor * 0.6 : Math.max(floor, stress * maxHeight),
-                    reporting: stress === null ? 0 : 1,
+                    buildingId: feature.properties.buildingId,
+                    name: feature.properties.name,
+                    stress: feature.properties.stress,
+                    share,
+                    height: (reporting ? share * TOWER_HEIGHT_PX : IDLE_TOWER_PX) * metres,
+                    reporting: feature.properties.reporting,
                 },
             };
         }),

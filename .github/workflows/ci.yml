@@ -39,7 +39,13 @@ jobs:
         run: pnpm --filter @optigrid/frontend run lint
 
       - name: Unit Test
-        run: pnpm --filter @optigrid/frontend run test
+        run: pnpm --filter @optigrid/frontend run test:coverage
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: frontend
 
       - name: Build
         run: pnpm --filter @optigrid/frontend run build
@@ -115,12 +121,18 @@ jobs:
         run: pnpm --filter @optigrid/core run lint
 
       - name: Unit Test
-        run: pnpm --filter @optigrid/core run test
+        run: pnpm --filter @optigrid/core run test:coverage
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
           SUPABASE_URL: ${{ env.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: backend-core
 
       - name: Build
         run: pnpm --filter @optigrid/core run build
@@ -148,12 +160,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/ingestion/requirements.txt
           pip install -r backend/analytics/requirements.txt
+          python -m pip install --only-binary :all: pytest-cov==7.1.0
 
       - name: Run ingestion unit tests
-        run: python -m pytest tests/unit/ingestion/ -v
+        run: python -m pytest tests/unit/ingestion/ -v --cov=backend/ingestion --cov-report=xml:coverage-ingestion.xml
 
       - name: Run analytics unit tests
-        run: python -m pytest tests/unit/analytics/ -v
+        run: python -m pytest tests/unit/analytics/ -v --cov=backend/analytics --cov-report=xml:coverage-analytics.xml
+
+      - name: Upload Python coverage to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: python
+          files: ./coverage-ingestion.xml,./coverage-analytics.xml
 
   integration-foundation:
     name: Integration (Terraform + Auth)

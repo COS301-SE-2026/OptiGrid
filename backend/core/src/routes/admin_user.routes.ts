@@ -82,7 +82,7 @@ const router = Router();
  *               lastAdmin:
  *                 value:
  *                   code: "LAST_ACTIVE_ADMIN"
- *                   message: "The last active administrator cannot be permanently deleted."
+ *                   message: "The last active administrator cannot be removed. Make another user an administrator first."
  *               selfDelete:
  *                 value:
  *                   code: "SELF_PERMANENT_DELETION_FORBIDDEN"

@@ -8,6 +8,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { PageHeading } from "@/components/PageHeading";
 import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
+import { useFitToScreen } from "@/lib/useFitToScreen";
 import { readThemeToken, useDarkTheme, useOnScreen, useReducedMotion } from "@/lib/useDisplayPreferences";
 import {
     BASELINE_TIMEFRAME,
@@ -30,7 +31,6 @@ import {
     stressOf,
     timeframeAt,
     toFeatureCollection,
-    toTowerCollection,
     type HeatmapBuilding,
     type HeatmapMetric,
     type HeatmapPoint,
@@ -151,7 +151,7 @@ function StageNote({ title, body, loading = false, children }: Readonly<{ title:
     return <div className="heat-stage-note">{inside}</div>;
 }
 
-function Legend({ palette, caption }: Readonly<{ palette: MapPalette | null; caption: string }>) {
+function Legend({ palette, caption, tilted }: Readonly<{ palette: MapPalette | null; caption: string; tilted: boolean }>) {
     return (
         <div className="heat-legend">
             <p className="heat-legend-title">{caption}</p>
@@ -164,7 +164,10 @@ function Legend({ palette, caption }: Readonly<{ palette: MapPalette | null; cap
             <p className="heat-legend-note">
                 <span className="heat-legend-swatch" style={{ background: palette?.idle }} aria-hidden="true" />
                 {" "}
-                <span>No data, scale relative to the busiest building</span>
+                <span>No data yet</span>
+            </p>
+            <p className="heat-legend-note">
+                {tilted ? "Taller towers use more. The busiest site sets the scale." : "Colours compare each site with the busiest one."}
             </p>
         </div>
     );
@@ -261,6 +264,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
     const queryClient = useQueryClient();
     const searchParams = useSearchParams();
     const stageRef = useRef<HTMLDivElement>(null);
+    useFitToScreen(stageRef, 480);
     const store = useMemo(() => createPortfolioStore(), []);
     const canPlace = role === "ADMIN" || role === "BUILDING_MANAGER";
 
@@ -373,7 +377,6 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
 
     const scale = useMemo(() => scaleOf(points, metric), [points, metric]);
     const collection = useMemo(() => toFeatureCollection(points, metric, scale), [points, metric, scale]);
-    const towers = useMemo(() => toTowerCollection(points, metric, scale), [points, metric, scale]);
     const ranked = useMemo(() => rankPoints(points, metric), [points, metric]);
     const totals = useMemo(() => portfolioTotals(points, metric, showingFrame.unit), [points, metric, showingFrame.unit]);
     const changes = useMemo(() => {
@@ -604,7 +607,6 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
         stage = (
             <MapCanvas
                 collection={collection}
-                towers={towers}
                 palette={palette ?? readPalette()}
                 dark={dark}
                 selectedId={selectedId}
@@ -647,7 +649,10 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                         </button>
                     ))}
                 </div>
-                <button type="button" className="btn btn-secondary" onClick={() => setFitToken((token) => token + 1)} disabled={points.length === 0}>
+                <button type="button" className="heat-toggle" onClick={() => setFitToken((token) => token + 1)} disabled={points.length === 0}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+                    </svg>
                     Show all buildings
                 </button>
                 <button type="button" className={tilted ? "heat-toggle is-active" : "heat-toggle"} aria-pressed={tilted} disabled={points.length === 0 || Boolean(mapFailure)} onClick={() => setTilted((value) => !value)}>
@@ -685,7 +690,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                                     <span className="heat-stat-value">{hottestLabel}</span>
                                 </div>
                             </fieldset>
-                            <Legend palette={palette} caption={unitCaption(showingFrame, metric)} />
+                            <Legend palette={palette} caption={unitCaption(showingFrame, metric)} tilted={tilted} />
                         </div>
                     )}
 

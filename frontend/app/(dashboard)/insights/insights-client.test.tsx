@@ -1,6 +1,7 @@
 import { render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import InsightsClient from "./insights-client";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 const mockUseQuery = jest.fn();
 const mockUseMutation = jest.fn();
@@ -85,7 +86,7 @@ function renderPage(role = "ADMIN") {
 
 async function selectBuilding() {
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(/building/i), "1");
+    chooseCurvedOption(screen.getByLabelText(/building/i), "1");
     return user;
 }
 
@@ -114,12 +115,12 @@ describe("InsightsPage", () => {
         expect(screen.getByLabelText(/status/i)).toBeInTheDocument();
     });
 
-    it("prompts the user to pick a building before loading anything", () => {
+    it("opens on a building without waiting for a pick", () => {
         setupQueries();
         renderPage();
 
-        expect(screen.getByText(/select a building to view its optimisation recommendations/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/status/i)).toBeDisabled();
+        expect(screen.queryByText(/select a building to view its optimisation recommendations/i)).not.toBeInTheDocument();
+        expect(screen.getByLabelText(/status/i)).toBeEnabled();
     });
 
     it("lists the strategies and their estimated savings once a building is selected", async () => {
@@ -173,9 +174,9 @@ describe("InsightsPage", () => {
     it("filters by status", async () => {
         setupQueries();
         renderPage();
-        const user = await selectBuilding();
+        await selectBuilding();
 
-        await user.selectOptions(screen.getByLabelText(/status/i), "Pending");
+        chooseCurvedOption(screen.getByLabelText(/status/i), "Pending");
 
         const lastCall = mockUseQuery.mock.calls.at(-1)?.[0];
         expect(lastCall.queryKey).toEqual(["recommendations", "1", "Pending"]);

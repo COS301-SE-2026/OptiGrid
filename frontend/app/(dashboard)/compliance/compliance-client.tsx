@@ -14,6 +14,7 @@ type Site = {
     type: string | null;
     usage_kwh: number | null;
     cost_zar: number | null;
+    carbon_kg_co2e: number | null;
     share_of_total: number | null;
 };
 
@@ -34,9 +35,28 @@ type ComplianceReport = {
     };
     energy_performance: {
         total_usage_kwh: number;
-        total_cost_zar: number;
+        total_cost_zar: number | null;
         average_daily_kwh: number;
-        intensity_kwh_per_sqft: number | null;
+        intensity_kwh_per_sqm: number | null;
+        source: "carbon_ledger" | "live_telemetry" | "mixed";
+    };
+    carbon_accounting: {
+        total_kg_co2e: number | null;
+        ledger_entries: number;
+        expected_entries: number;
+        source_complete_entries: number;
+        source_incomplete_entries: number;
+        missing_entries: number;
+        scope_status: "VALID" | "TAMPERED" | "INCOMPLETE";
+        buildings: Array<{
+            building_id: string;
+            status: "VALID" | "TAMPERED" | "INCOMPLETE";
+            records_checked: number;
+            expected_days: number;
+            missing_dates: string[];
+            source_complete_days: number;
+            source_incomplete_dates: string[];
+        }>;
     };
     nonconformities: {
         total: number;
@@ -55,16 +75,19 @@ type ComplianceReport = {
         total_chained_entries: number;
         integrity: {
             verified: boolean;
+            verification_status: "NOT_RUN" | "VERIFIED" | "FAILED";
             algorithm: string;
             records_checked: number;
             current_hash: string | null;
             chain_updated_at: string | null;
+            broken_at: { reason: string } | null;
         };
     };
     digital_signature: {
         algorithm: string;
         value: string | null;
         records_covered: number;
+        source: "carbon_ledger" | "audit_log";
         signed_at: string;
     };
 };
@@ -125,14 +148,17 @@ export default function ComplianceClient() {
                 throw new Error(payload?.message || "Unable to load the compliance report.");
             }
             return payload.data as ComplianceReport;
-        }
+        },
+        staleTime: 60_000,
+        gcTime: 5 * 60_000,
+        refetchOnWindowFocus: false
     });
 
     const verification = useIntegrityVerification();
 
     const renderSites = (sites: Site[]) => {
         if (sites.length === 0) {
-            return (<tr><td colSpan={5} className="dashboard-empty">No sites are in scope for this report.</td></tr>);
+            return (<tr><td colSpan={6} className="dashboard-empty">No sites are in scope for this report.</td></tr>);
         }
 
         return sites.map((site) => (
@@ -141,6 +167,7 @@ export default function ComplianceClient() {
                 <td className="text-muted">{readable(site.type)}</td>
                 <td style={{ textAlign: "right" }}>{formatNumber(site.usage_kwh, 0)}</td>
                 <td style={{ textAlign: "right" }}>{site.cost_zar === null ? "No data" : `R ${formatNumber(site.cost_zar)}`}</td>
+                <td style={{ textAlign: "right" }}>{site.carbon_kg_co2e === null ? "Not generated" : formatNumber(site.carbon_kg_co2e)}</td>
                 <td style={{ textAlign: "right" }}>{site.share_of_total === null ? "No data" : `${formatNumber(site.share_of_total, 1)}%`}</td>
             </tr>
         ));
@@ -182,8 +209,40 @@ export default function ComplianceClient() {
         );
     }
 
-    const integrity = data.audit_trail.integrity;
+    const integrity = verification.state.phase === "done"
+        ? verification.state.result
+        : data.audit_trail.integrity;
     const severityEntries = Object.entries(data.nonconformities.by_severity);
+    const hasIncompleteCarbonCoverage = data.carbon_accounting.scope_status === "INCOMPLETE";
+    const consumptionLabel = hasIncompleteCarbonCoverage ? "Recorded consumption" : "Total consumption";
+    const averageLabel = hasIncompleteCarbonCoverage ? "Recorded average per day" : "Average per day";
+    let energySourceLabel = "Live telemetry";
+    if (data.energy_performance.source === "carbon_ledger") {
+        energySourceLabel = "Signed daily ledger";
+    } else if (data.energy_performance.source === "mixed") {
+        energySourceLabel = "Signed ledger and live telemetry";
+    }
+    let auditBadgeTone = "badge-default";
+    let auditBadgeLabel = "Chain unavailable";
+    if (integrity.verified) {
+        auditBadgeTone = "badge-success";
+        auditBadgeLabel = "Chain verified";
+    } else if (integrity.broken_at) {
+        auditBadgeTone = "badge-danger";
+        auditBadgeLabel = "Chain broken";
+    } else if (integrity.verification_status === "NOT_RUN") {
+        auditBadgeLabel = "Verification required";
+    }
+
+    let carbonBadgeTone = "badge-warning";
+    let carbonBadgeLabel = "Ledger incomplete";
+    if (data.carbon_accounting.scope_status === "VALID") {
+        carbonBadgeTone = "badge-success";
+        carbonBadgeLabel = "Ledger verified";
+    } else if (data.carbon_accounting.scope_status === "TAMPERED") {
+        carbonBadgeTone = "badge-danger";
+        carbonBadgeLabel = "Ledger tampered";
+    }
     return (
         <div>
             <PageHeading 
@@ -238,14 +297,48 @@ export default function ComplianceClient() {
                     gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", 
                     gap: "var(--space-4)" 
                 }}>
-                    <Metric label="Total consumption" value={`${formatNumber(data.energy_performance.total_usage_kwh, 0)} kWh`} />
-                    <Metric label="Average per day" value={`${formatNumber(data.energy_performance.average_daily_kwh, 0)} kWh`} />
-                    <Metric label="Energy spend" value={`R ${formatNumber(data.energy_performance.total_cost_zar)}`} />
-                    <Metric label="Energy intensity" value={data.energy_performance.intensity_kwh_per_sqft === null
+                    <Metric label={consumptionLabel} value={`${formatNumber(data.energy_performance.total_usage_kwh, 0)} kWh`} />
+                    <Metric label={averageLabel} value={`${formatNumber(data.energy_performance.average_daily_kwh, 0)} kWh`} />
+                    <Metric label="Energy spend" value={data.energy_performance.total_cost_zar === null
+                        ? "Unavailable for full period"
+                        : `R ${formatNumber(data.energy_performance.total_cost_zar)}`}
+                    />
+                    <Metric label="Energy intensity" value={data.energy_performance.intensity_kwh_per_sqm === null
                         ? "No floor data"
-                        : `${formatNumber(data.energy_performance.intensity_kwh_per_sqft, 2)} kWh/m²`}
+                        : `${formatNumber(data.energy_performance.intensity_kwh_per_sqm, 2)} kWh/m²`}
                     />
                 </div>
+                <p className="text-muted" style={{ margin: "var(--space-2) 0 0", fontSize: "var(--fs-small)" }}>
+                    Energy source: {energySourceLabel}.
+                </p>
+            </section>
+
+            <section className="dashboard-section" aria-label="Carbon accounting">
+                <div className="dashboard-section-header">
+                    <h2 className="dashboard-section-title">Carbon accounting</h2>
+                    <span className={`badge ${carbonBadgeTone}`}>{carbonBadgeLabel}</span>
+                </div>
+                <div className="card" style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: "var(--space-4)"
+                }}>
+                    <Metric label="Total emissions" value={data.carbon_accounting.total_kg_co2e === null
+                        ? "Unavailable due to integrity failure"
+                        : `${formatNumber(data.carbon_accounting.total_kg_co2e)} kg CO2e`}
+                    />
+                    <Metric label="Signed daily entries" value={data.carbon_accounting.ledger_entries.toLocaleString()} />
+                    <Metric label="Telemetry-backed entries" value={`${data.carbon_accounting.source_complete_entries.toLocaleString()} of ${data.carbon_accounting.expected_entries.toLocaleString()}`} />
+                    <Metric label="Buildings checked" value={data.carbon_accounting.buildings.length.toLocaleString()} />
+                </div>
+                {data.carbon_accounting.scope_status === "INCOMPLETE" && (
+                    <p className="text-muted" style={{ margin: "var(--space-2) 0 0", fontSize: "var(--fs-small)" }}>
+                        {data.carbon_accounting.source_incomplete_entries.toLocaleString()} signed site-days have no source telemetry
+                        {data.carbon_accounting.missing_entries > 0
+                            ? `, and ${data.carbon_accounting.missing_entries.toLocaleString()} expected ledger entries are missing.`
+                            : "."}
+                    </p>
+                )}
             </section>
 
             <section className="dashboard-section" aria-label="Sites in scope">
@@ -268,6 +361,7 @@ export default function ComplianceClient() {
                                     <th scope="col">Type</th>
                                     <th scope="col" style={numericHeaderStyle}>Consumption (kWh)</th>
                                     <th scope="col" style={numericHeaderStyle}>Cost</th>
+                                    <th scope="col" style={numericHeaderStyle}>Carbon (kg CO2e)</th>
                                     <th scope="col" style={numericHeaderStyle}>Share</th>
                                 </tr>
                             </thead>
@@ -336,7 +430,7 @@ export default function ComplianceClient() {
             <section className="dashboard-section" aria-label="Audit trail">
                 <div className="dashboard-section-header">
                     <h2 className="dashboard-section-title">Audit trail</h2>
-                    <span className={`badge ${integrity.verified ? "badge-success" : "badge-danger"}`}>{integrity.verified ? "Chain verified" : "Chain broken"}</span>
+                    <span className={`badge ${auditBadgeTone}`}>{auditBadgeLabel}</span>
                 </div>
                 <div className="card" style={{ 
                     display: "grid", 
@@ -355,7 +449,7 @@ export default function ComplianceClient() {
                     <span className="signature-label">Digital signature</span>
                     <p className="signature-value">{data.digital_signature.value ?? "No signed entries yet"}</p>
                     <p className="signature-note">
-                        {data.digital_signature.algorithm} chain head over {data.digital_signature.records_covered.toLocaleString()} ledger entries, signed {formatDateTime(data.digital_signature.signed_at)}.
+                        {data.digital_signature.algorithm} {readable(data.digital_signature.source)} head over {data.digital_signature.records_covered.toLocaleString()} entries, signed {formatDateTime(data.digital_signature.signed_at)}.
                     </p>
                 </div>
             </section>

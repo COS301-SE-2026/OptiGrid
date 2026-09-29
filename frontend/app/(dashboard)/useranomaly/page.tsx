@@ -1,7 +1,7 @@
 "use client";
 
 import { useBuildings } from "@/lib/useBuildings";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Anomaly,
   AnalyticsSummary,
@@ -15,6 +15,8 @@ import {
   useAnomalyChartData,
   useAnomalyFilters,
   useHistoricFilterState,
+  EMPTY_BUILDINGS,
+  useAnomalyPortfolioData,
 } from "../../../components/sharedanomaly";
 import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
 
@@ -22,39 +24,9 @@ type MetricType = "power" | "cost";
 
 export default function ViewerAnomalyPage() {
   const { toastMessage, setToastMessage } = useAnomalyWebSocket();
-  const { data: buildings = [] } = useBuildings();
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
-  const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const anomaliesRes = await fetch("/api/anomalies/portfolio?take=1000");
-        if (!anomaliesRes.ok) throw new Error("Unable to load anomaly alerts.");
-
-        const payload = await anomaliesRes.json();
-        const allAnomalies: Anomaly[] = payload.data || [];
-
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-        setAnomalies(allAnomalies.filter((a: Anomaly) => {
-          const isRecent = new Date(a.detected_timestamp) >= oneWeekAgo;
-          return (a.status === "Open" || a.status === "In_Progress") && isRecent;
-        }));
-        setHistoricAnomalies(allAnomalies.filter(
-          (a: Anomaly) => a.status === "Resolved" || a.status === "Ignored"
-        ));
-      } catch (err) {
-        console.error("Failed to fetch viewer dashboard data", err);
-        setToastMessage(err instanceof Error ? err.message : "Unable to load anomaly alerts.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
+  const { data: buildingData, isLoading: buildingsLoading } = useBuildings();
+  const buildings = buildingData ?? EMPTY_BUILDINGS;
+  const { anomalies, historicAnomalies, loading } = useAnomalyPortfolioData("viewer", setToastMessage);
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showHistoricModal, setShowHistoricModal] = useState<boolean>(false);
@@ -95,7 +67,7 @@ export default function ViewerAnomalyPage() {
           <div className="dashboard-header">
             <div>
               <h1 className="dashboard-title">Anomaly Alerts</h1>
-              <div className="dashboard-subtitle">View anomalies across your buildings</div>
+              <div className="dashboard-subtitle">View anomalies across your buildings.</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
               <NotificationBadge count={newAnomalies} />
@@ -118,7 +90,8 @@ export default function ViewerAnomalyPage() {
             formatChartTime={formatChartTime}
             formatDate={formatDate}
             onRowClick={handleViewDetails}
-            pageLoading={loading || chart.chartLoading}
+            pageLoading={loading || buildingsLoading || chart.chartLoading}
+            anomaliesLoading={loading}
           />
         </div>
       </div>

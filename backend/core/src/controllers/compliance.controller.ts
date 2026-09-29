@@ -267,7 +267,10 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         doc.y += 14;
     };
 
-    drawSectionHeader('Energy performance', `Measured across ${report.organisation.buildings_in_scope} ${report.organisation.buildings_in_scope === 1 ? 'site' : 'sites'} over ${report.period.label}, covering all ${report.period.days} days (UTC).`);
+    const energyCoverageNote = report.carbon_accounting.scope_status === 'INCOMPLETE'
+        ? `Recorded across ${report.organisation.buildings_in_scope} ${report.organisation.buildings_in_scope === 1 ? 'site' : 'sites'} over ${report.period.label}; source-data gaps are detailed below.`
+        : `Measured across ${report.organisation.buildings_in_scope} ${report.organisation.buildings_in_scope === 1 ? 'site' : 'sites'} over ${report.period.label}, covering all ${report.period.days} days (UTC).`;
+    drawSectionHeader('Energy performance', energyCoverageNote);
     drawStatGrid([
         { 
             label: 'Total consumption', 
@@ -279,13 +282,25 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         },
         { 
             label: 'Energy spend', 
-            value: `R ${formatNumber(report.energy_performance.total_cost_zar)}`, accent: palette.secondary 
+            value: report.energy_performance.total_cost_zar === null
+                ? 'Unavailable'
+                : `R ${formatNumber(report.energy_performance.total_cost_zar)}`,
+            note: report.energy_performance.total_cost_zar === null ? 'Full-period cost data unavailable' : undefined,
+            accent: palette.secondary
         },
         {
             label: 'Energy intensity',
-            value: report.energy_performance.intensity_kwh_per_sqft === null ? 'No floor data' : `${formatNumber(report.energy_performance.intensity_kwh_per_sqft, 2)}`,
+            value: report.energy_performance.intensity_kwh_per_sqm === null ? 'No floor data' : `${formatNumber(report.energy_performance.intensity_kwh_per_sqm, 2)}`,
             note: 'kWh per square metre',
             accent: palette.secondary
+        },
+        {
+            label: 'Carbon emissions',
+            value: report.carbon_accounting.total_kg_co2e === null
+                ? 'Unavailable'
+                : `${formatNumber(report.carbon_accounting.total_kg_co2e)} kg CO2e`,
+            note: `${report.carbon_accounting.ledger_entries} signed daily entries`,
+            accent: report.carbon_accounting.scope_status === 'VALID' ? palette.success : palette.secondary
         },
         {
             label: 'Nonconformities',
@@ -335,15 +350,65 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
         ])
     );
 
-    drawSectionHeader('Audit trail integrity', 'Every ledger entry is chained to the one before it. Any edit or deletion breaks the chain.');
+    drawSectionHeader('Carbon ledger integrity', 'Daily emissions are signed independently. Coverage gaps and cryptographic failures are reported separately.');
+    const carbon = report.carbon_accounting;
+    let carbonStatusAccent = palette.secondary;
+    if (carbon.scope_status === 'VALID') {
+        carbonStatusAccent = palette.success;
+    } else if (carbon.scope_status === 'TAMPERED') {
+        carbonStatusAccent = palette.danger;
+    }
+    drawStatGrid([
+        {
+            label: 'Scope status',
+            value: readable(carbon.scope_status),
+            note: `${carbon.source_complete_entries} of ${carbon.expected_entries} site-days have telemetry`,
+            accent: carbonStatusAccent
+        },
+        {
+            label: 'Emissions',
+            value: carbon.total_kg_co2e === null ? 'Unavailable' : `${formatNumber(carbon.total_kg_co2e)} kg CO2e`,
+            note: report.period.label
+        },
+        {
+            label: 'Buildings checked',
+            value: formatNumber(carbon.buildings.length, 0),
+            note: 'Independently chained'
+        }
+    ], 3);
+
+    if (carbon.scope_status === 'INCOMPLETE') {
+        checkSpacing(36);
+        doc.font('Helvetica').fontSize(8.5).fillColor(palette.text).text(
+            `${carbon.source_incomplete_entries} signed site-days have no source telemetry; ${carbon.missing_entries} expected ledger entries are missing.`,
+            left,
+            doc.y,
+            { width: contentWidth }
+        );
+        doc.y += 10;
+    }
+
+    drawSectionHeader('Audit trail integrity', 'Every audit entry is chained to the one before it. Any edit or deletion breaks the chain.');
 
     const integrity = report.audit_trail.integrity;
+    let auditStatus = 'Unavailable';
+    if (integrity.verified) {
+        auditStatus = 'Verified';
+    } else if (integrity.broken_at) {
+        auditStatus = 'Broken';
+    }
+    let auditStatusAccent = palette.secondary;
+    if (integrity.verified) {
+        auditStatusAccent = palette.success;
+    } else if (integrity.broken_at) {
+        auditStatusAccent = palette.danger;
+    }
     drawStatGrid([
         {
             label: 'Chain status',
-            value: integrity.verified ? 'Verified' : 'Broken',
+            value: auditStatus,
             note: integrity.algorithm,
-            accent: integrity.verified ? palette.success : palette.danger
+            accent: auditStatusAccent
         },
         {
             label: 'Records covered',
@@ -390,9 +455,9 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
     });
 
     doc.font('Helvetica').fontSize(7.5).fillColor(palette.bandText).text(
-            `${report.digital_signature.algorithm} chain head over ${formatNumber(report.digital_signature.records_covered, 0)} ledger entries`, right - 260, signatureY + 14, { 
+            `${report.digital_signature.algorithm} ${readable(report.digital_signature.source)} head over ${formatNumber(report.digital_signature.records_covered, 0)} entries`, right - 280, signatureY + 14, {
                 align: 'right',
-                width: 244,  
+                width: 264,
                 lineBreak: false 
             }
         );
@@ -403,7 +468,7 @@ const renderReportPdf = (report: ComplianceReport, res: Response): void => {
             lineGap: 3
         });
 
-    doc.font('Helvetica').fontSize(7).fillColor(palette.bandText).text('Recompute this value from the audit ledger to confirm the report has not been altered.',
+    doc.font('Helvetica').fontSize(7).fillColor(palette.bandText).text(`Recompute this value from the ${readable(report.digital_signature.source).toLowerCase()} to confirm the report has not been altered.`,
             left + 16, signatureY + signatureHeight - 18, { 
                 width: contentWidth - 32, 
                 lineBreak: false 
@@ -439,14 +504,17 @@ export const getComplianceReport = async (req: Request, res: Response): Promise<
             return;
         }
 
-        const report = await buildComplianceReport(allowedBuildingIds);
         const format = String(req.query.format ?? 'json').toLowerCase();
+        const isDownload = String(req.query.download ?? '') === '1';
+        const report = await buildComplianceReport(allowedBuildingIds, {
+            verifyAuditTrail: format === 'pdf' || isDownload
+        });
         if (format === 'pdf') {
             renderReportPdf(report, res);
             return;
         }
 
-        if (String(req.query.download ?? '') === '1') {
+        if (isDownload) {
             const periodStart = new Date(report.period.start);
             const fileName = `OptiGrid_ISO50001_Compliance_${periodStart.getUTCFullYear()}-${pad(periodStart.getUTCMonth() + 1)}.json`;
             res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

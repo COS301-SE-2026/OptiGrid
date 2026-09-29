@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AuditClient from "./audit-client";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 const mockUseInfiniteQuery = jest.fn();
 const mockFetchNextPage = jest.fn();
@@ -102,16 +103,14 @@ describe("AuditClient", () => {
 
     it("refetches when the action filter changes", async () => {
         render(<AuditClient />);
-        const user = userEvent.setup();
-        await user.selectOptions(screen.getByLabelText("Action"), "LOGIN");
+        chooseCurvedOption(screen.getByLabelText("Action"), "LOGIN");
         expect(lastQueryKey()).toEqual(["audit-logs", "LOGIN", "all", "all", "", ""]);
     });
 
     it("refetches when the page filter changes", async () => {
         render(<AuditClient />);
-        const user = userEvent.setup();
 
-        await user.selectOptions(screen.getByLabelText("Page"), "LIVE");
+        chooseCurvedOption(screen.getByLabelText("Page"), "LIVE");
 
         expect(lastQueryKey()).toEqual(["audit-logs", "all", "LIVE", "all", "", ""]);
     });
@@ -120,7 +119,7 @@ describe("AuditClient", () => {
         render(<AuditClient />);
         const user = userEvent.setup();
 
-        await user.selectOptions(screen.getByLabelText("Severity"), "error");
+        chooseCurvedOption(screen.getByLabelText("Severity"), "error");
         await user.type(screen.getByLabelText("From"), "2026-08-01");
 
         expect(lastQueryKey()).toEqual(["audit-logs", "all", "all", "error", "2026-08-01", ""]);
@@ -130,8 +129,8 @@ describe("AuditClient", () => {
         render(<AuditClient />);
         const user = userEvent.setup();
 
-        await user.selectOptions(screen.getByLabelText("Action"), "DELETE");
-        await user.selectOptions(screen.getByLabelText("Page"), "COMPARE");
+        chooseCurvedOption(screen.getByLabelText("Action"), "DELETE");
+        chooseCurvedOption(screen.getByLabelText("Page"), "COMPARE");
         await user.click(screen.getByRole("button", { name: "Reset" }));
         expect(lastQueryKey()).toEqual(["audit-logs", "all", "all", "all", "", ""]);
     });

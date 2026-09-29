@@ -51,5 +51,6 @@ describe("DashboardLayout", () => {
 		expect(getByTestId("child")).toBeInTheDocument();
 		expect(getByText("JD")).toBeInTheDocument();
 		expect(getByText("Test User")).toBeInTheDocument();
+		expect(getByText("Admin")).toBeInTheDocument();
 	});
 });

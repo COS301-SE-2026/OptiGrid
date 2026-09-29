@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import CompareBuildingPage from "./page";
+import { chooseCurvedOption, openCurvedSelect } from "@/test-utils/curvedSelect";
 
 const mockUseQuery = jest.fn();
 
@@ -109,12 +109,12 @@ describe("CompareBuildingPage", () => {
 
         expect(screen.getByRole("heading", { name: /compare buildings/i })).toBeInTheDocument();
         expect(screen.getAllByRole("combobox")).toHaveLength(4);
-        expect(screen.getAllByRole("option", { name: "Building A" }).length).toBeGreaterThan(0);
-        expect(screen.getAllByRole("option", { name: "Building B" }).length).toBeGreaterThan(0);
+        const buildingOptions = openCurvedSelect(screen.getByLabelText("Building 1")).map((option) => option.textContent);
+        expect(buildingOptions).toEqual(expect.arrayContaining(["Building A", "Building B"]));
 
         await waitFor(() => {
-            expect(screen.getByLabelText("Building 1")).toHaveValue(buildingIdA);
-            expect(screen.getByLabelText("Building 2")).toHaveValue(buildingIdB);
+            expect(screen.getByLabelText("Building 1")).toHaveAttribute("data-value", buildingIdA);
+            expect(screen.getByLabelText("Building 2")).toHaveAttribute("data-value", buildingIdB);
         });
     });
 
@@ -133,8 +133,7 @@ describe("CompareBuildingPage", () => {
         setupQueries();
         render(<CompareBuildingPage />);
 
-        const user = userEvent.setup();
-        await user.selectOptions(screen.getByLabelText("Metric"), "kWh");
+        chooseCurvedOption(screen.getByLabelText("Metric"), "kWh");
 
         expect(await screen.findByText("8,200.00 kWh")).toBeInTheDocument();
         expect(screen.getByText("6,000.00 kWh")).toBeInTheDocument();

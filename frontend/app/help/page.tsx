@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { OptiGridLogo } from "@/components/logo";
 
 const ICONS: Record<string, ReactNode> = {
     "User manual": (
@@ -28,28 +29,28 @@ const quickAccess = [
     {
         label: "User manual",
         href: "/help/manual",
-        description: "Learn the core workflows for logging in, adding buildings, and navigating the portfolio views.",
+        description: "Written guides with screenshots.",
         action: "Open manual",
         badge: "Step-by-step",
     },
     {
         label: "Tutorials",
         href: "/help/tutorials",
-        description: "Follow guided walkthroughs for the most common tasks completed by the users of OptiGrid.",
+        description: "Short videos for common tasks. Each one has written steps too.",
         action: "View tutorials",
         badge: "Guided",
     },
     {
         label: "FAQs",
         href: "/faqs",
-        description: "Jump straight to the answers for frequently asked questions about OptiGrid.",
+        description: "Quick answers to the questions people ask most.",
         action: "Read FAQs",
         badge: "Popular",
     },
     {
         label: "Contact support",
         href: "/contact",
-        description: "Reach out to our support team if you need help with an issue that the guides do not cover.",
+        description: "Send the team a message when the guides do not solve your problem.",
         action: "Contact us",
         badge: "Direct help",
     },
@@ -57,7 +58,7 @@ const quickAccess = [
 
 export const metadata = {
     title: "Help Centre - OptiGrid",
-    description: "Quick access to OptiGrid manuals, tutorials, FAQs, and support.",
+    description: "Guides and answers for OptiGrid users.",
 };
 
 export default function HelpPage() {
@@ -65,8 +66,18 @@ export default function HelpPage() {
         <div className="landing-page">
             <header className="navbar landing-nav" role="banner" aria-label="Site header">
                 <div className="landing-shell landing-nav-inner">
-                    <Link href="/" className="landing-wordmark" aria-label="OptiGrid home">
-                        OptiGrid
+                    <Link
+                        href="/"
+                        aria-label="OptiGrid home"
+                        className="landing-wordmark"
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            color: "var(--brand-ink)",
+                            textDecoration: "none",
+                        }}
+                    >
+                        <OptiGridLogo height={30} />
                     </Link>
                     <div className="landing-nav-actions">
                         <Link href="/dashboard" className="btn btn-primary">
@@ -75,18 +86,17 @@ export default function HelpPage() {
                     </div>
                 </div>
             </header>
-            <main role="main" aria-label="Help centre main content">
+            <main role="main" aria-label="Help centre main content" className="help-main">
                 <section id="resources" className="landing-section landing-section-alt help-anchor" aria-label="Help resources">
                     <div className="landing-shell">
                         <div className="landing-section-header">
                             <p className="landing-kicker">Quick access</p>
                             <h1>Help Centre</h1>
                             <h2 className="help-lead">
-                                Pick one of the resources available below to help with your problem
+                                Find the help you need
                             </h2>
                             <p className="text-muted">
-                                Our help centre groups the most useful resources so you can
-                                find solutions and clarify confusions.
+                                Pick a guide below. If you are still stuck the team is one message away.
                             </p>
                         </div>
                         <ul className="help-resource-grid" aria-label="Help resources list">

@@ -1,11 +1,13 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Children, isValidElement, useEffect, useId, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { useBuildings } from "@/lib/useBuildings";
 import { openDialog } from "@/lib/openDialog";
 import { PageHeading } from "@/components/PageHeading";
+import { CurvedSelect, type CurvedSelectOption } from "@/components/curvedselect";
 import { formatDate } from "@/lib/formatDate";
 import ComfortTradeoff, { type TradeoffPoint, type TradeoffProfile } from "@/components/ComfortTradeoff";
+import { rankByUsage } from "@/lib/rankBuildings";
 
 type RecommendationStatus =
     | "Pending"
@@ -161,6 +163,19 @@ function formatKw(value: number | null): string {
     return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} kW`;
 }
 
+function optionsFromChildren(children: ReactNode): CurvedSelectOption[] {
+    return Children.toArray(children)
+        .filter(isValidElement)
+        .map((child) => {
+            const option = child as ReactElement<{ value?: string | number; children?: ReactNode; disabled?: boolean }>;
+            return {
+                value: String(option.props.value ?? ""),
+                label: option.props.children ?? "",
+                disabled: option.props.disabled,
+            };
+        });
+}
+
 function LabeledSelect({
     id,
     label,
@@ -184,15 +199,13 @@ function LabeledSelect({
             <label htmlFor={id} className="label">
                 {label}
             </label>
-            <select
+            <CurvedSelect
                 id={id}
-                className="select"
                 value={value}
+                onChange={onChange}
+                options={optionsFromChildren(children)}
                 disabled={disabled}
-                onChange={(e) => onChange(e.target.value)}
-            >
-                {children}
-            </select>
+            />
         </div>
     );
 }
@@ -445,6 +458,16 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
         isLoading: buildingsLoading,
         isError: buildingsError,
     } = useBuildings();
+
+    // we open on the busiest building so there is something shown
+    const autoPicked = useRef(false);
+    useEffect(() => {
+        if (autoPicked.current || buildings.length === 0) {
+            return;
+        }
+        autoPicked.current = true;
+        setBuildingId((current) => current || rankByUsage(buildings)[0].id);
+    }, [buildings]);
 
     const {
         data: recommendations = [],

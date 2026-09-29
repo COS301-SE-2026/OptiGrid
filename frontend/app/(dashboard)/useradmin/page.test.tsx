@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import UserManagementPage from "./page";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 beforeAll(() => {
   jest.spyOn(window, "confirm").mockImplementation(() => true);
@@ -264,7 +265,7 @@ describe("UserManagementPage", () => {
       await screen.findByText("Alice");
 
       expect(
-        (getSortSelect() as HTMLSelectElement).value
+        getSortSelect().getAttribute("data-value")
       ).toBe("latest");
     });
 
@@ -277,12 +278,10 @@ describe("UserManagementPage", () => {
 
       await screen.findByText("Alice");
 
-      fireEvent.change(getSortSelect(), {
-        target: { value },
-      });
+      chooseCurvedOption(getSortSelect(), value);
 
       expect(
-        (getSortSelect() as HTMLSelectElement).value
+        getSortSelect().getAttribute("data-value")
       ).toBe(value);
     });
 
@@ -303,7 +302,7 @@ describe("UserManagementPage", () => {
       render(<UserManagementPage />);
       await screen.findByText("Alice");
 
-      fireEvent.change(getSortSelect(), { target: { value } });
+      chooseCurvedOption(getSortSelect(), value);
 
       expect(getViewerNames()).toEqual(expectedNames);
     });
@@ -322,9 +321,9 @@ describe("UserManagementPage", () => {
     it("resets sort filter to 'latest'", async () => {
       render(<UserManagementPage />);
       await screen.findByText("Alice");
-      fireEvent.change(getSortSelect(), { target: { value: "oldest" } });
+      chooseCurvedOption(getSortSelect(), "oldest");
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
-      expect((getSortSelect() as HTMLSelectElement).value).toBe("latest");
+      expect(getSortSelect().getAttribute("data-value")).toBe("latest");
     });
 
     it("clears search query", async () => {

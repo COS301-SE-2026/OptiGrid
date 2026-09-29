@@ -114,17 +114,109 @@ const jsonOutputPath = path.join(out, 'results.json');
 console.log(`Running k6 scenario: ${scenario}...`);
 console.log(`Test evidence will be saved to: ${out}`);
 
+let serverProcess;
+try {
+  await fetch("http://localhost:4000/health");
+}
+catch(e) {
+  const { spawn } = await import("node:child_process");
+  const envWithRateLimitDisabled = { ...process.env, NODE_ENV: "test" };
+  const outLog = fs.openSync('backend-perf.log', 'a');
+  const errLog = fs.openSync('backend-perf-err.log', 'a');
+  serverProcess = spawn("corepack", ["pnpm", "--filter", "@optigrid/core", "run", "dev"], { cwd: root, stdio: ["ignore", outLog, errLog], env: envWithRateLimitDisabled });
+  for (let i = 0; i < 30; i++) {
+    try{
+      await fetch("http://localhost:4000/health");
+      break;
+    }
+    catch {
+      // The health check is expected to fail while the local server starts; retry until the loop expires.
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+}
+
+let token = process.env.ACCESS_TOKEN || "";
+let buildingId = process.env.BUILDING_ID || "";
+
+if(!token) {
+  const creds = {
+    email: `perf_${Date.now()}@test.com`,
+    password: "SecurePass123!",
+    name: "Perf Tester"
+};
+  await fetch("http://localhost:4000/api/users/signup", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json"
+    }, 
+    body: JSON.stringify(creds)
+  });
+  const loginRes = await fetch("http://localhost:4000/api/users/login", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        email: creds.email,
+        password: creds.password
+    })
+  });
+  if(loginRes.ok) {
+    const loginData = await loginRes.json();
+    token = loginData.accessToken || loginData.user?.token || loginData.token || "";
+    console.log(token ? "Successfully generated ACCESS_TOKEN" : "Failed to extract token");
+  }
+}
+
+if(token && !buildingId) {
+  const building = await fetch("http://localhost:4000/api/buildings", {
+    headers: {
+        Authorization: `Bearer ${token}`
+    }
+  });
+  if(building.ok) {
+    const buildingData = await building.json();
+    if(buildingData.data && buildingData.data.length > 0) buildingId = buildingData.data[0].building_id || buildingData.data[0].id || "";
+  }
+  if(!buildingId) {
+     const newResp = await fetch("http://localhost:4000/api/buildings", {
+       method: "POST",
+       headers: { 
+         "Content-Type": "application/json", 
+         Authorization: `Bearer ${token}`,
+         "idempotency-key": `perf-test-${Date.now()}`
+       },
+       body: JSON.stringify({
+         building_name: "Perfomace nfr Test Building",
+         building_type: "OFFICE"
+       })
+     });
+     if(newResp.ok) {
+       const newData = await newResp.json();
+       buildingId = newData.data?.id || newData.data?.building_id || "";
+     }
+  }
+}
+const k6Env = {
+    ...process.env,
+    BASE_URL: process.env.BASE_URL || 'http://localhost:4000'
+};
+if(token) k6Env.ACCESS_TOKEN = token;
+if(buildingId) k6Env.BUILDING_ID = buildingId;
+
 // execute k6 synchronously
 const result = spawnSync(k6Bin, [
     'run',
     '--summary-export', jsonOutputPath,
-    '--env', `BASE_URL=${process.env.BASE_URL || 'http://localhost:4000'}`,
     tempScriptPath
 ], {
     stdio: 'inherit',
     cwd: root,
-    env: process.env
+    env: k6Env
 });
+
+if(serverProcess) serverProcess.kill();
 
 console.log(`\\nEvidence: ${out}`);
 process.exitCode = result.status;

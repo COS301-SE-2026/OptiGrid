@@ -3,8 +3,8 @@ process.env.DATABASE_URL = "postgresql://dummy:dummy@localhost:5432/dummy";
 
 describe('Influx client unavailable fallbacks', () => {
   it('returns empty values for every query shape', async () => {
-    const { queryUsage, queryUsageBetween, queryUsageDetails, queryUsageSeries } =
-      await import('../../../backend/core/src/lib/influx');
+    const { queryMeasuredDemandSeries, queryUsage, queryUsageBetween, queryUsageDetails, queryUsageSeries } =
+        await import('../../../backend/core/src/lib/influx');
 
     await expect(queryUsage('bld_a', '7d')).resolves.toEqual({
       total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0,
@@ -16,5 +16,6 @@ describe('Influx client unavailable fallbacks', () => {
       total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [],
     });
     await expect(queryUsageSeries('bld_a', '7d')).resolves.toEqual([]);
+    await expect(queryMeasuredDemandSeries('bld_a', 'weekly')).resolves.toEqual([]);
   });
 });

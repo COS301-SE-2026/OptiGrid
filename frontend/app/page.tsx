@@ -1,8 +1,60 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PublicNav } from "../components/PublicNav";
+import landing from "./landing.json";
 
-function FeatureIcon({ children }: Readonly<{ children: ReactNode }>) {
+const featureShapes: Record<string, ReactNode> = {
+    monitor: (
+        <>
+            <rect x="2" y="3" width="20" height="14" rx="2" />
+            <path d="M8 21h8M12 17v4" />
+        </>
+    ),
+    barchart: (
+        <>
+            <path d="M3 3v18h18" />
+            <path d="M7 16v-4M11 16V8M15 16v-6" />
+        </>
+    ),
+    trendingup: (
+        <>
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+            <polyline points="16 7 22 7 22 13" />
+        </>
+    ),
+    alert: (
+        <>
+            <path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+            <path d="M12 9v4M12 17h.01" />
+        </>
+    ),
+    lightbulb: (
+        <>
+            <path d="M9 18h6M10 22h4" />
+            <path d="M12 2a7 7 0 0 0-4 12.7V18h8v-3.3A7 7 0 0 0 12 2z" />
+        </>
+    ),
+    map: (
+        <>
+            <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+            <path d="M9 4v14M15 6v14" />
+        </>
+    ),
+    cube: (
+        <>
+            <path d="M12 2 3 7v10l9 5 9-5V7l-9-5z" />
+            <path d="M3 7l9 5 9-5M12 12v10" />
+        </>
+    ),
+    receipt: (
+        <>
+            <path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2l-3 2-2-2-2 2-2-2-2 2z" />
+            <path d="M9 8h6M9 12h6" />
+        </>
+    ),
+};
+
+function FeatureIcon({ name }: Readonly<{ name: string }>) {
     return (
         <svg
             width="20"
@@ -15,133 +67,11 @@ function FeatureIcon({ children }: Readonly<{ children: ReactNode }>) {
             strokeLinejoin="round"
             aria-hidden="true"
         >
-            {children}
+            {featureShapes[name]}
         </svg>
     );
 }
 
-function MonitorIcon() {
-    return (
-        <FeatureIcon>
-            <rect x="2" y="3" width="20" height="14" rx="2" />
-            <path d="M8 21h8M12 17v4" />
-        </FeatureIcon>
-    );
-}
-
-function BarChartIcon() {
-    return (
-        <FeatureIcon>
-            <path d="M3 3v18h18" />
-            <path d="M7 16v-4M11 16V8M15 16v-6" />
-        </FeatureIcon>
-    );
-}
-
-function TrendingUpIcon() {
-    return (
-        <FeatureIcon>
-            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-            <polyline points="16 7 22 7 22 13" />
-        </FeatureIcon>
-    );
-}
-
-function AlertIcon() {
-    return (
-        <FeatureIcon>
-            <path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
-            <path d="M12 9v4M12 17h.01" />
-        </FeatureIcon>
-    );
-}
-
-function LightbulbIcon() {
-    return (
-        <FeatureIcon>
-            <path d="M9 18h6M10 22h4" />
-            <path d="M12 2a7 7 0 0 0-4 12.7V18h8v-3.3A7 7 0 0 0 12 2z" />
-        </FeatureIcon>
-    );
-}
-
-function ReceiptIcon() {
-    return (
-        <FeatureIcon>
-            <path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2l-3 2-2-2-2 2-2-2-2 2z" />
-            <path d="M9 8h6M9 12h6" />
-        </FeatureIcon>
-    );
-}
-
-const features: { icon: ReactNode; title: string; description: string }[] = [
-    {
-        icon: <MonitorIcon />,
-        title: "Monitor your portfolio",
-        description:
-            "Live kWh, peak load, and cost metrics for every building in one place.",
-    },
-    {
-        icon: <BarChartIcon />,
-        title: "Benchmark performance",
-        description:
-            "Compare buildings side by side to surface inefficiencies and best practices.",
-    },
-    {
-        icon: <TrendingUpIcon />,
-        title: "Forecast tomorrow's demand",
-        description:
-            "ML-driven predictions help you plan procurement and avoid peak tariffs.",
-    },
-    {
-        icon: <AlertIcon />,
-        title: "Catch anomalies early",
-        description: "Voltage, current, power, and energy are watched for readings outside the expected range."
-    },
-    {
-        icon: <LightbulbIcon />,
-        title: "Act on load shifting insights",
-        description: "Recommendations set out the load to move, the window, and the estimated monthly saving."
-    },
-    {
-        icon: <ReceiptIcon />,
-        title: "Keep tariffs and costs current",
-        description: "Tariff rates keep every cost and saving figure tied to what you actually pay."
-    },
-];
-
-const outcomes = [
-    {
-        metric: "18%",
-        title: "Peak load reduction",
-        description: "Automated curtailment plans keep demand under contract limits.",
-    },
-    {
-        metric: "4.8%",
-        title: "Forecast error",
-        description: "Short term load forecasts reduce procurement guesswork.",
-    },
-    {
-        metric: "120+",
-        title: "Buildings online",
-        description: "Connect meters, BMS, and IoT gateways in days, not months.",
-    },
-    {
-        metric: "5s",
-        title: "Live refresh",
-        description: "Building details refresh every five seconds as sensors report in."
-    },
-    {
-        metric: "4",
-        title: "Measures watched",
-        description: "Voltage, current, power, and energy are each monitored for anomalies."
-    },
-    {
-        metric: "12 weeks",
-        title: "Forecast horizon",
-        description: "Weekly and monthly views cover the next seven days out to twelve weeks."
-    },
-];
 
 export default function LandingPage() {
     return (
@@ -149,16 +79,21 @@ export default function LandingPage() {
             <PublicNav signedIn={false} anchorPrefix="" />
 
             <main>
-                <section className="landing-hero">
+                <section className="landing-hero landing-screen">
                     <div className="landing-shell landing-hero-grid">
                         <div className="landing-hero-content">
                             <p className="landing-kicker">Energy intelligence platform</p>
                             <h1>Cut energy costs across every building you operate.</h1>
                             <p className="landing-lede text-muted">
-                                OptiGrid unifies IoT telemetry, anomaly detection, and
-                                demand forecasting so facility teams act on data instead
-                                of guessing.
+                                OptiGrid shows what each of your buildings uses right now.
+                                It warns you when something looks wrong. It also tells you
+                                what to change to pay less.
                             </p>
+                            <div className="landing-actions">
+                                <a href="#features" className="btn btn-secondary">
+                                    See what it does
+                                </a>
+                            </div>
                             <div className="landing-metrics">
                                 <div className="metric-card">
                                     <span className="metric">4.8%</span>
@@ -183,6 +118,12 @@ export default function LandingPage() {
                                     </p>
                                 </div>
                                 <span className="badge badge-success">Normal</span>
+                            </div>
+                            <div className="landing-panel-alert">
+                                <span className="landing-panel-alert-dot" aria-hidden="true" />
+                                <p>
+                                    <strong>Rosebank Tower</strong> is drawing 22% more than usual.
+                                </p>
                             </div>
                             <div className="landing-panel-list">
                                 <div className="landing-panel-row">
@@ -230,20 +171,20 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="features" className="landing-section landing-section-alt" style={{ scrollMarginTop: "72px" }}>
+                <section id="features" className="landing-section landing-section-alt landing-screen" style={{ scrollMarginTop: "var(--landing-nav-height)" }}>
                     <div className="landing-shell">
                         <div className="landing-section-header">
                             <p className="landing-kicker">What you can do</p>
                             <h2>One view for every building.</h2>
                             <p className="text-muted">
-                                Surface anomalies, compare portfolios, and track every
-                                tariff shift in a single operational workspace.
+                                Everything you need to run your sites sits in one place.
+                                Start with the live view and dig deeper when you need to.
                             </p>
                         </div>
                         <div className="landing-feature-grid">
-                            {features.map((feature) => (
+                            {landing.features.map((feature) => (
                                 <div key={feature.title} className="card landing-feature-card">
-                                    <div className="icon-chip">{feature.icon}</div>
+                                    <div className="icon-chip"><FeatureIcon name={feature.icon} /></div>
                                     <h3>{feature.title}</h3>
                                     <p className="text-muted">{feature.description}</p>
                                 </div>
@@ -252,18 +193,18 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="outcomes" className="landing-section" style={{ scrollMarginTop: "72px" }}>
+                <section id="outcomes" className="landing-section landing-screen" style={{ scrollMarginTop: "var(--landing-nav-height)" }}>
                     <div className="landing-shell">
                         <div className="landing-section-header">
                             <p className="landing-kicker">Operational impact</p>
                             <h2>Move from raw telemetry to decisions.</h2>
                             <p className="text-muted">
-                                OptiGrid blends real time monitoring with predictive
-                                analytics to keep teams ahead of tariffs and downtime.
+                                Clear numbers help your team act sooner. Less time goes
+                                into guessing and more into saving.
                             </p>
                         </div>
                         <div className="landing-outcomes-grid">
-                            {outcomes.map((outcome) => (
+                            {landing.outcomes.map((outcome) => (
                                 <div key={outcome.title} className="card landing-outcome-card">
                                     <span className="metric">{outcome.metric}</span>
                                     <h3>{outcome.title}</h3>

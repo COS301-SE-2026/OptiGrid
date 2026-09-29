@@ -410,6 +410,35 @@ export const recoverAccount = async (email: string, password: string) => {
     return { user, accessToken: authUser.accessToken };
 };
 
+export const recoverOAuthAccount = async (accessToken: string) => {
+    const supabase = getSupabaseAuthClient();
+    const { data, error } = await supabase.auth.getUser(accessToken);
+    if (error || !data?.user) throw new Error('Invalid or expired access token');
+
+    const existingUser = await prisma.user.findUnique({
+        where: { userId: data.user.id },
+        select: { userId: true, accountStatus: true },
+    });
+
+    if (!existingUser) {
+        throw new AccountNotFoundError();
+    }
+    if (existingUser.accountStatus === AccountStatus.ACTIVE) {
+        throw new AccountAlreadyActiveError();
+    }
+
+    const user = await prisma.user.update({
+        where: { userId: data.user.id },
+        data: {
+            accountStatus: AccountStatus.ACTIVE,
+            deactivatedAt: null,
+        },
+        select: SIGNUP_USER_SELECT,
+    });
+
+    return { user, accessToken };
+};
+
 export const getViewersService = async () => {
     const viewers = await prisma.user.findMany({
         where: {

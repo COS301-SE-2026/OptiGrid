@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { LivingEnvironment } from '@/components/LivingEnvironment';
 import { useBuildings } from '@/lib/useBuildings';
+import { rankByUsage } from '@/lib/rankBuildings';
 
 export default function EsgDashboardPage() {
   const { data: buildings, isLoading, isError } = useBuildings();
@@ -10,65 +11,57 @@ export default function EsgDashboardPage() {
 
   useEffect(() => {
     if (buildings && buildings.length > 0 && !selectedId) {
-      setSelectedId(buildings[0].id);
+      setSelectedId(rankByUsage(buildings)[0].id);
     }
   }, [buildings, selectedId]);
 
   const selected = buildings?.find((b) => b.id === selectedId);
 
   if (isLoading) {
-    return <div className="dashboard-page"><div className="dashboard-shell"><main className="dashboard-main"><p>Loading buildings...</p></main></div></div>;
+    return <p className="text-muted">Loading buildings...</p>;
   }
-  
+
   if (isError) {
-    return <div className="dashboard-page"><div className="dashboard-shell"><main className="dashboard-main"><p>Error loading buildings.</p></main></div></div>;
+    return <p className="text-muted">Error loading buildings.</p>;
   }
 
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-shell">
-        <div className="dashboard-main">
-          <header className="dashboard-header">
-            <div>
-              <p className="landing-kicker">Environmental</p>
-              <h1 className="dashboard-title">ESG Dashboard</h1>
-              <p className="dashboard-subtitle">
-                Select a building to see its living environment respond in real
-                time.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--space-3)' }}>
-              <div style={{ display: 'grid', gap: 4 }}>
-                <label className="label" htmlFor="building-select">
-                  Building
-                </label>
-                <select
-                  id="building-select"
-                  className="select"
-                  value={selectedId}
-                  onChange={(e) => setSelectedId(e.target.value)}
-                  style={{ minWidth: 220 }}
-                >
-                  {buildings?.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </header>
-
-          {selected ? (
-            <LivingEnvironment key={selected.id} buildingId={selected.id} />
-          ) : (
-            <div className="card dashboard-empty">
-              <p className="text-muted">No buildings available.</p>
-            </div>
-          )}
+    <div>
+      <header className="dashboard-header">
+        <div>
+          <h1 className="dashboard-title">Environmental Performance</h1>
+          <p className="dashboard-subtitle">
+            Operational energy and carbon indicators for each building. This is not a complete ESG rating; social metrics are not yet tracked.
+          </p>
         </div>
-      </div>
+
+        <div style={{ display: 'grid', gap: 4 }}>
+          <label className="label" htmlFor="building-select" style={{ marginBottom: 0 }}>
+            Building
+          </label>
+          <select
+            id="building-select"
+            className="select"
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+            style={{ minWidth: 240 }}
+          >
+            {buildings?.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </header>
+
+      {selected ? (
+        <LivingEnvironment key={selected.id} buildingId={selected.id} buildingName={selected.name} />
+      ) : (
+        <div className="card dashboard-empty">
+          <p className="text-muted">No buildings available.</p>
+        </div>
+      )}
     </div>
   );
 }

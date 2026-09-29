@@ -2,6 +2,7 @@ import ManagerBuildings from "./manager-buildings";
 import React from "react";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 const mockBuildings = [
     {
@@ -101,9 +102,7 @@ describe("ManagerBuildings", () => {
 
     it("filters the buildings by lifecycle state", async () => {
         await renderPage();
-        fireEvent.change(screen.getByLabelText(/Lifecycle:/i), {
-            target: { value: "ACTIVE" },
-        });
+        chooseCurvedOption(screen.getByLabelText(/Lifecycle:/i), "ACTIVE");
 
         expect(screen.getByText("Sandton HQ")).toBeInTheDocument();
         expect(screen.queryByText("Green Park")).not.toBeInTheDocument();
@@ -112,18 +111,14 @@ describe("ManagerBuildings", () => {
 
     it("sorts the buildings by energy usage highest to lowest", async () => {
         await renderPage();
-        fireEvent.change(screen.getByLabelText(/Energy usage:/i), {
-            target: { value: "desc" },
-        });
+        chooseCurvedOption(screen.getByLabelText(/Energy usage:/i), "desc");
         const names = tableRows().map((row) => within(row).getAllByRole("cell")[0].textContent,);
         expect(names).toEqual(["Green Park", "Sandton HQ", "River Tower"]);
     });
 
     it("sorts buildings by energy usage lowest to highest and keeps unknown usage last", async () => {
         await renderPage();
-        fireEvent.change(screen.getByLabelText(/Energy usage:/i), {
-            target: { value: "asc" },
-        });
+        chooseCurvedOption(screen.getByLabelText(/Energy usage:/i), "asc");
 
         const names = tableRows().map((row) => within(row).getAllByRole("cell")[0].textContent,);
         expect(names).toEqual(["Sandton HQ", "Green Park", "River Tower"]);
@@ -131,11 +126,9 @@ describe("ManagerBuildings", () => {
 
     it("resets the filters when Reset filters button is clicked", async () => {
         await renderPage();
-        fireEvent.change(screen.getByLabelText(/Lifecycle:/i), {
-            target: { value: "ACTIVE" },
-        });
+        chooseCurvedOption(screen.getByLabelText(/Lifecycle:/i), "ACTIVE");
         fireEvent.click(screen.getByRole("button", { name: /reset filters/i }));
-        expect(screen.getByLabelText(/Lifecycle:/i)).toHaveValue("all");
+        expect(screen.getByLabelText(/Lifecycle:/i)).toHaveAttribute("data-value", "all");
         expect(screen.getByText("Green Park")).toBeInTheDocument();
     });
 

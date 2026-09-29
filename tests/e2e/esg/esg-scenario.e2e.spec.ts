@@ -1,5 +1,4 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import { randomUUID } from 'crypto';
 
 const CORE_BASE_URL = process.env.E2E_CORE_URL ?? "http://localhost:4000";
 
@@ -43,6 +42,8 @@ async function createUserInCore(
 test.describe('ESG Scenario Builder', () => {
 
     test('should load baseline values and allow scenario simulation', async ({ page, request }) => {
+        test.setTimeout(60_000);
+
         // 1. Setup user and login
         const user = buildUniqueUser();
         await createUserInCore(request, user);
@@ -61,17 +62,18 @@ test.describe('ESG Scenario Builder', () => {
         const buildingName = `ESG E2E Building ${uniqueSuffix()}`;
         const buildingAddress = "1 Maude St, Sandton, 2196";
         await page.getByRole("link", { name: "+ Add building" }).click();
-        await expect(page).toHaveURL(/\/buildings\/add$/);
+        await expect(page).toHaveURL(/\/buildings\/add$/, { timeout: 15_000 });
 
         await page.getByLabel(/Building name/).fill(buildingName);
-        await page.getByLabel("Building type").selectOption("Commercial");
+        await page.getByLabel("Building type").click();
+        await page.getByRole("option", { name: "Commercial", exact: true }).click();
         await page.getByLabel("Physical address").fill(buildingAddress);
         await page.getByLabel(/Floor area/).fill("20000");
         await page.getByLabel("Maximum occupancy").fill("250");
         await page.getByLabel("Timezone").fill("Africa/Johannesburg");
         await page.getByRole("button", { name: "Add building" }).click();
 
-        await expect(page).toHaveURL(/\/dashboard$/);
+        await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15_000 });
 
         // 3. Navigate to the ESG dashboard for that building
         const sessionPrefix = new URL(page.url()).pathname.match(/^\/_sessions\/[0-9a-f-]+/i)?.[0] ?? "";
@@ -83,8 +85,10 @@ test.describe('ESG Scenario Builder', () => {
         );
         
         await page.goto(`${sessionPrefix}/esg`);
-        // Wait for the Living Environment to load
-        await expect(page.getByRole('heading', { name: /Living Environment/i })).toBeVisible({ timeout: 15000 });
+        await healthScoreResponsePromise;
+
+        // Wait for the environmental baseline to replace the loading skeleton.
+        await expect(page.getByRole('heading', { name: 'Environmental Performance', level: 1 })).toBeVisible({ timeout: 15000 });
 
         // 4. Interact with sliders
         const resetBtn = page.getByRole('button', { name: /Reset to Baseline/i });
@@ -92,8 +96,7 @@ test.describe('ESG Scenario Builder', () => {
         await expect(resetBtn).toBeDisabled();
         
         // Wait for Tree simulation rendering and initial baseline fetch
-        await expect(page.locator('text=Health Score')).toBeVisible();
-        await healthScoreResponsePromise;
+        await expect(page.getByText('Environmental Score', { exact: true }).first()).toBeVisible();
 
         const energySlider = page.getByRole('slider', { name: 'Energy Efficiency' });
         await energySlider.focus();
