@@ -106,11 +106,11 @@ The system connects building managers and energy grids through a sophisticated d
 
 | Name | Student Number | GitHub | LinkedIn | Profile |
 |------|---------------|--------|----------|-----------|
-| **Hamdaan Mirza** | `u24631494` | [GitHub](https://github.com/Hamdaan-Mirza) | [LinkedIn](https://www.linkedin.com/in/hamdaan-mirza/) | Team Lead, Backend Developer. |
-| **Abdelrahman Ahmed** | `u24898008` | [GitHub](https://github.com/abdlrhmanhabish) | [LinkedIn](https://www.linkedin.com/in/abdelrahman-esam-9055413b4) | Frontend Developer. |
-| **Abhay Rooplall** | `u24568792` | [GitHub](https://github.com/AbhayR1) | [LinkedIn](https://www.linkedin.com/in/abhay-rooplall/) | Data & Analytics Engineer. |
-| **Talifhani Seaba** | `u23657350` | [GitHub](https://github.com/TalifhaniSeaba) | [LinkedIn](https://www.linkedin.com/in/talifhani-seaba-2172bb32b/) | Frontend Developer. |
-| **Atidaishe Mupanemunda** | `u22747886` | [GitHub](https://github.com/WillyDoo428) | [LinkedIn](https://www.linkedin.com/in/atidaishe-m-218ba3388/) | Cloud & Infrastructure Engineer. |
+| **Hamdaan Mirza** | `u24631494` | [GitHub](https://github.com/Hamdaan-Mirza) | [LinkedIn](https://www.linkedin.com/in/hamdaan-mirza/) | Team Lead, Backend Developer. Third Year IKS Student majoring in Data Science. Coding the backend endpoints and integrating them. Ensuring code is robust, secure and maintainable. |
+| **Abdelrahman Ahmed** | `u24898008` | [GitHub](https://github.com/abdlrhmanhabish) | [LinkedIn](https://www.linkedin.com/in/abdelrahman-esam-9055413b4) | Frontend Developer. Third Year CS Student. Developing the responsive user interface and dynamic dashboards. Ensuring the frontend is intuitive, accessible and performant. |
+| **Abhay Rooplall** | `u24568792` | [GitHub](https://github.com/AbhayR1) | [LinkedIn](https://www.linkedin.com/in/abhay-rooplall/) | Data & Analytics Engineer. Third Year CS Student. Designing and implementing data pipelines and predictive models. Ensuring telemetry analysis is accurate, scalable and efficient. |
+| **Talifhani Seaba** | `u23657350` | [GitHub](https://github.com/TalifhaniSeaba) | [LinkedIn](https://www.linkedin.com/in/talifhani-seaba-2172bb32b/) | Frontend Developer. Third Year CS Student. Crafting seamless user experiences and interactive components. Ensuring the application styling is consistent, modern and responsive. |
+| **Atidaishe Mupanemunda** | `u22747886` | [GitHub](https://github.com/WillyDoo428) | [LinkedIn](https://www.linkedin.com/in/atidaishe-m-218ba3388/) | Cloud & Infrastructure Engineer. Third Year CS Student. Managing CI/CD pipelines, containerization and deployments. Ensuring the infrastructure is highly available, scalable and secure. |
 
 **Team Email:** cos301.coreflow@gmail.com
 
