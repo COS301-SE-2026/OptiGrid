@@ -110,7 +110,7 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
                 |> range(start: -24h)
                 |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
                 |> filter(fn: (r) => r["building_id"] == "${building_id}")
-                |> filter(fn: (r) => r["_field"] == "voltage_v" or r["_field"] == "current_a" or r["_field"] == "power_kw")
+                |> filter(fn: (r) => r["_field"] == "voltage_v" or r["_field"] == "current_a" or r["_field"] == "power_kw" or r["_field"] == "usage")
                 |> aggregateWindow(every: 15m, fn: mean, createEmpty: false)
                 |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         `;
@@ -152,7 +152,7 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
         for (const row of rows) {
             const v = row.voltage_v || 230;
             const i = row.current_a || 0;
-            const p = row.power_kw || 0;
+            const p = row.power_kw || row.usage || 0;
             
             // 1. Power Factor (Energy Efficiency)
             const apparent = (v * i) / 1000;
@@ -190,7 +190,7 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
         const avgPower = countPower > 0 ? sumPower / countPower : 0;
         let varianceSum = 0;
         for (const row of rows) {
-            const p = row.power_kw || 0;
+            const p = row.power_kw || row.usage || 0;
             varianceSum += Math.pow(p - avgPower, 2);
         }
         const stdDev = countPower > 0 ? Math.sqrt(varianceSum / countPower) : 0;
@@ -223,13 +223,13 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
         }
 
         const finalScore = Math.round(
-            energyEffScore * 0.35 + 
-            renewablesScore * 0.30 + 
-            hvacScore * 0.20 + 
+            energyEffScore * 0.50 + 
+            renewablesScore * 0.10 + 
+            hvacScore * 0.25 + 
             lightingScore * 0.15
         );
 
-        const energyHistory = rows.slice(-12).map(r => r.power_kw || 0);
+        const energyHistory = rows.slice(-12).map(r => r.power_kw || r.usage || 0);
         const carbonKwh = Number(carbonEntry?.total_kwh ?? 0);
         const carbonKgCo2e = Number(carbonEntry?.total_kg_co2e ?? 0);
         const carbonIntensity = carbonEntry && carbonKwh > 0
@@ -243,9 +243,9 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
             computedAt: new Date().toISOString(),
             trend: 0,
             dimensions: [
-                { dimension: "energy_efficiency", label: "Energy Efficiency", score: energyEffScore, weight: 0.35, trend: 0 },
-                { dimension: "renewables", label: "Renewable Energy", score: renewablesScore, weight: 0.3, trend: 0 },
-                { dimension: "hvacLoad", label: "HVAC Optimization", score: hvacScore, weight: 0.2, trend: 0 },
+                { dimension: "energy_efficiency", label: "Energy Efficiency", score: energyEffScore, weight: 0.50, trend: 0 },
+                { dimension: "renewables", label: "Renewable Energy", score: renewablesScore, weight: 0.10, trend: 0 },
+                { dimension: "hvacLoad", label: "HVAC Optimization", score: hvacScore, weight: 0.25, trend: 0 },
                 { dimension: "lighting", label: "Lighting Optimization", score: lightingScore, weight: 0.15, trend: 0 }
             ],
             carbonIntensity,

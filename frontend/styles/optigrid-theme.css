@@ -2160,6 +2160,16 @@ select.input {
     font-weight: var(--fw-semibold);
 }
 
+.auth-footnote-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--brand-border);
+}
+
 .auth-divider {
     display: flex;
     align-items: center;
@@ -5607,13 +5617,6 @@ select.input {
 
 .auth-recover .btn {
     justify-self: start;
-}
-
-.auth-label-row {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-3);
 }
 
 .auth-link {

@@ -167,10 +167,7 @@ export default function LoginPage() {
                     </div>
 
                     <div className="auth-field">
-                        <div className="auth-label-row">
-                            <label className="label" htmlFor="password">Password</label>
-                            <Link href="/forgot-password" className="auth-link">Forgot password?</Link>
-                        </div>
+                        <label className="label" htmlFor="password">Password</label>
                         <PasswordInput
                             id="password"
                             name="password"
@@ -235,11 +232,14 @@ export default function LoginPage() {
                     )}
                 </form>
 
-                <p className="text-muted auth-footnote">
-                    No account?{" "}
-                    <Link href="/signup">
-                        Sign up free
-                    </Link>
+                <p className="text-muted auth-footnote auth-footnote-links">
+                    <span>
+                        No account?{" "}
+                        <Link href="/signup">
+                            Sign up free
+                        </Link>
+                    </span>
+                    <Link href="/forgot-password">Forgot password?</Link>
                 </p>
             </section>
         </main>
