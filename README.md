@@ -38,7 +38,7 @@ Built by **[Coreflow](https://github.com/OptiGrid)**
 
 ## Project Description
 
-OptiGrid is a comprehensive software platform designed for intelligent energy optimisation and predictive analytics, utilising smart grid technology to help buildings reduce energy waste and optimise consumption.
+**Coreflow - OptiGrid** - A comprehensive software platform designed for intelligent energy optimisation and predictive analytics, utilising smart grid technology to help buildings reduce energy waste and optimise consumption.
 The system connects building managers and energy grids through a sophisticated data pipeline that facilitates telemetry ingestion, communicates forecasts, manages configurations, and provides real-time monitoring – all without fundamentally changing the existing building's physical infrastructure.
 
 <div align="center">
@@ -86,6 +86,14 @@ The system connects building managers and energy grids through a sophisticated d
 
 </details>
 
+<details>
+<summary><b>Demo 4</b></summary>
+<br>
+
+- **NFR Testing (with evidence):** [NFR Testing Directory](docs/SAS.pdf)
+
+</details>
+
 <div align="center">
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
@@ -93,7 +101,7 @@ The system connects building managers and energy grids through a sophisticated d
 ## Team: Coreflow
 
 <div align="center">
-  <img src="docs/images/Screenshot%202026-05-21%20224726.png" alt="Team Logo" width="200" style="border-radius: 15px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(11, 17, 32, 0.12); border: 2px solid #CDE8E5;"/>
+  <img src="docs/images/Coreflow.jpg" alt="Team Logo" width="200" style="border-radius: 15px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(11, 17, 32, 0.12); border: 2px solid #CDE8E5;"/>
 </div>
 
 | Name | Student Number | GitHub | LinkedIn | Profile |
@@ -519,5 +527,4 @@ This project follows **GitFlow**: a structured branching model that separates on
   <br>
   <sub><b>© 2026 Coreflow · In partnership with EPI-USE</b></sub>
   <br>
-  <img src="https://img.shields.io/badge/Made_with-Love-4D869C?style=for-the-badge" alt="Made with Love">
 </div>
