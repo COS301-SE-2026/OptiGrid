@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 type Section = {
   id: string;
   number: string;
   title: string;
-  body: React.ReactNode;
+  body: ReactNode;
   snapshot?: {
     caption: string;
     alt: string;
@@ -14,18 +14,17 @@ type Section = {
   };
 };
 
-
 function Lightbox({
   src,
   alt,
   caption,
   onClose,
-}: {
+}: Readonly<{
   src: string;
   alt: string;
   caption?: string;
   onClose: () => void;
-}) {
+}>) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -128,12 +127,12 @@ function Snapshot({
   alt,
   src,
   onOpen,
-}: {
+}: Readonly<{
   caption: string;
   alt: string;
   src?: string;
   onOpen: (src: string, alt: string, caption: string) => void;
-}) {
+}>) {
   const [hovered, setHovered] = useState(false);
   const clickable = Boolean(src);
 
@@ -274,10 +273,10 @@ function Snapshot({
 function InfoTable({
   headers,
   rows,
-}: {
+}: Readonly<{
   headers: string[];
-  rows: React.ReactNode[][];
-}) {
+  rows: ReactNode[][];
+}>) {
   return (
     <div
       className="card"
@@ -313,11 +312,11 @@ function AnomalyCallout({
   tone,
   title,
   children,
-}: {
+}: Readonly<{
   tone: "danger" | "warning" | "info";
   title: string;
-  children: React.ReactNode;
-}) {
+  children: ReactNode;
+}>) {
   const colours = {
     danger: {
       bg: "color-mix(in srgb, var(--brand-danger) 10%, transparent)",
@@ -436,8 +435,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 1  The OptiGrid landing page",
       alt: "Landing page with hero, live portfolio panel and call to action",
-      src:"/landingpage.png"
-      
+      src: "/landingpage.png",
     },
   },
   {
@@ -496,7 +494,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 2:  The login page",
       alt: "Log in to your account with work email and password fields",
-      src:"/loginpage.png"
+      src: "/loginpage.png",
     },
   },
   {
@@ -586,7 +584,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 3: The main OptiGrid dashboard",
       alt: "Dashboard with sidebar navigation, KPI cards and portfolio consumption chart",
-      src:"/dashboardpage.png"
+      src: "/dashboardpage.png",
     },
   },
   {
@@ -635,7 +633,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 4:  Adding buildings",
       alt: "Building details form with name, type, address and specification fields",
-      src:"/addbuildingsnap.png"
+      src: "/addbuildingsnap.png",
     },
   },
   {
@@ -674,7 +672,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 5:  Viewing and registering sensors",
       alt: "Sensors list with MAC address, type, zone, status and register button",
-      src:"/sensorlist.png"
+      src: "/sensorlist.png",
     },
   },
   {
@@ -716,7 +714,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 6  Live energy monitoring view",
       alt: "Real-time chart showing current energy consumption",
-      src:"/livereadings.png"
+      src: "/livereadings.png",
     },
   },
   {
@@ -743,7 +741,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 7:  Comparing building energy usage",
       alt: "Comparison page with building selectors, metric, date range and totals",
-      src: "/compare.png"
+      src: "/compare.png",
     },
   },
   {
@@ -790,7 +788,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 8:  Forecast results and chart",
       alt: "Demand trend chart with peak demand, average per day and model accuracy cards",
-      src:"/forecast.png"
+      src: "/forecast.png",
     },
   },
   {
@@ -862,7 +860,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 9  Anomaly alerts page with filters and table",
       alt: "Anomaly page with building, status and severity filters plus a table of alerts",
-      src:"/anomaly.png"
+      src: "/anomaly.png",
     },
   },
   {
@@ -888,7 +886,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 10:  Manager view of assigned buildings",
       alt: "Manager building list with lifecycle, energy usage, owner and action buttons",
-      src:"/managerassigned.png"
+      src: "/managerassigned.png",
     },
   },
   {
@@ -916,7 +914,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 11: Admin views for buildings and users",
       alt: "Admin dashboard with KPI tiles, building table and user management panel",
-      src: "/adminpagebuildings.png"
+      src: "/adminpagebuildings.png",
     },
   },
   {
@@ -937,7 +935,7 @@ const SECTIONS: Section[] = [
     snapshot: {
       caption: "Figure 12: Updating user profile",
       alt: "Settings page with profile information fields and save button",
-      src:"/settings.png"
+      src: "/settings.png",
     },
   },
   {
