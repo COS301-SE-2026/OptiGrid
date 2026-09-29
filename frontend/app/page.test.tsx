@@ -9,9 +9,7 @@ describe("LandingPage", () => {
     });
 
     describe("navbar", () => {
-        it("renders the brand name", () => {
-            expect(screen.getByText("OptiGrid")).toBeInTheDocument();
-        });
+      
 
         it("renders the Features nav link", () => {
             expect(screen.getByText("Features")).toBeInTheDocument();

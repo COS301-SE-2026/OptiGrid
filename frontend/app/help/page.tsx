@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { OptiGridLogo } from "@/components/logo";
 
 const ICONS: Record<string, ReactNode> = {
     "User manual": (
@@ -65,8 +66,18 @@ export default function HelpPage() {
         <div className="landing-page">
             <header className="navbar landing-nav" role="banner" aria-label="Site header">
                 <div className="landing-shell landing-nav-inner">
-                    <Link href="/" className="landing-wordmark" aria-label="OptiGrid home">
-                        OptiGrid
+                    <Link
+                        href="/"
+                        aria-label="OptiGrid home"
+                        className="landing-wordmark"
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            color: "var(--brand-ink)",
+                            textDecoration: "none",
+                        }}
+                    >
+                        <OptiGridLogo height={30} />
                     </Link>
                     <div className="landing-nav-actions">
                         <Link href="/dashboard" className="btn btn-primary">
