@@ -295,7 +295,7 @@ export const verifyCarbonScope = async (buildingIds: string[], month: string): P
 type ReportBuilding = {
     building_id: string;
     building_name: string;
-    building_type: unknown;
+    building_type: string | null;
     square_footage: unknown;
 };
 
@@ -394,7 +394,7 @@ function buildSites(
         return {
             building_id: building.building_id,
             name: building.building_name,
-            type: building.building_type ? String(building.building_type) : null,
+            type: building.building_type,
             usage_kwh: usage?.kwh ?? null,
             cost_zar: usage?.cost ?? null,
             carbon_kg_co2e: integrityByBuilding.get(building.building_id)?.verified
@@ -406,7 +406,7 @@ function buildSites(
 }
 
 function summarizeAnomalies(
-    anomalies: Array<{ detected_timestamp: unknown; severity_level: unknown; status: unknown }>,
+    anomalies: Array<{ detected_timestamp: Date | null; severity_level: string | null; status: string | null }>,
     periodStart: Date,
     periodEnd: Date
 ) {
@@ -415,13 +415,15 @@ function summarizeAnomalies(
     let resolved = 0;
     let raisedInPeriod = 0;
     for (const anomaly of anomalies) {
-        const detected = anomaly.detected_timestamp ? new Date(String(anomaly.detected_timestamp)) : null;
+        const detected = anomaly.detected_timestamp
+            ? new Date(anomaly.detected_timestamp.getTime())
+            : null;
         if (detected && detected >= periodStart && detected <= periodEnd) {
             raisedInPeriod += 1;
         }
-        const severity = String(anomaly.severity_level ?? 'unspecified').toLowerCase();
+        const severity = (anomaly.severity_level ?? 'unspecified').toLowerCase();
         bySeverity[severity] = (bySeverity[severity] ?? 0) + 1;
-        const status = String(anomaly.status ?? '').toLowerCase();
+        const status = (anomaly.status ?? '').toLowerCase();
         if (status === 'resolved' || status === 'ignored') {
             resolved += 1;
         } else {
@@ -455,7 +457,7 @@ function digitalSignatureOf(
     const carbonHeads = carbonIntegrity
         .filter((entry): entry is CarbonIntegrityResult & { current_hash: string } => entry.verified && Boolean(entry.current_hash))
         .map((entry) => `${entry.building_id}:${entry.current_hash}`)
-        .sort();
+        .sort((left, right) => left.localeCompare(right));
     const carbonSignature = allCarbonChainsVerified
         ? createHash('sha256').update(carbonHeads.join('\n')).digest('hex')
         : null;
