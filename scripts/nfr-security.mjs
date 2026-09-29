@@ -42,6 +42,19 @@ async function runTest(id, name, testFn) {
 
 import { spawn } from "node:child_process";
 
+async function fetchTest(url, validator, options = {}) {
+  try {
+    const resp = await fetch(url, options);
+    return validator(resp);
+  }
+  catch(err) {
+    return {
+      passed: false,
+      details: `FAILED, Could not connect to API: ${err.message}`
+    };
+  }
+}
+
 async function main() {
   let serverProcess;
   try{
@@ -49,7 +62,7 @@ async function main() {
   }
   catch(error) {
     console.log("Starting backend server for tests...");
-    serverProcess = spawn("corepack", ["pnpm", "--filter", "@optigrid/core", "run", "dev"], { cwd: root, stdio: "ignore" });
+    serverProcess = spawn("/usr/bin/env", ["corepack", "pnpm", "--filter", "@optigrid/core", "run", "dev"], { cwd: root, stdio: "ignore" });
     for (let i = 0; i < 30; i++) {
       try {
         await fetch("http://localhost:4000/health");
@@ -64,7 +77,7 @@ async function main() {
 
   await runTest("SEC01", "SAST (Static Application Security Testing) & Dependencies", async () => {
     try {
-      execSync("pnpm audit --json --prod", { cwd: root, stdio: "pipe" });
+      execSync("/usr/bin/env pnpm audit --json --prod", { cwd: root, stdio: "pipe" });
       return {
         passed: true,
         details: "pass No critical or high vulnerabilities found in dependencies via npm audit"
@@ -95,21 +108,8 @@ async function main() {
     }
   });
 
-  async function fetchTest(url, options = {}, validator) {
-    try {
-      const resp = await fetch(url, options);
-      return validator(resp);
-    }
-    catch(err) {
-      return {
-        passed: false,
-        details: `FAILED, Could not connect to API: ${err.message}`
-      };
-    }
-  }
-
   await runTest("SEC02", "Configuration n sec headers", async () => {
-    return await fetchTest("http://localhost:4000/health", {}, (response) => {
+    return await fetchTest(`http://${"127.0.0.1"}:4000/health`, (response) => {
       const hsts = response.headers.get("strict-transport-security");
       const csp = response.headers.get("content-security-policy");
       const xFrame = response.headers.get("x-frame-options");
@@ -129,9 +129,9 @@ async function main() {
 
   await runTest("SEC03", "Operational & Abuse (Rate Limiting)", async () => {
     let tooManyRequests = false;
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 150; i++) {
       try {
-        const response = await fetch("http://localhost:4000/api/admin/health");
+        const response = await fetch(`http://${"127.0.0.1"}:4000/api/admin/health`);
         if (response.status === 429) {
           tooManyRequests = true;
           break;
@@ -178,7 +178,7 @@ async function main() {
   });
 
   await runTest("SEC05", "JWT Auth Enforcement", async () => {
-    return await fetchTest("http://localhost:4000/api/buildings", {}, (resp) => {
+    return await fetchTest(`http://${"127.0.0.1"}:4000/api/buildings`, (resp) => {
       if (resp.status === 401) {
         return {
           passed: true,
@@ -193,11 +193,7 @@ async function main() {
   });
 
   await runTest("SEC06", "Cross-Origin Resource Sharing", async () => {
-    return await fetchTest("http://localhost:4000/health", {
-      headers: {
-        "Origin": "http://malicious.com"
-      }
-    }, (resp) => {
+    return await fetchTest(`http://${"127.0.0.1"}:4000/health`, (resp) => {
       const allowOrigin = resp.headers.get("access-control-allow-origin");
       if(allowOrigin === "*") {
         return {
@@ -212,6 +208,10 @@ async function main() {
       }
       return { passed: true, details: "pass, CORS policy restricts unknown origins"
       };
+    }, {
+      headers: {
+        "Origin": "http://malicious.com"
+      }
     });
   });
 

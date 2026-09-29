@@ -6,16 +6,16 @@ import { spawnSync } from "node:child_process";
 export const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function checkDockerAvailable() {
-  const result = spawnSync("docker", ["ps"], { stdio: "ignore" });
-  return result.status === 0;
+  const res = spawnSync("/usr/bin/env", ["docker", "ps"], { stdio: "ignore" });
+  return res.status === 0;
 }
 
 export function dockerPause(...containers) {
-  spawnSync("docker", ["pause", ...containers], { stdio: "ignore" });
+  spawnSync("/usr/bin/env", ["docker", "pause", ...containers], { stdio: "ignore" });
 }
 
 export function dockerUnpause(...containers) {
-  spawnSync("docker", ["unpause", ...containers], { stdio: "ignore" });
+  spawnSync("/usr/bin/env", ["docker", "unpause", ...containers], { stdio: "ignore" });
 }
 
 export function createNfrRunner(suiteName) {

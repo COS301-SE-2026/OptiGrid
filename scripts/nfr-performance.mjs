@@ -119,13 +119,11 @@ try {
   await fetch("http://localhost:4000/health");
 }
 catch(e) {
-  serverProcess = import("node:child_process").then(({ spawn }) => {
-    const envWithRateLimitDisabled = { ...process.env, NODE_ENV: "test" };
-    const outLog = fs.openSync('backend-perf.log', 'a');
-    const errLog = fs.openSync('backend-perf-err.log', 'a');
-    const proc = spawn("corepack", ["pnpm", "--filter", "@optigrid/core", "run", "dev"], { cwd: root, stdio: ["ignore", outLog, errLog], env: envWithRateLimitDisabled });
-    return proc;
-  });
+  const { spawn } = await import("node:child_process");
+  const envWithRateLimitDisabled = { ...process.env, NODE_ENV: "test" };
+  const outLog = fs.openSync('backend-perf.log', 'a');
+  const errLog = fs.openSync('backend-perf-err.log', 'a');
+  serverProcess = spawn("corepack", ["pnpm", "--filter", "@optigrid/core", "run", "dev"], { cwd: root, stdio: ["ignore", outLog, errLog], env: envWithRateLimitDisabled });
   for (let i = 0; i < 30; i++) {
     try{
       await fetch("http://localhost:4000/health");
@@ -199,26 +197,25 @@ if(token && !buildingId) {
      }
   }
 }
-const envArgs = [
-    '--env',
-    `BASE_URL=${process.env.BASE_URL || 'http://localhost:4000'}`
-];
-if(token) envArgs.push('--env', `ACCESS_TOKEN=${token}`);
-if(buildingId) envArgs.push('--env', `BUILDING_ID=${buildingId}`);
+const k6Env = {
+    ...process.env,
+    BASE_URL: process.env.BASE_URL || 'http://localhost:4000'
+};
+if(token) k6Env.ACCESS_TOKEN = token;
+if(buildingId) k6Env.BUILDING_ID = buildingId;
 
 // execute k6 synchronously
 const result = spawnSync(k6Bin, [
     'run',
     '--summary-export', jsonOutputPath,
-    ...envArgs,
     tempScriptPath
 ], {
     stdio: 'inherit',
     cwd: root,
-    env: process.env
+    env: k6Env
 });
 
-if(serverProcess) serverProcess.then(proc => proc.kill());
+if(serverProcess) serverProcess.kill();
 
 console.log(`\\nEvidence: ${out}`);
 process.exitCode = result.status;
