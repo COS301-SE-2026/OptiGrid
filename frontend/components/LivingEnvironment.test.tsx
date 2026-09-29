@@ -132,9 +132,9 @@ describe("LivingEnvironment", () => {
   });
 
   describe("Tree stat cards", () => {
-    it("renders carbon intensity from the ledger-backed response", async () => {
+    it("renders leaf count based on score", async () => {
       renderEnv();
-      expect(await screen.findByText("0.930 kg CO2e/kWh")).toBeInTheDocument();
+      expect(await screen.findByText("16 / 24")).toBeInTheDocument();
     });
 
     it("renders carbon-ledger integrity and the limited ESG scope", async () => {

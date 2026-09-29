@@ -188,10 +188,7 @@ export function LivingEnvironment({ buildingId, buildingName }: LivingEnvironmen
 
   const state = getEcosystemState(healthScore);
   const config = stateConfig[state];
-  const carbonIntensity = healthData?.carbonIntensity;
-  const carbonIntensityLabel = carbonIntensity === null || carbonIntensity === undefined
-    ? 'Unavailable'
-    : `${carbonIntensity.toFixed(3)} kg CO2e/kWh`;
+  const dynamicLeafCount = Math.round((healthScore / 100) * 24);
   const ledgerStatus = healthData?.carbonAccounting.integrityStatus ?? 'UNAVAILABLE';
   let energyEvidence = 'Recent environmental evidence is unavailable.';
   if (healthData?.scope.energyEvidence === 'telemetry_derived') {
@@ -245,6 +242,7 @@ export function LivingEnvironment({ buildingId, buildingName }: LivingEnvironmen
             state={state}
             config={config}
             buildingLabel={buildingName ?? `building ${buildingId}`}
+            score={healthScore}
           />
 
           <div
@@ -262,9 +260,9 @@ export function LivingEnvironment({ buildingId, buildingName }: LivingEnvironmen
               accent={config.badgeClass}
             />
             <TreeStat
-              label="Carbon Intensity"
-              value={carbonIntensityLabel}
-              accent={carbonIntensity === null || carbonIntensity === undefined ? 'badge-warning' : 'badge-default'}
+              label="Leaves"
+              value={`${dynamicLeafCount} / 24`}
+              accent="badge-default"
             />
             <TreeStat
               label="Carbon Ledger"
@@ -805,6 +803,7 @@ interface EcosystemVisualProps {
   readonly state: EcosystemState;
   readonly config: (typeof stateConfig)[EcosystemState];
   readonly buildingLabel: string;
+  readonly score: number;
 }
 
 function getTrunkDroop(state: EcosystemState): number {
@@ -825,13 +824,15 @@ function getSunOpacity(state: EcosystemState): number {
   return 1;
 }
 
-function EcosystemVisual({ state, config, buildingLabel }: EcosystemVisualProps) {
+function EcosystemVisual({ state, config, buildingLabel, score }: EcosystemVisualProps) {
+  const dynamicLeafCount = Math.round((score / 100) * 24);
+
   const leaves = Array.from({ length: 24 }, (_, i) => {
     const angle = (i / 24) * Math.PI * 2;
     const radius = 38 + (i % 3) * 12;
     const x = 150 + Math.cos(angle) * radius;
     const y = 130 + Math.sin(angle) * radius * 0.7;
-    const isVisible = i < config.leafCount;
+    const isVisible = i < dynamicLeafCount;
     const colorIndex = i % 3;
     return { x, y, isVisible, color: config.leafColors[colorIndex], i };
   });
@@ -849,7 +850,7 @@ function EcosystemVisual({ state, config, buildingLabel }: EcosystemVisualProps)
 
   const trunkDroop = getTrunkDroop(state);
 
-  const description = `Living environment for ${buildingLabel}. State: ${config.label}. ${config.leafCount} of 24 leaves visible, ${config.flowerCount} of 8 blooms.`;
+  const description = `Living environment for ${buildingLabel}. State: ${config.label}. ${dynamicLeafCount} of 24 leaves visible, ${config.flowerCount} of 8 blooms.`;
 
   return (
     <div
