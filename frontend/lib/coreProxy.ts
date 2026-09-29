@@ -9,7 +9,7 @@ export function getCoreUrl(): string {
 		throw new Error("CORE_URL must be configured.");
 	}
 
-	return coreUrl;
+	return coreUrl.replace(/\/$/, "");
 }
 
 function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {

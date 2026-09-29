@@ -62,7 +62,7 @@ function scheduleRetry(stream: SharedStream) {
 }
 
 function openStream(stream: SharedStream) {
-    const source = new EventSource(stream.url);
+    const source = new EventSource(stream.url, { withCredentials: true });
     stream.source = source;
     updateStatus(stream, "connecting");
 

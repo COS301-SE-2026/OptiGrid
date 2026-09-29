@@ -7,6 +7,10 @@ export const runtime = "edge";
 
 function upstreamHeaders(request: Request): Record<string, string> {
   const headers: Record<string, string> = { Accept: "text/event-stream" };
+  const userAgent = request.headers.get("user-agent");
+  if (userAgent) {
+    headers["User-Agent"] = userAgent;
+  }
   getForwardHeaders(request)?.forEach((value, name) => {
     headers[name] = value;
   });
@@ -20,8 +24,9 @@ export async function GET(
   const { buildingId } = await context.params;
 
   try {
+    const baseUrl = CORE_URL.replace(/\/$/, "");
     const upstream = await fetch(
-      `${CORE_URL}/api/telemetry/stream/${encodeURIComponent(buildingId)}`,
+      `${baseUrl}/api/telemetry/stream/${encodeURIComponent(buildingId)}`,
       {
         headers: upstreamHeaders(request),
         cache: "no-store",
