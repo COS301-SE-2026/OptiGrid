@@ -2,9 +2,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const MALICIOUS_ORIGIN = "http://malicious.com"; // NOSONAR -- intentionally insecure Origin test input; no request is sent there.
 const argv = process.argv.slice(2);
 const option = (name, fallback) => argv.includes(name) ? argv[argv.indexOf(name) + 1] : fallback;
 const stamp = new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -40,8 +41,6 @@ async function runTest(id, name, testFn) {
   console.log(`${id}: ${status}`);
 }
 
-import { spawn } from "node:child_process";
-
 async function fetchTest(url, validator, options = {}) {
   try {
     const resp = await fetch(url, options);
@@ -60,7 +59,7 @@ async function main() {
   try{
     await fetch("http://localhost:4000/health");
   }
-  catch(error) {
+  catch {
     console.log("Starting backend server for tests...");
     serverProcess = spawn("/usr/bin/env", ["corepack", "pnpm", "--filter", "@optigrid/core", "run", "dev"], { cwd: root, stdio: "ignore" });
     for (let i = 0; i < 30; i++) {
@@ -69,7 +68,8 @@ async function main() {
         console.log("Backend server is ready!");
         break;
       }
-      catch (err) {
+      catch {
+        // The health check is expected to fail while the local server starts; retry until the loop expires.
         await new Promise(r => setTimeout(r, 1000));
       }
     }
@@ -200,7 +200,7 @@ async function main() {
           passed: false,details: `FAIL, CORS aint working`
         };
       }
-      if(allowOrigin === "http://malicious.com") {
+      if(allowOrigin === MALICIOUS_ORIGIN) {
         return {
           passed: false,
           details: `FAIL, CORS allows malicious origins`
@@ -210,7 +210,7 @@ async function main() {
       };
     }, {
       headers: {
-        "Origin": "http://malicious.com"
+        "Origin": MALICIOUS_ORIGIN
       }
     });
   });

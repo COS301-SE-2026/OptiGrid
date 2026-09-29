@@ -129,7 +129,8 @@ catch(e) {
       await fetch("http://localhost:4000/health");
       break;
     }
-    catch(error) {
+    catch {
+      // The health check is expected to fail while the local server starts; retry until the loop expires.
       await new Promise(r => setTimeout(r, 1000));
     }
   }

@@ -160,7 +160,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/ingestion/requirements.txt
           pip install -r backend/analytics/requirements.txt
-          pip install pytest-cov
+          python -m pip install --only-binary :all: pytest-cov==7.1.0
 
       - name: Run ingestion unit tests
         run: python -m pytest tests/unit/ingestion/ -v --cov=backend/ingestion --cov-report=xml:coverage-ingestion.xml

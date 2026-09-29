@@ -6,7 +6,8 @@ for (let i = 0; i < 30; i++) {
     await fetch("http://localhost:4000/health");
     break;
   }
-  catch(err) {
+  catch {
+    // The health check is expected to fail while the local server starts; retry until the loop expires.
     await new Promise(r => setTimeout(r, 1000));
   }
 }
