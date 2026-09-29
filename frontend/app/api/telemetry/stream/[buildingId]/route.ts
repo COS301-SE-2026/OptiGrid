@@ -3,6 +3,7 @@ import { getForwardHeaders } from "@/lib/coreProxy";
 const CORE_URL = process.env.CORE_URL ?? "http://core:4000"; // NOSONAR
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 function upstreamHeaders(request: Request): Record<string, string> {
   const headers: Record<string, string> = { Accept: "text/event-stream" };
