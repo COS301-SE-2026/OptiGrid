@@ -42,7 +42,7 @@ jobs:
         run: pnpm --filter @optigrid/frontend run test:coverage
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: frontend
@@ -129,7 +129,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: backend-core
@@ -169,7 +169,7 @@ jobs:
         run: python -m pytest tests/unit/analytics/ -v --cov=backend/analytics --cov-report=xml:coverage-analytics.xml
 
       - name: Upload Python coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: python
