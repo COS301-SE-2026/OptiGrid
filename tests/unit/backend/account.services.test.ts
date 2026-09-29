@@ -64,6 +64,24 @@ describe('account service', () => {
         process.env = originalEnv;
     });
 
+    it('refuses to deactivate the last active administrator', async () => {
+        mockedPrisma.user.findUnique.mockResolvedValue({ ...viewer, roleType: UserRole.ADMIN });
+        mockedPrisma.user.count.mockResolvedValue(1);
+
+        await expect(deactivateAccount(viewer.userId)).rejects.toMatchObject({ code: 'LAST_ACTIVE_ADMIN' });
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('lets an administrator deactivate while another administrator stays active', async () => {
+        const admin = { ...viewer, roleType: UserRole.ADMIN };
+        mockedPrisma.user.findUnique.mockResolvedValue(admin);
+        mockedPrisma.user.count.mockResolvedValue(2);
+        mockedPrisma.user.update.mockResolvedValue({ ...admin, accountStatus: AccountStatus.DEACTIVATED });
+
+        const result = await deactivateAccount(viewer.userId);
+        expect(result.accountStatus).toBe(AccountStatus.DEACTIVATED);
+    });
+
     it('soft-deletes an active account while retaining its profile', async () => {
         mockedPrisma.user.findUnique.mockResolvedValue(viewer);
         mockedPrisma.user.update.mockResolvedValue({
@@ -145,7 +163,7 @@ describe('account service', () => {
 
         await expect(
             permanentlyDeleteAccount('22222222-2222-4222-8222-222222222222', admin.userId),
-        ).rejects.toThrow('The last active administrator cannot be permanently deleted.');
+        ).rejects.toThrow('The last active administrator cannot be removed. Make another user an administrator first.');
 
         expect(mockDeleteUser).not.toHaveBeenCalled();
         expect(mockedPrisma.user.delete).not.toHaveBeenCalled();

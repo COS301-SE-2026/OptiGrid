@@ -105,7 +105,7 @@ export default function ViewerAnomalyPage() {
           <div className="dashboard-header">
             <div>
               <h1 className="dashboard-title">Anomaly Alerts</h1>
-              <div className="dashboard-subtitle">View anomalies across your buildings</div>
+              <div className="dashboard-subtitle">View anomalies across your buildings.</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
               <NotificationBadge count={newAnomalies} />

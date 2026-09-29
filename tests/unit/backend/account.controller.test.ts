@@ -84,6 +84,18 @@ describe('account controller', () => {
         });
     });
 
+    it('returns 409 when the last active administrator tries to deactivate', async () => {
+        const { res, status, json } = mockResponse();
+        mockedAccountServices.deactivateAccount.mockRejectedValue(new LastActiveAdminError());
+
+        await deactivateMyAccount({
+            user: { id: viewer.userId, roleType: UserRole.ADMIN, user_metadata: {} },
+        } as Request, res);
+
+        expect(status).toHaveBeenCalledWith(409);
+        expect(json).toHaveBeenCalledWith(expect.objectContaining({ code: 'LAST_ACTIVE_ADMIN' }));
+    });
+
     describe('permanentlyDeleteUser', () => {
         const targetUserId = '22222222-2222-4222-8222-222222222222';
         const adminRequest = {

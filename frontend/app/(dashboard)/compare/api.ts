@@ -31,6 +31,7 @@ function mapBuilding(row: RawBuilding): Building {
         id,
         name,
         squareFootage: toFiniteNumber(row.square_footage),
+        todayKwh: toFiniteNumber(row.today_kwh),
     };
 }
 

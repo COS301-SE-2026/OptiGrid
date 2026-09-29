@@ -1,4 +1,4 @@
-import { boundsOf, buildPoint, changeAgainst, colourStops, coordinatesOf, createPortfolioStore, describeTimeframe, formatChange, formatEnergy, formatIntensity, hexagonAround, isPlaced, LIVE_INDEX, mixColours, parseColour, portfolioTotals, rankPoints, scaleOf, STALE_READING_MS, stressBand, stressColour, stressGradient, stressOf, timeframeAt, timeframeById, TIMEFRAMES, timeframeTarget, toFeatureCollection, toTowerCollection, towerScale, type HeatmapBuilding, type HeatmapPoint } from "./heatmap";
+import { boundsOf, buildPoint, changeAgainst, colourStops, coordinatesOf, createPortfolioStore, describeTimeframe, formatChange, formatEnergy, formatIntensity, hexagonAround, isPlaced, LIVE_INDEX, mixColours, parseColour, portfolioTotals, rankPoints, scaleOf, STALE_READING_MS, stressBand, stressColour, stressGradient, stressOf, timeframeAt, timeframeById, TIMEFRAMES, timeframeTarget, toFeatureCollection, toTowerCollection, metresPerPixel, type HeatmapBuilding, type HeatmapPoint } from "./heatmap";
 
 const NOW = Date.parse("2026-09-18T10:00:00.000Z");
 const DAY = 86400000;
@@ -244,7 +244,9 @@ describe("createPortfolioStore", () => {
     });
 });
 describe("tower geometry", () => {
-    const scaleFor = (points: HeatmapPoint[]) => scaleOf(points, "total");
+    const towersFor = (points: HeatmapPoint[], zoom = 10) => toTowerCollection(toFeatureCollection(points, "total", scaleOf(points, "total")), zoom);
+    const place = (id: string, value: number | null, offset: number) => buildPoint({ building_id: id, building_name: id, latitude: -25.75 - offset, longitude: 28.23 + offset }, value, "kW");
+    const pointsOf = (...points: Array<HeatmapPoint | null>) => points.filter((point): point is HeatmapPoint => point !== null);
 
     it("closes the hexagon ring and also keeps it centred", () => {
         const ring = hexagonAround(28.23, -25.75, 500);
@@ -256,51 +258,52 @@ describe("tower geometry", () => {
         expect((Math.min(...lats) + Math.max(...lats)) / 2).toBeCloseTo(-25.75, 6);
     });
 
-    it("amkes the footprint wider as the portfolio spreads out", () => {
-        const campus = towerScale([
-            { latitude: -25.75, longitude: 28.23 },
-            { latitude: -25.755, longitude: 28.235 },
-        ]);
-        const country = towerScale([
-            { latitude: -25.75, longitude: 28.23 },
-            { latitude: -33.92, longitude: 18.42 },
-        ]);
-        expect(country.radius).toBeGreaterThan(campus.radius);
-        expect(campus.radius).toBeGreaterThanOrEqual(70);
-        expect(country.radius).toBeLessThanOrEqual(5000);
+    it("split by half the ground covered by a pixel with every zoom level", () => {
+        expect(metresPerPixel(-25.75, 10) / metresPerPixel(-25.75, 11)).toBeCloseTo(2, 6);
+        expect(metresPerPixel(0, 0)).toBeCloseTo(40075016.686 / 512, 3);
     });
 
-    it("gives the hottest building the tallest tower and flags the quiet ones", () => {
-        const points = [
-            buildPoint({ building_id: "b1", building_name: "Hot", latitude: -25.75, longitude: 28.23 }, 900, "kWh/day"),
-            buildPoint({ building_id: "b2", building_name: "Mild", latitude: -25.76, longitude: 28.24 }, 200, "kWh/day"),
-            buildPoint({ building_id: "b3", building_name: "Silent", latitude: -25.77, longitude: 28.25 }, null, "kWh/day"),
-        ].filter((point): point is HeatmapPoint => point !== null);
-
-        const towers = toTowerCollection(points, "total", scaleFor(points));
+    it("gives the busiest building the tallest tower and flags the quiet ones", () => {
+        const towers = towersFor(pointsOf(place("hot", 900, 0), place("mild", 200, 0.01), place("silent", null, 0.02)));
 
         expect(towers.features).toHaveLength(3);
         const [hot, mild, silent] = towers.features;
         expect(hot.properties.height).toBeGreaterThan(mild.properties.height);
         expect(mild.properties.height).toBeGreaterThan(silent.properties.height);
+        expect(mild.properties.share).toBeCloseTo(200 / 900, 6);
         expect(silent.properties.reporting).toBe(0);
         expect(hot.properties.reporting).toBe(1);
         expect(hot.geometry.coordinates[0]).toHaveLength(7);
     });
 
-    it("falls back to a fixed footprint for a single building", () => {
-        const single = towerScale([{ latitude: -25.75, longitude: 28.23 }]);
-        expect(single.radius).toBe(140);
-        expect(towerScale([])).toEqual(single);
+    it("keeps the two busiest buildings apart even when the colour scale caps them both", () => {
+        const points = pointsOf(place("a", 165, 0), place("b", 139, 0.01), place("c", 108, 0.02), place("d", 90, 0.03), place("e", 49, 0.04), place("f", 19, 0.05));
+        const colours = toFeatureCollection(points, "total", scaleOf(points, "total")).features;
+        expect(colours[0].properties.stress).toBe(colours[1].properties.stress);
+
+        const towers = towersFor(points).features;
+        for (let index = 1; index < towers.length; index += 1) {
+            expect(towers[index].properties.height).toBeLessThan(towers[index - 1].properties.height);
+        }
+        expect(towers[0].properties.share).toBe(1);
+        expect(towers[1].properties.share).toBeCloseTo(139 / 165, 6);
+    });
+
+    it("keeps each tower the same size on screen at any zoom", () => {
+        const points = pointsOf(place("a", 120, 0), place("b", 60, 0.01));
+        const near = towersFor(points, 14).features[0];
+        const far = towersFor(points, 8).features[0];
+        const width = (feature: typeof near) => {
+            const lons = feature.geometry.coordinates[0].map(([lon]) => lon);
+            return Math.max(...lons) - Math.min(...lons);
+        };
+
+        expect(far.properties.height / near.properties.height).toBeCloseTo(64, 6);
+        expect(width(far) / width(near)).toBeCloseTo(64, 6);
     });
 
     it("keeps every tower above the ground so nothing vanishes", () => {
-        const points = [
-            buildPoint({ building_id: "b1", building_name: "Peak", latitude: -25.75, longitude: 28.23 }, 5000, "kWh/day"),
-            buildPoint({ building_id: "b2", building_name: "Trace", latitude: -25.76, longitude: 28.24 }, 0.4, "kWh/day"),
-        ].filter((point): point is HeatmapPoint => point !== null);
-
-        const towers = toTowerCollection(points, "total", scaleFor(points));
+        const towers = towersFor(pointsOf(place("peak", 5000, 0), place("trace", 0.4, 0.01), place("zero", 0, 0.02)));
 
         for (const feature of towers.features) {
             expect(feature.properties.height).toBeGreaterThan(0);

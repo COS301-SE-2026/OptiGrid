@@ -9,6 +9,7 @@ import {
     ComparisonMetricCards,
 } from "./components";
 import { fetchBuildings, fetchComparison } from "./api";
+import { rankByUsage } from "@/lib/rankBuildings";
 import type { ComparisonBuilding, ComparisonSeriesPoint, Metric, TimeRange } from "./types";
 
 export default function CompareBuildingPage() {
@@ -23,7 +24,7 @@ export default function CompareBuildingPage() {
         isError: buildingsError,
         error: buildingsErrorDetails,
     } = useQuery({
-        queryKey: ["buildings"],
+        queryKey: ["buildings", "compare"],
         queryFn: fetchBuildings,
     });
 
@@ -34,7 +35,7 @@ export default function CompareBuildingPage() {
         }
 
         setBuildingA((current) =>
-            buildings.some((building) => building.id === current) ? current : buildings[0].id,
+            buildings.some((building) => building.id === current) ? current : rankByUsage(buildings)[0].id,
         );
     }, [buildings]);
 
@@ -52,7 +53,7 @@ export default function CompareBuildingPage() {
                 return current;
             }
 
-            return buildings.find((building) => building.id !== buildingA)?.id ?? "";
+            return rankByUsage(buildings).find((building) => building.id !== buildingA)?.id ?? "";
         });
     }, [buildings, buildingA]);
 
@@ -146,57 +147,58 @@ export default function CompareBuildingPage() {
 
     return (
         <div className="dashboard-content">
-            <header className="dashboard-header">
-                <div>
-                    <h1 className="dashboard-title">Compare Buildings</h1>
-                    <p className="dashboard-subtitle">Analyze performance metrics across your portfolio</p>
-                </div>
-            </header>
+            <div className="screen-fit">
+                <header className="dashboard-header">
+                    <div>
+                        <h1 className="dashboard-title">Compare Buildings</h1>
+                        <p className="dashboard-subtitle">Analyse how your buildings perform side by side.</p>
+                    </div>
+                </header>
 
-            <CompareControls
-                buildings={buildings}
-                buildingA={buildingA}
-                buildingB={buildingB}
-                dateRange={dateRange}
-                metric={metric}
-                disabled={controlsDisabled}
-                buildingsLoading={buildingsLoading}
-                buildingsError={buildingsError}
-                buildingsErrorMessage={buildingsErrorDetails?.message}
-                comparisonError={comparisonError}
-                comparisonErrorMessage={comparisonErrorDetails?.message}
-                onBuildingAChange={setBuildingA}
-                onBuildingBChange={setBuildingB}
-                onDateRangeChange={setDateRange}
-                onMetricChange={setMetric}
-            />
-
-            <div aria-label="Comparison metrics">
-                <ComparisonMetricCards
+                <CompareControls
+                    buildings={buildings}
                     buildingA={buildingA}
                     buildingB={buildingB}
-                    metric={metric}
-                    loading={loadingComparison}
-                    selectedComparisonA={selectedComparisonA}
-                    selectedComparisonB={selectedComparisonB}
-                    getBuildingName={getBuildingName}
-                    getValue={getValue}
-                />
-            </div>
-
-            <div aria-label="Comparison chart">
-                <ComparisonChart
-                    chartData={chartData}
-                    canCompare={canCompare}
-                    comparisonError={comparisonError}
-                   
-                    loading={loadingComparison}
                     dateRange={dateRange}
                     metric={metric}
-                    buildingA={buildingA}
-                    buildingB={buildingB}
-                    getBuildingName={getBuildingName}
+                    disabled={controlsDisabled}
+                    buildingsLoading={buildingsLoading}
+                    buildingsError={buildingsError}
+                    buildingsErrorMessage={buildingsErrorDetails?.message}
+                    comparisonError={comparisonError}
+                    comparisonErrorMessage={comparisonErrorDetails?.message}
+                    onBuildingAChange={setBuildingA}
+                    onBuildingBChange={setBuildingB}
+                    onDateRangeChange={setDateRange}
+                    onMetricChange={setMetric}
                 />
+
+                <div aria-label="Comparison metrics">
+                    <ComparisonMetricCards
+                        buildingA={buildingA}
+                        buildingB={buildingB}
+                        metric={metric}
+                        loading={loadingComparison}
+                        selectedComparisonA={selectedComparisonA}
+                        selectedComparisonB={selectedComparisonB}
+                        getBuildingName={getBuildingName}
+                        getValue={getValue}
+                    />
+                </div>
+
+                <div className="screen-fit-grow" aria-label="Comparison chart">
+                    <ComparisonChart
+                        chartData={chartData}
+                        canCompare={canCompare}
+                        comparisonError={comparisonError}
+                        loading={loadingComparison}
+                        dateRange={dateRange}
+                        metric={metric}
+                        buildingA={buildingA}
+                        buildingB={buildingB}
+                        getBuildingName={getBuildingName}
+                    />
+                </div>
             </div>
 
             <div aria-label="Comparison insights">

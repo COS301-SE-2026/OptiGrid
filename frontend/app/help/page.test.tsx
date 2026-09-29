@@ -17,10 +17,10 @@ describe("HelpPage", () => {
     it("renders the help heading and intro copy", () => {
         expect(
             screen.getByRole("heading", {
-                name: "Pick one of the resources available below to help with your problem",
+                name: "Find the help you need",
             })
         ).toBeInTheDocument();
-        expect(screen.getByText(/our help centre groups the most useful resources/i)).toBeInTheDocument();
+        expect(screen.getByText(/pick a guide below/i)).toBeInTheDocument();
     });
 
     it("renders all the quick access cards with their actions", () => {

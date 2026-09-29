@@ -143,7 +143,7 @@ describe("DashboardPage", () => {
 
     it("renders the subtitle", async () => {
       renderPage();
-      expect(await screen.findByText(/portfolio overview - last updated/i)).toBeInTheDocument();
+      expect(await screen.findByText(/portfolio overview\. last updated/i)).toBeInTheDocument();
     });
   });
 

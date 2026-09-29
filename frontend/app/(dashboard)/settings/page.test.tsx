@@ -19,7 +19,7 @@ jest.mock("next/link", () => ({
   default: ({ children, href }) => <a href={href}>{children}</a>,
 }));
 
-jest.mock("../theme-provider", () => ({
+jest.mock("@/app/theme-provider", () => ({
   useTheme: () => ({ theme: mockTheme, toggle: mockToggle }),
 }));
 
@@ -333,10 +333,6 @@ it.each([
 });
 
 
-
-
-
-
     it("shows toast 'Profile reset'", async () => {
       
         render(<SettingsPage />);
@@ -513,11 +509,8 @@ it.each([
       })
     ).toBeInTheDocument();
 
-    expect(
-      screen.getByText(
-        /All your data will be permanently deleted. This action cannot be undone/i
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText(/You will be logged out and lose access straight away/i)).toBeInTheDocument();
+    expect(screen.getByText(/Log in with the same email and password and choose Recover account/i)).toBeInTheDocument();
   });
 
   it("closes the Delete Account modal when Cancel is clicked", () => {
@@ -552,68 +545,49 @@ it.each([
     });
 
 
-    describe("Recover Account", () => {
-  it("opens the Recover Account modal when clicked", () => {
+    describe("Deleting and recovering an account", () => {
+  const confirmDelete = () => {
     render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: /^Delete Account$/i }));
+    const modal = screen.getByRole("dialog");
+    fireEvent.click(within(modal).getByRole("button", { name: /^Delete Account$/i }));
+  };
 
-    const recoverButton = screen.getByRole("button", {
-      name: /^Recover Account$/i,
-    });
-
-    fireEvent.click(recoverButton);
-
-    expect(
-      screen.getByRole("heading", {
-        name: /Recover Account/i,
-      })
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByText(
-        /Are you sure you want to recover your account/i
-      )
-    ).toBeInTheDocument();
+  it("does not offer a recover button on the settings page", () => {
+    render(<SettingsPage />);
+    expect(screen.queryByRole("button", { name: /Recover Account/i })).not.toBeInTheDocument();
   });
 
-  it("closes the Recover Account modal when Cancel is clicked", () => {
-    render(<SettingsPage />);
+  it("deactivates the account, logs out and sends the user to the login page", async () => {
+    confirmDelete();
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/login?deleted=1"));
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /^Recover Account$/i,
-      })
+    const calls = (global.fetch as jest.Mock).mock.calls.map(([url, init]) => [url, init?.method]);
+    expect(calls).toContainEqual(["/api/accounts/me/deactivate", "POST"]);
+    expect(calls).toContainEqual(["/api/auth/logout", "POST"]);
+    const deactivateIndex = calls.findIndex(([url]) => url === "/api/accounts/me/deactivate");
+    const logoutIndex = calls.findIndex(([url]) => url === "/api/auth/logout");
+    expect(deactivateIndex).toBeLessThan(logoutIndex);
+    expect(mockPush).toHaveBeenCalledWith("/login?deleted=1");
+  });
+
+  it("keeps the user signed in and explains why when deletion is refused", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(
+        url === "/api/accounts/me/deactivate"
+          ? { ok: false, json: async () => ({ message: "The last active administrator cannot be removed. Make another user an administrator first." }) }
+          : { ok: true, json: async () => ({}) },
+      ),
     );
 
-    expect(
-      screen.getByRole("heading", {
-        name: /Recover Account/i,
-      })
-    ).toBeInTheDocument();
+    confirmDelete();
 
-    const modal = screen.getByRole("dialog");
-
-    fireEvent.click(
-      within(modal).getByRole("button", {
-        name: /^Cancel$/i,
-      })
-    );
-
-    expect(
-      screen.queryByRole("heading", {
-        name: /Recover Account/i,
-      })
-    ).not.toBeInTheDocument();
+    expect(await screen.findByText(/last active administrator cannot be removed/i)).toBeInTheDocument();
+    expect((global.fetch as jest.Mock).mock.calls.map(([url]) => url)).not.toContain("/api/auth/logout");
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });
 
-
-
-
-
-
-
- 
- 
   describe("Profile loading", () => {
     const sessionProfile = {
       userId: "user-123",

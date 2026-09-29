@@ -144,7 +144,7 @@ test.describe("Settings page", () => {
       new URL(response.url()).pathname.endsWith("/api/auth/logout")
     );
 
-    await page.getByRole("button", { name: "Logout", exact: true }).click();
+    await page.getByRole("region", { name: "Account management" }).getByRole("button", { name: "Logout", exact: true }).click();
     const logoutResponse = await logoutResponsePromise;
     expect(logoutResponse.status()).toBeLessThan(400);
     await expect(page.getByText("Logged out", { exact: true })).toBeVisible();

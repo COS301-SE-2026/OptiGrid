@@ -83,3 +83,7 @@ infrastructure/docker/.generated/
 .mypy_cache/
 .coverage
 *.json
+
+!frontend/app/landing.json
+!frontend/app/faqs/faqs.json
+!frontend/app/help/tutorials/tutorials.json
