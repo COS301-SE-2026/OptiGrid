@@ -10,7 +10,7 @@ module.exports = {
         '!<rootDir>/src/**/*.d.ts',
     ],
     transform: {
-        '^.+\\.tsx?$': ['ts-jest', { 
+        '^.+\\.[tj]sx?$': ['ts-jest', { 
             tsconfig: '<rootDir>/tsconfig.jest.json',
             diagnostics: false
         }],
@@ -19,7 +19,8 @@ module.exports = {
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^supertest$': path.resolve(__dirname, '../../node_modules/supertest'),
-        '^@types/supertest$': path.resolve(__dirname, '../../node_modules/@types/supertest')
+        '^@types/supertest$': path.resolve(__dirname, '../../node_modules/@types/supertest'),
+        '^uuid$': '<rootDir>/__mocks__/uuid-mock.js'
     },
     clearMocks: true,
     restoreMocks: true,

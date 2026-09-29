@@ -223,9 +223,9 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
         }
 
         const finalScore = Math.round(
-            energyEffScore * 0.35 + 
-            renewablesScore * 0.30 + 
-            hvacScore * 0.20 + 
+            energyEffScore * 0.50 + 
+            renewablesScore * 0.10 + 
+            hvacScore * 0.25 + 
             lightingScore * 0.15
         );
 
@@ -243,9 +243,9 @@ export const getEsgHealthScoreController = async (req: Request, res: Response) =
             computedAt: new Date().toISOString(),
             trend: 0,
             dimensions: [
-                { dimension: "energy_efficiency", label: "Energy Efficiency", score: energyEffScore, weight: 0.35, trend: 0 },
-                { dimension: "renewables", label: "Renewable Energy", score: renewablesScore, weight: 0.3, trend: 0 },
-                { dimension: "hvacLoad", label: "HVAC Optimization", score: hvacScore, weight: 0.2, trend: 0 },
+                { dimension: "energy_efficiency", label: "Energy Efficiency", score: energyEffScore, weight: 0.50, trend: 0 },
+                { dimension: "renewables", label: "Renewable Energy", score: renewablesScore, weight: 0.10, trend: 0 },
+                { dimension: "hvacLoad", label: "HVAC Optimization", score: hvacScore, weight: 0.25, trend: 0 },
                 { dimension: "lighting", label: "Lighting Optimization", score: lightingScore, weight: 0.15, trend: 0 }
             ],
             carbonIntensity,

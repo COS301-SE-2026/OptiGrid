@@ -104,9 +104,9 @@ const stateConfig: Record<
 };
 
 const WEIGHTS = {
-  energyEfficiency: 0.35,
-  renewables: 0.3,
-  hvacLoad: 0.2,
+  energyEfficiency: 0.50,
+  renewables: 0.10,
+  hvacLoad: 0.25,
   lighting: 0.15,
 };
 
@@ -379,10 +379,10 @@ export function LivingEnvironment({ buildingId, buildingName }: LivingEnvironmen
         <div className="esg-weights">
           <span className="dashboard-section-meta">Score weights</span>
           <ul>
-            <li>Efficiency 35%</li>
-            <li>Renewables 30%</li>
-            <li>HVAC 20%</li>
+            <li>Efficiency 50%</li>
+            <li>HVAC 25%</li>
             <li>Lighting 15%</li>
+            <li>Renewables 10%</li>
           </ul>
         </div>
       </section>

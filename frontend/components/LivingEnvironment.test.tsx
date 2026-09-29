@@ -153,8 +153,8 @@ describe("LivingEnvironment", () => {
   describe("Weightage note", () => {
     it("renders the weightage description", async () => {
       renderEnv();
-      expect(await screen.findByText(/efficiency 35%/i)).toBeInTheDocument();
-      expect(screen.getByText(/renewables 30%/i)).toBeInTheDocument();
+      expect(await screen.findByText(/efficiency 50%/i)).toBeInTheDocument();
+      expect(screen.getByText(/renewables 10%/i)).toBeInTheDocument();
     });
   });
 });
