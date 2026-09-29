@@ -1,9 +1,11 @@
 const { Client } = require('pg');
 import request from 'supertest';
+import type { Queue } from 'bullmq';
 import { createCoreApiHarness, type CoreApiHarness } from './harness/core-api-harness';
 
 describe('Analytics API Integration', () => {
 	let harness: CoreApiHarness;
+	let analyticsQueue: Queue;
 	const testBuildingId = '22222222-2222-4222-8222-222222222222';
 	const testUserId = '11111111-1111-1111-1111-111111111111';
 	const unassignedBuildingId = '33333333-3333-4333-8333-333333333333';
@@ -51,12 +53,70 @@ describe('Analytics API Integration', () => {
 				],
 			},
 		});
+		analyticsQueue = (await import('../../../../backend/core/src/services/bullmq')).analyticsQueue;
 	}, 180000);
 
 	afterEach(async () => {
+		if (analyticsQueue) {
+			await analyticsQueue.drain(true);
+		}
 		if (harness) {
 			await harness.resetDatabase();
 		}
+	});
+
+	it('queues an analytics refresh for an assigned building', async () => {
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+		try {
+			await seedAssignedBuildingAccess(client);
+		} finally {
+			await client.end();
+		}
+
+		const response = await request(harness.app)
+			.post(`/api/analytics/refresh/${testBuildingId}`);
+
+		expect(response.status).toBe(202);
+		expect(response.body).toEqual({
+			status: 'accepted',
+			message: 'Analytics refresh task queued, a FORECAST_READY websocket event will be sent shortly',
+		});
+		const jobs = await analyticsQueue.getJobs(['waiting', 'delayed']);
+		expect(jobs).toHaveLength(1);
+		expect(jobs[0]).toMatchObject({
+			name: 'refresh_building',
+			data: { building_id: testBuildingId },
+		});
+	});
+
+	it('does not queue a refresh for an unassigned building', async () => {
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+		try {
+			await seedAssignedBuildingAccess(client);
+			await client.query(
+				`INSERT INTO public.buildings (building_id, building_name, timezone)
+				 VALUES ($1, $2, $3)`,
+				[unassignedBuildingId, 'Unassigned Refresh Building', 'UTC'],
+			);
+		} finally {
+			await client.end();
+		}
+
+		const response = await request(harness.app)
+			.post(`/api/analytics/refresh/${unassignedBuildingId}`);
+
+		expect(response.status).toBe(403);
+		expect(await analyticsQueue.count()).toBe(0);
+	});
+
+	it('rejects an invalid refresh building id before queueing', async () => {
+		const response = await request(harness.app)
+			.post('/api/analytics/refresh/not-a-building');
+
+		expect(response.status).toBe(400);
+		expect(await analyticsQueue.count()).toBe(0);
 	});
 
 	afterAll(async () => {
@@ -128,7 +188,13 @@ describe('Analytics API Integration', () => {
 		expect(response.body.summary.peak_kwh).toBe(300);
 		expect(response.body.summary.avg_daily_kwh).toBe(120.2);
 		expect(response.body.summary.mape).toBe(2.1);
-		expect(response.body.historical[0].kwh).toBe(300);
+		expect(response.body.historical).toEqual([]);
+		expect(response.body.metadata).toEqual({
+			timezone: 'UTC',
+			value_unit: 'kW',
+			average_unit: 'kWh/day',
+			accuracy_metric: 'MAPE',
+		});
 		expect(response.body.forecast[0].yhat).toBe(300);
 		expect(response.body.forecast[0].yhat_lower).toBe(300);
 		expect(response.body.forecast[0].yhat_upper).toBe(300);
@@ -306,7 +372,7 @@ describe('Analytics API Integration', () => {
 		expect(response.body.summary.peak_kwh).toBe(215);
 		expect(response.body.summary.avg_daily_kwh).toBe(180.5);
 		expect(response.body.summary.mape).toBe(1.5);
-		expect(response.body.historical[0].kwh).toBe(210);
+		expect(response.body.historical).toEqual([]);
 		expect(response.body.forecast).toHaveLength(2);
 		expect(response.body.forecast[0]).toEqual({
 			timestamp: '2026-07-23T00:00:00Z',
@@ -368,7 +434,8 @@ describe('Analytics API Integration', () => {
 		expect(response.body.summary.peak_kwh).toBe(720);
 		expect(response.body.summary.avg_daily_kwh).toBe(280.0);
 		expect(response.body.summary.mape).toBe(3.8);
-		expect(response.body.historical[0].kwh).toBe(700);
+		expect(response.body.historical).toEqual([]);
+		expect(response.body.metadata.value_unit).toBe('kWh/week');
 		expect(response.body.forecast).toHaveLength(3);
 		expect(response.body.forecast[0].yhat).toBe(700);
 		expect(response.body.forecast[1].yhat).toBe(720);

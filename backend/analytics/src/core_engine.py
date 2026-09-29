@@ -69,7 +69,7 @@ class AnalyticsEngine:
                     "todays_cost": 0.0,
                     "forecast_peak": 0.0,
                     "forecast_avg_day": 0.0,
-                    "model_mape": 0.0,
+                    "model_mape": None,
                     "forecast_series": [],
                     "min_historic": 0.0,
                     "max_historic": 0.0,
@@ -144,6 +144,7 @@ class AnalyticsEngine:
                 
                 point = Point("energy_telemetry") \
                     .tag("building_id", clean_id) \
+                    .tag("source_type", "synthetic_forecast_seed") \
                     .field("usage", round(raw_usage, 2)) \
                     .field("usage_kwh", round(raw_usage, 2)) \
                     .field("cost_zar", cost_zar) \
@@ -151,6 +152,7 @@ class AnalyticsEngine:
                 
                 point_down = Point("energy_telemetry_downsampled") \
                     .tag("building_id", clean_id) \
+                    .tag("source_type", "synthetic_forecast_seed") \
                     .field("usage", round(raw_usage, 2)) \
                     .field("usage_kwh", round(raw_usage, 2)) \
                     .field("cost_zar", cost_zar) \
@@ -177,9 +179,9 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -7d) 
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
-            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
-            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
         # get influx data
@@ -190,6 +192,8 @@ class AnalyticsEngine:
             df = self.influx.query_api().query_data_frame(query)
             if df.empty:
                 return {}
+
+        df = self._prefer_measured_telemetry(df)
 
         if "usage" not in df.columns and "usage_kwh" in df.columns:
             df = df.rename(columns={"usage_kwh": "usage"})
@@ -245,7 +249,7 @@ class AnalyticsEngine:
             return {
                 "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
                 "forecast_avg_day": round(sum(f["predicted_usage"] for f in forecast_series), 2),
-                "model_mape": 0.0,
+                "model_mape": None,
                 "forecast_series": forecast_series,
                 "min_historic": round(df['usage'].min() if not df.empty else 0, 2),
                 "max_historic": round(df['usage'].max() if not df.empty else 0, 2),
@@ -278,9 +282,10 @@ class AnalyticsEngine:
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
-            #chnaged metric to MAE n used timeseries
+            # Select the model using percentage error so the persisted metric
+            # is a genuine MAPE value rather than an MAE with a percent sign.
             time_series_CV = TimeSeriesSplit(n_splits=3)
-            scores = cross_val_score(model, X, y, cv=time_series_CV, scoring='neg_mean_absolute_error')
+            scores = cross_val_score(model, X, y, cv=time_series_CV, scoring='neg_mean_absolute_percentage_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
@@ -338,7 +343,7 @@ class AnalyticsEngine:
         return {
             "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
             "forecast_avg_day": round(sum(daily_sums) / 7.0, 2),
-            "model_mape": round(study.best_value, 4),
+            "model_mape": round(study.best_value * 100.0, 4),
             "forecast_series": forecast_series,
             "min_historic": round(df['usage'].min(), 2),
             "max_historic": round(df['usage'].max(), 2),
@@ -365,7 +370,7 @@ class AnalyticsEngine:
             return {
                 "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
                 "forecast_avg_day": round(sum(f["predicted_usage"] for f in forecast_series) / 12.0, 2),
-                "model_mape": 0.0,
+                "model_mape": None,
                 "forecast_series": forecast_series,
                 "min_historic": round(df['usage'].min() if not df.empty else 0, 2),
                 "max_historic": round(df['usage'].max() if not df.empty else 0, 2),
@@ -402,9 +407,9 @@ class AnalyticsEngine:
                 learning_rate = trial.suggest_float("learning_rate", 1e-3, 0.3, log=True)
                 model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, min_samples_leaf=1, max_features=1.0, random_state=42)
             
-            #change metirc to MAE n use timeseries
+            # Keep model selection and the displayed validation metric aligned.
             time_series = TimeSeriesSplit(n_splits=2)
-            scores = cross_val_score(model, X, y, cv=time_series, scoring='neg_mean_absolute_error')
+            scores = cross_val_score(model, X, y, cv=time_series, scoring='neg_mean_absolute_percentage_error')
             return -scores.mean()
 
         study = optuna.create_study(direction="minimize")
@@ -467,7 +472,7 @@ class AnalyticsEngine:
         return {
             "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
             "forecast_avg_day": round(sum(f["predicted_usage"] for f in forecast_series) / 12.0, 2),
-            "model_mape": round(study.best_value, 4),
+            "model_mape": round(study.best_value * 100.0, 4),
             "forecast_series": forecast_series,
             "min_historic": round(df['usage'].min(), 2),
             "max_historic": round(df['usage'].max(), 2),
@@ -505,7 +510,7 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -30d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
-            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
             |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
@@ -516,9 +521,9 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -180d) 
             |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh")
-            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
             |> filter(fn: (r) => r["building_id"] == "{clean_id}")
-            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
         '''
 
@@ -546,6 +551,9 @@ class AnalyticsEngine:
             except Exception:
                 logger.exception("Re-querying InfluxDB after seeding failed for %s", clean_id)
                 return
+
+        df_weekly = self._prefer_measured_telemetry(df_weekly)
+        df_monthly = self._prefer_measured_telemetry(df_monthly)
 
         # process weekly analytics
         if df_weekly is not None and not df_weekly.empty:
@@ -676,7 +684,25 @@ class AnalyticsEngine:
             logger.exception("Re-querying InfluxDB after seeding failed")
             return df_weekly, pd.DataFrame()
 
+    @staticmethod
+    def _prefer_measured_telemetry(df: pd.DataFrame) -> pd.DataFrame:
+        """Drop synthetic rows for buildings that have sensor-tagged measurements."""
+        if df is None or df.empty or "building_id" not in df.columns or "sensor_id" not in df.columns:
+            return df
+
+        sensor_ids = df["sensor_id"].astype("string").str.strip()
+        measured_mask = sensor_ids.notna() & sensor_ids.ne("")
+        measured_buildings = set(df.loc[measured_mask, "building_id"])
+        if not measured_buildings:
+            return df
+
+        keep_mask = ~df["building_id"].isin(measured_buildings) | measured_mask
+        return df.loc[keep_mask].copy()
+
     def _run_batch_analytics(self, df_weekly: pd.DataFrame, df_monthly: pd.DataFrame):
+        df_weekly = self._prefer_measured_telemetry(df_weekly)
+        df_monthly = self._prefer_measured_telemetry(df_monthly)
+
         if df_weekly is not None and not df_weekly.empty and "building_id" in df_weekly.columns:
             # cleaning up column names and data types
             df_weekly = df_weekly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
@@ -720,7 +746,7 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -30d) 
             |> filter(fn: (r) => r["_field"] == "usage")
-            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
             |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> group(columns: ["building_id"])
@@ -731,8 +757,8 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}") 
             |> range(start: -180d) 
             |> filter(fn: (r) => r["_field"] == "usage")
-            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
-            |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
+            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
             |> group(columns: ["building_id"])
         '''
@@ -769,7 +795,7 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}")
             |> range(start: -30d)
             |> filter(fn: (r) => r["_field"] == "usage")
-            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
             |> filter(fn: (r) => r["building_id"] == "{building_id}")
             |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
@@ -781,7 +807,7 @@ class AnalyticsEngine:
         from(bucket: "{INFLUXDB_BUCKET}")
             |> range(start: -180d)
             |> filter(fn: (r) => r["_field"] == "usage")
-            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry_downsampled")
+            |> filter(fn: (r) => r["_measurement"] == "energy_telemetry")
             |> filter(fn: (r) => r["building_id"] == "{building_id}")
             |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
@@ -800,8 +826,10 @@ class AnalyticsEngine:
             df_monthly = pd.DataFrame()
 
         df_weekly, monthly_seeded = self._ensure_telemetry_seeded([building_id], df_weekly, weekly, monthly)
-        if not monthly_seeded.empty: 
+        if not monthly_seeded.empty:
             df_monthly = monthly_seeded
+        df_weekly = self._prefer_measured_telemetry(df_weekly)
+        df_monthly = self._prefer_measured_telemetry(df_monthly)
         #process monthly and weekly data
         if df_weekly is not None and not df_weekly.empty and "building_id" in df_weekly.columns:
             df_weekly = df_weekly.rename(columns={"_time": "timestamp", "usage_kwh": "usage"})
@@ -827,6 +855,7 @@ class AnalyticsEngine:
         std_usage = df['usage'].std()        
         forecast_peak = ml_metrics.get("forecast_peak", 0.0) 
         threshold_kw = mean_usage + (0.2 * std_usage)
+        total_kwh = df['usage'].sum() if 'usage' in df.columns else 0.0
 
         recs_data = self.synthesizer.generate_data_driven_rec(
             building_id=building_id,
@@ -835,6 +864,7 @@ class AnalyticsEngine:
             thresold_kw=threshold_kw,
             tariffs=tariffs,
             anomalies=anomalies,
+            cumulative_kwh=total_kwh,
             time_window= time_window_type
         )
         recs_not_data = self.synthesizer.generate_non_data_driven_recs(
@@ -852,4 +882,3 @@ class AnalyticsEngine:
                 self.supabase.table("optimisation_recommendations").upsert(recs_all).execute()
             except Exception as e:
                 logger.exception("Failed to insert recommendations for: %s", building_id)
-    

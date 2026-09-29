@@ -203,10 +203,10 @@ async function provisionAuthUser(email: string, password: string): Promise<Provi
         email_confirm: true,
     });
 
+    if (isSupabaseDuplicateUserError(error)) {
+        throw new Error(USER_EXISTS_ERROR);
+    }
     if (error) {
-        if (isSupabaseDuplicateUserError(error)) {
-            throw new Error(USER_EXISTS_ERROR);
-        }
         throw new Error(`Failed to provision auth user: ${error.message}`);
     }
 
@@ -410,6 +410,35 @@ export const recoverAccount = async (email: string, password: string) => {
     return { user, accessToken: authUser.accessToken };
 };
 
+export const recoverOAuthAccount = async (accessToken: string) => {
+    const supabase = getSupabaseAuthClient();
+    const { data, error } = await supabase.auth.getUser(accessToken);
+    if (error || !data?.user) throw new Error('Invalid or expired access token');
+
+    const existingUser = await prisma.user.findUnique({
+        where: { userId: data.user.id },
+        select: { userId: true, accountStatus: true },
+    });
+
+    if (!existingUser) {
+        throw new AccountNotFoundError();
+    }
+    if (existingUser.accountStatus === AccountStatus.ACTIVE) {
+        throw new AccountAlreadyActiveError();
+    }
+
+    const user = await prisma.user.update({
+        where: { userId: data.user.id },
+        data: {
+            accountStatus: AccountStatus.ACTIVE,
+            deactivatedAt: null,
+        },
+        select: SIGNUP_USER_SELECT,
+    });
+
+    return { user, accessToken };
+};
+
 export const getViewersService = async () => {
     const viewers = await prisma.user.findMany({
         where: {
@@ -421,6 +450,7 @@ export const getViewersService = async () => {
             firstName: true,
             lastName: true,
             roleType: true,
+            createdAt: true,
             buildingAccess: {
                 select: {
                     building_id: true
@@ -449,6 +479,7 @@ export const getManagersService = async () => {
             firstName: true,
             lastName: true,
             roleType: true,
+            createdAt: true,
             buildingAccess: {
                 select: {
                     building_id: true
@@ -543,13 +574,42 @@ export const googleAuthLogin = async (accessToken: string, email: string, firstN
     });
     if (userExists?.accountStatus === AccountStatus.DEACTIVATED) throw new AccountDeactivatedError();
 
-    const role: UserRole = "VIEWER";
-    const user = userExists ?? await createOrUpsertUser({
+    const role: UserRole = userExists?.roleType ?? "VIEWER";
+    const user = await createOrUpsertUser({
         userId,
-        email: email || data.user.email || "",
-        firstName: firstName || "",
-        lastName: lastName || "",
+        email: email || data.user.email || userExists?.email || "",
+        firstName: firstName || userExists?.firstName || "",
+        lastName: lastName || userExists?.lastName || "",
         roleType: role,
     });
     return {user,accessToken};
+};
+
+export const getAdminsService = async () => {
+    const admins = await prisma.user.findMany({
+        where: {
+            roleType: "ADMIN"
+        },
+        select: {
+            userId: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            roleType: true,
+            createdAt: true,
+            buildingAccess: {
+                select: {
+                    building_id: true
+                }
+            }
+        },
+    });
+
+    return admins.map(admin => ({
+        ...admin,
+        buildingIds: admin.buildingAccess.map(
+            building => building.building_id
+        ),
+        buildingAccess: undefined
+    }));
 };

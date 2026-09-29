@@ -191,4 +191,56 @@ describe("Get all buildings and manage state for admin and building manager", ()
         });
         expect(resp.status).toBe(200);
     });
+
+	it("lists viewers and managers with their assigned building ids for admins", async () => {
+		const buildingId = await building({ name: "Directory Building" });
+		const client = new Client({ connectionString: harness.databaseUrl });
+		await client.connect();
+		try {
+			await client.query(
+				`INSERT INTO user_building_access (user_id, building_id)
+				 VALUES ($1, $2), ($3, $2)`,
+				[normalUserId, buildingId, managerUserId],
+			);
+		} finally {
+			await client.end();
+		}
+
+		const viewers = await req(harness.app).get("/api/users/viewers").set(adminHeader);
+		const managers = await req(harness.app).get("/api/users/managers").set(adminHeader);
+
+		expect(viewers.status).toBe(200);
+		expect(viewers.body.data).toEqual(expect.arrayContaining([
+			expect.objectContaining({ userId: normalUserId, buildingIds: [buildingId] }),
+		]));
+		expect(managers.status).toBe(200);
+		expect(managers.body.data).toEqual(expect.arrayContaining([
+			expect.objectContaining({ userId: managerUserId, buildingIds: [buildingId] }),
+		]));
+	});
+
+	it("restricts user directory endpoints to administrators", async () => {
+		const viewers = await req(harness.app).get("/api/users/viewers").set(normalHeader);
+		const managers = await req(harness.app).get("/api/users/managers").set(normalHeader);
+
+		expect(viewers.status).toBe(403);
+		expect(managers.status).toBe(403);
+	});
+
+	it("prevents an administrator from permanently deleting their own account", async () => {
+		const response = await req(harness.app)
+			.delete(`/api/admin/users/${adminUserId}`)
+			.set(adminHeader);
+
+		expect(response.status).toBe(409);
+		expect(response.body.code).toBe("SELF_PERMANENT_DELETION_FORBIDDEN");
+	});
+
+	it("rejects permanent account deletion by a non-administrator", async () => {
+		const response = await req(harness.app)
+			.delete(`/api/admin/users/${managerUserId}`)
+			.set(normalHeader);
+
+		expect(response.status).toBe(403);
+	});
 });

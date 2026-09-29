@@ -130,3 +130,150 @@ def test_duplciate_exception_handling(logger, mock_supabase, engine):
     out = engine._is_duplicate("building123", "Peak Shaving")
     assert out is False
     logger.warning.assert_called()
+
+#testing the comfort stuff
+@patch('backend.analytics.src.recommendation_engine.requests.get')
+def test_comfort_hot(mock_get, engine):
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.json.return_value = {
+        "current": {
+            "temperature_2m": 35.0
+        }
+    }
+    mock_get.return_value = resp
+    #assert
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=100.0)
+    assert res == 5
+
+@patch('backend.analytics.src.recommendation_engine.requests.get')
+def test_comfort_normal(mock_get, engine):
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.json.return_value = {
+        "current": {
+            "temperature_2m": 22.0
+        }
+    }
+    mock_get.return_value = resp
+    #act n assert
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=100.0)
+    assert res == 18
+
+@patch('backend.analytics.src.recommendation_engine.RecommendationSynthesizer._calculate_comfort_score')
+def test_peak_shaving_omfort(mock_comfort_score, engine):
+    mock_comfort_score.return_value = 85
+    recs = engine.generate_data_driven_rec(
+        building_id="building-123",
+        building_type="Commercial",
+        forecast_peak=150.0,
+        thresold_kw=100.0,
+        tariffs=[],
+        anomalies=[]
+    )
+    #ant n asser
+    assert len(recs) > 0
+    peak_rec = recs[0]
+    assert "predicted_comfort_score" in peak_rec["applicable_range"]
+    assert peak_rec["applicable_range"]["predicted_comfort_score"] == 85
+
+@patch('backend.analytics.src.recommendation_engine.RecommendationSynthesizer._calculate_comfort_score')
+def test_season_optimisation_injects_comfort_score(mock_comfort_score, engine):
+    mock_comfort_score.return_value = 90
+    with patch("backend.analytics.src.recommendation_engine.datetime") as mock_datetime:
+        mock_datetime.now.return_value.month = 12
+        recs = engine.generate_non_data_driven_recs(
+            building_id="B1",
+            building_type="Commercial",
+            tariffs=[]
+        )
+        #act n assert
+        assert len(recs) > 0
+        assert "predicted_comfort_score" in recs[0]["applicable_range"]
+        assert recs[0]["applicable_range"]["predicted_comfort_score"] == 90
+
+def test_comfort_without_shed_skips_weather_lookup(engine):
+    with patch('backend.analytics.src.recommendation_engine.requests.get') as mock_get:
+        res = engine._calculate_comfort_score(kw_reduced=0.0, forecast_peak=1.0)
+        assert res == 100
+        mock_get.assert_not_called()
+
+def test_comfort_costs_points_even_in_mild_weather(engine):
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=150.0, outside_temp=22.0)
+    assert res == 45
+
+def test_comfort_heat_amplifies_the_penalty(engine):
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=150.0, outside_temp=35.0)
+    assert res == 9
+
+@patch('backend.analytics.src.recommendation_engine.requests.get')
+def test_comfort_falls_back_to_neutral_temperature(mock_get, engine):
+    mock_get.side_effect = Exception("offline")
+    res = engine._calculate_comfort_score(kw_reduced=50.0, forecast_peak=150.0)
+    assert res == 45
+
+@patch('backend.analytics.src.recommendation_engine.RecommendationSynthesizer._fetch_outside_temperature')
+def test_peak_shaving_stores_the_weather_behind_its_comfort_score(mock_temperature, engine):
+    mock_temperature.return_value = 30.0
+    recs = engine.generate_data_driven_rec(
+        building_id="building-123",
+        building_type="Commercial",
+        forecast_peak=150.0,
+        thresold_kw=100.0,
+        tariffs=[],
+        anomalies=[]
+    )
+    peak_rec = recs[0]
+    assert peak_rec["applicable_range"]["tradeoff_inputs"] == {"outside_temp_c": 30.0}
+    assert peak_rec["applicable_range"]["predicted_comfort_score"] == 23
+
+def test_get_season(engine):
+    seasons = [
+        {"name": "Summer", "startMonth": 9, "endMonth": 5},
+        {"name": "Winter", "startMonth": 6, "endMonth": 8}
+    ]
+    assert engine.get_season(datetime(2026, 1, 15), seasons) == "Summer"
+    assert engine.get_season(datetime(2026, 7, 15), seasons) == "Winter"
+    assert engine.get_season(datetime(2026, 9, 15), seasons) == "Summer"
+
+def test_get_tou_period(engine):
+    schedule = {
+        "weekday": [{"period": "Peak", "startHour": 17, "endHour": 19}],
+        "saturday": [{"period": "Standard", "startHour": 7, "endHour": 12}],
+        "sunday": [{"period": "Off-Peak", "startHour": 0, "endHour": 24}]
+    }
+    assert engine.get_tou_period(datetime(2026, 9, 1, 18, 0), schedule) == "Peak"
+    assert engine.get_tou_period(datetime(2026, 9, 5, 8, 0), schedule) == "Standard"
+    assert engine.get_tou_period(datetime(2026, 9, 6, 12, 0), schedule) == "Off-Peak"
+
+def test_get_current_rate(engine):
+    tariff = {
+        "seasons": [{"name": "Summer", "startMonth": 9, "endMonth": 5}],
+        "tou_schedule": {"weekday": [{"period": "Peak", "startHour": 17, "endHour": 19}]},
+        "blocks": [{"rates": {"Summer": {"Peak": 2.50, "Standard": 1.50}}}]
+    }
+    assert engine.get_current_rate(datetime(2026, 9, 1, 18, 0), tariff) == 2.50
+    assert engine.get_current_rate(datetime(2026, 9, 1, 18, 0), tariff, peak_only=True) == 2.50
+
+@patch("backend.analytics.src.recommendation_engine.datetime")
+def test_generate_prepaid_purchase_advice(mock_datetime, engine):
+    mock_datetime.now.return_value = datetime(2026, 9, 25, tzinfo=timezone.utc)
+    mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+    
+    tariffs = [{
+        "tariff_structure": {
+            "seasons": [{"name": "Summer", "startMonth": 9, "endMonth": 5}],
+            "blocks": [
+                {"max_kwh": 600, "rates": {"Summer": {"Flat": 2.0}}},
+                {"max_kwh": None, "rates": {"Summer": {"Flat": 3.0}}}
+            ]
+        }
+    }]
+    
+    rec = engine.generate_prepaid_purchase_advice("b1", 800, tariffs)
+    assert rec is not None
+    assert rec["recommendation_category"] == "finance"
+    assert rec["estimated_monthly_savings"] == 100.0
+    
+    rec2 = engine.generate_prepaid_purchase_advice("b1", 400, tariffs)
+    assert rec2 is None

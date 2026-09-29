@@ -9,6 +9,24 @@ interface AnomalySummary {
 	critical: number;
 }
 
+function formatResolvedBy(user: { firstName: string | null; lastName: string | null; email: string } | null | undefined): string | null {
+	if (!user) return null;
+	const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+	return fullName || user.email;
+}
+
+function mapAnomalyResponse(anomaly: any) {
+	const { building, resolved_by_user, ...data } = anomaly;
+	return {
+		...data,
+		...(typeof anomaly.severity_level === 'string'
+			? { severity_level: anomaly.severity_level.toLowerCase() }
+			: {}),
+		building_name: building?.building_name || 'Unknown Building',
+		resolved_by: formatResolvedBy(resolved_by_user),
+	};
+}
+
 async function getAnomalySummary(buildingFilter: any): Promise<AnomalySummary> {
 	const activeFilter = {
 		...buildingFilter,
@@ -59,17 +77,18 @@ async function fetchAndRespondAnomalies(
 			skip: skipNum,
 			take: takeNum,
 			orderBy: { detected_timestamp: 'desc' },
-			include: { building: true },
+			include: {
+				building: true,
+				resolved_by_user: {
+					select: { firstName: true, lastName: true, email: true },
+				},
+			},
 		}),
 		prisma.anomaly.count({ where }),
 		includeSummary ? getAnomalySummary(buildingFilter) : Promise.resolve(null),
 	]);
 
-	const mappedAnomalies = anomalies.map((a) => ({
-		...a,
-		severity_level: a.severity_level.toLowerCase(),
-		building_name: a.building?.building_name || 'Unknown Building',
-	}));
+	const mappedAnomalies = anomalies.map(mapAnomalyResponse);
 
 	res.status(200).json({
 		status: 'success',
@@ -123,15 +142,23 @@ export const updateAnomalyStatus = async (req: Request, res: Response): Promise<
 			return;
 		}
 
+		const isTerminalStatus = status === AnomalyStatus.Resolved || status === AnomalyStatus.Ignored;
 		const updatedAnomaly = await prisma.anomaly.update({
 			where: { anomaly_id: id },
 			data: {
 				status,
-				resolved_timestamp: status === 'Resolved' ? new Date() : anomaly.resolved_timestamp,
+				resolved_timestamp: isTerminalStatus ? new Date() : null,
+				resolved_by_user_id: isTerminalStatus ? req.user?.id : null,
+			},
+			include: {
+				building: true,
+				resolved_by_user: {
+					select: { firstName: true, lastName: true, email: true },
+				},
 			},
 		});
 
-		res.status(200).json({ status: 'success', data: updatedAnomaly });
+		res.status(200).json({ status: 'success', data: mapAnomalyResponse(updatedAnomaly) });
 	} catch (error: any) {
 		console.error('[AnomalyController] Error updating anomaly status:', error);
 		res.status(500).json({ status: 'error', message: 'Failed to update anomaly status' });

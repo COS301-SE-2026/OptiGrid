@@ -30,6 +30,19 @@ const router = Router({ mergeParams: true });
  *           type: string
  *           format: uuid
  *         description: The UUID of the recommendation to apply
+ *     requestBody:
+ *       required: false
+ *       description: Peak shaving recommendations must include the savings level chosen on the comfort trade-off. Other recommendations need no body.
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               savings_level:
+ *                 type: integer
+ *                 minimum: 0
+ *                 maximum: 100
+ *                 example: 61
  *     responses:
  *       '200':
  *         description: Recommendation applied successfully
@@ -41,6 +54,14 @@ const router = Router({ mergeParams: true });
  *                 message:
  *                   type: string
  *                   example: "Recommendation applied successfully"
+ *                 data:
+ *                   type: object
+ *                   description: Present when a comfort trade-off was approved
+ *                   properties:
+ *                     approved_tradeoff:
+ *                       type: object
+ *       '400':
+ *         description: The savings level is invalid, or a peak shaving recommendation was approved without one
  *       '401':
  *         description: Unauthorized
  *         content:

@@ -14,6 +14,7 @@ import {
   getTableRow,
   findKpiLabel
 } from "./testMocks";
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 jest.mock("recharts", () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -22,6 +23,7 @@ jest.mock("recharts", () => {
 });
 
 const mockUseBuildings = jest.fn();
+let mockStatusUpdateOk = true;
 
 jest.mock("@/lib/useBuildings", () => ({
   useBuildings: () => mockUseBuildings(),
@@ -33,8 +35,9 @@ afterAll(() => jest.useRealTimers());
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockStatusUpdateOk = true;
   mockUseBuildings.mockReturnValue({ data: MOCK_BUILDINGS, isLoading: false, error: null });
-  (global.fetch as jest.Mock) = jest.fn((url: string) => {
+  (global.fetch as jest.Mock) = jest.fn((url: string, init?: RequestInit) => {
     if (url.includes("/api/anomalies/portfolio")) {
       return Promise.resolve({
         ok: true,
@@ -48,6 +51,21 @@ beforeEach(() => {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ data: MOCK_THRESHOLDS }),
+      });
+    }
+    if (url.includes("/api/anomalies/") && url.endsWith("/status")) {
+      const status = JSON.parse(String(init?.body)).status;
+      return Promise.resolve({
+        ok: mockStatusUpdateOk,
+        json: () => Promise.resolve(mockStatusUpdateOk
+          ? {
+              data: {
+                status,
+                resolved_timestamp: "2026-09-24T10:00:00.000Z",
+                resolved_by: "Tali Seaba",
+              },
+            }
+          : { message: "Unable to update anomaly status." }),
       });
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
@@ -69,17 +87,31 @@ async function renderPage() {
 
 
 const getBuildingFilter = () =>
-  document.getElementById("building-filter") as HTMLSelectElement;
+  document.getElementById("building-filter") as HTMLElement;
 const getStatusFilter = () =>
-  document.getElementById("status-filter") as HTMLSelectElement;
+  document.getElementById("status-filter") as HTMLElement;
 const getSeverityFilter = () =>
-  document.getElementById("severity-filter") as HTMLSelectElement;
+  document.getElementById("severity-filter") as HTMLElement;
 const getSearchInput = () =>
   document.getElementById("search-input") as HTMLInputElement;
 
 
 describe("ManagerAnomalyPage", () => {
   describe("Initial render", () => {
+    it("shows a loading state instead of a false empty state while anomalies are pending", () => {
+      (global.fetch as jest.Mock) = jest.fn((url: string) => {
+        if (url.includes("/api/anomalies/portfolio")) {
+          return new Promise(() => undefined);
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      });
+
+      render(<ManagerAnomalyPage />);
+
+      expect(within(getAnomaliesSection()).getByRole("status")).toHaveTextContent("Loading anomalies...");
+      expect(within(getAnomaliesSection()).queryByText("No anomalies found")).not.toBeInTheDocument();
+    });
+
     it("loads chart data for the first assigned building instead of a placeholder id", async () => {
       const buildingId = "11111111-1111-4111-8111-111111111111";
       mockUseBuildings.mockReturnValue({
@@ -193,9 +225,9 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value } });
+      chooseCurvedOption(filter, value);
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
-      expect(filter.value).toBe("all");
+      expect(filter).toHaveAttribute("data-value", "all");
     });
 
     it("clears search query", async () => {
@@ -211,7 +243,7 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getBuildingFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "b1" } });
+      chooseCurvedOption(filter, "b1");
       expect(getTableCell("Hillcrest")).toBeUndefined();
       fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
       expect(getTableCell("Hillcrest")).toBeInTheDocument();
@@ -223,7 +255,7 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getBuildingFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value: "b999" } });
+      chooseCurvedOption(filter, "b3");
       expect(within(getAnomaliesSection()).getByText(/no anomalies found/i)).toBeInTheDocument();
     });
   });
@@ -239,7 +271,7 @@ describe("ManagerAnomalyPage", () => {
       await renderPage();
       const filter = getFilter();
       expect(filter).not.toBeNull();
-      fireEvent.change(filter, { target: { value } });
+      chooseCurvedOption(filter, value);
       expect(getTableCell(expected)).toBeInTheDocument();
       expect(getTableCell(unexpected)).toBeUndefined();
     });
@@ -360,9 +392,24 @@ describe("ManagerAnomalyPage", () => {
       });
     };
 
-    it("changes anomaly status to Resolved", async () => {
+    it("persists the resolved status and moves the anomaly to history", async () => {
       await resolveAnomaly();
-      expect(within(getTableRow("Sandton HQ")).getByText("Resolved")).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/anomalies/a1/status",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ status: "Resolved" }),
+        })
+      );
+      expect(getTableCell("Sandton HQ")).toBeUndefined();
+
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      const historicModal = screen.getByRole("heading", { name: /historic alerts/i }).closest(".modal")!;
+      expect(within(historicModal as HTMLElement).getByText("Sandton HQ")).toBeInTheDocument();
+      expect(
+        within(historicModal as HTMLElement).getAllByText("Resolved").some((element) => element.tagName === "SPAN")
+      ).toBe(true);
+      expect(within(historicModal as HTMLElement).getByText("Tali Seaba")).toBeInTheDocument();
     });
 
     it("closes the resolve modal after confirming", async () => {
@@ -423,14 +470,45 @@ describe("ManagerAnomalyPage", () => {
       });
     };
 
-    it("changes anomaly status to Ignored", async () => {
+    it("persists the ignored status and moves the anomaly to history", async () => {
       await ignoreAnomaly();
-      expect(within(getTableRow("Sandton HQ")).getByText("Ignored")).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/anomalies/a1/status",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ status: "Ignored" }),
+        })
+      );
+      expect(getTableCell("Sandton HQ")).toBeUndefined();
+
+      fireEvent.click(screen.getByRole("button", { name: /view historic alerts/i }));
+      const historicModal = screen.getByRole("heading", { name: /historic alerts/i }).closest(".modal")!;
+      expect(
+        within(historicModal as HTMLElement).getAllByText("Ignored").some((element) => element.tagName === "SPAN")
+      ).toBe(true);
     });
 
     it("closes the ignore modal after confirming", async () => {
       await ignoreAnomaly();
       expect(screen.queryByRole("heading", { name: /ignore anomaly/i })).not.toBeInTheDocument();
+    });
+
+    it("keeps the anomaly active and reports an API failure", async () => {
+      await renderPage();
+      mockStatusUpdateOk = false;
+      fireEvent.click(getTableRow("Sandton HQ"));
+      const detailsModal = screen.getByRole("heading", { name: /anomaly details/i }).closest(".modal")!;
+      fireEvent.click(within(detailsModal as HTMLElement).getByRole("button", { name: /ignore/i }));
+      const modal = screen.getByRole("heading", { name: /ignore anomaly/i }).closest(".modal")!;
+
+      await act(async () => {
+        fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: /^ignore$/i }));
+        await Promise.resolve();
+      });
+
+      expect(getTableCell("Sandton HQ")).toBeInTheDocument();
+      expect(screen.getByText("Unable to update anomaly status.")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /ignore anomaly/i })).toBeInTheDocument();
     });
   });
 

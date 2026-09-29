@@ -89,6 +89,8 @@ services:
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
       INFLUXDB_ORG: ${INFLUXDB_ORG}
       INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      CARBON_EMISSION_FACTOR_KG_CO2E_PER_KWH: ${CARBON_EMISSION_FACTOR_KG_CO2E_PER_KWH:-0.93}
+      CARBON_LEDGER_CRON_TIMEZONE: ${CARBON_LEDGER_CRON_TIMEZONE:-UTC}
       RESEND_API_KEY: ${RESEND_API_KEY}
     depends_on:
       redis:
@@ -162,7 +164,7 @@ services:
       context: ../../
       dockerfile: backend/ingestion/Dockerfile
     restart: unless-stopped
-    command: ["python", "-m", "backend.ingestion.src.sensor_emulator"]
+    command: ["python", "-m", "emulator.sensor_emulator"]
     deploy:
       resources:
         limits:

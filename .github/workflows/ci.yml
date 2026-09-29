@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "main", "develop" ]
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   frontend:
     name: Frontend 
@@ -35,7 +39,13 @@ jobs:
         run: pnpm --filter @optigrid/frontend run lint
 
       - name: Unit Test
-        run: pnpm --filter @optigrid/frontend run test
+        run: pnpm --filter @optigrid/frontend run test:coverage
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: frontend
 
       - name: Build
         run: pnpm --filter @optigrid/frontend run build
@@ -87,15 +97,15 @@ jobs:
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
 
+      - name: Authenticate with GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Start Supabase local emulator
-        run: |
-          if [ ! -f supabase/config.toml ]; then
-            supabase init --yes
-          fi
-          if [ -f supabase/seed.sql ]; then
-            mv supabase/seed.sql supabase/seed.sql.ci.bak
-          fi
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+        run: bash scripts/start-supabase-ci.sh
 
       - name: Export Supabase local auth env vars
         run: |
@@ -111,12 +121,18 @@ jobs:
         run: pnpm --filter @optigrid/core run lint
 
       - name: Unit Test
-        run: pnpm --filter @optigrid/core run test
+        run: pnpm --filter @optigrid/core run test:coverage
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/optigrid_test"
           SUPABASE_URL: ${{ env.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: backend-core
 
       - name: Build
         run: pnpm --filter @optigrid/core run build
@@ -144,12 +160,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/ingestion/requirements.txt
           pip install -r backend/analytics/requirements.txt
+          python -m pip install --only-binary :all: pytest-cov==7.1.0
 
       - name: Run ingestion unit tests
-        run: python -m pytest tests/unit/ingestion/ -v
+        run: python -m pytest tests/unit/ingestion/ -v --cov=backend/ingestion --cov-report=xml:coverage-ingestion.xml
 
       - name: Run analytics unit tests
-        run: python -m pytest tests/unit/analytics/ -v
+        run: python -m pytest tests/unit/analytics/ -v --cov=backend/analytics --cov-report=xml:coverage-analytics.xml
+
+      - name: Upload Python coverage to Codecov
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: python
+          files: ./coverage-ingestion.xml,./coverage-analytics.xml
 
   integration-foundation:
     name: Integration (Terraform + Auth)
@@ -194,17 +218,15 @@ jobs:
           pip install -r backend/ingestion/requirements.txt
           pip install -r backend/analytics/requirements.txt
 
+      - name: Authenticate with GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Start Supabase local emulator
-        run: |
-          if [ ! -f supabase/config.toml ]; then
-            supabase init --yes
-          fi
-          # This repository's supabase/seed.sql targets app tables managed by Prisma test harness, not Supabase local migrations.
-          # Move it out of the way for this CI job so Supabase local Auth can start cleanly.
-          if [ -f supabase/seed.sql ]; then
-            mv supabase/seed.sql supabase/seed.sql.ci.bak
-          fi
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+        run: bash scripts/start-supabase-ci.sh
 
       - name: Export Supabase local auth env vars
         run: |
@@ -224,6 +246,32 @@ jobs:
   e2e:
     name: E2E (${{ matrix.suite }})
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      influxdb:
+        image: influxdb:2.7-alpine@sha256:991673dc2d237bd79b15d6627410d72de111387e7dac673dbb92cf3333ffcc8c
+        env:
+          DOCKER_INFLUXDB_INIT_MODE: setup
+          DOCKER_INFLUXDB_INIT_USERNAME: admin
+          DOCKER_INFLUXDB_INIT_PASSWORD: optigrid-e2e-password
+          DOCKER_INFLUXDB_INIT_ORG: OptiGrid
+          DOCKER_INFLUXDB_INIT_BUCKET: EnergyData
+          DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: token-1234
+        ports:
+          - 8086:8086
+        options: >-
+          --health-cmd "influx ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     strategy:
       fail-fast: false
       matrix:
@@ -261,17 +309,15 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Authenticate with GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Start Supabase local emulator
-        run: |
-          if [ ! -f supabase/config.toml ]; then
-            supabase init --yes
-          fi
-          # This repository's supabase/seed.sql targets app tables managed by Prisma test harness, not Supabase local migrations.
-          # Move it out of the way for this CI job so Supabase local Auth can start cleanly.
-          if [ -f supabase/seed.sql ]; then
-            mv supabase/seed.sql supabase/seed.sql.ci.bak
-          fi
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor --ignore-health-check
+        run: bash scripts/start-supabase-ci.sh
 
       - name: Run Playwright ${{ matrix.suite }} tests
         run: ${{ matrix.command }}

@@ -61,7 +61,7 @@ describe('Anomaly Controller', () => {
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(res.json).toHaveBeenCalledWith({
 				status: 'success',
-				data: [{ anomaly_id: 'a-1', severity_level: 'high', building_name: 'Unknown Building' }],
+				data: [{ anomaly_id: 'a-1', severity_level: 'high', building_name: 'Unknown Building', resolved_by: null }],
 				meta: {
 					total: 1,
 					skip: 0,
@@ -118,7 +118,7 @@ describe('Anomaly Controller', () => {
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(res.json).toHaveBeenCalledWith({
 				status: 'success',
-				data: [{ anomaly_id: 'a-2', severity_level: 'critical', building_name: 'Unknown Building' }],
+				data: [{ anomaly_id: 'a-2', severity_level: 'critical', building_name: 'Unknown Building', resolved_by: null }],
 				meta: { skip: 0, take: 50, total: 87 },
 				summary: { total: 87, open: 50, critical: 12 },
 			});
@@ -157,10 +157,22 @@ describe('Anomaly Controller', () => {
 			await updateAnomalyStatus(req, res);
 
 			expect(prisma.anomaly.update).toHaveBeenCalledWith(expect.objectContaining({
-				data: expect.objectContaining({ status: 'In_Progress' }),
+				data: {
+					status: 'In_Progress',
+					resolved_timestamp: null,
+					resolved_by_user_id: null,
+				},
 			}));
 			expect(res.status).toHaveBeenCalledWith(200);
-			expect(res.json).toHaveBeenCalledWith({ status: 'success', data: { anomaly_id: 'a-1', status: 'In_Progress' } });
+			expect(res.json).toHaveBeenCalledWith({
+				status: 'success',
+				data: {
+					anomaly_id: 'a-1',
+					status: 'In_Progress',
+					building_name: 'Unknown Building',
+					resolved_by: null,
+				},
+			});
 		});
 
 		it('should update status to Resolved and set resolved_timestamp', async () => {
@@ -176,9 +188,35 @@ describe('Anomaly Controller', () => {
 				data: expect.objectContaining({
 					status: 'Resolved',
 					resolved_timestamp: expect.any(Date),
+					resolved_by_user_id: mockUserId,
 				}),
 			}));
 			expect(res.status).toHaveBeenCalledWith(200);
+		});
+
+		it('should record who ignored an anomaly and when', async () => {
+			req.params = { id: 'a-1' };
+			req.body = { status: 'Ignored' };
+			(prisma.anomaly.findUnique as jest.Mock).mockResolvedValue({ anomaly_id: 'a-1', building_id: mockBuildingId });
+			(prisma.userBuildingAccess.findUnique as jest.Mock).mockResolvedValue({ id: 'access-1' });
+			(prisma.anomaly.update as jest.Mock).mockResolvedValue({
+				anomaly_id: 'a-1',
+				status: 'Ignored',
+				resolved_by_user: { firstName: 'Tali', lastName: 'Seaba', email: 'tali@example.com' },
+			});
+
+			await updateAnomalyStatus(req, res);
+
+			expect(prisma.anomaly.update).toHaveBeenCalledWith(expect.objectContaining({
+				data: expect.objectContaining({
+					status: 'Ignored',
+					resolved_timestamp: expect.any(Date),
+					resolved_by_user_id: mockUserId,
+				}),
+			}));
+			expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+				data: expect.objectContaining({ resolved_by: 'Tali Seaba' }),
+			}));
 		});
 
 		it('should return 400 for invalid status', async () => {

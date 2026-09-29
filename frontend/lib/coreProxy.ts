@@ -9,7 +9,7 @@ export function getCoreUrl(): string {
 		throw new Error("CORE_URL must be configured.");
 	}
 
-	return coreUrl;
+	return coreUrl.replace(/\/$/, "");
 }
 
 function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
@@ -161,12 +161,26 @@ export function recommendationProxyPost(options: RecommendationRouteOptions) {
 			);
 		}
 
+		let body: unknown;
+		if (getForwardHeaders(request)) {
+			const rawBody = await request.text();
+			if (rawBody.trim() !== "") {
+				try {
+					body = JSON.parse(rawBody);
+				}
+				catch {
+					return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
+				}
+			}
+		}
+
 		const building = encodeURIComponent(buildingId);
 		const recommendation = encodeURIComponent(recommendationId);
 
 		return proxyCore(request, {
 			path: `/api/buildings/${building}/recommendations/${recommendation}/${options.action}`,
 			method: "POST",
+			body,
 			successMessage: options.successMessage,
 			failureMessage: options.failureMessage,
 			unreachableMessage: options.unreachableMessage,

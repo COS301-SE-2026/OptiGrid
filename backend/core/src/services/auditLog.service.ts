@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import prisma from '../lib/prisma';
+import { appendChainedAuditLog } from './auditChain.service';
 
 export interface AuditLogFilters {
   action_type?: string;
@@ -130,16 +131,14 @@ export const getClientIp = (req: Request): string | null => {
 // audit writes must not break the request that triggered it
 export const recordAuditLog = async (entry: AuditEntry) => {
   try {
-    await prisma.auditLog.create({
-      data: {
-        user_id: entry.userId ?? null,
-        building_id: entry.buildingId ?? null,
-        action_type: entry.actionType,
-        target_table: entry.targetTable,
-        old_value: toJSON(entry.oldValue),
-        new_value: toJSON(entry.newValue),
-        ip_address: entry.ipAddress ?? null,
-      },
+    await appendChainedAuditLog(prisma, {
+      user_id: entry.userId ?? null,
+      building_id: entry.buildingId ?? null,
+      action_type: entry.actionType,
+      target_table: entry.targetTable,
+      old_value: toJSON(entry.oldValue),
+      new_value: toJSON(entry.newValue),
+      ip_address: entry.ipAddress ?? null,
     });
     return true;
   }

@@ -1,6 +1,12 @@
+import json
 import unittest
 from unittest.mock import MagicMock
-from backend.ingestion.src.observers import TelemetrySubject, Observer, InfluxStorageObserver
+from backend.ingestion.src.observers import (
+    TelemetrySubject,
+    Observer,
+    InfluxStorageObserver,
+    LiveBroadcastObserver,
+)
 from influxdb_client import Point
 
 class MockObserver(Observer):
@@ -89,3 +95,52 @@ class TestObservers(unittest.TestCase):
         self.assertEqual(record._fields["usage"], 120.5)
         self.assertEqual(record._fields["voltage_v"], 230.1)
         self.assertEqual(record._fields["current_a"], 10.5)
+
+    def test_live_broadcast_observer_publishes_and_caches_reading(self):
+        redis_client = MagicMock()
+        observer = LiveBroadcastObserver(redis_client, ttl_seconds=120)
+
+        observer.update({
+            "building_id": "building-001",
+            "sensor_id": "sensor-001",
+            "power_kw": "12.4",
+            "voltage_v": "229.6",
+            "current_a": "54.0",
+            "timestamp": "2026-09-17T10:00:00.000Z",
+            "source_type": "EMULATOR",
+        })
+
+        encoded = redis_client.publish.call_args.args[1]
+        reading = json.loads(encoded)
+        self.assertEqual(reading, {
+            "building_id": "building-001",
+            "sensor_id": "sensor-001",
+            "power_kw": 12.4,
+            "voltage_v": 229.6,
+            "current_a": 54.0,
+            "timestamp": "2026-09-17T10:00:00.000Z",
+            "source_type": "EMULATOR",
+        })
+        redis_client.set.assert_called_once_with(
+            "sensor:last:sensor-001",
+            encoded,
+            ex=120,
+        )
+        redis_client.sadd.assert_called_once_with(
+            "building:sensors:building-001",
+            "sensor-001",
+        )
+        redis_client.expire.assert_called_once_with(
+            "building:sensors:building-001",
+            120,
+        )
+        redis_client.publish.assert_called_once_with("telemetry_channel", encoded)
+
+    def test_live_broadcast_observer_ignores_unidentified_readings(self):
+        redis_client = MagicMock()
+        observer = LiveBroadcastObserver(redis_client)
+
+        observer.update({"building_id": "building-001", "power_kw": 12.4})
+
+        redis_client.set.assert_not_called()
+        redis_client.publish.assert_not_called()

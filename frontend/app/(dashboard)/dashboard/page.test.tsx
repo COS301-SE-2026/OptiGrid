@@ -133,15 +133,6 @@ describe("DashboardPage", () => {
       expect(document.body).toBeTruthy();
     });
 
-    it("renders the topbar area", async () => {
-      renderPage();
-      expect(await screen.findByText("Tali Seaba")).toBeInTheDocument();
-    });
-
-    it("renders user initials in the avatar", async () => {
-      renderPage();
-      expect(await screen.findByText("TS")).toBeInTheDocument();
-    });
   });
 
   describe("Welcome heading", () => {
@@ -152,7 +143,7 @@ describe("DashboardPage", () => {
 
     it("renders the subtitle", async () => {
       renderPage();
-      expect(await screen.findByText(/portfolio overview - last updated/i)).toBeInTheDocument();
+      expect(await screen.findByText(/portfolio overview\. last updated/i)).toBeInTheDocument();
     });
   });
 

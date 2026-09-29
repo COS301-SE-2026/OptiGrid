@@ -90,7 +90,7 @@ describe("Rendering readings", () => {
         mockBuildings([sandtonOffice]);
         renderPage();
         await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
-        expect(screen.getByText("100.00")).toBeInTheDocument();
+        expect(screen.getByText("100.0")).toBeInTheDocument();
         expect(screen.getByText("12 West St")).toBeInTheDocument();
     });
 
@@ -104,7 +104,7 @@ describe("Rendering readings", () => {
 
         expect(cardLink).toHaveAttribute(
             "href",
-            "/buildings/11111111-0000-0000-0000-000000000001/view",
+            expect.stringMatching(/^\/_sessions\/[0-9a-f-]+\/buildings\/11111111-0000-0000-0000-000000000001\/view$/),
         );
     });
 

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AdminPage from "./page";
 import { useRouter } from 'next/navigation';
+import { chooseCurvedOption } from "@/test-utils/curvedSelect";
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -61,7 +62,7 @@ describe("AdminPage", () => {
   describe("Initial render", () => {
     it("renders the page heading", async () => {
       render(<AdminPage />);
-      expect(await screen.findByRole("heading", { name: /Admin - Manage Buildings/i })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: /manage buildings/i })).toBeInTheDocument();
     });
 
 
@@ -89,12 +90,12 @@ describe("AdminPage", () => {
     it("resets lifecycle filter to 'all' when Reset filters is clicked", async () => {
       render(<AdminPage />);
       const select = await screen.findByRole("combobox");
-      fireEvent.change(select, { target: { value: "all" } });
-      expect((select as HTMLSelectElement).value).toBe("all");
+      chooseCurvedOption(select, "all");
+      expect(select.getAttribute("data-value")).toBe("all");
 
       fireEvent.click(await screen.findByRole("button", { name: /reset filters/i }));
 
-      expect((select as HTMLSelectElement).value).toBe("all");
+      expect(select.getAttribute("data-value")).toBe("all");
     });
 
     it("shows all buildings again after reset", async () => {
@@ -169,21 +170,21 @@ describe("AdminPage", () => {
     it("filters to show only active buildings", async () => {
       render(<AdminPage />);
       await screen.findByText("sandtonhq");
-      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "ACTIVE" } });
+      chooseCurvedOption(await screen.findByRole("combobox"), "ACTIVE");
       expect(await screen.findByText("sandtonhq")).toBeInTheDocument();
     });
 
     it("filters to show only failed buildings", async () => {
       render(<AdminPage />);
-      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "PROVISIONING_FAILED" } });
+      chooseCurvedOption(await screen.findByRole("combobox"), "PROVISIONING_FAILED");
       expect(await screen.findByText("river")).toBeInTheDocument();
       expect(screen.queryByText("sandtonhq")).not.toBeInTheDocument();
     });
 
     it("shows all buildings when 'all' is selected", async () => {
       render(<AdminPage />);
-      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "ACTIVE" } });
-      fireEvent.change(await screen.findByRole("combobox"), { target: { value: "all" } });
+      chooseCurvedOption(await screen.findByRole("combobox"), "ACTIVE");
+      chooseCurvedOption(await screen.findByRole("combobox"), "all");
       const rows = await screen.findAllByRole("row");
       expect(await screen.getAllByRole("row").length).toBeGreaterThan(5);
     });

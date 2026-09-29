@@ -4,6 +4,7 @@ import {
     type PrismaClient,
 } from '@prisma/client';
 import { z } from 'zod';
+import { appendChainedAuditLog, type ChainCapableStore } from './auditChain.service';
 
 
 const auditEventSchema = z.object({
@@ -96,21 +97,19 @@ export async function persistAuditStreamEvent(
     } as Prisma.InputJsonObject;
 
     try {
-        await store.auditLog.create({
-            data: {
-                log_id: event.event_id,
-                user_id: event.user_id ?? null,
-                building_id: event.building_id ?? null,
-                action_type: event.action_type,
-                target_table: event.target_table,
-                service: event.service,
-                operation: event.operation,
-                severity: severityMap[event.severity],
-                error_code: event.error_code,
-                request_id: event.request_id ?? null,
-                metadata,
-                timestamp: new Date(event.timestamp),
-            },
+        await appendChainedAuditLog(store as ChainCapableStore, {
+            log_id: event.event_id,
+            user_id: event.user_id ?? null,
+            building_id: event.building_id ?? null,
+            action_type: event.action_type,
+            target_table: event.target_table,
+            service: event.service,
+            operation: event.operation,
+            severity: severityMap[event.severity],
+            error_code: event.error_code,
+            request_id: event.request_id ?? null,
+            metadata,
+            timestamp: new Date(event.timestamp),
         });
         return 'created';
     } catch (error) {

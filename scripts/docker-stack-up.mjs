@@ -342,6 +342,7 @@ try {
   }
   await waitForWorkerRunning("ingestion");
   await waitForWorkerRunning("analytics");
+  await waitForWorkerRunning("sensor-emulator");
   run(composeCmd("ps"));
   if (includeFrontend) {
     console.log(`Frontend: http://localhost:${env.frontendPort}`);

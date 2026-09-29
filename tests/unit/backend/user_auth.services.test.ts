@@ -9,6 +9,7 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
     default: {
         user: {
             findUnique: jest.fn(),
+            findMany: jest.fn(),
             upsert: jest.fn(),
             update: jest.fn(),
         },
@@ -25,10 +26,49 @@ jest.mock('@supabase/supabase-js', () => ({
 const mockedPrisma = prisma as unknown as {
     user: {
         findUnique: jest.Mock;
+        findMany: jest.Mock;
         upsert: jest.Mock;
         update: jest.Mock;
     };
 };
+
+describe('User management queries', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it.each([
+        ['VIEWER', authServices.getViewersService],
+        ['BUILDING_MANAGER', authServices.getManagersService],
+        ['ADMIN', authServices.getAdminsService],
+    ])('returns createdAt and flattened building ids for %s users', async (roleType, getUsers) => {
+        const createdAt = new Date('2026-09-20T08:00:00.000Z');
+        mockedPrisma.user.findMany.mockResolvedValue([{
+            userId: 'user-1',
+            email: 'user@example.com',
+            firstName: null,
+            lastName: null,
+            roleType,
+            createdAt,
+            buildingAccess: [{ building_id: 'building-1' }],
+        }]);
+
+        await expect(getUsers()).resolves.toEqual([{
+            userId: 'user-1',
+            email: 'user@example.com',
+            firstName: null,
+            lastName: null,
+            roleType,
+            createdAt,
+            buildingIds: ['building-1'],
+            buildingAccess: undefined,
+        }]);
+        expect(mockedPrisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { roleType },
+            select: expect.objectContaining({ createdAt: true }),
+        }));
+    });
+});
 
 const mockedCreateClient = createClient as jest.MockedFunction<typeof createClient>;
 // Supabase method used by login service.
@@ -350,5 +390,110 @@ describe('User Authentication Service - Login', () => {
         await expect(authServices.recoverAccount('test@testing.com', 'password1234'))
             .rejects.toThrow('Account profile was not found.');
         expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+});
+
+describe('Google account recovery', () => {
+    const originalEnv = process.env;
+    beforeEach(() => {
+        jest.clearAllMocks();
+        process.env = {
+            ...originalEnv,
+            SUPABASE_URL: 'https://example.supabase.co',
+            SUPABASE_ANON_KEY: 'anon-key',
+        };
+    });
+    afterAll(() => { process.env = originalEnv; });
+
+    const withGoogleUser = (user: unknown, error: unknown = null) => {
+        mockedCreateClient.mockReturnValue({ auth: {
+            getUser: jest.fn().mockResolvedValue({ data: { user }, error }),
+        } } as unknown as ReturnType<typeof createClient>);
+    };
+
+    it('reactivates a deleted account for the verified Google user', async () => {
+        withGoogleUser({ id: 'user-1', email: 'a@example.com' });
+        mockedPrisma.user.findUnique.mockResolvedValue({ userId: 'user-1', accountStatus: 'DEACTIVATED' });
+        const profile = { userId: 'user-1', email: 'a@example.com', firstName: 'Ada', lastName: 'Lovelace', roleType: 'VIEWER' };
+        mockedPrisma.user.update.mockResolvedValue(profile);
+        await expect(authServices.recoverOAuthAccount('google-token')).resolves.toEqual({ user: profile, accessToken: 'google-token' });
+        expect(mockedPrisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+            where: { userId: 'user-1' },
+            data: { accountStatus: 'ACTIVE', deactivatedAt: null },
+        }));
+    });
+
+    it('does not reactivate an account that is already active', async () => {
+        withGoogleUser({ id: 'user-1' });
+        mockedPrisma.user.findUnique.mockResolvedValue({ userId: 'user-1', accountStatus: 'ACTIVE' });
+
+        await expect(authServices.recoverOAuthAccount('google-token')).rejects.toThrow('This account is already active. Please log in normally.');
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+    
+    it('rejects an invalid Google token without touching any profile', async () => {
+        withGoogleUser(null, { message: 'expired' });
+
+        await expect(authServices.recoverOAuthAccount('bad-token')).rejects.toThrow('Invalid or expired access token');
+        expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('does not recover a Google user with no app profile', async () => {
+        withGoogleUser({ id: 'user-1' });
+        mockedPrisma.user.findUnique.mockResolvedValue(null);
+
+        await expect(authServices.recoverOAuthAccount('google-token')).rejects.toThrow('Account profile was not found.');
+        expect(mockedPrisma.user.update).not.toHaveBeenCalled();
+    });
+});
+
+describe('Google authentication profile handling', () => {
+    const originalEnv = process.env;
+    beforeEach(() => {
+        jest.clearAllMocks();
+        process.env = {
+            ...originalEnv,
+            SUPABASE_URL: 'https://example.supabase.co',
+            SUPABASE_ANON_KEY: 'anon-key',
+        };
+    });
+    afterAll(() => { process.env = originalEnv; });
+
+    it('rejects an invalid access token before reading or writing a profile', async () => {
+        mockedCreateClient.mockReturnValue({ auth: {
+            getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: { message: 'expired' } }),
+        } } as unknown as ReturnType<typeof createClient>);
+        await expect(authServices.googleAuthLogin('bad-token', '', '', ''))
+            .rejects.toThrow('Invalid or expired access token');
+        expect(mockedPrisma.user.findUnique).not.toHaveBeenCalled();
+        expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
+    });
+
+    it('blocks a deactivated local profile even with a valid Google token', async () => {
+        mockedCreateClient.mockReturnValue({ auth: {
+            getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1', email: 'a@example.com' } }, error: null }),
+        } } as unknown as ReturnType<typeof createClient>);
+        mockedPrisma.user.findUnique.mockResolvedValue({ userId: 'user-1', accountStatus: 'DEACTIVATED' });
+        await expect(authServices.googleAuthLogin('token', '', '', ''))
+            .rejects.toThrow();
+        expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
+    });
+
+    it('upserts a Google user with the existing role and Supabase email fallback', async () => {
+        mockedCreateClient.mockReturnValue({ auth: {
+            getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1', email: 'a@example.com' } }, error: null }),
+        } } as unknown as ReturnType<typeof createClient>);
+        mockedPrisma.user.findUnique.mockResolvedValue({ userId: 'user-1', roleType: 'BUILDING_MANAGER', accountStatus: 'ACTIVE' });
+        const profile = { userId: 'user-1', email: 'a@example.com', roleType: 'BUILDING_MANAGER' };
+        mockedPrisma.user.upsert.mockResolvedValue(profile);
+
+        await expect(authServices.googleAuthLogin('token', '', 'Ada', 'Lovelace'))
+            .resolves.toEqual({ user: profile, accessToken: 'token' });
+        expect(mockedPrisma.user.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            create: expect.objectContaining({
+                userId: 'user-1', email: 'a@example.com', firstName: 'Ada', lastName: 'Lovelace', roleType: 'BUILDING_MANAGER',
+            }),
+        }));
     });
 });

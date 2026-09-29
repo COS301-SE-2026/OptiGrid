@@ -30,6 +30,24 @@ describe('useAnomalyChartData', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('stays idle without rerendering in a loop while buildings are unavailable', async () => {
+    const fetchMock = jest.fn();
+    (global.fetch as jest.Mock) = fetchMock;
+    let renderCount = 0;
+
+    renderHook(() => {
+      renderCount += 1;
+      return useAnomalyChartData([], 'all', 'power', []);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(renderCount).toBeLessThan(3);
+  });
+
   it('clears stale chart data and exposes a safe message when a request fails', async () => {
     const fetchMock = jest.fn()
       .mockResolvedValueOnce({

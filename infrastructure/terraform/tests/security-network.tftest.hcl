@@ -29,8 +29,8 @@ run "security_group_and_network_contracts" {
   command = plan
 
   assert {
-    condition     = length(aws_security_group.optigrid_server.ingress) == 5
-    error_message = "Security group must define exactly five ingress rules (SSH, HTTP, HTTPS, dev frontend, dev core)."
+    condition     = length(aws_security_group.optigrid_server.ingress) == 6
+    error_message = "Security group must define exactly six ingress rules (SSH, HTTP, HTTPS, dev frontend, dev core, ingestion api)."
   }
 
   assert {
@@ -71,6 +71,14 @@ run "security_group_and_network_contracts" {
       rule.from_port == 4001 && rule.to_port == 4001 && rule.protocol == "tcp" && contains(rule.cidr_blocks, "0.0.0.0/0")
     ])
     error_message = "Missing dev core ingress rule on port 4001 from 0.0.0.0/0."
+  }
+
+  assert {
+    condition = anytrue([
+      for rule in aws_security_group.optigrid_server.ingress :
+      rule.from_port == 8000 && rule.to_port == 8000 && rule.protocol == "tcp" && contains(rule.cidr_blocks, "0.0.0.0/0")
+    ])
+    error_message = "Missing ingestion API ingress rule on port 8000 from 0.0.0.0/0."
   }
 
   assert {

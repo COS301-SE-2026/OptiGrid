@@ -13,6 +13,13 @@ const ALLOWED_BUILDING_FIELDS = [
 	"square_footage",
 	"max_occupancy",
 	"timezone",
+	"nominal_voltage",
+	"max_current_threshold",
+	"latitude",
+	"longitude",
+	"geohash",
+	"floors_above_ground",
+	"solar_capacity_kw",
 ] as const;
 
 function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {

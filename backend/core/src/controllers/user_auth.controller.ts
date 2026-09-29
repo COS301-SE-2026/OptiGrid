@@ -149,6 +149,24 @@ export const googleAuthLoginController = async (req: Request, resp: Response) =>
     }
 };
 
+function sendRecovered(res: Response, recoveryResult: object) {
+    return res.status(200).json({
+        message: 'Account recovered successfully',
+        ...recoveryResult,
+    });
+}
+
+// both recovery routes report an account that is already active or missing the same way
+function sendAccountStateError(res: Response, error: unknown) {
+    if (error instanceof AccountAlreadyActiveError) {
+        return res.status(409).json({ code: error.code, message: error.message });
+    }
+    if (error instanceof AccountNotFoundError) {
+        return res.status(404).json({ code: error.code, message: error.message });
+    }
+    return null;
+}
+
 // A deactivated user must be able to prove their identity and restore the
 // account without first passing the active-account middleware.
 export const recoverAccount = async (req: Request, res: Response) => {
@@ -156,16 +174,11 @@ export const recoverAccount = async (req: Request, res: Response) => {
         const { email, password } = req.body;
         const recoveryResult = await authService.recoverAccount(email, password);
 
-        return res.status(200).json({
-            message: 'Account recovered successfully',
-            ...recoveryResult,
-        });
+        return sendRecovered(res, recoveryResult);
     } catch (error: unknown) {
-        if (error instanceof AccountAlreadyActiveError) {
-            return res.status(409).json({ code: error.code, message: error.message });
-        }
-        if (error instanceof AccountNotFoundError) {
-            return res.status(404).json({ code: error.code, message: error.message });
+        const stateError = sendAccountStateError(res, error);
+        if (stateError) {
+            return stateError;
         }
         if (error instanceof Error && error.message === 'Invalid email or password') {
             return res.status(400).json({ message: error.message });
@@ -179,6 +192,37 @@ export const recoverAccount = async (req: Request, res: Response) => {
         return res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+export const recoverOAuthAccountController = async (req: Request, res: Response) => {
+    const access = req.body?.access;
+    if (typeof access !== 'string' || !access) {
+        return res.status(400).json({ message: 'Access token required' });
+    }
+
+    try {
+        const recoveryResult = await authService.recoverOAuthAccount(access);
+        await recordAuditLog({
+            userId: recoveryResult.user.userId,
+            actionType: "LOGIN",
+            targetTable: "users",
+            ipAddress: getClientIp(req),
+        });
+
+        return sendRecovered(res, recoveryResult);
+    } catch (error: unknown) {
+        const stateError = sendAccountStateError(res, error);
+        if (stateError) {
+            return stateError;
+        }
+        if (error instanceof Error && error.message === 'Invalid or expired access token') {
+            return res.status(401).json({ message: 'Unauthorized or invalid access token' });
+        }
+
+        console.error('OAuth account recovery error:', error instanceof Error ? error.message : error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 export const getViewersController = async (req: Request, resp: Response) => {
     try {
         const viewers = await authService.getViewersService();
@@ -206,6 +250,17 @@ export const getManagersController = async (req: Request, resp: Response) => {
         return resp.status(500).json({
             message: "Internal Server Error"
         });
+    }
+};
+
+export const getAdminsController = async (_req: Request, resp: Response) => {
+    try {
+        const admins = await authService.getAdminsService();
+        return resp.status(200).json({ data: admins });
+    }
+    catch (error) {
+        console.error("Internal Server Error when fetching admins: ", error);
+        return resp.status(500).json({ message: "Internal Server Error" });
     }
 };
 

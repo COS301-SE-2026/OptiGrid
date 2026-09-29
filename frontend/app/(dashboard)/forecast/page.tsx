@@ -2,9 +2,21 @@
 
 import { AccessibleChart } from "../../../components/AccessibleChart";
 import { useMutation } from "@tanstack/react-query";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useBuildings } from "@/lib/useBuildings";
 import { PageHeading } from "@/components/PageHeading";
+import { CurvedSelect } from "@/components/curvedselect";
+import { ChartLegend } from "@/components/ChartLegend";
+import {
+    SERIES_COLOURS,
+    axisTick,
+    formatAxisNumber,
+    gridStroke,
+    niceAxis,
+    seriesDot,
+    tooltipContentStyle,
+    tooltipLabelStyle,
+} from "@/lib/chartTheme";
 import {
     Area,
     CartesianGrid,
@@ -16,6 +28,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
+import { rankByUsage } from "@/lib/rankBuildings";
 
 type ForecastParams = {
     building_id: string;
@@ -38,9 +51,84 @@ type ForecastResult = {
         peak_kwh: number;
         peak_timestamp: string;
         avg_daily_kwh: number;
-        mape: number;
+        mape: number | null;
+    };
+    metadata?: {
+        timezone: string;
+        value_unit: string;
+        average_unit: string;
+        accuracy_metric: string;
     };
 };
+
+const FORECAST_POLL_INTERVAL_MS = 1_500;
+const FORECAST_POLL_ATTEMPTS = 30;
+
+function forecastRequestBody(horizon: ForecastParams["horizon"]) {
+    return {
+        horizon,
+        horizon_days: horizon === "monthly" ? 30 : 7,
+        granularity: horizon === "monthly" ? "weekly" : "hourly",
+    };
+}
+
+async function parseResponse(response: Response): Promise<Record<string, unknown>> {
+    return response.json().catch(() => ({})) as Promise<Record<string, unknown>>;
+}
+
+function isForecastResult(payload: Record<string, unknown>): payload is ForecastResult & Record<string, unknown> {
+    return Array.isArray(payload.forecast) && payload.forecast.length > 0 &&
+        Array.isArray(payload.historical) &&
+        typeof payload.summary === "object" && payload.summary !== null;
+}
+
+function responseMessage(payload: Record<string, unknown>, fallback: string): string {
+    return typeof payload.message === "string" && payload.message.trim() ? payload.message : fallback;
+}
+
+async function fetchStoredForecast(params: ForecastParams): Promise<{
+    response: Response;
+    payload: Record<string, unknown>;
+}> {
+    const response = await fetch(`/api/analytics/forecast/${params.building_id}?horizon=${params.horizon}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(forecastRequestBody(params.horizon)),
+    });
+
+    return { response, payload: await parseResponse(response) };
+}
+
+async function waitForForecast(params: ForecastParams): Promise<ForecastResult> {
+    const initial = await fetchStoredForecast(params);
+    if (initial.response.ok && isForecastResult(initial.payload)) {
+        return initial.payload;
+    }
+    if (initial.response.status !== 404 && !initial.response.ok) {
+        throw new Error(responseMessage(initial.payload, "Failed to fetch forecast"));
+    }
+
+    const refreshResponse = await fetch(`/api/analytics/refresh/${params.building_id}`, {
+        method: "POST",
+    });
+    const refreshPayload = await parseResponse(refreshResponse);
+    if (!refreshResponse.ok && refreshResponse.status !== 429) {
+        throw new Error(responseMessage(refreshPayload, "Failed to start forecast generation"));
+    }
+
+    for (let attempt = 0; attempt < FORECAST_POLL_ATTEMPTS; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, FORECAST_POLL_INTERVAL_MS));
+        const current = await fetchStoredForecast(params);
+        if (current.response.ok && isForecastResult(current.payload)) {
+            return current.payload;
+        }
+        if (current.response.status !== 404 && !current.response.ok) {
+            throw new Error(responseMessage(current.payload, "Failed to fetch generated forecast"));
+        }
+    }
+
+    throw new Error("Forecast generation is taking longer than expected. Please try again shortly.");
+}
 
 type ChartPoint = {
     timestamp: string;
@@ -63,18 +151,27 @@ function toFiniteNumber(value: unknown): number | undefined {
     return undefined;
 }
 
-function formatXTick(ts: string, horizon: "weekly" | "monthly"): string {
+function localHour(d: Date, timeZone: string): string {
+    return new Intl.DateTimeFormat("en", {
+        hour: "2-digit",
+        hourCycle: "h23",
+        timeZone,
+    }).format(d);
+}
+
+function formatXTick(ts: string, horizon: "weekly" | "monthly", timeZone: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
     if (horizon === "monthly") {
-        return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
+        return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone }).format(d);
     }
-    const monthDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(d);
-    const hour = String(d.getUTCHours()).padStart(2, "0");
+    const monthDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone }).format(d);
+    const hour = localHour(d, timeZone);
+    if (hour === "00") return monthDay;
     return `${monthDay} ${hour}:00`;
 }
 
-function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
+function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly", timeZone: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
     if (horizon === "monthly") {
@@ -83,6 +180,7 @@ function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
             month: "short",
             day: "numeric",
             year: "numeric",
+            timeZone,
         }).format(d);
     }
     return new Intl.DateTimeFormat("en", {
@@ -92,11 +190,11 @@ function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly"): string {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-        timeZone: "UTC",
+        timeZone,
     }).format(d);
 }
 
-function formatPeakTimestamp(ts: string): string {
+function formatPeakTimestamp(ts: string, timeZone: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
     return new Intl.DateTimeFormat("en", {
@@ -105,8 +203,18 @@ function formatPeakTimestamp(ts: string): string {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-        timeZone: "UTC",
+        timeZone,
+        timeZoneName: "short",
     }).format(d);
+}
+
+function isLocalMidnight(ts: string, timeZone: string): boolean {
+    const d = new Date(ts);
+    return !Number.isNaN(d.getTime()) && localHour(d, timeZone) === "00";
+}
+
+function formatForecastError(mape: number | null): string {
+    return mape === null ? "Accuracy unavailable" : `MAPE ${mape}%`;
 }
 
 function processHistoricalData(historical: HistoricalPoint[]) {
@@ -216,24 +324,6 @@ function Spinner() {
     );
 }
 
-function ChevronDown() {
-    return (
-        <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    );
-}
-
 function Skeleton({ style }: Readonly<{ style?: CSSProperties }>) {
     return <div className="skeleton" style={style} aria-hidden="true" />;
 }
@@ -306,6 +396,8 @@ function ForecastChartContainer({
     showActualDots,
     showForecastDots,
     selectedBuildingName,
+    timeZone,
+    valueUnit,
 }: Readonly<{
     isPending: boolean;
     result: ForecastResult | undefined;
@@ -317,16 +409,19 @@ function ForecastChartContainer({
     showActualDots: boolean | { r: number; strokeWidth: number };
     showForecastDots: boolean | { r: number; strokeWidth: number };
     selectedBuildingName: string;
+    timeZone: string;
+    valueUnit: string;
 }>) {
     if (isPending) {
-        return <Skeleton style={{ height: 240, width: "100%" }} />;
+        return <Skeleton style={{ flex: "1 1 auto", minHeight: 280, width: "100%" }} />;
     }
 
     if (!result) {
         return (
             <div
                 style={{
-                    height: 240,
+                    flex: "1 1 auto",
+                    minHeight: 280,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -340,24 +435,37 @@ function ForecastChartContainer({
             </div>
         );
     }
-    
-    console.log(`[DEBUG] horizon=${horizon} chartData.length=${chartData.length} chartData=${JSON.stringify(chartData)}`);
+
+    const midnightTicks = horizon === "weekly"
+        ? chartData.filter((point) => isLocalMidnight(point.timestamp, timeZone)).map((point) => point.timestamp)
+        : [];
+    const useMidnightTicks = midnightTicks.length >= 2;
+    const yAxis = niceAxis(
+        Math.max(0, ...chartData.map((point) => Math.max(point.kwh ?? 0, point.yhat ?? 0, point.yhat_range?.[1] ?? 0))),
+    );
 
     return (
         <>
-            <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginBottom: "var(--space-3)" }}>
-                Historical and predicted energy demand for {selectedBuildingName}
-            </p>
+            <ChartLegend
+                items={[
+                    { label: "Historical", colour: SERIES_COLOURS[0] },
+                    { label: "Predicted", colour: SERIES_COLOURS[0], variant: "dashed" },
+                    ...(hasConfidenceBand
+                        ? [{ label: "Confidence range", colour: SERIES_COLOURS[0], variant: "band" as const }]
+                        : []),
+                ]}
+            />
+            <div className="chart-fill" style={{ minHeight: 280 }}>
             <AccessibleChart
-                caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in kWh`}
+                caption={`${horizon === "monthly" ? "Monthly" : "Weekly"} demand forecast for ${selectedBuildingName}, in ${valueUnit}`}
                 categoryLabel="Timestamp"
-                categories={chartData.map((point) => formatTooltipLabel(point.timestamp, horizon))}
+                categories={chartData.map((point) => formatTooltipLabel(point.timestamp, horizon, timeZone))}
                 series={[
-                    { name: "Recorded (kWh)", values: chartData.map((point) => point.kwh) },
-                    { name: "Predicted (kWh)", values: chartData.map((point) => point.yhat) },
+                    { name: `Recorded (${valueUnit})`, values: chartData.map((point) => point.kwh) },
+                    { name: `Predicted (${valueUnit})`, values: chartData.map((point) => point.yhat) },
                     ...(hasConfidenceBand
                         ? [{
-                            name: "95% confidence interval (kWh)",
+                            name: `95% confidence interval (${valueUnit})`,
                             values: chartData.map((point) =>
                                 point.yhat_range
                                     ? `${point.yhat_range[0].toLocaleString()} to ${point.yhat_range[1].toLocaleString()}`
@@ -367,62 +475,53 @@ function ForecastChartContainer({
                         : []),
                 ]}
             >
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
                     data={chartData}
-                    margin={{ top: 16, right: 20, left: 10, bottom: 0 }}
+                    margin={{ top: 20, right: 8, left: 0, bottom: 0 }}
                 >
-                    <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="var(--brand-border)"
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
                     <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(ts) => formatXTick(ts, horizon)}
-                        interval={tickInterval}
-                        tick={{
-                            fill: "var(--brand-ink-muted)",
-                            fontSize: 10,
-                        }}
+                        tickFormatter={(ts) => formatXTick(ts, horizon, timeZone)}
+                        ticks={useMidnightTicks ? midnightTicks : undefined}
+                        interval={useMidnightTicks ? "preserveStartEnd" : tickInterval}
+                        tick={axisTick}
                         axisLine={false}
                         tickLine={false}
+                        padding={{ left: 12, right: 12 }}
                     />
                     <YAxis
-                        domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
-                        tickFormatter={(val) => `${val.toLocaleString()}`}
-                        tick={{
-                            fill: "var(--brand-ink-muted)",
-                            fontSize: 10,
-                        }}
+                        domain={yAxis.domain}
+                        ticks={yAxis.ticks}
+                        tickFormatter={formatAxisNumber}
+                        tick={axisTick}
                         axisLine={false}
                         tickLine={false}
-                        label={{
-                            value: "kWh",
-                            angle: -90,
-                            position: "insideLeft",
-                            style: { fill: "var(--brand-ink-muted)", fontSize: 10 }
-                        }}
+                        width={52}
                     />
                     <Tooltip
-                        contentStyle={{
-                            backgroundColor: "var(--brand-surface)",
-                            border: "1px solid var(--brand-border)",
-                            borderRadius: "12px",
-                            color: "var(--brand-ink)",
-                            fontSize: "var(--fs-small)",
-                        }}
+                        contentStyle={tooltipContentStyle}
+                        labelStyle={tooltipLabelStyle}
                         cursor={{ stroke: "var(--brand-border)" }}
-                        labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon)}
-                        formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy"]}
+                        labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon, timeZone)}
+                        formatter={(value: number | [number, number], name: string) => [
+                            Array.isArray(value)
+                                ? `${value[0].toLocaleString()} to ${value[1].toLocaleString()} ${valueUnit}`
+                                : `${value.toLocaleString()} ${valueUnit}`,
+                            name,
+                        ]}
                     />
                     {hasConfidenceBand ? (
                         <Area
                             type="monotone"
                             dataKey="yhat_range"
-                            fill="var(--brand-primary)"
-                            fillOpacity={0.15}
+                            name="Confidence range"
+                            fill={SERIES_COLOURS[0]}
+                            fillOpacity={0.14}
                             stroke="none"
                             connectNulls={false}
+                            activeDot={false}
                         />
                     ) : null}
                     {nowTs && (
@@ -431,7 +530,7 @@ function ForecastChartContainer({
                             stroke="var(--brand-ink-muted)"
                             strokeDasharray="4 3"
                             label={{
-                                value: "now",
+                                value: "Now",
                                 position: "top",
                                 fill: "var(--brand-ink-muted)",
                                 fontSize: 11,
@@ -441,70 +540,27 @@ function ForecastChartContainer({
                     <Line
                         type="monotone"
                         dataKey="kwh"
-                        stroke="var(--brand-primary)"
+                        name="Historical"
+                        stroke={SERIES_COLOURS[0]}
                         strokeWidth={2}
-                        dot={{ r: 4, strokeWidth: 0 }}
-                        activeDot={{ r: 5 }}
+                        dot={showActualDots ? seriesDot(SERIES_COLOURS[0]) : false}
+                        activeDot={seriesDot(SERIES_COLOURS[0], 5)}
                         connectNulls={true}
                     />
                     <Line
                         type="monotone"
                         dataKey="yhat"
-                        stroke="var(--brand-primary)"
+                        name="Predicted"
+                        stroke={SERIES_COLOURS[0]}
                         strokeWidth={2}
-                        strokeDasharray="4 2"
-                        dot={{ r: 4, strokeWidth: 0 }}
-                        activeDot={{ r: 5 }}
+                        strokeDasharray="5 3"
+                        dot={showForecastDots ? seriesDot(SERIES_COLOURS[0]) : false}
+                        activeDot={seriesDot(SERIES_COLOURS[0], 5)}
                         connectNulls={true}
                     />
                 </ComposedChart>
             </ResponsiveContainer>
             </AccessibleChart>
-
-            <div
-                className="text-muted"
-                style={{
-                    marginTop: "var(--space-3)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-4)",
-                    fontSize: "var(--fs-small)"
-                }}
-            >
-                <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                    <span
-                        style={{
-                            width: 16,
-                            borderTop: "2px solid var(--brand-primary)",
-                            display: "inline-block",
-                        }}
-                    />
-                    <span>Historical</span>
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                    <span
-                        style={{
-                            width: 16,
-                            borderTop: "2px dashed var(--brand-primary)",
-                            display: "inline-block",
-                        }}
-                    />
-                    <span>Predicted</span>
-                </span>
-                {hasConfidenceBand && (
-                    <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                        <span
-                            style={{
-                                width: 16,
-                                height: 4,
-                                backgroundColor: "var(--brand-primary)",
-                                opacity: 0.15,
-                                display: "inline-block",
-                            }}
-                        />
-                        <span>Confidence range</span>
-                    </span>
-                )}
             </div>
 
             <div
@@ -551,7 +607,7 @@ function ForecastChartContainer({
                 >
                     <p className="dashboard-kpi-label">Peak timestamp</p>
                     <p className="dashboard-kpi-value" style={{ fontSize: "var(--fs-body)" }}>
-                        {formatPeakTimestamp(result.summary.peak_timestamp)}
+                        {formatPeakTimestamp(result.summary.peak_timestamp, timeZone)}
                     </p>
                 </div>
             </div>
@@ -567,26 +623,7 @@ export default function ForecastPage() {
     const { data: buildings = [], isLoading: buildingsLoading, isError: buildingsError } = useBuildings();
 
     const { mutate, isPending, data: result } = useMutation({
-        mutationFn: async (params: ForecastParams) => {
-            const response = await fetch(`/api/analytics/forecast/${params.building_id}?horizon=${params.horizon}`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    horizon: params.horizon,
-                    horizon_days: params.horizon === "monthly" ? 30 : 7,
-                    granularity: params.horizon === "monthly" ? "weekly" : "hourly",
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Failed to fetch forecast");
-            }
-
-            return response.json() as Promise<ForecastResult>;
-        },
+        mutationFn: waitForForecast,
         onMutate: () => {
             setForecastError(null);
         },
@@ -598,22 +635,30 @@ export default function ForecastPage() {
     const { chartData, nowTs, showActualDots, showForecastDots, hasConfidenceBand } = buildChartData(result);
     const tickInterval = horizon === "monthly" ? 0 : 23;
 
+    const autoRunDone = useRef(false);
+    useEffect(() => {
+        if (autoRunDone.current || buildingsLoading || buildings.length === 0) {
+            return;
+        }
+        autoRunDone.current = true;
+        const busiest = rankByUsage(buildings)[0];
+        setBuildingId(busiest.id);
+        mutate({ building_id: busiest.id, horizon: "weekly" });
+    }, [buildings, buildingsLoading, mutate]);
+
     const canRun = buildingId !== "" && !isPending && !buildingsLoading;
     const selectedBuildingName =
         buildings.find((building) => building.id === buildingId)?.name ?? "Selected building";
-
-    const selectStyle: CSSProperties = {
-        appearance: "none",
-        WebkitAppearance: "none",
-        MozAppearance: "none",
-        paddingRight: "var(--space-6)",
-    };
+    const timeZone = result?.metadata?.timezone || "UTC";
+    const valueUnit = result?.metadata?.value_unit || (horizon === "monthly" ? "kWh/week" : "kW");
+    const averageUnit = result?.metadata?.average_unit || (horizon === "monthly" ? "kWh/week" : "kWh/day");
+    const forecastErrorValue = result ? formatForecastError(result.summary.mape) : null;
 
     return (
-        <div>
+        <div className="screen-fit">
             <PageHeading
                 title="Demand Forecast"
-                subtitle="Select a building and horizon to view its upcoming energy demand forecast."
+                subtitle="Your busiest building gets a 7 day forecast when the page opens. Pick another building or horizon at any time."
             />
 
             <section className="card dashboard-section" aria-label="Forecast controls">
@@ -629,42 +674,19 @@ export default function ForecastPage() {
                         <label
                             htmlFor="building-select"
                             className="label"
-                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
                         >
                             Building
                         </label>
                         <div style={{ position: "relative" }}>
-                            <select
+                            <CurvedSelect
                                 id="building-select"
-                                className="select"
-                                style={selectStyle}
                                 value={buildingId}
                                 disabled={buildingsLoading || buildings.length === 0}
-                                onChange={(e) => setBuildingId(e.target.value)}
-                                aria-label="Select a building for forecast"
-                            >
-                                <option value="">
-                                    {buildingsLoading ? "Loading buildings..." : "Select building"}
-                                </option>
-                                {buildings.map((b) => (
-                                    <option key={b.id} value={b.id}>
-                                        {b.name}
-                                    </option>
-                                ))}
-                            </select>
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    right: "12px",
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--brand-ink-muted)",
-                                    pointerEvents: "none",
-                                }}
-                                aria-hidden="true"
-                            >
-                                <ChevronDown />
-                            </span>
+                                onChange={setBuildingId}
+                                placeholder={buildingsLoading ? "Loading buildings..." : "Select building"}
+                                options={buildings.map((b) => ({ value: b.id, label: b.name }))}
+                                ariaLabel="Select a building for forecast"
+                            />
                         </div>
                     </div>
 
@@ -672,42 +694,24 @@ export default function ForecastPage() {
                         <label
                             htmlFor="horizon-select"
                             className="label"
-                            style={{ textTransform: "uppercase", letterSpacing: "0.2em" }}
                         >
                             Horizon
                         </label>
                         <div style={{ position: "relative" }}>
-                            <select
+                            <CurvedSelect
                                 id="horizon-select"
-                                className="select"
-                                style={selectStyle}
                                 value={horizon}
-                                onChange={(e) => setHorizon(e.target.value as "weekly" | "monthly")}
-                                aria-label="Select forecast horizon"
-                            >
-                                <option value="weekly">Weekly (Next 7 Days)</option>
-                                <option value="monthly">Monthly (Next 12 Weeks)</option>
-                            </select>
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    right: "12px",
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--brand-ink-muted)",
-                                    pointerEvents: "none",
-                                }}
-                                aria-hidden="true"
-                            >
-                                <ChevronDown />
-                            </span>
+                                onChange={(value) => setHorizon(value as "weekly" | "monthly")}
+                                options={[
+                                    { value: "weekly", label: "Weekly, next 7 days" },
+                                    { value: "monthly", label: "Monthly, next 12 weeks" },
+                                ]}
+                                ariaLabel="Select forecast horizon"
+                            />
                         </div>
                     </div>
 
-                    <div style={{ display: "grid", gap: "var(--space-2)" }}>
-                        <span className="label" style={{ opacity: 0 }}>
-                            Run
-                        </span>
+                    <div style={{ display: "grid" }}>
                         <button
                             type="button"
                             disabled={!canRun}
@@ -718,11 +722,7 @@ export default function ForecastPage() {
                                 })
                             }
                             className="btn btn-primary"
-                            style={{
-                                width: "100%",
-                                backgroundColor: "#3A6B7C",
-                                color: "#FFFFFF",
-                            }}
+                            style={{ width: "100%", height: 38 }}
                         >
                             {isPending && <Spinner />}
                             Run forecast
@@ -738,11 +738,11 @@ export default function ForecastPage() {
                 />
             </section>
 
-            <section className="card dashboard-section" aria-label="Demand forecast chart">
+            <section className="card dashboard-section screen-fit-grow" aria-label="Demand forecast chart">
                 <div className="dashboard-section-header">
-                    <h2 className="dashboard-section-title">Demand Trend</h2>
+                    <h2 className="dashboard-section-title">Demand trend</h2>
                     <span className="dashboard-section-meta">
-                        {horizon === "monthly" ? "Next 12 weeks" : "Next 7 days"}
+                        {horizon === "monthly" ? "Next 12 weeks" : "Next 7 days"}, in {valueUnit}
                     </span>
                 </div>
 
@@ -757,16 +757,18 @@ export default function ForecastPage() {
                     showActualDots={showActualDots}
                     showForecastDots={showForecastDots}
                     selectedBuildingName={selectedBuildingName}
+                    timeZone={timeZone}
+                    valueUnit={valueUnit}
                 />
             </section>
 
             <div className="dashboard-kpi-grid" aria-label="Forecast summary statistics">
                 <KpiCard
-                    label="Peak demand"
+                    label={horizon === "monthly" ? "Peak weekly energy" : "Peak demand"}
                     isPending={isPending}
                     value={
                         result
-                            ? `${result.summary.peak_kwh} kWh · ${formatPeakTimestamp(result.summary.peak_timestamp)}`
+                            ? `${result.summary.peak_kwh} ${valueUnit} · ${formatPeakTimestamp(result.summary.peak_timestamp, timeZone)}`
                             : null
                     }
                     skeletonWidth={180}
@@ -774,13 +776,13 @@ export default function ForecastPage() {
                 <KpiCard
                     label={horizon === "monthly" ? "Avg / week" : "Avg / day"}
                     isPending={isPending}
-                    value={result ? `${result.summary.avg_daily_kwh.toLocaleString()} kWh` : null}
+                    value={result ? `${result.summary.avg_daily_kwh.toLocaleString()} ${averageUnit}` : null}
                     skeletonWidth={150}
                 />
                 <KpiCard
-                    label="Model accuracy"
+                    label="Forecast error"
                     isPending={isPending}
-                    value={result ? `MAPE ${result.summary.mape}%` : null}
+                    value={forecastErrorValue}
                     skeletonWidth={120}
                 />
             </div>

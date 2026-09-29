@@ -1,10 +1,13 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Children, isValidElement, useEffect, useId, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { useBuildings } from "@/lib/useBuildings";
 import { openDialog } from "@/lib/openDialog";
 import { PageHeading } from "@/components/PageHeading";
+import { CurvedSelect, type CurvedSelectOption } from "@/components/curvedselect";
 import { formatDate } from "@/lib/formatDate";
+import ComfortTradeoff, { type TradeoffPoint, type TradeoffProfile } from "@/components/ComfortTradeoff";
+import { rankByUsage } from "@/lib/rankBuildings";
 
 type RecommendationStatus =
     | "Pending"
@@ -18,6 +21,14 @@ type TimeWindow = {
     end?: string;
     timezone?: string;
 };
+
+type ApprovedTradeoff = TradeoffPoint & {
+    comfort_target: number;
+    meets_comfort_target: boolean;
+    full_monthly_savings: number;
+    approved_at?: string;
+};
+
 type ApplicableRange = {
     time_window?: TimeWindow;
     load_bounds_kw?: {
@@ -27,19 +38,29 @@ type ApplicableRange = {
 
     target_equipment?: string;
     confidence_score?: number;
+    context?: string;
+    predicted_comfort_score?: number;
+    approved_tradeoff?: ApprovedTradeoff;
 };
 
 type Recommendation = {
     recommendation_id: string;
     strategy_description: string;
-    estimated_monthly_savings: number | null;
+    estimated_monthly_savings: number | string | null;
     status: string | null;
     applicable_range: ApplicableRange | null;
     expires_at: string | null;
     generated_date: string | null;
+    tradeoff?: TradeoffProfile | null;
 };
 
 type ReviewAction = "apply" | "dismiss";
+
+type ReviewVariables = {
+    action: ReviewAction;
+    recommendationId: string;
+    savingsLevel?: number;
+};
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
     { value: "all", label: "All statuses" },
@@ -102,6 +123,10 @@ function formatZar(value: number | null): string {
     return `R ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function formatTradeoffPoint(point: TradeoffPoint): string {
+    return `${formatZar(point.monthly_savings)} at ${point.comfort_score}/100`;
+}
+
 function formatTimeWindow(window: TimeWindow | undefined): string | null {
     if (!window?.start || !window?.end) {
         return null;
@@ -138,30 +163,18 @@ function formatKw(value: number | null): string {
     return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} kW`;
 }
 
-function ChevronDown() {
-    return (
-        <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            stroke="currentColor"
-            aria-hidden="true"
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    );
+function optionsFromChildren(children: ReactNode): CurvedSelectOption[] {
+    return Children.toArray(children)
+        .filter(isValidElement)
+        .map((child) => {
+            const option = child as ReactElement<{ value?: string | number; children?: ReactNode; disabled?: boolean }>;
+            return {
+                value: String(option.props.value ?? ""),
+                label: option.props.children ?? "",
+                disabled: option.props.disabled,
+            };
+        });
 }
-
-const selectStyle: CSSProperties = {
-    appearance: "none",
-    WebkitAppearance: "none",
-    MozAppearance: "none",
-    paddingRight: "var(--space-6)"
-};
 
 function LabeledSelect({
     id,
@@ -179,45 +192,20 @@ function LabeledSelect({
     children: ReactNode;
 }>) {
     return (
-        <div style={{ 
-                display: "grid", 
-                gap: "var(--space-2)" 
-            }}>
-            <label
-                htmlFor={id}
-                className="label"
-                style={{ 
-                    textTransform: "uppercase", 
-                    letterSpacing: "0.2em" 
-                }}
-            >
+        <div style={{
+            display: "grid",
+            gap: "var(--space-2)"
+        }}>
+            <label htmlFor={id} className="label">
                 {label}
             </label>
-            <div style={{ position: "relative" }}>
-                <select
-                    id={id}
-                    className="select"
-                    style={selectStyle}
-                    value={value}
-                    disabled={disabled}
-                    onChange={(e) => onChange(e.target.value)}
-                >
-                    {children}
-                </select>
-                <span
-                    style={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        pointerEvents: "none",
-                        transform: "translateY(-50%)",
-                        color: "var(--brand-ink-muted)"
-                    }}
-                    aria-hidden="true"
-                >
-                    <ChevronDown />
-                </span>
-            </div>
+            <CurvedSelect
+                id={id}
+                value={value}
+                onChange={onChange}
+                options={optionsFromChildren(children)}
+                disabled={disabled}
+            />
         </div>
     );
 }
@@ -230,9 +218,9 @@ function DetailItem({ label, value }: Readonly<{ label: string; value: string }>
     return (
         <div>
             <dt className="dashboard-kpi-label">{label}</dt>
-            <dd style={{ 
+            <dd style={{
                 marginTop: "var(--space-1)",
-                fontSize: "var(--fs-small)" 
+                fontSize: "var(--fs-small)"
             }}>{value}</dd>
         </div>
     );
@@ -249,12 +237,16 @@ function ReviewDialog({
     recommendation: Recommendation;
     pendingAction: ReviewAction | null;
     error: string | null;
-    onApprove: () => void;
+    onApprove: (savingsLevel?: number) => void;
     onDismiss: () => void;
     onClose: () => void;
 }>) {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const titleId = useId();
+    const tradeoff = recommendation.tradeoff ?? null;
+    const approvedTradeoff = recommendation.applicable_range?.approved_tradeoff ?? null;
+    const [savingsLevel, setSavingsLevel] = useState<number>(approvedTradeoff?.savings_level ?? 0);
+    const [levelChosen, setLevelChosen] = useState(false);
 
     useEffect(() => {
         openDialog(dialogRef.current);
@@ -269,36 +261,50 @@ function ReviewDialog({
     const shedLoad = minExpected !== null && maxAllowed !== null ? maxAllowed - minExpected : null;
     const actionable = isActionable(recommendation);
     const busy = pendingAction !== null;
+    const approvalLocked = tradeoff !== null && !levelChosen;
 
     return (
         <dialog
             ref={dialogRef}
             className="modal"
             aria-labelledby={titleId}
-            style={{ 
-                width: "100%", 
-                maxWidth: "560px" 
+            style={{
+                width: "100%",
+                maxWidth: tradeoff ? "640px" : "560px"
             }}
             onClose={onClose}
         >
             <h2 id={titleId} style={{ marginBottom: "var(--space-2)" }}>Review recommendation</h2>
             <p style={{ lineHeight: "var(--lh-body)", marginBottom: "var(--space-4)" }}>{recommendation.strategy_description}</p>
 
-            <div
-                style={{
-                    padding: "var(--space-4)",
-                    border: "1px solid var(--brand-border)",
-                    borderRadius: "var(--radius-md)",
-                    background: "var(--brand-surface-alt)",
-                    marginBottom: "var(--space-4)"
-                }}
-            >
-                <p className="dashboard-kpi-label">Estimated monthly savings</p>
-                <p className="dashboard-kpi-value metric" style={{ fontSize: "1.5rem" }}>{formatZar(monthlySavings)}</p>
-                <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
-                    Around {formatZar(monthlySavings === null ? null : monthlySavings * 12)} per year at the current tariff.
-                </p>
-            </div>
+            {tradeoff ? (
+                <ComfortTradeoff
+                    profile={tradeoff}
+                    level={savingsLevel}
+                    disabled={busy || !actionable}
+                    adjusted={levelChosen || !actionable}
+                    onLevelChange={(level) => {
+                        setSavingsLevel(level);
+                        setLevelChosen(true);
+                    }}
+                />
+            ) : (
+                <div
+                    style={{
+                        padding: "var(--space-4)",
+                        border: "1px solid var(--brand-border)",
+                        borderRadius: "var(--radius-md)",
+                        background: "var(--brand-surface-alt)",
+                        marginBottom: "var(--space-4)"
+                    }}
+                >
+                    <p className="dashboard-kpi-label">Estimated monthly savings</p>
+                    <p className="dashboard-kpi-value metric" style={{ fontSize: "1.5rem" }}>{formatZar(monthlySavings)}</p>
+                    <p className="text-muted" style={{ fontSize: "var(--fs-small)", marginTop: "var(--space-2)" }}>
+                        Around {formatZar(monthlySavings === null ? null : monthlySavings * 12)} per year at the current tariff.
+                    </p>
+                </div>
+            )}
 
             <dl
                 style={{
@@ -317,6 +323,7 @@ function ReviewDialog({
                 {maxAllowed !== null && (<DetailItem label="Forecast peak" value={formatKw(maxAllowed)} />)}
                 {shedLoad !== null && (<DetailItem label="Load to shift" value={formatKw(shedLoad)} />)}
                 {confidence !== null && (<DetailItem label="Confidence" value={`${Math.round(confidence * 100)}%`} />)}
+                {approvedTradeoff && (<DetailItem label="Approved setting" value={formatTradeoffPoint(approvedTradeoff)} />)}
                 <DetailItem label="Generated" value={formatDate(recommendation.generated_date)} />
                 <DetailItem label="Expires" value={formatDate(recommendation.expires_at)} />
             </dl>
@@ -333,19 +340,22 @@ function ReviewDialog({
                 <p role="alert" style={{ color: "var(--brand-danger)", fontSize: "var(--fs-small)", marginBottom: "var(--space-4)" }}>{error}</p>
             )}
 
-            <div style={{ 
-                    display: "flex", 
-                    gap: "var(--space-3)", 
-                    justifyContent: "flex-end", 
-                    flexWrap: "wrap" 
-                }}>
+            <div style={{
+                display: "flex",
+                gap: "var(--space-3)",
+                justifyContent: "flex-end",
+                flexWrap: "wrap"
+            }}>
 
                 <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>Close</button>
                 <button type="button" className="btn btn-secondary" onClick={onDismiss} disabled={busy || !actionable}>
                     {pendingAction === "dismiss" ? "Dismissing..." : "Dismiss"}
                 </button>
-                <button type="button" className="btn btn-primary" onClick={onApprove} disabled={busy || !actionable}    style={{ backgroundColor: "#3A6B7C", color: "#FFFFFF" }}>
-                    {pendingAction === "apply" ? "Approving..." : "Approve"}
+                <button type="button" className="btn btn-primary" onClick={() => onApprove(tradeoff ? savingsLevel : undefined)} 
+                    disabled={busy || !actionable || approvalLocked}
+                   
+                >
+                    {pendingAction === "apply" ? "Approving..." : "Approve Recommendation"}
                 </button>
             </div>
         </dialog>
@@ -365,6 +375,9 @@ function RecommendationCard({
     const timeWindow = formatTimeWindow(range?.time_window);
     const confidence = toFiniteNumber(range?.confidence_score);
     const expired = isExpired(recommendation);
+    const fullStrength = recommendation.tradeoff?.points.at(-1) ?? null;
+    const sweetSpot = recommendation.tradeoff?.sweet_spot ?? null;
+    const approvedTradeoff = range?.approved_tradeoff ?? null;
 
     return (
         <li
@@ -384,10 +397,10 @@ function RecommendationCard({
                     flexWrap: "wrap"
                 }}
             >
-                <p style={{ 
+                <p style={{
                     flex: 1,
-                    minWidth: "240px", 
-                    lineHeight: "var(--lh-body)" 
+                    minWidth: "240px",
+                    lineHeight: "var(--lh-body)"
                 }}>{recommendation.strategy_description}</p>
                 <span className={`badge ${statusBadgeClass(recommendation.status)}`}>
                     {statusLabel(recommendation.status)}
@@ -402,7 +415,7 @@ function RecommendationCard({
                 }}
             >
                 <p className="dashboard-kpi-label">Estimated monthly savings</p>
-                <p className="dashboard-kpi-value metric" style={{ fontSize: "1.25rem" }}>{formatZar(recommendation.estimated_monthly_savings)}</p>
+                <p className="dashboard-kpi-value metric" style={{ fontSize: "1.25rem" }}>{formatZar(toFiniteNumber(recommendation.estimated_monthly_savings))}</p>
             </div>
             <dl
                 style={{
@@ -415,6 +428,9 @@ function RecommendationCard({
                 {timeWindow && <DetailItem label="Shift window" value={timeWindow} />}
                 {range?.target_equipment && (<DetailItem label="Target equipment" value={range.target_equipment} />)}
                 {confidence !== null && (<DetailItem label="Confidence" value={`${Math.round(confidence * 100)}%`} />)}
+                {fullStrength && (<DetailItem label="Comfort at full savings" value={`${fullStrength.comfort_score}/100`} />)}
+                {sweetSpot && (<DetailItem label="Sweet spot" value={formatTradeoffPoint(sweetSpot)} />)}
+                {approvedTradeoff && (<DetailItem label="Approved setting" value={formatTradeoffPoint(approvedTradeoff)} />)}
 
                 <DetailItem label="Generated" value={formatDate(recommendation.generated_date)} />
                 <DetailItem label="Expires" value={formatDate(recommendation.expires_at)} />
@@ -443,6 +459,16 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
         isError: buildingsError,
     } = useBuildings();
 
+    // we open on the busiest building so there is something shown
+    const autoPicked = useRef(false);
+    useEffect(() => {
+        if (autoPicked.current || buildings.length === 0) {
+            return;
+        }
+        autoPicked.current = true;
+        setBuildingId((current) => current || rankByUsage(buildings)[0].id);
+    }, [buildings]);
+
     const {
         data: recommendations = [],
         isLoading: recommendationsLoading,
@@ -468,12 +494,18 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
     });
 
     const { mutate: reviewRecommendation, variables: pendingReview, isPending: reviewPending } = useMutation({
-        mutationFn: async ({ action, recommendationId }: { action: ReviewAction; recommendationId: string }) => {
+        mutationFn: async ({ action, recommendationId, savingsLevel }: ReviewVariables) => {
             const response = await fetch(
                 `/api/buildings/${buildingId}/recommendations/${recommendationId}/${action}`,
                 {
                     method: "POST",
                     credentials: "include",
+                    ...(savingsLevel === undefined
+                        ? {}
+                        : {
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ savings_level: savingsLevel })
+                        }),
                 },
             );
 
@@ -562,7 +594,7 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
                 {recommendations.map((recommendation) => (
                     <RecommendationCard key={recommendation.recommendation_id} recommendation={recommendation} showReview={showReview} onReview={
                         () => setReviewId(recommendation.recommendation_id)
-                    }/>
+                    } />
                 ))}
             </ul>
         );
@@ -611,9 +643,9 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
                 </div>
 
                 {buildingsError && (
-                    <p className="text-muted" style={{ 
-                        marginTop: "var(--space-3)", 
-                        color: "var(--brand-danger)" 
+                    <p className="text-muted" style={{
+                        marginTop: "var(--space-3)",
+                        color: "var(--brand-danger)"
                     }} role="alert">Unable to load your assigned buildings right now.
                     </p>
                 )}
@@ -654,7 +686,11 @@ export default function InsightsClient({ role }: Readonly<{ role: string }>) {
                     recommendation={reviewTarget}
                     pendingAction={reviewPending ? pendingReview?.action ?? null : null}
                     error={reviewError}
-                    onApprove={() => reviewRecommendation({ action: "apply", recommendationId: reviewTarget.recommendation_id })}
+                    onApprove={(savingsLevel) => reviewRecommendation({
+                        action: "apply",
+                        recommendationId: reviewTarget.recommendation_id,
+                        ...(savingsLevel === undefined ? {} : { savingsLevel })
+                    })}
                     onDismiss={() => reviewRecommendation({ action: "dismiss", recommendationId: reviewTarget.recommendation_id })}
                     onClose={closeReview}
                 />

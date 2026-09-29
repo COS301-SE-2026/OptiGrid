@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NavLinks } from "./nav-links";
 import { buildDisplayName, parseSession, SESSION_COOKIE_NAME, type SessionUser } from "../../lib/session";
-import Link from "next/link";
+import { humanise } from "../../lib/labels";
 import { LogoutButton } from "./logout-button";
 import { AuditPageTracker } from "../../components/AuditPageTracker";
+import { OptiGridLogo } from "../../components/logo";
 
 function getInitials(user: SessionUser): string {
     const first = user.firstName?.[0] ?? "";
@@ -35,18 +37,28 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <AuditPageTracker />
             <div className="dashboard-shell">
                 <aside className="card dashboard-sidebar">
-                    <p className="dashboard-brand">OptiGrid</p>
+                    <Link
+                        href="/dashboard"
+                        aria-label="OptiGrid dashboard"
+                        className="dashboard-brand"
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            color: "var(--brand-ink)",
+                            textDecoration: "none",
+                            marginBottom: "var(--space-3)",
+                        }}
+                    >
+                        <OptiGridLogo height={28} />
+                    </Link>
                     <div className="dashboard-user">
                         <div className="dashboard-avatar">{initials}</div>
-                        <span>{displayName}</span>
-                    </div>
-                    <div className="dashboard-navgroup">
-                        <NavLinks role={user.roleType} />
-                        <div className="dashboard-utility">
-                            <Link href="/help" className="dashboard-link">Help Centre</Link>
-                            <Link href="/contact" className="dashboard-link">Contact Us</Link>
+                        <div className="dashboard-user-text">
+                            <span className="dashboard-user-name">{displayName}</span>
+                            <span className="dashboard-user-role">{humanise(user.roleType, "Member")}</span>
                         </div>
                     </div>
+                    <NavLinks role={user.roleType} />
                     <LogoutButton />
                 </aside>
                 <main className="dashboard-main">{children}</main>

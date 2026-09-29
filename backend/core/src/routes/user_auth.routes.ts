@@ -6,9 +6,11 @@ import {
     recoverAccount,
     getManagersController,
     getViewersController,
+    getAdminsController,
     assignManagerController,
     removeManagerController,
     googleAuthLoginController,
+    recoverOAuthAccountController,
 } from '../controllers/user_auth.controller';
 import { validateSignUp, validateBody, signupSchema, loginSchema } from '../validation/user_auth.validation';
 import { reqRole } from '../middleware/rbac.middleware';
@@ -325,6 +327,43 @@ router.post('/logout', authenticateRequest, logout);
 
 router.post('/recover-account', validateBody(loginSchema), recoverAccount);
 
+/**
+ * @swagger
+ * /auth/oauth-recover:
+ *   post:
+ *     summary: Recover a deactivated account that signs in with Google
+ *     description: Verifies the Google session token and reactivates the matching soft-deleted account.
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [access]
+ *             properties:
+ *               access:
+ *                 type: string
+ *                 description: Supabase access token from the Google sign in.
+ *     responses:
+ *       200:
+ *         description: Account recovered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/AccountRecoveryResponse"
+ *       400:
+ *         description: Access token missing
+ *       401:
+ *         description: Access token invalid or expired
+ *       404:
+ *         description: Account profile not found
+ *       409:
+ *         description: Account is already active
+ */
+router.post('/oauth-recover', recoverOAuthAccountController);
+
 router.get('/viewers', authenticateRequest, reqRole([UserRole.ADMIN]), getViewersController);
 /**
  * @swagger
@@ -382,6 +421,7 @@ router.get('/viewers', authenticateRequest, reqRole([UserRole.ADMIN]), getViewer
  *                   example: Internal Server Error
  */
 router.get('/managers', authenticateRequest, reqRole([UserRole.ADMIN]), getManagersController);
+router.get('/admins', authenticateRequest, reqRole([UserRole.ADMIN]), getAdminsController);
 /**
  * @swagger
  * /auth/assign:

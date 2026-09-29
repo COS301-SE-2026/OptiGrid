@@ -3,6 +3,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import { formatDateTime } from "@/lib/formatDate";
 import { PageHeading } from "@/components/PageHeading";
+import { CurvedSelect } from "@/components/curvedselect";
 
 type AuditLog = {
     log_id: string;
@@ -51,14 +52,6 @@ const SEVERITY_BADGES: Record<string, string> = {
     warning: "badge-warning",
     error: "badge-danger",
     critical: "badge-danger"
-};
-
-const headerStyle: CSSProperties = {
-    color: "#CDE8E5",
-    letterSpacing: "0.05em",
-    textTransform: "uppercase",
-    fontSize: "var(--fs-small)",
-    fontWeight: "var(--fw-semibold)"
 };
 
 function getSeverityBadge(severity: string | null): string {
@@ -172,7 +165,7 @@ export default function AuditClient() {
                 <td>{formatTarget(log)}</td>
                 <td>
                     {log.severity ? (
-                        <span className={`badge ${getSeverityBadge(log.severity)}`}>{log.severity.toLowerCase()}</span>
+                        <span className={`badge ${getSeverityBadge(log.severity)}`} style={{ textTransform: "capitalize" }}>{log.severity.toLowerCase()}</span>
                     ) : (
                         <span className="text-muted">-</span>
                     )}
@@ -207,11 +200,11 @@ export default function AuditClient() {
                         <caption className="sr-only">System activity, most recent first</caption>
                         <thead>
                             <tr>
-                                <th scope="col" style={headerStyle}>When</th>
-                                <th scope="col" style={headerStyle}>Action</th>
-                                <th scope="col" style={headerStyle}>User</th>
-                                <th scope="col" style={headerStyle}>Target</th>
-                                <th scope="col" style={headerStyle}>Severity</th>
+                                <th scope="col">When</th>
+                                <th scope="col">Action</th>
+                                <th scope="col">User</th>
+                                <th scope="col">Target</th>
+                                <th scope="col">Severity</th>
                             </tr>
                         </thead>
                         <tbody>{renderRows()}</tbody>
@@ -236,85 +229,57 @@ export default function AuditClient() {
     return (
         <div>
             <PageHeading title="Security and audit" subtitle="A chronological record of sign ins and configuration changes across the system."/>
-            <section className="card dashboard-section" aria-label="Audit filters">
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-                        gap: "var(--space-4)",
-                        alignItems: "end"
-                    }}
-                >
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <label className="label" htmlFor="audit-action">Action</label>
-                        <select
-                            id="audit-action"
-                            className="select"
-                            value={actionFilter}
-                            onChange={(e) => {
-                                setActionFilter(e.target.value);
-                                if (e.target.value !== "all") setPageFilter("all");
-                            }}
-                        >
-                            {ACTION_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
-                        </select>
-                    </div>
-
-                    <div style={{
-                        display: "grid",
-                        gap: "var(--space-2)"
-                    }}>
-                        <label className="label" htmlFor="audit-page">Page</label>
-                        <select
-                            id="audit-page"
-                            className="select"
-                            value={pageFilter}
-                            onChange={(e) => {
-                                setPageFilter(e.target.value);
-                                if (e.target.value !== "all") setActionFilter("all");
-                            }}
-                        >
-                            {PAGE_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
-                        </select>
-                    </div>
-
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <label className="label" htmlFor="audit-severity">Severity</label>
-                        <select id="audit-severity" className="select" value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
-                            {SEVERITY_FILTERS.map((filter) => (<option key={filter.value} value={filter.value}>{filter.label}</option>))}
-                        </select>
-                    </div>
-
-
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <label className="label" htmlFor="audit-from">From</label>
-                        <input id="audit-from" type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)}/>
-                    </div>
-
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <label className="label" htmlFor="audit-to">To</label>
-                        <input id="audit-to" type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)}/>
-                    </div>
-                    <div style={{ 
-                        display: "grid", 
-                        gap: "var(--space-2)" 
-                    }}>
-                        <span className="label" aria-hidden="true">&nbsp;</span>
-                        <button type="button" className="btn btn-secondary" onClick={resetFilters}>Reset</button>
-                    </div>
+            <section className="card filter-bar" aria-label="Audit filters">
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-action">Action</label>
+                    <CurvedSelect
+                        id="audit-action"
+                        value={actionFilter}
+                        onChange={(value) => {
+                            setActionFilter(value);
+                            if (value !== "all") setPageFilter("all");
+                        }}
+                        options={ACTION_FILTERS}
+                        ariaLabel="Filter by action type"
+                    />
                 </div>
+
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-page">Page</label>
+                    <CurvedSelect
+                        id="audit-page"
+                        value={pageFilter}
+                        onChange={(value) => {
+                            setPageFilter(value);
+                            if (value !== "all") setActionFilter("all");
+                        }}
+                        options={PAGE_FILTERS}
+                        ariaLabel="Filter by page"
+                    />
+                </div>
+
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-severity">Severity</label>
+                    <CurvedSelect
+                        id="audit-severity"
+                        value={severityFilter}
+                        onChange={setSeverityFilter}
+                        options={SEVERITY_FILTERS}
+                        ariaLabel="Filter by severity"
+                    />
+                </div>
+
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-from">From</label>
+                    <input id="audit-from" type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)}/>
+                </div>
+
+                <div className="filter-field">
+                    <label className="label" htmlFor="audit-to">To</label>
+                    <input id="audit-to" type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)}/>
+                </div>
+
+                <button type="button" className="btn btn-secondary filter-reset" onClick={resetFilters}>Reset</button>
             </section>
 
             <section className="dashboard-section" aria-label="Audit log">
