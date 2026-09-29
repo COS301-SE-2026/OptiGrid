@@ -114,8 +114,7 @@
 			"cookie": ">=0.7.0",
 			"sharp": ">=0.35.4",
 			"image-size": ">=2.0.3",
-			"deepmerge-ts": ">=8.0.0",
-			"maplibre-gl": ">=6.4.1"
+			"deepmerge-ts": ">=8.0.0"
 		}
 	},
 	"dependencies": {
