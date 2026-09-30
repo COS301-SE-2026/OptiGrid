@@ -386,7 +386,7 @@ export default function ViewBuildingPage({
                                             {peakTimes.map((peak) => (
                                                 <tr key={`${peak.timestamp}-${peak.kwh}`}>
                                                     <td>{formatPeakTime(peak.timestamp)}</td>
-                                                    <td className="building-peak-bar-cell" aria-hidden="true">
+                                                    <td className="building-peak-bar-cell">
                                                         <span className="building-peak-bar">
                                                             <span style={{ width: `${peakMax > 0 ? Math.max(4, (peak.kwh / peakMax) * 100) : 0}%` }} />
                                                         </span>

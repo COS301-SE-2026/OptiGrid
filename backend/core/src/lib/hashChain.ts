@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 
 export const HASH_ALGORITHM = 'SHA-256';
 export const GENESIS_HASH = '0'.repeat(64);

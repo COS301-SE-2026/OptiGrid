@@ -116,7 +116,8 @@ function isMissingBucketError(error: any): boolean {
 }
 
 function relativeRangeClause(timeRange: string): string {
-    return `range(start: ${timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`})`;
+    const start = timeRange === 'today' ? 'date.truncate(t: now(), unit: 1d)' : `-${timeRange}`;
+    return `range(start: ${start})`;
 }
 
 function absoluteRangeClause(start: Date, stop: Date): string {

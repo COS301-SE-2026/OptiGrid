@@ -25,8 +25,11 @@ import {
     type SensorView,
     type StressBand,
     type TwinBuilding,
+    type TwinLayout,
     type TwinLimits,
+    type TwinSummary,
     type TwinSensor,
+    type ReadingStore,
 } from "@/lib/digitalTwin";
 import type { ScenePalette } from "./TwinScene";
 
@@ -446,6 +449,193 @@ function SensorRow({
     );
 }
 
+function attentionToneOf(summary: TwinSummary): StressBand | undefined {
+    if (summary.critical > 0) {
+        return "critical";
+    }
+    return summary.elevated > 0 ? "elevated" : undefined;
+}
+
+function streamStatus(summary: TwinSummary, isConnected: boolean, streamQuiet: boolean, streamError: unknown) {
+    if (summary.reporting > 0 && (isConnected || !streamQuiet)) {
+        return { tone: "live", text: "Live" };
+    }
+    if (isConnected) {
+        return { tone: "idle", text: "Awaiting readings" };
+    }
+    return streamError
+        ? { tone: "warn", text: "Reconnecting" }
+        : { tone: "idle", text: "Connecting" };
+}
+
+function stageAriaLabel(buildingName: string, layout: TwinLayout, sensorCount: number, summary: TwinSummary): string {
+    const floorWord = layout.floors === 1 ? "floor" : "floors";
+    const sensorWord = sensorCount === 1 ? "sensor" : "sensors";
+    const liveLoad = formatKw(summary.reporting > 0 ? summary.totalKw : null);
+    return `3D model of ${buildingName} across ${layout.floors} ${floorWord} with ${sensorCount} ${sensorWord}. ${summary.reporting} reporting, ${liveLoad} live load. Use the sensor list to inspect each sensor.`;
+}
+
+function SceneStage({
+    webgl,
+    contextLost,
+    palette,
+    stageLabel,
+    sceneKey,
+    layout,
+    store,
+    lens,
+    limits,
+    dark,
+    selectedId,
+    onSelect,
+    active,
+    reducedMotion,
+    resetToken,
+    solarPanels,
+    onContextLost,
+    onRestart,
+}: Readonly<{
+    webgl: boolean | null;
+    contextLost: boolean;
+    palette: ScenePalette | null;
+    stageLabel: string;
+    sceneKey: number;
+    layout: TwinLayout;
+    store: ReadingStore;
+    lens: LoadLens;
+    limits: TwinLimits;
+    dark: boolean;
+    selectedId: string | null;
+    onSelect: (sensorId: string | null) => void;
+    active: boolean;
+    reducedMotion: boolean;
+    resetToken: number;
+    solarPanels: number;
+    onContextLost: () => void;
+    onRestart: () => void;
+}>) {
+    if (webgl === false) {
+        return (
+            <StageMessage
+                title="3D view unavailable"
+                body="This browser or device cannot draw WebGL graphics. Live readings for every sensor are still listed alongside."
+            />
+        );
+    }
+    if (contextLost) {
+        return (
+            <StageMessage
+                title="3D view paused"
+                body="The browser reclaimed graphics memory for this page."
+                action={<button type="button" className="btn btn-secondary" onClick={onRestart}>Restart 3D view</button>}
+            />
+        );
+    }
+    if (webgl === null || palette === null) {
+        return <StageMessage loading title="Preparing the 3D view" />;
+    }
+    return (
+        <div className="twin-canvas-wrap" role="img" aria-label={stageLabel}>
+            <TwinScene
+                key={sceneKey}
+                layout={layout}
+                store={store}
+                lens={lens}
+                limits={limits}
+                palette={palette}
+                dark={dark}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                active={active}
+                reducedMotion={reducedMotion}
+                resetToken={resetToken}
+                solarPanels={solarPanels}
+                onContextLost={onContextLost}
+            />
+        </div>
+    );
+}
+
+function SensorPanel({
+    loading,
+    error,
+    onRetry,
+    sensorCount,
+    buildingId,
+    shownRows,
+    matchingCount,
+    lens,
+    limits,
+    palette,
+    selectedId,
+    onToggle,
+}: Readonly<{
+    loading: boolean;
+    error: unknown;
+    onRetry: () => void;
+    sensorCount: number;
+    buildingId: string;
+    shownRows: SensorView[];
+    matchingCount: number;
+    lens: LoadLens;
+    limits: TwinLimits;
+    palette: ScenePalette | null;
+    selectedId: string | null;
+    onToggle: (sensorId: string) => void;
+}>) {
+    if (loading) {
+        return (
+            <div className="twin-list-loading" role="status" aria-label="Loading sensors">
+                <div className="skeleton" />
+                <div className="skeleton" />
+                <div className="skeleton" />
+            </div>
+        );
+    }
+    if (error) {
+        return (
+            <div className="twin-panel-message" role="alert">
+                <p>{error instanceof Error ? error.message : "Unable to load the sensors for this building."}</p>
+                <button type="button" className="btn btn-secondary" onClick={onRetry}>Try again</button>
+            </div>
+        );
+    }
+    if (sensorCount === 0) {
+        return (
+            <div className="twin-panel-message">
+                <p>No sensors are registered for this building yet. Once a sensor is registered it appears in the model and lights up with its live load.</p>
+                <Link href={`/buildings/${encodeURIComponent(buildingId)}/sensors`} className="btn btn-secondary">Manage sensors</Link>
+            </div>
+        );
+    }
+    return (
+        <>
+            {shownRows.length === 0 ? (
+                <p className="text-muted twin-panel-message">No sensors match that filter.</p>
+            ) : (
+                <ul className="twin-list">
+                    {shownRows.map((view) => (
+                        <SensorRow
+                            key={view.sensor.sensor_id}
+                            view={view}
+                            lens={lens}
+                            limits={limits}
+                            palette={palette}
+                            selected={view.sensor.sensor_id === selectedId}
+                            onToggle={onToggle}
+                        />
+                    ))}
+                </ul>
+            )}
+            {matchingCount > LIST_LIMIT && (
+                <p className="text-muted twin-list-note">
+                    Showing the {LIST_LIMIT} busiest of {matchingCount} sensors. Filter to find the rest.
+                </p>
+            )}
+        </>
+    );
+}
+
 function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
     const buildingId = building.building_id;
     const headingId = useId();
@@ -600,120 +790,11 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
 
     const sensorCount = layout.placements.length;
     const attention = summary.critical + summary.elevated;
-    let attentionTone: StressBand | undefined;
-    if (summary.critical > 0) {
-        attentionTone = "critical";
-    } else if (summary.elevated > 0) {
-        attentionTone = "elevated";
-    }
-
-    let streamTone = "idle";
-    let streamText = "Connecting";
-    if (summary.reporting > 0 && (isConnected || !streamQuiet)) {
-        streamTone = "live";
-        streamText = "Live";
-    } else if (isConnected) {
-        streamText = "Awaiting readings";
-    } else if (streamError) {
-        streamTone = "warn";
-        streamText = "Reconnecting";
-    }
+    const attentionTone = attentionToneOf(summary);
+    const stream = streamStatus(summary, isConnected, streamQuiet, streamError);
 
     const buildingName = building.building_name?.trim() || "this building";
-    const stageLabel = `3D model of ${buildingName} across ${layout.floors} floor${layout.floors === 1 ? "" : "s"} with ${sensorCount} sensor${sensorCount === 1 ? "" : "s"}. ${summary.reporting} reporting, ${formatKw(summary.reporting > 0 ? summary.totalKw : null)} live load. Use the sensor list to inspect each sensor.`;
-
-    let stage: ReactNode;
-    if (webgl === false) {
-        stage = (
-            <StageMessage
-                title="3D view unavailable"
-                body="This browser or device cannot draw WebGL graphics. Live readings for every sensor are still listed alongside."
-            />
-        );
-    } else if (contextLost) {
-        stage = (
-            <StageMessage
-                title="3D view paused"
-                body="The browser reclaimed graphics memory for this page."
-                action={<button type="button" className="btn btn-secondary" onClick={restartScene}>Restart 3D view</button>}
-            />
-        );
-    } else if (webgl === null || palette === null) {
-        stage = <StageMessage loading title="Preparing the 3D view" />;
-    } else {
-        stage = (
-            <div className="twin-canvas-wrap" role="img" aria-label={stageLabel}>
-                <TwinScene
-                    key={sceneKey}
-                    layout={layout}
-                    store={store}
-                    lens={lens}
-                    limits={limits}
-                    palette={palette}
-                    dark={dark}
-                    selectedId={selectedId}
-                    onSelect={handleSelect}
-                    active={onScreen}
-                    reducedMotion={reducedMotion}
-                    resetToken={resetToken}
-                    solarPanels={solarPanelCount(building)}
-                    onContextLost={handleContextLost}
-                />
-            </div>
-        );
-    }
-
-    let panel: ReactNode;
-    if (sensorsQuery.isLoading) {
-        panel = (
-            <div className="twin-list-loading" role="status" aria-label="Loading sensors">
-                <div className="skeleton" />
-                <div className="skeleton" />
-                <div className="skeleton" />
-            </div>
-        );
-    } else if (sensorsQuery.isError) {
-        panel = (
-            <div className="twin-panel-message" role="alert">
-                <p>{sensorsQuery.error instanceof Error ? sensorsQuery.error.message : "Unable to load the sensors for this building."}</p>
-                <button type="button" className="btn btn-secondary" onClick={() => void sensorsQuery.refetch()}>Try again</button>
-            </div>
-        );
-    } else if (sensorCount === 0) {
-        panel = (
-            <div className="twin-panel-message">
-                <p>No sensors are registered for this building yet. Once a sensor is registered it appears in the model and lights up with its live load.</p>
-                <Link href={`/buildings/${encodeURIComponent(buildingId)}/sensors`} className="btn btn-secondary">Manage sensors</Link>
-            </div>
-        );
-    } else {
-        panel = (
-            <>
-                {shownRows.length === 0 ? (
-                    <p className="text-muted twin-panel-message">No sensors match that filter.</p>
-                ) : (
-                    <ul className="twin-list">
-                        {shownRows.map((view) => (
-                            <SensorRow
-                                key={view.sensor.sensor_id}
-                                view={view}
-                                lens={lens}
-                                limits={limits}
-                                palette={palette}
-                                selected={view.sensor.sensor_id === selectedId}
-                                onToggle={toggleSensor}
-                            />
-                        ))}
-                    </ul>
-                )}
-                {matchingRows.length > LIST_LIMIT && (
-                    <p className="text-muted twin-list-note">
-                        Showing the {LIST_LIMIT} busiest of {matchingRows.length} sensors. Filter to find the rest.
-                    </p>
-                )}
-            </>
-        );
-    }
+    const stageLabel = stageAriaLabel(buildingName, layout, sensorCount, summary);
 
     return (
         <section
@@ -760,16 +841,35 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
 
             <div className="twin-body">
                 <div ref={stageRef} className="twin-stage">
-                    {stage}
+                    <SceneStage
+                        webgl={webgl}
+                        contextLost={contextLost}
+                        palette={palette}
+                        stageLabel={stageLabel}
+                        sceneKey={sceneKey}
+                        layout={layout}
+                        store={store}
+                        lens={lens}
+                        limits={limits}
+                        dark={dark}
+                        selectedId={selectedId}
+                        onSelect={handleSelect}
+                        active={onScreen}
+                        reducedMotion={reducedMotion}
+                        resetToken={resetToken}
+                        solarPanels={solarPanelCount(building)}
+                        onContextLost={handleContextLost}
+                        onRestart={restartScene}
+                    />
                     <div className="twin-overlay twin-overlay-top">
                         <div className="twin-stats" role="group" aria-label="Live building summary">
                             <Stat label="Live load" value={formatKw(summary.reporting > 0 ? summary.totalKw : null)} />
                             <Stat label="Reporting" value={`${summary.reporting} of ${sensorCount}`} />
                             <Stat label="Need attention" value={String(attention)} tone={attentionTone} />
                         </div>
-                        <span className={`twin-stream twin-stream-${streamTone}`}>
+                        <span className={`twin-stream twin-stream-${stream.tone}`}>
                             <span className="twin-stream-dot" aria-hidden="true" />
-                            {streamText}
+                            {stream.text}
                         </span>
                     </div>
                     {selected && (
@@ -798,7 +898,20 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
                             onChange={(event) => setFilter(event.target.value)}
                         />
                     )}
-                    {panel}
+                    <SensorPanel
+                        loading={sensorsQuery.isLoading}
+                        error={sensorsQuery.isError ? sensorsQuery.error : null}
+                        onRetry={() => void sensorsQuery.refetch()}
+                        sensorCount={sensorCount}
+                        buildingId={buildingId}
+                        shownRows={shownRows}
+                        matchingCount={matchingRows.length}
+                        lens={lens}
+                        limits={limits}
+                        palette={palette}
+                        selectedId={selectedId}
+                        onToggle={toggleSensor}
+                    />
                 </aside>
             </div>
         </section>
