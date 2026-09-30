@@ -42,14 +42,21 @@ export const runDailyCarbonAggregation = async (
         failed: []
     };
 
-    for (const building of buildings) {
+    const outcomes = await Promise.all(buildings.map(async (building) => {
         try {
             await dependencies.aggregate(building.building_id, period.start, period.end);
-            summary.succeeded.push(building.building_id);
+            return { building_id: building.building_id, message: null };
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown aggregation failure';
-            summary.failed.push({ building_id: building.building_id, message });
             console.error(`[CarbonLedgerWorker] Failed for building ${building.building_id}:`, error);
+            return { building_id: building.building_id, message };
+        }
+    }));
+    for (const outcome of outcomes) {
+        if (outcome.message === null) {
+            summary.succeeded.push(outcome.building_id);
+        } else {
+            summary.failed.push({ building_id: outcome.building_id, message: outcome.message });
         }
     }
     return summary;

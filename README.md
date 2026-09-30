@@ -1,12 +1,15 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=4D869C&height=200&section=header&text=OptiGrid&fontSize=80&fontColor=EEF7FF&animation=twinkling" />
+<img src="docs/images/optigrid-logo.svg" alt="OptiGrid" width="400" style="margin-bottom: 10px; margin-top: 20px;" />
 
 # [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=Space+Grotesk&weight=700&size=30&pause=1000&color=4D869C&center=true&vCenter=true&width=600&lines=Intelligent+Energy+Optimization;Powered+by+Smart+Grid+Tech)](https://git.io/typing-svg)
 
 ---
 
-Built by **[Coreflow](https://github.com/OptiGrid)**
+<p align="center" style="display: flex; align-items: center; justify-content: center;">
+  <img src="docs/images/Coreflow.jpg" alt="Coreflow Logo" width="30" style="border-radius: 6px; margin-right: 10px;" />
+  <span>Built by <b><a href="https://github.com/OptiGrid">Coreflow</a></b></span>
+</p>
 
 ---
 

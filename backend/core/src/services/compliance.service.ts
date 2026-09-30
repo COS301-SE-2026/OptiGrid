@@ -292,6 +292,188 @@ export const verifyCarbonScope = async (buildingIds: string[], month: string): P
     return { month, scope_status: carbonScopeStatusOf(buildings), buildings };
 };
 
+type ReportBuilding = {
+    building_id: string;
+    building_name: string;
+    building_type: string | null;
+    square_footage: unknown;
+};
+
+type ReportedUsage = {
+    kwh: number | null;
+    cost: number | null;
+    source: 'carbon_ledger' | 'live_telemetry';
+};
+
+type UsageEntry = readonly [string, { kwh: number | null; cost: number | null }];
+
+async function loadUsageEntry(buildingId: string, period: ReportingPeriod): Promise<UsageEntry> {
+    try {
+        const usage = await queryUsageBetween(
+            buildingId,
+            period.start,
+            period.endExclusive,
+            COMPLIANCE_TELEMETRY_TIMEOUT_MS
+        );
+        const kwh = typeof usage === 'number' ? usage : usage?.total_kwh ?? null;
+        const cost = typeof usage === 'number'
+            ? null
+            : resolveCostZar(
+                Number(usage?.total_cost_zar ?? 0),
+                Number(usage?.total_cost_usd ?? 0),
+                Number(usage?.total_kwh ?? 0)
+            );
+        return [buildingId, { kwh, cost }] as const;
+    } catch (error) {
+        console.error(`[Compliance] usage lookup failed for ${buildingId}:`, error);
+        return [buildingId, { kwh: null, cost: null }] as const;
+    }
+}
+
+function indexCarbonRows(rows: Array<{ building_id: string; total_kg_co2e: unknown; total_kwh: unknown }>) {
+    const carbon = new Map<string, number>();
+    const usage = new Map<string, number>();
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+        carbon.set(row.building_id, (carbon.get(row.building_id) ?? 0) + Number(row.total_kg_co2e));
+        usage.set(row.building_id, (usage.get(row.building_id) ?? 0) + Number(row.total_kwh));
+        counts.set(row.building_id, (counts.get(row.building_id) ?? 0) + 1);
+    }
+    return { carbon, usage, counts };
+}
+
+function usageMatchesLedger(liveUsage: number | null, ledgerUsage: number): boolean {
+    if (liveUsage === null) {
+        return false;
+    }
+    const tolerance = Math.max(0.01, Math.abs(ledgerUsage) * 0.001);
+    return Math.abs(liveUsage - ledgerUsage) <= tolerance;
+}
+
+function reportedUsageByBuilding(
+    buildings: ReportBuilding[],
+    liveUsage: Map<string, { kwh: number | null; cost: number | null }>,
+    carbonIntegrity: CarbonIntegrityResult[],
+    ledgerUsage: Map<string, number>,
+    ledgerRows: Map<string, number>
+): Map<string, ReportedUsage> {
+    const integrityByBuilding = new Map(carbonIntegrity.map((entry) => [entry.building_id, entry]));
+    const reported = new Map<string, ReportedUsage>();
+    for (const building of buildings) {
+        const live = liveUsage.get(building.building_id) ?? { kwh: null, cost: null };
+        const integrity = integrityByBuilding.get(building.building_id);
+        const hasVerifiedLedger = (ledgerRows.get(building.building_id) ?? 0) > 0 && integrity?.verified === true;
+        if (!hasVerifiedLedger) {
+            reported.set(building.building_id, { ...live, source: 'live_telemetry' });
+            continue;
+        }
+        const kwh = ledgerUsage.get(building.building_id) ?? 0;
+        reported.set(building.building_id, {
+            kwh,
+            // Never present a retained subset of telemetry as the full-month cost.
+            cost: integrity.status === 'VALID' && usageMatchesLedger(live.kwh, kwh) ? live.cost : null,
+            source: 'carbon_ledger'
+        });
+    }
+    return reported;
+}
+
+function buildSites(
+    buildings: ReportBuilding[],
+    reported: Map<string, ReportedUsage>,
+    carbonIntegrity: CarbonIntegrityResult[],
+    carbon: Map<string, number>,
+    totalUsage: number
+): ComplianceReport['organisation']['sites'] {
+    const integrityByBuilding = new Map(carbonIntegrity.map((entry) => [entry.building_id, entry]));
+    const shareOf = (value: number | null): number | null => (
+        value === null || totalUsage <= 0 ? null : Number(((value / totalUsage) * 100).toFixed(2))
+    );
+    return buildings.map((building) => {
+        const usage = reported.get(building.building_id);
+        return {
+            building_id: building.building_id,
+            name: building.building_name,
+            type: building.building_type,
+            usage_kwh: usage?.kwh ?? null,
+            cost_zar: usage?.cost ?? null,
+            carbon_kg_co2e: integrityByBuilding.get(building.building_id)?.verified
+                ? (carbon.get(building.building_id) ?? null)
+                : null,
+            share_of_total: shareOf(usage?.kwh ?? null)
+        };
+    }).sort((a, b) => (b.usage_kwh ?? -1) - (a.usage_kwh ?? -1));
+}
+
+function summarizeAnomalies(
+    anomalies: Array<{ detected_timestamp: Date | null; severity_level: string | null; status: string | null }>,
+    periodStart: Date,
+    periodEnd: Date
+) {
+    const bySeverity: Record<string, number> = {};
+    let open = 0;
+    let resolved = 0;
+    let raisedInPeriod = 0;
+    for (const anomaly of anomalies) {
+        const detected = anomaly.detected_timestamp
+            ? new Date(anomaly.detected_timestamp.getTime())
+            : null;
+        if (detected && detected >= periodStart && detected <= periodEnd) {
+            raisedInPeriod += 1;
+        }
+        const severity = (anomaly.severity_level ?? 'unspecified').toLowerCase();
+        bySeverity[severity] = (bySeverity[severity] ?? 0) + 1;
+        const status = (anomaly.status ?? '').toLowerCase();
+        if (status === 'resolved' || status === 'ignored') {
+            resolved += 1;
+        } else {
+            open += 1;
+        }
+    }
+    return { bySeverity, open, resolved, raisedInPeriod };
+}
+
+function energySourceOf(reported: Map<string, ReportedUsage>): ComplianceReport['energy_performance']['source'] {
+    const sources = new Set(Array.from(reported.values()).map((entry) => entry.source));
+    if (sources.size > 1) {
+        return 'mixed';
+    }
+    return sources.values().next().value ?? 'live_telemetry';
+}
+
+function roundNullable(value: number | null): number | null {
+    return value === null ? null : Number(value.toFixed(2));
+}
+
+function digitalSignatureOf(
+    carbonIntegrity: CarbonIntegrityResult[],
+    buildingCount: number,
+    integrity: ChainVerification,
+    totalChainedEntries: number,
+    generatedAt: Date
+): ComplianceReport['digital_signature'] {
+    const allCarbonChainsVerified = carbonIntegrity.length === buildingCount
+        && carbonIntegrity.every((entry) => entry.verified && Boolean(entry.current_hash));
+    const carbonHeads = carbonIntegrity
+        .filter((entry): entry is CarbonIntegrityResult & { current_hash: string } => entry.verified && Boolean(entry.current_hash))
+        .map((entry) => `${entry.building_id}:${entry.current_hash}`)
+        .sort((left, right) => left.localeCompare(right));
+    const carbonSignature = allCarbonChainsVerified
+        ? createHash('sha256').update(carbonHeads.join('\n')).digest('hex')
+        : null;
+    const carbonRecordsCovered = carbonIntegrity.reduce((sum, entry) => sum + entry.records_checked, 0);
+    const auditRecordsCovered = integrity.verified ? integrity.records_checked : totalChainedEntries;
+    const auditSignature = integrity.verification_status === 'FAILED' ? null : integrity.current_hash;
+    return {
+        algorithm: HASH_ALGORITHM,
+        value: carbonSignature ?? auditSignature,
+        verified: carbonSignature !== null || integrity.verified,
+        records_covered: carbonSignature ? carbonRecordsCovered : auditRecordsCovered,
+        source: carbonSignature ? 'carbon_ledger' : 'audit_log',
+        signed_at: generatedAt.toISOString()
+    };
+}
+
 export const buildComplianceReport = async (
     allowedBuildingIds: string[],
     options: { verifyAuditTrail?: boolean } = {}
@@ -314,23 +496,9 @@ export const buildComplianceReport = async (
 
     const monthKey = reportMonthKey(generatedAt);
     const carbonScopePromise = verifyCarbonScope(buildings.map((building) => building.building_id), monthKey);
-    const usageEntriesPromise = Promise.all(buildings.map(async (building) => {
-        try {
-            const usage = await queryUsageBetween(
-                building.building_id,
-                period.start,
-                period.endExclusive,
-                COMPLIANCE_TELEMETRY_TIMEOUT_MS
-            );
-            const kwh = typeof usage === 'number' ? usage : usage?.total_kwh ?? null;
-            const cost = typeof usage === 'number' ? null : resolveCostZar(Number(usage?.total_cost_zar ?? 0), Number(usage?.total_cost_usd ?? 0), Number(usage?.total_kwh ?? 0));
-            return [building.building_id, { kwh, cost }] as const;
-        } 
-        catch (error) {
-            console.error(`[Compliance] usage lookup failed for ${building.building_id}:`, error);
-            return [building.building_id, { kwh: null, cost: null }] as const;
-        }
-    }));
+    const usageEntriesPromise = Promise.all(
+        buildings.map((building) => loadUsageEntry(building.building_id, period))
+    );
 
     const anomaliesPromise = prisma.anomaly.findMany({
         where: {
@@ -394,60 +562,15 @@ export const buildComplianceReport = async (
     ]);
 
     const carbonIntegrity = carbonScope.buildings;
-    const carbonByBuilding = new Map<string, number>();
-    const ledgerUsageByBuilding = new Map<string, number>();
-    const ledgerRowsByBuilding = new Map<string, number>();
-    for (const row of carbonRows) {
-        carbonByBuilding.set(
-            row.building_id,
-            (carbonByBuilding.get(row.building_id) ?? 0) + Number(row.total_kg_co2e)
-        );
-        ledgerUsageByBuilding.set(
-            row.building_id,
-            (ledgerUsageByBuilding.get(row.building_id) ?? 0) + Number(row.total_kwh)
-        );
-        ledgerRowsByBuilding.set(row.building_id, (ledgerRowsByBuilding.get(row.building_id) ?? 0) + 1);
-    }
-    const carbonIntegrityByBuilding = new Map(
-        carbonIntegrity.map((entry) => [entry.building_id, entry])
-    );
+    const carbonIndex = indexCarbonRows(carbonRows);
     const usageByBuilding = new Map<string, { kwh: number | null; cost: number | null }>(usageEntries);
-    const usageMatchesLedger = (liveUsage: number | null, ledgerUsage: number): boolean => {
-        if (liveUsage === null) {
-            return false;
-        }
-        const tolerance = Math.max(0.01, Math.abs(ledgerUsage) * 0.001);
-        return Math.abs(liveUsage - ledgerUsage) <= tolerance;
-    };
-
-    const reportedByBuilding = new Map<string, {
-        kwh: number | null;
-        cost: number | null;
-        source: 'carbon_ledger' | 'live_telemetry';
-    }>();
-    for (const building of buildings) {
-        const live = usageByBuilding.get(building.building_id) ?? { kwh: null, cost: null };
-        const integrityResult = carbonIntegrityByBuilding.get(building.building_id);
-        const hasVerifiedLedger = (ledgerRowsByBuilding.get(building.building_id) ?? 0) > 0
-            && integrityResult?.verified === true;
-        if (hasVerifiedLedger) {
-            const ledgerUsage = ledgerUsageByBuilding.get(building.building_id) ?? 0;
-            reportedByBuilding.set(building.building_id, {
-                kwh: ledgerUsage,
-                // Never present a retained subset of telemetry as the full-month cost.
-                cost: integrityResult.status === 'VALID' && usageMatchesLedger(live.kwh, ledgerUsage)
-                    ? live.cost
-                    : null,
-                source: 'carbon_ledger'
-            });
-        } else {
-            reportedByBuilding.set(building.building_id, {
-                kwh: live.kwh,
-                cost: live.cost,
-                source: 'live_telemetry'
-            });
-        }
-    }
+    const reportedByBuilding = reportedUsageByBuilding(
+        buildings,
+        usageByBuilding,
+        carbonIntegrity,
+        carbonIndex.usage,
+        carbonIndex.counts
+    );
 
     const totalUsage = buildings.reduce((sum, building) => sum + (reportedByBuilding.get(building.building_id)?.kwh ?? 0), 0);
     const allCostsAvailable = buildings.every((building) => reportedByBuilding.get(building.building_id)?.cost !== null);
@@ -457,46 +580,8 @@ export const buildComplianceReport = async (
     const totalFloorArea = buildings.reduce((sum, building) => sum + (building.square_footage ? Number(building.square_footage) : 0), 0);
     const totalFloorAreaSqm = totalFloorArea * 0.09290304;
 
-    const shareOf = (value: number | null): number | null => {
-        if (value === null || totalUsage <= 0){ 
-            return null;
-        }
-        return Number(((value / totalUsage) * 100).toFixed(2));
-    };
-
-    const sites = buildings.map((building) => {
-            const usage = reportedByBuilding.get(building.building_id);
-            return {
-                building_id: building.building_id,
-                name: building.building_name,
-                type: building.building_type ? String(building.building_type) : null,
-                usage_kwh: usage?.kwh ?? null,
-                cost_zar: usage?.cost ?? null,
-                carbon_kg_co2e: carbonIntegrityByBuilding.get(building.building_id)?.verified
-                    ? (carbonByBuilding.get(building.building_id) ?? null)
-                    : null,
-                share_of_total: shareOf(usage?.kwh ?? null)
-            };
-    }).sort((a, b) => (b.usage_kwh ?? -1) - (a.usage_kwh ?? -1));
-
-    const severityCounts: Record<string, number> = {};
-    let openAnomalies = 0;
-    let resolvedAnomalies = 0;
-    let raisedInPeriod = 0;
-    for (const anomaly of anomalies) {
-        const detected = anomaly.detected_timestamp ? new Date(anomaly.detected_timestamp) : null;
-        if (detected && detected >= periodStart && detected <= periodEnd) {
-            raisedInPeriod += 1;
-        }
-        const severity = (anomaly.severity_level ?? 'unspecified').toLowerCase();
-        severityCounts[severity] = (severityCounts[severity] ?? 0) + 1;
-        const status = String(anomaly.status ?? '').toLowerCase();
-        if (status === 'resolved' || status === 'ignored') {
-            resolvedAnomalies += 1;
-        } else {
-            openAnomalies += 1;
-        }
-    }
+    const sites = buildSites(buildings, reportedByBuilding, carbonIntegrity, carbonIndex.carbon, totalUsage);
+    const anomalySummary = summarizeAnomalies(anomalies, periodStart, periodEnd);
 
     const statusOf = (value: unknown): string => String(value ?? '').toLowerCase();
     const withStatus = (status: string) => recommendations.filter((row) => statusOf(row.status) === status);
@@ -508,28 +593,17 @@ export const buildComplianceReport = async (
     const pendingSaving = savingOf(pending);
     const carbonScopeStatus = carbonScope.scope_status;
 
-    const allCarbonChainsVerified = carbonIntegrity.length === buildings.length
-        && carbonIntegrity.every((entry) => entry.verified && Boolean(entry.current_hash));
-    const carbonHeads = carbonIntegrity
-        .filter((entry): entry is CarbonIntegrityResult & { current_hash: string } => entry.verified && Boolean(entry.current_hash))
-        .map((entry) => `${entry.building_id}:${entry.current_hash}`)
-        .sort();
-    const carbonSignature = allCarbonChainsVerified
-        ? createHash('sha256').update(carbonHeads.join('\n')).digest('hex')
-        : null;
-    const carbonRecordsCovered = carbonIntegrity.reduce((sum, entry) => sum + entry.records_checked, 0);
-    const auditRecordsCovered = integrity.verified ? integrity.records_checked : totalChainedEntries;
     const totalCarbon = carbonScopeStatus === 'TAMPERED'
         ? null
-        : Array.from(carbonByBuilding.values()).reduce((sum, value) => sum + value, 0);
+        : Array.from(carbonIndex.carbon.values()).reduce((sum, value) => sum + value, 0);
     const sourceCompleteEntries = carbonIntegrity.reduce((sum, entry) => sum + entry.source_complete_days, 0);
     const sourceIncompleteEntries = carbonIntegrity.reduce((sum, entry) => sum + entry.source_incomplete_dates.length, 0);
     const expectedCarbonEntries = period.days * buildings.length;
     const missingEntries = carbonIntegrity.reduce((sum, entry) => sum + entry.missing_dates.length, 0);
-    const energySources = new Set(Array.from(reportedByBuilding.values()).map((entry) => entry.source));
-    const energySource: ComplianceReport['energy_performance']['source'] = energySources.size > 1
-        ? 'mixed'
-        : (energySources.values().next().value ?? 'live_telemetry');
+    const energySource = energySourceOf(reportedByBuilding);
+    const digitalSignature = digitalSignatureOf(carbonIntegrity, buildings.length, integrity, totalChainedEntries, generatedAt);
+    const totalFloorAreaValue = totalFloorArea > 0 ? totalFloorArea : null;
+    const intensity = totalFloorAreaSqm > 0 ? Number((totalUsage / totalFloorAreaSqm).toFixed(4)) : null;
 
     return {
         standard: 'ISO 50001:2018',
@@ -543,18 +617,18 @@ export const buildComplianceReport = async (
         },
         organisation: {
             buildings_in_scope: buildings.length,
-            total_floor_area_sqft: totalFloorArea > 0 ? totalFloorArea : null,
+            total_floor_area_sqft: totalFloorAreaValue,
             sites
         },
         energy_performance: {
             total_usage_kwh: Number(totalUsage.toFixed(2)),
-            total_cost_zar: totalCost === null ? null : Number(totalCost.toFixed(2)),
+            total_cost_zar: roundNullable(totalCost),
             average_daily_kwh: Number((totalUsage / period.days).toFixed(2)),
-            intensity_kwh_per_sqm: totalFloorAreaSqm > 0 ? Number((totalUsage / totalFloorAreaSqm).toFixed(4)) : null,
+            intensity_kwh_per_sqm: intensity,
             source: energySource
         },
         carbon_accounting: {
-            total_kg_co2e: totalCarbon === null ? null : Number(totalCarbon.toFixed(2)),
+            total_kg_co2e: roundNullable(totalCarbon),
             ledger_entries: carbonRows.length,
             expected_entries: expectedCarbonEntries,
             source_complete_entries: sourceCompleteEntries,
@@ -571,10 +645,10 @@ export const buildComplianceReport = async (
         })),
         nonconformities: {
             total: anomalies.length,
-            open: openAnomalies,
-            resolved: resolvedAnomalies,
-            raised_in_period: raisedInPeriod,
-            by_severity: severityCounts
+            open: anomalySummary.open,
+            resolved: anomalySummary.resolved,
+            raised_in_period: anomalySummary.raisedInPeriod,
+            by_severity: anomalySummary.bySeverity
         },
         corrective_actions: {
             total: recommendations.length,
@@ -589,13 +663,6 @@ export const buildComplianceReport = async (
             total_chained_entries: totalChainedEntries,
             integrity
         },
-        digital_signature: {
-            algorithm: HASH_ALGORITHM,
-            value: carbonSignature ?? (integrity.verification_status === 'FAILED' ? null : integrity.current_hash),
-            verified: carbonSignature !== null || integrity.verified,
-            records_covered: carbonSignature ? carbonRecordsCovered : auditRecordsCovered,
-            source: carbonSignature ? 'carbon_ledger' : 'audit_log',
-            signed_at: generatedAt.toISOString()
-        }
+        digital_signature: digitalSignature
     };
 };

@@ -41,12 +41,15 @@ export const placeBuildingsFromAddress = async (userId: string, role?: string, b
     let placed = 0;
     const unresolved: string[] = [];
 
-    for (let index = 0; index < pending.length; index++) {
+    const placeNext = async (index: number): Promise<void> => {
+        if (index >= pending.length) {
+            return;
+        }
         const building = pending[index];
         const address = building.physical_address?.trim();
         if (!address) {
             unresolved.push(building.building_name);
-            continue;
+            return placeNext(index + 1);
         }
 
         if (index > 0) {
@@ -56,7 +59,7 @@ export const placeBuildingsFromAddress = async (userId: string, role?: string, b
         const coords = await resolveCoordinates(address);
         if (!coords) {
             unresolved.push(building.building_name);
-            continue;
+            return placeNext(index + 1);
         }
 
         await prisma.building.update({
@@ -70,7 +73,10 @@ export const placeBuildingsFromAddress = async (userId: string, role?: string, b
             }
         });
         placed++;
-    }
+        return placeNext(index + 1);
+    };
+
+    await placeNext(0);
 
     return {
         placed,
