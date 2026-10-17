@@ -26,7 +26,7 @@ x-ingestion: &ingestion
         memory: 256M
 services:
   redis:
-    image: ${NFR_REDIS_IMAGE:-redis:7-alpine}
+    image: ${NFR_REDIS_IMAGE:-redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2}
     command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, noeviction]
     ports: ["127.0.0.1:17791:6379"]
     healthcheck:
@@ -40,7 +40,7 @@ services:
           cpus: "1.0"
           memory: 192M
   influxdb:
-    image: ${NFR_INFLUX_IMAGE:-influxdb:2.7-alpine}
+    image: ${NFR_INFLUX_IMAGE:-influxdb:2.7-alpine@sha256:991673dc2d237bd79b15d6627410d72de111387e7dac673dbb92cf3333ffcc8c}
     ports: ["127.0.0.1:17790:8086"]
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup

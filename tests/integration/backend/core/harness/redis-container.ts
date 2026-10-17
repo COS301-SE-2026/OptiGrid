@@ -8,7 +8,7 @@ export interface StartedRedisHarness {
 }
 
 export async function startRedisHarness(): Promise<StartedRedisHarness> {
-    const container = await new GenericContainer('redis:7-alpine')
+    const container = await new GenericContainer('redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2')
         .withExposedPorts(6379)
         .start();
 
