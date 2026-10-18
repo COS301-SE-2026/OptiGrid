@@ -29,7 +29,11 @@
 
 *In partnership with **EPI-USE***
 
-**[OptiGrid URL](https://www.optigrid.co.za)** *(Click to view)*
+<br><br>
+
+<a href="https://www.optigrid.co.za"><img src="https://img.shields.io/badge/%F0%9F%8C%90_Live_Platform_%26_Landing_Page-optigrid.co.za-4D869C?style=for-the-badge" alt="Click Here to visit our Live Website"></a>
+<a href="YOUR_DEMO_VIDEO_LINK_HERE"><img src="https://img.shields.io/badge/%E2%96%B6%EF%B8%8F_Watch_Final_Demo_Video-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Final Demo Video"></a>
+<a href="https://github.com/orgs/COS301-SE-2026/projects/52"><img src="https://img.shields.io/badge/%F0%9F%93%8B_Project_Board-GitHub_Projects-7AB2B2?style=for-the-badge&logo=github" alt="GitHub Project Board"></a>
 
 </div>
 
@@ -39,19 +43,51 @@
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## Project Description
+## <span style="color: #4D869C;">Project</span> <span style="color: #7AB2B2;">Overview & Demo Video</span>
 
-**Coreflow - OptiGrid** - A comprehensive software platform designed for intelligent energy optimisation and predictive analytics, utilising smart grid technology to help buildings reduce energy waste and optimise consumption.
-The system connects building managers and energy grids through a sophisticated data pipeline that facilitates telemetry ingestion, communicates forecasts, manages configurations, and provides real-time monitoring – all without fundamentally changing the existing building's physical infrastructure.
+**OptiGrid** (built by **Coreflow**) is an enterprise software platform designed for intelligent building energy optimisation and predictive analytics, utilising smart grid technology to help buildings reduce energy waste and optimise consumption in real time. The system connects building managers and energy grids through a high-throughput data pipeline that facilitates telemetry ingestion, communicates ML-driven forecasts, manages hardware configurations, and provides real-time monitoring—all without fundamentally changing the existing building's physical infrastructure.
+
+<br>
+
+<div align="center">
+
+### <span style="color: #4D869C;">Final Project</span> <span style="color: #7AB2B2;">Demonstration</span>
+
+*Click below to watch our full system walkthrough and architecture demonstration.*
+
+<br><br>
+
+<a href="YOUR_DEMO_VIDEO_LINK_HERE">
+  <img src="docs/images/optigrid-logo.svg" alt="OptiGrid Final Demo Video" width="450" style="border: 2px solid #4D869C; border-radius: 12px; padding: 18px; background: #0B1120;" />
+</a>
+
+<br><br>
+
+ **[Watch Final Demo Video](YOUR_DEMO_VIDEO_LINK_HERE)** &nbsp;|&nbsp; 🌐 **[Visit Live Platform (optigrid.co.za)](https://www.optigrid.co.za)**
+
+</div>
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## GitHub Project Board
-[View GitHub Project Board](https://github.com/orgs/COS301-SE-2026/projects/52)
+## <span style="color: #4D869C;">Documentation</span> <span style="color: #7AB2B2">& Deliverables</span>
 
-## Documentation & Deliverables
+### <span style="color: #4D869C;">Final Assessment</span> <span style="color: #7AB2B2;">Deliverables</span>
+
+| Document | Description | Link |
+|---|---|---|
+| **Functional Requirements (SRS)** | Complete Software Requirements Specification | [View SRS](docs/SRS.md) |
+| **Software Architecture (SAS)** | Architecture Specification, Service Contracts & Traceability Matrix | [View SAS](docs/SAS.pdf) |
+| **User Manual** | End-user guide for building managers and system administrators | [View User Manual](docs/User_Manual.pdf) |
+| **Coding Standards** | Repository conventions, linting rules, and PR review guidelines | [View Coding Standards](docs/Coding_Standards.pdf) |
+| **Brand Style Guide** | UI/UX design system, colour palette, and typography specifications | [View Brand Style Guide](docs/Brand_Style_Guide.pdf) |
+
+<br>
+
+<details>
+<summary><b>View Previous Demo Documentation</b></summary>
+<br>
 
 <details>
 <summary><b>Demo 1</b></summary>
@@ -80,7 +116,7 @@ The system connects building managers and energy grids through a sophisticated d
 <br>
 
 - **SRS Document:** [Functional Requirements (SRS)](docs/SRS.md)
-- **SAS Document:** [Tracebility Matrix and NFR (SAS)](docs/SAS.pdf)
+- **SAS Document:** [Traceability Matrix and NFR (SAS)](docs/SAS.pdf)
 - **Service Contracts:** [Service Contracts(SAS)](docs/SAS.pdf)
 - **Coding Standards:** [Coding Standards Document](docs/Coding_Standards.pdf)
 - **User Manual:** [User Manual](docs/User_Manual.pdf)
@@ -93,7 +129,9 @@ The system connects building managers and energy grids through a sophisticated d
 <summary><b>Demo 4</b></summary>
 <br>
 
-- **NFR Testing (with evidence):** [NFR Testing Directory](docs/SAS.pdf)
+- **NFR Testing (with evidence):** [Traceability Matrix and NFR (SAS)](docs/SAS.pdf)
+
+</details>
 
 </details>
 
@@ -101,19 +139,19 @@ The system connects building managers and energy grids through a sophisticated d
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## Team: Coreflow
+## <span style="color: #4D869C;">Team:</span> <span style="color: #7AB2B2;">Coreflow</span>
 
 <div align="center">
   <img src="docs/images/Coreflow.jpg" alt="Team Logo" width="200" style="border-radius: 15px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(11, 17, 32, 0.12); border: 2px solid #CDE8E5;"/>
 </div>
 
-| Name | Student Number | GitHub | LinkedIn | Profile |
-|------|---------------|--------|----------|-----------|
-| **Hamdaan Mirza** | `u24631494` | [GitHub](https://github.com/Hamdaan-Mirza) | [LinkedIn](https://www.linkedin.com/in/hamdaan-mirza/) | Team Lead, Backend Developer. Third Year IKS Student majoring in Data Science. Coding the backend endpoints and integrating them. Ensuring code is robust, secure and maintainable. |
-| **Abdelrahman Ahmed** | `u24898008` | [GitHub](https://github.com/abdlrhmanhabish) | [LinkedIn](https://www.linkedin.com/in/abdelrahman-esam-9055413b4) | Frontend Developer. Third Year CS Student. Developing the responsive user interface and dynamic dashboards. Ensuring the frontend is intuitive, accessible and performant. |
-| **Abhay Rooplall** | `u24568792` | [GitHub](https://github.com/AbhayR1) | [LinkedIn](https://www.linkedin.com/in/abhay-rooplall/) | Data & Analytics Engineer. Third Year CS Student. Designing and implementing data pipelines and predictive models. Ensuring telemetry analysis is accurate, scalable and efficient. |
-| **Talifhani Seaba** | `u23657350` | [GitHub](https://github.com/TalifhaniSeaba) | [LinkedIn](https://www.linkedin.com/in/talifhani-seaba-2172bb32b/) | Frontend Developer. Third Year CS Student. Crafting seamless user experiences and interactive components. Ensuring the application styling is consistent, modern and responsive. |
-| **Atidaishe Mupanemunda** | `u22747886` | [GitHub](https://github.com/WillyDoo428) | [LinkedIn](https://www.linkedin.com/in/atidaishe-m-218ba3388/) | Cloud & Infrastructure Engineer. Third Year CS Student. Managing CI/CD pipelines, containerization and deployments. Ensuring the infrastructure is highly available, scalable and secure. |
+| Avatar | Member & Role | Contact & CV Links | About Me |
+|:---:|---|---|---|
+| <img src="https://github.com/Hamdaan-Mirza.png" width="70" style="border-radius:50%;"/> | **Hamdaan Mirza**<br><sub>*Team Lead & Backend Architect*</sub><br><code>u24631494</code> | [GitHub](https://github.com/Hamdaan-Mirza)<br>[LinkedIn](https://www.linkedin.com/in/hamdaan-mirza/)<br>[Email](mailto:u24631494@tuks.co.za) | **BSc IKS (Data Science).** Passionate about distributed systems, backend architecture, and application security. Driven by the philosophy that resilient software is built on clean contracts and rigorous automated testing. Led system integration, REST API design, and database architecture for OptiGrid. |
+| <img src="https://github.com/abdlrhmanhabish.png" width="70" style="border-radius:50%;"/> | **Abdelrahman Ahmed**<br><sub>*Frontend Engineer*</sub><br><code>u24898008</code> | [GitHub](https://github.com/abdlrhmanhabish)<br>[LinkedIn](https://www.linkedin.com/in/abdelrahman-esam-9055413b4)<br>[Email](mailto:u24898008@tuks.co.za) | **BSc Computer Science.** Specialises in reactive frontend architectures and data-intensive web applications. Believes complex telemetry should feel effortless and intuitive to the end user. Engineered OptiGrid's responsive Next.js dashboards and real-time visualisation views. |
+| <img src="https://github.com/AbhayR1.png" width="70" style="border-radius:50%;"/> | **Abhay Rooplall**<br><sub>*Data & ML Engineer*</sub><br><code>u24568792</code> | [GitHub](https://github.com/AbhayR1)<br>[LinkedIn](https://www.linkedin.com/in/abhay-rooplall/)<br>[Email](mailto:u24568792@tuks.co.za) | **BSc Computer Science.** Focused on machine learning, time-series forecasting, and scalable data engineering. Driven by turning noisy sensor streams into actionable predictive insights. Architected OptiGrid's telemetry ingestion pipeline and Prophet/Optuna forecasting models. |
+| <img src="https://github.com/TalifhaniSeaba.png" width="70" style="border-radius:50%;"/> | **Talifhani Seaba**<br><sub>*UI/UX & Frontend Engineer*</sub><br><code>u23657350</code> | [GitHub](https://github.com/TalifhaniSeaba)<br>[LinkedIn](https://www.linkedin.com/in/talifhani-seaba-2172bb32b/)<br>[Email](mailto:u23657350@tuks.co.za) | **BSc Computer Science.** Passionate about human-centred design, component libraries, and accessible web interfaces. Committed to bridging the gap between engineering performance and visual polish. Crafted OptiGrid's design system, interactive components, and Storybook suite. |
+| <img src="https://github.com/WillyDoo428.png" width="70" style="border-radius:50%;"/> | **Atidaishe Mupanemunda**<br><sub>*Cloud & DevOps Engineer*</sub><br><code>u22747886</code> | [GitHub](https://github.com/WillyDoo428)<br>[LinkedIn](https://www.linkedin.com/in/atidaishe-m-218ba3388/)<br>[Email](mailto:u22747886@tuks.co.za) | **BSc Computer Science.** Enthusiastic about cloud-native infrastructure, Infrastructure-as-Code (Terraform), and DevSecOps automation. Believes reliability and security must be automated from commit to cloud. Managed AWS deployments, Docker containerisation, and CI/CD pipelines. |
 
 **Team Email:** cos301.coreflow@gmail.com
 
@@ -126,7 +164,7 @@ The system connects building managers and energy grids through a sophisticated d
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## Repository Structure
+## <span style="color: #4D869C;">Repository</span> <span style="color: #7AB2B2;">Structure</span>
 
 <details>
 <summary><b>Click to expand project structure</b></summary>
@@ -213,77 +251,77 @@ OptiGrid
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## Technology Stack
+## <span style="color: #4D869C;">Technology</span> <span style="color: #7AB2B2;">Stack</span>
 
 <table>
   <tr>
     <td width="30%"><b>Frontend</b></td>
     <td>
-      <a href="#"><img src="https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=nextdotjs&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/TanStack_Query-5-FF4154?style=for-the-badge&logo=reactquery&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Recharts-2-22B5BF?style=for-the-badge"></a><br>
+      <img src="https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=nextdotjs&logoColor=white"> 
+      <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black"> 
+      <img src="https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white"> 
+      <img src="https://img.shields.io/badge/TanStack_Query-5-FF4154?style=for-the-badge&logo=reactquery&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Recharts-2-22B5BF?style=for-the-badge"><br>
       <i>Next.js (React with TypeScript). For responsive web dashboard development. Fast iteration, rendering, and UI development using Tailwind CSS and Tremor. Supports dynamic data visualization via Recharts.</i>
     </td>
   </tr>
   <tr>
     <td><b>Backend</b></td>
     <td>
-      <a href="#"><img src="https://img.shields.io/badge/NodeJS-339933?style=for-the-badge&logo=nodedotjs&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/BullMQ-latest-FF0000?style=for-the-badge"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Redis-latest-DC382D?style=for-the-badge&logo=redis&logoColor=white"></a><br>
+      <img src="https://img.shields.io/badge/NodeJS-339933?style=for-the-badge&logo=nodedotjs&logoColor=white"> 
+      <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white"> 
+      <img src="https://img.shields.io/badge/BullMQ-latest-FF0000?style=for-the-badge"> 
+      <img src="https://img.shields.io/badge/Redis-latest-DC382D?style=for-the-badge&logo=redis&logoColor=white"><br>
       <i>Node.js (Express with TypeScript). High-performance REST API handling user requests, background tasks via BullMQ, caching via Redis, and automated data syncing.</i>
     </td>
   </tr>
   <tr>
     <td><b>Database</b></td>
     <td>
-      <a href="#"><img src="https://img.shields.io/badge/PostgreSQL-latest-4169E1?style=for-the-badge&logo=postgresql&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Supabase-latest-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/InfluxDB-latest-22ADF6?style=for-the-badge&logo=influxdb&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Prisma-latest-2D3748?style=for-the-badge&logo=prisma&logoColor=white"></a><br>
+      <img src="https://img.shields.io/badge/PostgreSQL-latest-4169E1?style=for-the-badge&logo=postgresql&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Supabase-latest-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white"> 
+      <img src="https://img.shields.io/badge/InfluxDB-latest-22ADF6?style=for-the-badge&logo=influxdb&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Prisma-latest-2D3748?style=for-the-badge&logo=prisma&logoColor=white"><br>
       <i>PostgreSQL (Supabase) & InfluxDB. Relational metadata stored in PostgreSQL and time-series telemetry data stored in InfluxDB. Object-relational mapping handled by Prisma.</i>
     </td>
   </tr>
   <tr>
     <td><b>Analytics</b></td>
     <td>
-      <a href="#"><img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Prophet-latest-0066CC?style=for-the-badge"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Scikit--Learn-latest-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/MLFlow-latest-0194E2?style=for-the-badge&logo=mlflow&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Optuna-latest-6C4EAD?style=for-the-badge"></a><br>
+      <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Prophet-latest-0066CC?style=for-the-badge"> 
+      <img src="https://img.shields.io/badge/Scikit--Learn-latest-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white"> 
+      <img src="https://img.shields.io/badge/MLFlow-latest-0194E2?style=for-the-badge&logo=mlflow&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Optuna-latest-6C4EAD?style=for-the-badge"><br>
       <i>Python (Scikit-Learn, Prophet). Machine learning service for predicting energy demands. Optuna manages the lifecycle and hyperparameter tuning.</i>
     </td>
   </tr>
   <tr>
     <td><b>Infrastructure</b></td>
     <td>
-      <a href="#"><img src="https://img.shields.io/badge/Docker-latest-2496ED?style=for-the-badge&logo=docker&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/AWS-Cloud-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Terraform-latest-844FBA?style=for-the-badge&logo=terraform&logoColor=white"></a><br>
+      <img src="https://img.shields.io/badge/Docker-latest-2496ED?style=for-the-badge&logo=docker&logoColor=white"> 
+      <img src="https://img.shields.io/badge/AWS-Cloud-FF9900?style=for-the-badge&logo=amazonwebservices&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Terraform-latest-844FBA?style=for-the-badge&logo=terraform&logoColor=white"><br>
       <i>AWS. Infrastructure deployed via Terraform and managed with Docker containers.</i>
     </td>
   </tr>
   <tr>
     <td><b>DevOps & Security</b></td>
     <td>
-      <a href="#"><img src="https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?style=for-the-badge&logo=githubactions&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/pnpm-latest-F69220?style=for-the-badge&logo=pnpm&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Supabase_Auth-latest-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Snyk-Vulnerability_Scanning-4C4A73?style=for-the-badge&logo=snyk&logoColor=white"></a><br>
+      <img src="https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?style=for-the-badge&logo=githubactions&logoColor=white"> 
+      <img src="https://img.shields.io/badge/pnpm-latest-F69220?style=for-the-badge&logo=pnpm&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Supabase_Auth-latest-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Snyk-Vulnerability_Scanning-4C4A73?style=for-the-badge&logo=snyk&logoColor=white"><br>
       <i>GitHub Actions. Automated pipelines for testing, linting, and deployment. Vulnerability scanning with Snyk.</i>
     </td>
   </tr>
   <tr>
     <td><b>Testing</b></td>
     <td>
-      <a href="#"><img src="https://img.shields.io/badge/Jest-latest-C21325?style=for-the-badge&logo=jest&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Pytest-latest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Playwright-latest-2EAD33?style=for-the-badge&logo=playwright&logoColor=white"></a> 
-      <a href="#"><img src="https://img.shields.io/badge/Testcontainers-latest-291A3F?style=for-the-badge"></a><br>
+      <img src="https://img.shields.io/badge/Jest-latest-C21325?style=for-the-badge&logo=jest&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Pytest-latest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Playwright-latest-2EAD33?style=for-the-badge&logo=playwright&logoColor=white"> 
+      <img src="https://img.shields.io/badge/Testcontainers-latest-291A3F?style=for-the-badge"><br>
       <i>Jest, Pytest, Playwright. Unit and integration testing. End-to-end testing with Playwright.</i>
     </td>
   </tr>
@@ -293,7 +331,7 @@ OptiGrid
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## Getting Started
+## <span style="color: #4D869C;">Getting</span> <span style="color: #7AB2B2;">Started</span>
 
 <details open>
 <summary><b>Prerequisites</b></summary>
@@ -495,7 +533,7 @@ The Supabase E2E launcher reads `supabase status -o env` and maps the local `DB_
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## Branching Strategy
+## <span style="color: #4D869C;">Branching</span> <span style="color: #7AB2B2;">Strategy</span>
 
 This project follows **GitFlow**: a structured branching model that separates ongoing development from stable releases, enabling parallel feature work without destabilising production code.
 
@@ -513,7 +551,7 @@ This project follows **GitFlow**: a structured branching model that separates on
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## Contact
+## <span style="color: #4D869C;">Contact</span> <span style="color: #7AB2B2">& Support</span>
 
 | Role | Name | Email |
 |------|------|-------|
