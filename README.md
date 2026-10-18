@@ -20,7 +20,7 @@
   <a href="https://github.com/COS301-SE-2026/OptiGrid/issues"><img src="https://img.shields.io/github/issues/COS301-SE-2026/OptiGrid?label=ISSUES&style=for-the-badge&color=7AB2B2" alt="Issues"></a>
   <br>
   <a href="https://uptimerobot.com"><img src="https://img.shields.io/badge/Monitoring-UptimeRobot-4D869C?style=for-the-badge&logo=uptimerobot" alt="Monitoring"></a>
-  <a href="https://github.com/COS301-SE-2026/OptiGrid/commits/develop"><img src="https://img.shields.io/github/last-commit/COS301-SE-2026/OptiGrid/develop?label=LAST%20COMMIT&style=for-the-badge&color=7AB2B2" alt="Last Commit"></a>
+  <a href="https://github.com/COS301-SE-2026/OptiGrid/commits/develop"><img src="https://img.shields.io/badge/LAST_COMMIT-OCTOBER_2026-7AB2B2?style=for-the-badge" alt="Last Commit"></a>
   <a href="https://github.com/COS301-SE-2026/OptiGrid"><img src="https://img.shields.io/github/repo-size/COS301-SE-2026/OptiGrid?label=REPO%20SIZE&style=for-the-badge&color=4D869C" alt="Repo Size"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/LICENSE-MIT-7AB2B2?style=for-the-badge" alt="License"></a>
 </p>
