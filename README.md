@@ -31,8 +31,6 @@
 
 <br><br>
 
-<a href="https://www.optigrid.co.za"><img src="https://img.shields.io/badge/%F0%9F%8C%90_Live_Platform_%26_Landing_Page-optigrid.co.za-4D869C?style=for-the-badge" alt="Click Here to visit our Live Website"></a>
-<a href="YOUR_DEMO_VIDEO_LINK_HERE"><img src="https://img.shields.io/badge/%E2%96%B6%EF%B8%8F_Watch_Final_Demo_Video-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Final Demo Video"></a>
 <a href="https://github.com/orgs/COS301-SE-2026/projects/52"><img src="https://img.shields.io/badge/%F0%9F%93%8B_Project_Board-GitHub_Projects-7AB2B2?style=for-the-badge&logo=github" alt="GitHub Project Board"></a>
 
 </div>
@@ -43,7 +41,7 @@
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## <span style="color: #4D869C;">Project</span> <span style="color: #7AB2B2;">Overview & Demo Video</span>
+## $\color{#4D869C}{\textsf{Project }}\color{#7AB2B2}{\textsf{Overview}}$
 
 **OptiGrid** (built by **Coreflow**) is an enterprise software platform designed for intelligent building energy optimisation and predictive analytics, utilising smart grid technology to help buildings reduce energy waste and optimise consumption in real time. The system connects building managers and energy grids through a high-throughput data pipeline that facilitates telemetry ingestion, communicates ML-driven forecasts, manages hardware configurations, and provides real-time monitoring—all without fundamentally changing the existing building's physical infrastructure.
 
@@ -51,19 +49,8 @@
 
 <div align="center">
 
-### <span style="color: #4D869C;">Final Project</span> <span style="color: #7AB2B2;">Demonstration</span>
-
-*Click below to watch our full system walkthrough and architecture demonstration.*
-
-<br><br>
-
-<a href="YOUR_DEMO_VIDEO_LINK_HERE">
-  <img src="docs/images/optigrid-logo.svg" alt="OptiGrid Final Demo Video" width="450" style="border: 2px solid #4D869C; border-radius: 12px; padding: 18px; background: #0B1120;" />
-</a>
-
-<br><br>
-
- **[Watch Final Demo Video](YOUR_DEMO_VIDEO_LINK_HERE)** &nbsp;|&nbsp; 🌐 **[Visit Live Platform (optigrid.co.za)](https://www.optigrid.co.za)**
+### $\color{#4D869C}{\textsf{Project Website }}\color{#7AB2B2}{\textsf{Link}}$
+ **[Visit Live Platform (optigrid.co.za)](https://www.optigrid.co.za)**
 
 </div>
 
@@ -71,9 +58,9 @@
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## <span style="color: #4D869C;">Documentation</span> <span style="color: #7AB2B2">& Deliverables</span>
+## $\color{#4D869C}{\textsf{Documentation }}\color{#7AB2B2}{\textsf{\& Deliverables}}$
 
-### <span style="color: #4D869C;">Final Assessment</span> <span style="color: #7AB2B2;">Deliverables</span>
+### $\color{#4D869C}{\textsf{Project }}\color{#7AB2B2}{\textsf{Deliverables}}$
 
 | Document | Description | Link |
 |---|---|---|
@@ -86,28 +73,14 @@
 <br>
 
 <details>
-<summary><b>View Previous Demo Documentation</b></summary>
+<summary><h3>View Previous Documentation</h3></summary>
 <br>
 
 <details>
-<summary><b>Demo 1</b></summary>
+<summary><b>Demo 4</b></summary>
 <br>
 
-- **SRS Document:** [Functional Requirements (SRS)](docs/SRS.md)
-- **Design Specification:** [Design Specification and Brand Style Guide](docs/Brand_Style_Guide.pdf)
-
-</details>
-
-<details>
-<summary><b>Demo 2</b></summary>
-<br>
-
-- **SRS Document:** [Functional Requirements (SRS)](docs/SRS.md)
-- **SAS Document:** [Functional Requirements (SAS)](docs/SAS.pdf)
-- **Coding Standards:** [Coding Standards Document](docs/Coding_Standards.pdf)
-- **User Manual:** [User Manual](docs/User_Manual.pdf)
-- **Testing Policy:** [Testing Policy Document](docs/Testing_Policy.pdf)
-- **Brand Style Guide:** [Brand Style Guide](docs/Brand_Style_Guide.pdf)
+- **NFR Testing (with evidence):** [Traceability Matrix and NFR Tests (SAS)](docs/SAS.pdf)
 
 </details>
 
@@ -126,10 +99,24 @@
 </details>
 
 <details>
-<summary><b>Demo 4</b></summary>
+<summary><b>Demo 2</b></summary>
 <br>
 
-- **NFR Testing (with evidence):** [Traceability Matrix and NFR (SAS)](docs/SAS.pdf)
+- **SRS Document:** [Functional Requirements (SRS)](docs/SRS.md)
+- **SAS Document:** [Functional Requirements (SAS)](docs/SAS.pdf)
+- **Coding Standards:** [Coding Standards Document](docs/Coding_Standards.pdf)
+- **User Manual:** [User Manual](docs/User_Manual.pdf)
+- **Testing Policy:** [Testing Policy Document](docs/Testing_Policy.pdf)
+- **Brand Style Guide:** [Brand Style Guide](docs/Brand_Style_Guide.pdf)
+
+</details>
+
+<details>
+<summary><b>Demo 1</b></summary>
+<br>
+
+- **SRS Document:** [Functional Requirements (SRS)](docs/SRS.md)
+- **Design Specification:** [Design Specification and Brand Style Guide](docs/Brand_Style_Guide.pdf)
 
 </details>
 
@@ -139,19 +126,19 @@
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## <span style="color: #4D869C;">Team:</span> <span style="color: #7AB2B2;">Coreflow</span>
+## $\color{#4D869C}{\textsf{Team: }}\color{#7AB2B2}{\textsf{Coreflow}}$
 
 <div align="center">
   <img src="docs/images/Coreflow.jpg" alt="Team Logo" width="200" style="border-radius: 15px; margin-bottom: 15px; box-shadow: 0 4px 8px rgba(11, 17, 32, 0.12); border: 2px solid #CDE8E5;"/>
 </div>
 
-| Avatar | Member & Role | Contact & CV Links | About Me |
+| Avatar | Member & Role | Contact Links | About Me |
 |:---:|---|---|---|
-| <img src="https://github.com/Hamdaan-Mirza.png" width="70" style="border-radius:50%;"/> | **Hamdaan Mirza**<br><sub>*Team Lead & Backend Architect*</sub><br><code>u24631494</code> | [GitHub](https://github.com/Hamdaan-Mirza)<br>[LinkedIn](https://www.linkedin.com/in/hamdaan-mirza/)<br>[Email](mailto:u24631494@tuks.co.za) | **BSc IKS (Data Science).** Passionate about distributed systems, backend architecture, and application security. Driven by the philosophy that resilient software is built on clean contracts and rigorous automated testing. Led system integration, REST API design, and database architecture for OptiGrid. |
-| <img src="https://github.com/abdlrhmanhabish.png" width="70" style="border-radius:50%;"/> | **Abdelrahman Ahmed**<br><sub>*Frontend Engineer*</sub><br><code>u24898008</code> | [GitHub](https://github.com/abdlrhmanhabish)<br>[LinkedIn](https://www.linkedin.com/in/abdelrahman-esam-9055413b4)<br>[Email](mailto:u24898008@tuks.co.za) | **BSc Computer Science.** Specialises in reactive frontend architectures and data-intensive web applications. Believes complex telemetry should feel effortless and intuitive to the end user. Engineered OptiGrid's responsive Next.js dashboards and real-time visualisation views. |
-| <img src="https://github.com/AbhayR1.png" width="70" style="border-radius:50%;"/> | **Abhay Rooplall**<br><sub>*Data & ML Engineer*</sub><br><code>u24568792</code> | [GitHub](https://github.com/AbhayR1)<br>[LinkedIn](https://www.linkedin.com/in/abhay-rooplall/)<br>[Email](mailto:u24568792@tuks.co.za) | **BSc Computer Science.** Focused on machine learning, time-series forecasting, and scalable data engineering. Driven by turning noisy sensor streams into actionable predictive insights. Architected OptiGrid's telemetry ingestion pipeline and Prophet/Optuna forecasting models. |
-| <img src="https://github.com/TalifhaniSeaba.png" width="70" style="border-radius:50%;"/> | **Talifhani Seaba**<br><sub>*UI/UX & Frontend Engineer*</sub><br><code>u23657350</code> | [GitHub](https://github.com/TalifhaniSeaba)<br>[LinkedIn](https://www.linkedin.com/in/talifhani-seaba-2172bb32b/)<br>[Email](mailto:u23657350@tuks.co.za) | **BSc Computer Science.** Passionate about human-centred design, component libraries, and accessible web interfaces. Committed to bridging the gap between engineering performance and visual polish. Crafted OptiGrid's design system, interactive components, and Storybook suite. |
-| <img src="https://github.com/WillyDoo428.png" width="70" style="border-radius:50%;"/> | **Atidaishe Mupanemunda**<br><sub>*Cloud & DevOps Engineer*</sub><br><code>u22747886</code> | [GitHub](https://github.com/WillyDoo428)<br>[LinkedIn](https://www.linkedin.com/in/atidaishe-m-218ba3388/)<br>[Email](mailto:u22747886@tuks.co.za) | **BSc Computer Science.** Enthusiastic about cloud-native infrastructure, Infrastructure-as-Code (Terraform), and DevSecOps automation. Believes reliability and security must be automated from commit to cloud. Managed AWS deployments, Docker containerisation, and CI/CD pipelines. |
+| <img src="https://github.com/Hamdaan-Mirza.png" width="105" height="105" style="border-radius:50%;"/> | **Hamdaan Mirza**<br><sub>*Team Lead & Backend Architect*</sub><br><code>u24631494</code> | [GitHub](https://github.com/Hamdaan-Mirza)<br>[LinkedIn](https://www.linkedin.com/in/hamdaan-mirza/)<br>[Email](mailto:u24631494@tuks.co.za) | **Third Year BSc Information and Knowledge Systems student at the University of Pretoria.** Passionate about problem-solving, software solutions, and learning new technologies across full-stack systems and machine learning. Eager to gain industry experience, expand my perspective on real-world software engineering, and build resilient distributed architectures. Led system integration, REST API design, and database architecture for OptiGrid. |
+| <img src="https://github.com/abdlrhmanhabish.png" width="105" height="105" style="border-radius:50%;"/> | **Abdelrahman Ahmed**<br><sub>*Frontend Engineer*</sub><br><code>u24898008</code> | [GitHub](https://github.com/abdlrhmanhabish)<br>[LinkedIn](https://www.linkedin.com/in/abdelrahman-esam-9055413b4)<br>[Email](mailto:u24898008@tuks.co.za) | **BSc Computer Science.** Specialises in reactive frontend architectures and data-intensive web applications. Believes complex telemetry should feel effortless and intuitive to the end user. Engineered OptiGrid's responsive Next.js dashboards and real-time visualisation views. |
+| <img src="https://github.com/AbhayR1.png" width="105" height="105" style="border-radius:50%;"/> | **Abhay Rooplall**<br><sub>*Data & ML Engineer*</sub><br><code>u24568792</code> | [GitHub](https://github.com/AbhayR1)<br>[LinkedIn](https://www.linkedin.com/in/abhay-rooplall/)<br>[Email](mailto:u24568792@tuks.co.za) | **BSc Computer Science.** Focused on machine learning, time-series forecasting, and scalable data engineering. Driven by turning noisy sensor streams into actionable predictive insights. Architected OptiGrid's telemetry ingestion pipeline and Prophet/Optuna forecasting models. |
+| <img src="https://github.com/TalifhaniSeaba.png" width="105" height="105" style="border-radius:50%;"/> | **Talifhani Seaba**<br><sub>*UI/UX & Frontend Engineer*</sub><br><code>u23657350</code> | [GitHub](https://github.com/TalifhaniSeaba)<br>[LinkedIn](https://www.linkedin.com/in/talifhani-seaba-2172bb32b/)<br>[Email](mailto:u23657350@tuks.co.za) | **BSc Computer Science.** Passionate about human-centred design, component libraries, and accessible web interfaces. Committed to bridging the gap between engineering performance and visual polish. Crafted OptiGrid's design system, interactive components, and Storybook suite. |
+| <img src="https://github.com/WillyDoo428.png" width="105" height="105" style="border-radius:50%;"/> | **Atidaishe Mupanemunda**<br><sub>*Cloud & DevOps Engineer*</sub><br><code>u22747886</code> | [GitHub](https://github.com/WillyDoo428)<br>[LinkedIn](https://www.linkedin.com/in/atidaishe-m-218ba3388/)<br>[Email](mailto:u22747886@tuks.co.za) | **BSc Computer Science.** Enthusiastic about cloud-native infrastructure, Infrastructure-as-Code (Terraform), and DevSecOps automation. Believes reliability and security must be automated from commit to cloud. Managed AWS deployments, Docker containerisation, and CI/CD pipelines. |
 
 **Team Email:** cos301.coreflow@gmail.com
 
@@ -164,7 +151,7 @@
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## <span style="color: #4D869C;">Repository</span> <span style="color: #7AB2B2;">Structure</span>
+## $\color{#4D869C}{\textsf{Repository }}\color{#7AB2B2}{\textsf{Structure}}$
 
 <details>
 <summary><b>Click to expand project structure</b></summary>
@@ -251,7 +238,7 @@ OptiGrid
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## <span style="color: #4D869C;">Technology</span> <span style="color: #7AB2B2;">Stack</span>
+## $\color{#4D869C}{\textsf{Technology }}\color{#7AB2B2}{\textsf{Stack}}$
 
 <table>
   <tr>
@@ -331,7 +318,7 @@ OptiGrid
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## <span style="color: #4D869C;">Getting</span> <span style="color: #7AB2B2;">Started</span>
+## $\color{#4D869C}{\textsf{Getting }}\color{#7AB2B2}{\textsf{Started}}$
 
 <details open>
 <summary><b>Prerequisites</b></summary>
@@ -533,7 +520,7 @@ The Supabase E2E launcher reads `supabase status -o env` and maps the local `DB_
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## <span style="color: #4D869C;">Branching</span> <span style="color: #7AB2B2;">Strategy</span>
+## $\color{#4D869C}{\textsf{Branching }}\color{#7AB2B2}{\textsf{Strategy}}$
 
 This project follows **GitFlow**: a structured branching model that separates ongoing development from stable releases, enabling parallel feature work without destabilising production code.
 
@@ -551,7 +538,7 @@ This project follows **GitFlow**: a structured branching model that separates on
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/aqua.png" width="100%">
 </div>
 
-## <span style="color: #4D869C;">Contact</span> <span style="color: #7AB2B2">& Support</span>
+## $\color{#4D869C}{\textsf{Contact}}$
 
 | Role | Name | Email |
 |------|------|-------|
