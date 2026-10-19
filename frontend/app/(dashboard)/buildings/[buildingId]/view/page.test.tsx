@@ -155,7 +155,7 @@ describe("ViewBuildingPage", () => {
       expect(screen.getByText("Streaming")).toBeInTheDocument();
       expect(screen.getByText("EMULATOR")).toBeInTheDocument();
       expect(screen.getByText("sensor-111")).toBeInTheDocument();
-      expect(screen.getByText("12.35 kW")).toBeInTheDocument();
+      expect(screen.getByText("12.35 W")).toBeInTheDocument();
       expect(screen.getByText("231.2 V")).toBeInTheDocument();
       expect(screen.getByText("53.4 A")).toBeInTheDocument();
     });
@@ -180,7 +180,7 @@ describe("ViewBuildingPage", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Live telemetry" })).toBeInTheDocument();
-      expect(screen.queryByText("99 kW")).not.toBeInTheDocument();
+      expect(screen.queryByText("99 W")).not.toBeInTheDocument();
       expect(screen.queryByText("240 V")).not.toBeInTheDocument();
       expect(screen.queryByText("75 A")).not.toBeInTheDocument();
     });

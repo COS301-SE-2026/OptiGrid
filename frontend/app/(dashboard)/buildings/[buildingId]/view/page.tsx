@@ -416,7 +416,7 @@ export default function ViewBuildingPage({
 
                     <div className="building-live">
                         <span className="building-live-label">Live power</span>
-                        <p className="building-live-value">{formatMeasurement(currentLiveData?.power_kw, "kW")}</p>
+                        <p className="building-live-value">{formatMeasurement(currentLiveData?.power_kw, "W")}</p>
                     </div>
 
                     <dl className="detail-list">

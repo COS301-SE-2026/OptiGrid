@@ -14,7 +14,7 @@ export async function startPostgresHarness(): Promise<StartedPostgresHarness> {
 	const password = 'optigrid_test_password';
 	const database = `optigrid_int_${randomUUID().replace(/-/g, '')}`;
 
-	const container = await new GenericContainer('postgres:16-alpine')
+	const container = await new GenericContainer('postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea')
 		.withEnvironment({
 			POSTGRES_USER: user,
 			POSTGRES_PASSWORD: password,

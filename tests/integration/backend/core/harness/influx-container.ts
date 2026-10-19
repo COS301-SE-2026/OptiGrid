@@ -13,7 +13,7 @@ export async function startInfluxHarness(): Promise<StartedInfluxHarness> {
 	const org = 'OptiGridTest';
 	const bucket = 'EnergyDataTest';
 
-	const container = await new GenericContainer('influxdb:2.7-alpine')
+	const container = await new GenericContainer('influxdb:2.7-alpine@sha256:991673dc2d237bd79b15d6627410d72de111387e7dac673dbb92cf3333ffcc8c')
 		.withEnvironment({
 			DOCKER_INFLUXDB_INIT_MODE: 'setup',
 			DOCKER_INFLUXDB_INIT_USERNAME: 'admin',

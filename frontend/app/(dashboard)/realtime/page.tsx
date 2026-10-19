@@ -107,7 +107,7 @@ function BuildingCard({ building }: Readonly<{ building: Building }>) {
 
                 <p className="live-card-reading">
                     <span className="live-card-value">{formatReading(building.currentKw)}</span>
-                    <span className="live-card-unit">kW live</span>
+                    <span className="live-card-unit">W live</span>
                 </p>
 
                 <div className="live-card-foot">

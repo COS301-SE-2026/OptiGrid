@@ -15,7 +15,7 @@ class TestQueueWorkerIntegration(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.influx_container = InfluxDbContainer(image="influxdb:2.7-alpine")
+        cls.influx_container = InfluxDbContainer(image="influxdb:2.7-alpine@sha256:991673dc2d237bd79b15d6627410d72de111387e7dac673dbb92cf3333ffcc8c")
         cls.influx_container.with_env("DOCKER_INFLUXDB_INIT_MODE", "setup")
         cls.influx_container.with_env("DOCKER_INFLUXDB_INIT_USERNAME", "admin")
         cls.influx_container.with_env("DOCKER_INFLUXDB_INIT_PASSWORD", "password123")
