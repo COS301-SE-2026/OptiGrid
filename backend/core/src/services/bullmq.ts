@@ -14,7 +14,7 @@ export let analyticsEvents: QueueEvents | undefined;
 export function bullMQsetUp() {
     
     analyticsEvents = new QueueEvents(QUEUE_NAME, { connection });
-    analyticsEvents.on('completed', ({ jobId, returnvalue }) => {
+    analyticsEvents.on('completed', ({ jobId }) => {
         analyticsQueue.getJob(jobId).then(job => {
             if (job && job.data && job.data.building_id) {
                 broadcastEvent("FORECAST_READY", { 

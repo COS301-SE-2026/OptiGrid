@@ -16,6 +16,7 @@ jest.mock("../../lib/session", () => ({
 jest.mock("./nav-links", () => ({NavLinks: () => <div data-testid="nav-links">NavLinks</div>,}));
 jest.mock("./logout-button", () => ({LogoutButton: () => <button data-testid="logout-button">Logout</button>,}));
 jest.mock("../../components/AuditPageTracker", () => ({AuditPageTracker: () => <div data-testid="audit-tracker">Tracker</div>,}));
+jest.mock("./theme-preference-sync", () => ({ThemePreferenceSync: () => null,}));
 
 describe("DashboardLayout", () => {
 	beforeEach(() => {jest.clearAllMocks();});

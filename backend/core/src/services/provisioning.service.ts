@@ -16,7 +16,7 @@ export async function queueBuildingProvisioning(
 ): Promise<void> {
   if (process.env.NODE_ENV === 'test') return;
   console.log(`PROVISIONING: gonna provision building- ${buildingId} ${buildingName}`);
-  const bucketName = await provisionInfluxDBBucket(buildingId, buildingName, nominalVoltage, maxCurrentThreshold);
+  const bucketName = await provisionInfluxDBBucket(buildingId, buildingName);
   await initializeIngestionService(buildingId, hardwareAuthToken, nominalVoltage, maxCurrentThreshold, bucketName, metadata);
   await initializeAnalyticsService(buildingId, buildingName);
 }
@@ -24,9 +24,7 @@ export async function queueBuildingProvisioning(
 
 async function provisionInfluxDBBucket(
   buildingId: string,
-  buildingName: string,
-  nominalVoltage: number,
-  maxCurrentThreshold: number
+  buildingName: string
 ): Promise<string> {
   const bucketName = `building-${buildingId}`;
   const retentionSeconds = DATA_RETENTION_DAYS * 24 * 3600;

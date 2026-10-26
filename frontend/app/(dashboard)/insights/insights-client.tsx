@@ -6,6 +6,8 @@ import { openDialog } from "@/lib/openDialog";
 import { PageHeading } from "@/components/PageHeading";
 import { CurvedSelect, type CurvedSelectOption } from "@/components/curvedselect";
 import { formatDate } from "@/lib/formatDate";
+import { formatNumber } from "@/lib/format";
+import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 import ComfortTradeoff, { type TradeoffPoint, type TradeoffProfile } from "@/components/ComfortTradeoff";
 import { rankByUsage } from "@/lib/rankBuildings";
 
@@ -120,7 +122,7 @@ function formatZar(value: number | null): string {
     if (value === null) {
         return "-";
     }
-    return `R ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `R ${formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatTradeoffPoint(point: TradeoffPoint): string {
@@ -160,7 +162,7 @@ function formatKw(value: number | null): string {
     if (value === null) {
         return "-";
     }
-    return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} kW`;
+    return `${formatNumber(value, { maximumFractionDigits: 2 })} kW`;
 }
 
 function optionsFromChildren(children: ReactNode): CurvedSelectOption[] {
@@ -446,6 +448,7 @@ function RecommendationCard({
 }
 
 export default function InsightsClient({ role }: Readonly<{ role: string }>) {
+    useFormatPreferences();
     const [buildingId, setBuildingId] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
     const [reviewId, setReviewId] = useState<string | null>(null);

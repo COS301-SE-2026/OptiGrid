@@ -9,8 +9,8 @@ const REQUIRED_E2E_ENV = [
 ];
 
 const forwardedArgs = process.argv.slice(2).filter((argument) => argument !== "--");
-const corePort = process.env.E2E_CORE_PORT ?? "4100";
-const frontendPort = process.env.E2E_FRONTEND_PORT ?? "3100";
+const corePort = process.env.E2E_CORE_PORT ?? "4005";
+const frontendPort = process.env.E2E_FRONTEND_PORT ?? "3005";
 
 function parseEnvOutput(output) {
   const values = {};
@@ -116,6 +116,7 @@ const result = spawnSync(corepackCommand, corepackArgs, {
   env: {
     ...process.env,
     ...localSupabaseEnv,
+    DIRECT_URL: localSupabaseEnv.DATABASE_URL,
     E2E_BASE_URL: process.env.E2E_BASE_URL ?? `http://localhost:${frontendPort}`,
     E2E_CORE_PORT: corePort,
     E2E_CORE_URL: process.env.E2E_CORE_URL ?? `http://localhost:${corePort}`,
@@ -123,10 +124,6 @@ const result = spawnSync(corepackCommand, corepackArgs, {
     E2E_USE_LOCAL_SUPABASE: "1",
     NODE_ENV: "test",
     DISABLE_RATE_LIMIT: "true",
-    E2E_CORE_PORT: "4005",
-    E2E_FRONTEND_PORT: "3005",
-    E2E_CORE_URL: "http://localhost:4005",
-    E2E_BASE_URL: "http://localhost:3005",
     INFLUXDB_URL: "http://127.0.0.1:8086",
     INFLUXDB_TOKEN: "token-1234",
     INFLUXDB_ORG: "OptiGrid",

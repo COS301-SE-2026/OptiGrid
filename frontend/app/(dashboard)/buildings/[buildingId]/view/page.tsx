@@ -3,8 +3,10 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
+import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 import DigitalTwin from "@/components/digital-twin/DigitalTwin";
 import { formatDateTime } from "@/lib/formatDate";
+import { formatDateTime as formatDisplayDateTime, formatNumber as formatDisplayNumber, formatTime as formatClockTime } from "@/lib/format";
 import { humanise } from "@/lib/labels";
 
 type BuildingRecord = {
@@ -84,7 +86,7 @@ function formatNumber(value: number | null | undefined, maximumFractionDigits = 
         return "-";
     }
 
-    return value.toLocaleString(undefined, { maximumFractionDigits });
+    return formatDisplayNumber(value, { maximumFractionDigits });
 }
 
 function formatMeasurement(value: number | string | null | undefined, unit: string, maximumFractionDigits = 2): string {
@@ -98,21 +100,21 @@ function formatTelemetryTimestamp(value: string | null | undefined): string {
     const timestamp = new Date(value);
     if (Number.isNaN(timestamp.getTime())) return "-";
 
-    return timestamp.toLocaleTimeString();
+    return formatClockTime(timestamp);
 }
 
 function formatPeakTime(value: string): string {
     const timestamp = new Date(value);
     if (Number.isNaN(timestamp.getTime())) return value;
 
-    return new Intl.DateTimeFormat("en", {
+    return formatDisplayDateTime(timestamp, {
         weekday: "short",
         day: "numeric",
         month: "short",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-    }).format(timestamp);
+    }, "en");
 }
 
 function formatZar(value: number | null | undefined): string {
@@ -141,6 +143,7 @@ export default function ViewBuildingPage({
 }: Readonly<{
     params: Promise<{ buildingId: string }>;
 }>) {
+    useFormatPreferences();
     const [buildingId, setBuildingId] = useState<string>("");
 
     useEffect(() => {
@@ -155,11 +158,15 @@ export default function ViewBuildingPage({
         };
     }, [params]);
 
-    const { liveData, error: sseError, isConnected } = useTelemetryStream(buildingId);
+    const { liveData, error: sseError, isConnected, liveMode } = useTelemetryStream(buildingId);
     const currentLiveData = liveData?.building_id === buildingId ? liveData : null;
     const isBuildingStreamConnected = Boolean(buildingId) && isConnected;
     let streamStatus = { label: "Connecting", tone: "is-idle" };
-    if (isBuildingStreamConnected) {
+    if (liveMode === "paused") {
+        streamStatus = { label: "Updates paused", tone: "is-paused" };
+    } else if (liveMode === "saver") {
+        streamStatus = { label: "Data saver", tone: "is-idle" };
+    } else if (isBuildingStreamConnected) {
         streamStatus = currentLiveData
             ? { label: "Streaming", tone: "is-live" }
             : { label: "Waiting for a reading", tone: "is-waiting" };
@@ -426,6 +433,14 @@ export default function ViewBuildingPage({
                         <Detail label="Source" value={currentLiveData?.source_type} />
                         <Detail label="Last broadcast" value={formatTelemetryTimestamp(currentLiveData?.timestamp)} />
                     </dl>
+
+                    {liveMode !== "normal" && (
+                        <p className="building-panel-note">
+                            {liveMode === "paused"
+                                ? "Live updates are paused on this device. Readings come back when you resume them."
+                                : "Data saver keeps the live stream closed on this device. Choose Normal in Settings to see each reading."}
+                        </p>
+                    )}
 
                     {sseError && (
                         <p role="alert" className="building-panel-note building-panel-error">

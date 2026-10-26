@@ -42,3 +42,31 @@ export class SelfPermanentDeletionError extends Error {
         this.name = 'SelfPermanentDeletionError';
     }
 }
+
+export class PasswordNotAvailableError extends Error {
+    readonly code = 'PASSWORD_NOT_AVAILABLE';
+
+    constructor() {
+        super('This account signs in with Google. Its password is managed by Google.');
+        this.name = 'PasswordNotAvailableError';
+    }
+}
+
+export class CurrentPasswordIncorrectError extends Error {
+    readonly code = 'INVALID_CURRENT_PASSWORD';
+
+    constructor() {
+        super('Your current password is not correct.');
+        this.name = 'CurrentPasswordIncorrectError';
+    }
+}
+
+export class PasswordRejectedError extends Error {
+    readonly code: 'SAME_PASSWORD' | 'WEAK_PASSWORD';
+
+    constructor(code: 'SAME_PASSWORD' | 'WEAK_PASSWORD', message: string) {
+        super(message);
+        this.code = code;
+        this.name = 'PasswordRejectedError';
+    }
+}

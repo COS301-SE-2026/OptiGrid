@@ -186,6 +186,6 @@ describe("AdminPage", () => {
       chooseCurvedOption(await screen.findByRole("combobox"), "ACTIVE");
       chooseCurvedOption(await screen.findByRole("combobox"), "all");
       const rows = await screen.findAllByRole("row");
-      expect(await screen.getAllByRole("row").length).toBeGreaterThan(5);
+      expect(rows.length).toBeGreaterThan(5);
     });
   });

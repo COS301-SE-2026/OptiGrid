@@ -407,7 +407,7 @@ export const getPortfolioConsumption = async (userId: string, role?: string): Pr
     }
   }
 
-  for (const { buildingId, points } of buildingSeries) {
+  for (const { points } of buildingSeries) {
     for (const point of points ?? []) {
       const date = point.timestamp.slice(0, 10);
       if (date === todayDate) {

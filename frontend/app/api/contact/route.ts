@@ -41,7 +41,7 @@ export async function POST(req:Request) {
             cache: "no-store",
         });
 
-        const load = await resp.json().catch(() => ({message: resp.ok ? "Ticket sent succesfully" : "Ticket not send, failed",}));
+        const load = await resp.json().catch(() => ({message: resp.ok ? "Ticket sent successfully." : "The ticket could not be delivered.",}));
 
         return NextResponse.json(load, {
             status: resp.status

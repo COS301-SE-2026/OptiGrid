@@ -52,6 +52,8 @@ describe("FAQs data integrity", () => {
         expect(names).toContain("Sign Up & Account");
         expect(names).toContain("Login & Session");
         expect(names).toContain("Appearance");
+        expect(names).toContain("Performance");
+        expect(names).toContain("Dates & Numbers");
         expect(names).toContain("Buildings");
         expect(names).toContain("Demand Forecast");
     });

@@ -9,7 +9,8 @@ import { PageHeading } from "@/components/PageHeading";
 import { formatDate, formatDateTime } from "@/lib/formatDate";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
 import { useFitToScreen } from "@/lib/useFitToScreen";
-import { readThemeToken, useDarkTheme, useOnScreen, useReducedMotion } from "@/lib/useDisplayPreferences";
+import { readThemeToken, useDarkTheme, useFormatPreferences, useLiveInterval, useOnScreen, useReducedMotion } from "@/lib/useDisplayPreferences";
+import { LIVE_REFRESH_MS } from "@/lib/displayPreferences";
 import {
     BASELINE_TIMEFRAME,
     LIVE_INDEX,
@@ -261,6 +262,7 @@ function BuildingCard({
 }
 
 export default function HeatmapView({ role }: Readonly<{ role: string }>) {
+    useFormatPreferences();
     const queryClient = useQueryClient();
     const searchParams = useSearchParams();
     const stageRef = useRef<HTMLDivElement>(null);
@@ -289,6 +291,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
     const dark = useDarkTheme();
     const reducedMotion = useReducedMotion();
     const onScreen = useOnScreen(stageRef);
+    const liveRefresh = useLiveInterval(LIVE_REFRESH_MS.heatmap);
     const frame = timeframeAt(index);
 
     useEffect(() => {
@@ -318,7 +321,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
         ...snapshotOptions(frame.id),
         enabled: buildingsQuery.isSuccess && placedBuildings.length > 0,
         placeholderData: keepPreviousData,
-        refetchInterval: frame.kind === "live" && onScreen ? 30000 : false,
+        refetchInterval: frame.kind === "live" && onScreen ? liveRefresh : false,
         refetchOnWindowFocus: false,
         retry: 1,
     });
@@ -345,7 +348,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
         }
     }, [snapshot, store]);
 
-    const { liveData, isConnected } = useTelemetryStream();
+    const { liveData, isConnected, liveMode } = useTelemetryStream();
     useEffect(() => {
         if (liveData && store.ingest(liveData)) {
             setNow(Date.now());
@@ -588,7 +591,13 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
     const missingCount = snapshot?.missing.length ?? 0;
 
     let streamText = "Live stream connecting";
-    if (isConnected) {
+    let streamClass = isConnected ? "heat-stream is-live" : "heat-stream";
+    if (liveMode === "paused") {
+        streamText = "Live updates paused";
+        streamClass = "heat-stream is-paused";
+    } else if (liveMode === "saver") {
+        streamText = "Data saver on";
+    } else if (isConnected) {
         streamText = store.lastReadingAt() === null ? "Live stream connected" : "Live stream receiving";
     }
 
@@ -662,7 +671,7 @@ export default function HeatmapView({ role }: Readonly<{ role: string }>) {
                     </svg>
                     Towers
                 </button>
-                <span className={isConnected ? "heat-stream is-live" : "heat-stream"}>
+                <span className={streamClass}>
                     <span className="heat-stream-dot" aria-hidden="true" />
                     {streamText}
                 </span>

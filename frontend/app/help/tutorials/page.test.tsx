@@ -45,14 +45,14 @@ describe("TutorialsPage", () => {
     it("plays a video for every tutorial that has a source recorded", () => {
         render(<TutorialsPage />);
         const expectedSources: Array<[string, string]> = [
-            ["Add a building", "/help/tutorials/add_building.mp4"],
-            ["Compare two buildings", "/help/tutorials/compare_buildings.mp4"],
+            ["Add a building", "/help/tutorials/add-building.mp4"],
+            ["Compare two buildings", "/help/tutorials/compare-buildings.mp4"],
             ["Use the energy heatmap", "/help/tutorials/heatmap.mp4"],
-            ["Explore the digital twin", "/help/tutorials/digital_twin.mp4"],
-            ["Review demand forecasts", "/help/tutorials/run_forecast.mp4"],
-            ["Review insights", "/help/tutorials/review_insights.mp4"],
-            ["View anomaly alerts", "/help/tutorials/review_anomaly.mp4"],
-            ["Manage your profile and settings", "/help/tutorials/manage_account.mp4"]
+            ["Explore the digital twin", "/help/tutorials/digital-twin.mp4"],
+            ["Review demand forecasts", "/help/tutorials/forecast.mp4"],
+            ["Review insights", "/help/tutorials/insights.mp4"],
+            ["Manage your buildings", "/help/tutorials/manage.mp4"],
+            ["Manage your profile and settings", "/help/tutorials/settings.mp4"]
         ];
 
         for (const [title, source] of expectedSources) {
@@ -68,11 +68,11 @@ describe("TutorialsPage", () => {
         expect(card.querySelector("video")).toBeNull();
         expect(within(card).getByRole("img", { name: "Use the energy heatmap video coming soon" })).toBeInTheDocument();
         expect(within(card).getByText("Written steps")).toBeInTheDocument();
-        expect(cardFor("Explore the digital twin").querySelector("source")).toHaveAttribute("src", "/help/tutorials/digital_twin.mp4");
+        expect(cardFor("Explore the digital twin").querySelector("source")).toHaveAttribute("src", "/help/tutorials/digital-twin.mp4");
     });
 
     it("leaves out a poster that has not been uploaded", () => {
-        mockExists.mockImplementation((file) => !String(file).endsWith("digital_twin-poster.jpg"));
+        mockExists.mockImplementation((file) => !String(file).endsWith("digital-twin-poster.jpg"));
         render(<TutorialsPage />);
 
         const video = cardFor("Explore the digital twin").querySelector("video");

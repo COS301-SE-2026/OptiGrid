@@ -31,9 +31,6 @@ export const resolveCostZar = (costZar: number, costUsd: number, kwh: number): n
 
 const allowedTimeRanges = new Set(['today', '1d', '7d', '30d', '90d', '1y']);
 const telemetryMeasurements = ['energy_consumption', 'building_energy_usage', 'energy_telemetry_downsampled', 'energy_telemetry'];
-const usageFields = ['usage', 'usage_kwh'];
-const costFields = ['cost_usd', 'cost_zar'];
-const telemetryFields = [...usageFields, ...costFields];
 
 export type UsageTotals = {
     total_kwh: number;
@@ -63,10 +60,6 @@ export type MeasuredDemandPoint = {
 
 function fluxString(value: string): string {
     return JSON.stringify(value);
-}
-
-function fluxStringArray(values: string[]): string {
-    return `[${values.map(fluxString).join(', ')}]`;
 }
 
 function measurementFilter(): string {
@@ -278,7 +271,8 @@ async function queryBucketUsageSeries(
         |> filter(fn: (r) => r["building_id"] == ${fluxString(buildingId)})
         |> filter(fn: (r) => ${measurementFilter()})
         |> filter(fn: (r) => r["_field"] == "usage" or r["_field"] == "usage_kwh" or r["_field"] == "cost_usd" or r["_field"] == "cost_zar")
-        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+        // each hourly mean is stamped with the start of its hour.
+        |> aggregateWindow(every: 1h, fn: mean, createEmpty: false, timeSrc: "_start")
         |> aggregateWindow(every: ${seriesWindowFor(timeRange)}, fn: sum, createEmpty: false)
         |> keep(columns: ["_time", "_field", "_value"])
     `;

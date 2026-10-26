@@ -112,7 +112,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     mockUseSearchParams.mockReturnValue(new URLSearchParams() as never);
     streamState = { liveData: null, isConnected: false };
-    mockUseTelemetryStream.mockImplementation(() => ({ ...streamState, error: null }));
+    mockUseTelemetryStream.mockImplementation(() => ({ ...streamState, error: null, liveMode: "normal" as const }));
 });
 
 describe("HeatmapView", () => {

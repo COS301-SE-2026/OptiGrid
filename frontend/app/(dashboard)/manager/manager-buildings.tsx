@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getTabSessionPath } from "../../../lib/tab-session";
 import { CurvedSelect } from "@/components/curvedselect";
+import { formatNumber } from "@/lib/format";
+import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 
 type LifeCycleState = "PROVISIONING" | "ACTIVE" | "PROVISIONING_FAILED";
 type energySorting = "none" | "desc" | "asc";
@@ -63,6 +65,7 @@ function getOwnerName(building: BuildingRecord): string {
 }
 
 export default function ManagerBuildings() {
+    useFormatPreferences();
     const [buildings, setBuildings] = useState<BuildingRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -270,7 +273,7 @@ export default function ManagerBuildings() {
                                                         {lifeCycleLabel[building.lifecycle_state] ?? building.lifecycle_state}
                                                     </span>
                                                 </td>
-                                                <td>{usage === null ? "N/A" : usage.toFixed(2)}</td>
+                                                <td>{usage === null ? "N/A" : formatNumber(usage, { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }, "en")}</td>
                                                 <td>{getOwnerName(building)}</td>
                                                 <td>
                                                     <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>

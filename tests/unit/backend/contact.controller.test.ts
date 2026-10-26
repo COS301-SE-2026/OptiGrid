@@ -48,7 +48,7 @@ describe("Contact-Us page Controller", () => {
         expect(mockstatus).toHaveBeenCalledWith(200);
         expect(json).toHaveBeenCalledWith({
             success: true,
-            message: "Recieved the ticket",
+            message: "Received the ticket",
             id: "email-111",
         });
         

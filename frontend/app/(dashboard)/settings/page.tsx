@@ -1,59 +1,67 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useTheme } from "@/app/theme-provider";
-import { MoonIcon, SunIcon } from "@/app/theme-toggle";
 import { openDialog } from "@/lib/openDialog";
+import { formatDate } from "@/lib/format";
+import { useFormatPreferences } from "@/lib/useDisplayPreferences";
+import {
+  fetchAccount,
+  fetchSessionProfile,
+  saveProfile,
+  AccountRequestError,
+  type AccountOverview,
+  type AccountProfile,
+} from "./account-api";
+import { getNameErrors, NAME_MAX_LENGTH, normaliseName, type NameFields } from "./validation";
+import { AppearanceCard } from "./appearance-card";
+import { SecurityCard } from "./security-card";
+import { DataCard } from "./data-card";
+import { FormatsCard, PerformanceCard } from "./display-settings";
 
+type LoadState = "loading" | "ready" | "partial";
 
-interface UserProfile {
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: "admin" | "manager" | "user";
-}
+const EMPTY_NAMES: NameFields = { firstName: "", lastName: "" };
 
-const EMPTY_PROFILE: UserProfile = {
-  first_name: "",
-  last_name: "",
-  email: "",
-  role: "user",
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: "Admin",
+  BUILDING_MANAGER: "Manager",
+  VIEWER: "User",
 };
 
-function roleFromSession(roleType: string): UserProfile["role"] {
-  if (roleType === "ADMIN") {
-    return "admin";
-  }
-
-  if (roleType === "BUILDING_MANAGER") {
-    return "manager";
-  }
-
-  return "user";
+function namesOf(user: AccountProfile): NameFields {
+  return { firstName: user.firstName ?? "", lastName: user.lastName ?? "" };
 }
 
-function profileFromSession(user: Record<string, unknown>): UserProfile {
-  const roleType = typeof user.roleType === "string" ? user.roleType : "VIEWER";
+function initialsOf(names: NameFields, email: string): string {
+  const initials = `${names.firstName.trim().charAt(0)}${names.lastName.trim().charAt(0)}`.toUpperCase();
+  return initials || email.slice(0, 2).toUpperCase() || "?";
+}
 
-  return {
-    first_name: typeof user.firstName === "string" ? user.firstName : "",
-    last_name: typeof user.lastName === "string" ? user.lastName : "",
-    email: typeof user.email === "string" ? user.email : "",
-    role: roleFromSession(roleType),
-  };
+function memberSince(createdAt: string | null | undefined): string {
+  if (!createdAt) {
+    return "";
+  }
+  const date = new Date(createdAt);
+  return Number.isNaN(date.getTime()) ? "" : formatDate(date, { month: "long", year: "numeric" });
 }
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { theme, toggle } = useTheme();
+  useFormatPreferences();
 
-  const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE);
-  const [initialProfile, setInitialProfile] = useState<UserProfile>(EMPTY_PROFILE);
+  const [account, setAccount] = useState<AccountOverview | null>(null);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [savedNames, setSavedNames] = useState<NameFields>(EMPTY_NAMES);
+  const [draftNames, setDraftNames] = useState<NameFields>(EMPTY_NAMES);
+  const [nameErrors, setNameErrors] = useState<Partial<Record<keyof NameFields, string>>>({});
+  const [profileError, setProfileError] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
-  const [toastMessage, setToastMessage] = useState<string>("");
-  const [showToast, setShowToast] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
@@ -64,48 +72,117 @@ export default function SettingsPage() {
     }
   }, [showDeleteModal]);
 
-  const showToastMessage = (message: string) => {
+  const showToastMessage = useCallback((message: string) => {
     setToastMessage(message);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadProfile = async () => {
-      try {
-        const response = await fetch("/api/auth/me", { cache: "no-store" });
-        if (!response.ok) {
-          return;
-        }
-
-        const user = (await response.json()) as Record<string, unknown>;
-        const sessionProfile = profileFromSession(user);
-
-        if (isMounted) {
-          setProfile(sessionProfile);
-          setInitialProfile(sessionProfile);
-        }
-      } catch (error) {
-        console.error("Failed to load user profile", error);
-      }
-    };
-
-    void loadProfile();
-
-    return () => {
-      isMounted = false;
-    };
+    if (toastTimer.current) {
+      clearTimeout(toastTimer.current);
+    }
+    toastTimer.current = setTimeout(() => setToastMessage(""), 3000);
   }, []);
 
-  const handleSaveChanges = () => {
-    showToastMessage("Profile changes saved");
+  useEffect(() => () => {
+    if (toastTimer.current) {
+      clearTimeout(toastTimer.current);
+    }
+  }, []);
+
+  const applyProfile = useCallback((user: AccountProfile) => {
+    const names = namesOf(user);
+    setSavedNames(names);
+    setDraftNames(names);
+    setNameErrors({});
+  }, []);
+
+  const loadAccount = useCallback(async (isActive: () => boolean = () => true) => {
+    setLoadState("loading");
+    try {
+      const overview = await fetchAccount();
+      if (!isActive()) {
+        return;
+      }
+      setAccount(overview);
+      applyProfile(overview.user);
+      setLoadState("ready");
+    } catch (error) {
+      console.error("Failed to load account settings", error);
+      try {
+        const sessionProfile = await fetchSessionProfile();
+        if (isActive()) {
+          setAccount({ user: sessionProfile, security: null });
+          applyProfile(sessionProfile);
+        }
+      } catch {
+        //the banner below explains what happened.
+      }
+      if (isActive()) {
+        setLoadState("partial");
+      }
+    }
+  }, [applyProfile]);
+
+  useEffect(() => {
+    let active = true;
+    void loadAccount(() => active);
+    return () => {
+      active = false;
+    };
+  }, [loadAccount]);
+
+  const profile = account?.user;
+  const email = profile?.email ?? "";
+  const roleLabel = ROLE_LABELS[profile?.roleType ?? ""] ?? "User";
+  const loading = loadState === "loading";
+  const normalisedDraft = {
+    firstName: normaliseName(draftNames.firstName),
+    lastName: normaliseName(draftNames.lastName),
+  };
+  const profileChanged = normalisedDraft.firstName !== savedNames.firstName
+    || normalisedDraft.lastName !== savedNames.lastName;
+  const displayName = [normalisedDraft.firstName, normalisedDraft.lastName].filter(Boolean).join(" ");
+  const since = memberSince(profile?.createdAt);
+
+  const updateName = (field: keyof NameFields, value: string) => {
+    setDraftNames((previous) => ({ ...previous, [field]: value }));
+    if (nameErrors[field]) {
+      setNameErrors((previous) => ({ ...previous, [field]: undefined }));
+    }
+    setProfileError("");
   };
 
-  const handleResetToDefault = () => {
-    setProfile(initialProfile);
-    showToastMessage("Profile reset");
+  const handleSaveChanges = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const problems = getNameErrors(draftNames);
+    if (Object.keys(problems).length > 0) {
+      setNameErrors(problems);
+      return;
+    }
+    if (!profileChanged) {
+      return;
+    }
+
+    setSavingProfile(true);
+    setProfileError("");
+    try {
+      const user = await saveProfile(normalisedDraft);
+      applyProfile(user);
+      setAccount((current) => (current ? { ...current, user: { ...current.user, ...user } } : current));
+      showToastMessage("Profile saved");
+      router.refresh();
+    } catch (error) {
+      if (error instanceof AccountRequestError && Object.keys(error.fieldErrors).length > 0) {
+        setNameErrors(error.fieldErrors as Partial<Record<keyof NameFields, string>>);
+      } else {
+        setProfileError(error instanceof Error && error.message ? error.message : "We could not save your profile. Please try again.");
+      }
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    setDraftNames(savedNames);
+    setNameErrors({});
+    setProfileError("");
   };
 
   const handleLogout = async () => {
@@ -156,111 +233,124 @@ export default function SettingsPage() {
     }
   };
 
-  const handleThemeToggle = async () => {
-    toggle();
-    const newTheme = theme === "light" ? "dark" : "light";
-    try {
-      await fetch("/api/preferences/theme", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: newTheme }),
-      });
-    } catch (e) {
-      console.error("Failed to sync theme to backend", e);
-    }
-  };
-
-  const roleLabel = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
-
   return (
     <div className="settings-page">
           <div className="dashboard-header dashboard-page-heading">
             <div>
               <h1 className="dashboard-title">Settings</h1>
-              <p className="dashboard-subtitle">Manage your profile and account settings.</p>
+              <p className="dashboard-subtitle">Manage your account and how OptiGrid looks and runs.</p>
             </div>
             <span className="badge badge-default">{roleLabel}</span>
           </div>
 
+          {loadState === "partial" && (
+            <div className="settings-banner" role="alert">
+              <p>Some account details could not be loaded. What you see may be out of date.</p>
+              <button type="button" className="btn btn-secondary" onClick={() => void loadAccount()}>
+                Try again
+              </button>
+            </div>
+          )}
+
           <div className="settings-grid">
-          <section aria-label="Profile Information" className="card settings-card settings-profile">
-              <h2 className="dashboard-section-title settings-card-title">Profile Information</h2>
+          <div className="settings-column">
+          <section aria-labelledby="settings-profile-title" className="card settings-card settings-profile">
+              <h2 id="settings-profile-title" className="dashboard-section-title settings-card-title">Profile</h2>
 
-              <div className="settings-fields">
-                <div className="settings-field">
-                  <label className="label" htmlFor="firstName">First Name</label>
-                  <input
-                    id="firstName"
-                    type="text"
-                    value={profile.first_name}
-                    onChange={(e) => {
-                      setProfile({ ...profile, first_name: e.target.value });
-                    }}
-                    className="input"
-                    placeholder="Enter first name"
-                  />
-                </div>
-
-                <div className="settings-field">
-                  <label className="label" htmlFor="lastName">Last Name</label>
-                  <input
-                    id="lastName"
-                    type="text"
-                    value={profile.last_name}
-                    onChange={(e) => {
-                      setProfile({ ...profile, last_name: e.target.value });
-                    }}
-                    className="input"
-                    placeholder="Enter last name"
-                  />
-                </div>
-
-                <div className="settings-field">
-                  <label className="label" htmlFor="email">Email Address</label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={profile.email}
-                    onChange={(e) => {
-                      setProfile({ ...profile, email: e.target.value });
-                    }}
-                    className="input"
-                    placeholder="Enter email address"
-                  />
-                </div>
-
-                <div className="settings-field">
-                  <label className="label" htmlFor="role">Role</label>
-                  <input id="role" type="text" value={roleLabel} className="input" disabled />
+              <div className="settings-identity">
+                <span className="settings-avatar" aria-hidden="true">{initialsOf(normalisedDraft, email)}</span>
+                <div className="settings-identity-text">
+                  <p className="settings-identity-name">{displayName || (loading ? "Loading your profile..." : "Add your name")}</p>
+                  {since && <p className="text-muted settings-identity-meta">Member since {since}</p>}
                 </div>
               </div>
 
-              <div className="settings-actions">
-                <button type="button" onClick={handleResetToDefault} className="btn btn-secondary">
-                  Reset
-                </button>
-                <button type="button" onClick={handleSaveChanges} className="btn btn-primary">
-                  Save Changes
-                </button>
-              </div>
+              <form className="settings-profile-form" noValidate onSubmit={handleSaveChanges} aria-busy={loading}>
+                <div className="settings-fields">
+                  <div className="settings-field">
+                    <label className="label" htmlFor="firstName">First name</label>
+                    <input
+                      id="firstName"
+                      name="firstName"
+                      type="text"
+                      autoComplete="given-name"
+                      maxLength={NAME_MAX_LENGTH}
+                      value={draftNames.firstName}
+                      onChange={(event) => updateName("firstName", event.target.value)}
+                      className={`input${nameErrors.firstName ? " is-invalid" : ""}`}
+                      placeholder="Enter first name"
+                      disabled={loading || savingProfile}
+                      aria-invalid={Boolean(nameErrors.firstName)}
+                      aria-describedby={nameErrors.firstName ? "firstName-error" : undefined}
+                    />
+                    {nameErrors.firstName && <p id="firstName-error" className="settings-field-error">{nameErrors.firstName}</p>}
+                  </div>
+
+                  <div className="settings-field">
+                    <label className="label" htmlFor="lastName">Last name</label>
+                    <input
+                      id="lastName"
+                      name="lastName"
+                      type="text"
+                      autoComplete="family-name"
+                      maxLength={NAME_MAX_LENGTH}
+                      value={draftNames.lastName}
+                      onChange={(event) => updateName("lastName", event.target.value)}
+                      className={`input${nameErrors.lastName ? " is-invalid" : ""}`}
+                      placeholder="Enter last name"
+                      disabled={loading || savingProfile}
+                      aria-invalid={Boolean(nameErrors.lastName)}
+                      aria-describedby={nameErrors.lastName ? "lastName-error" : undefined}
+                    />
+                    {nameErrors.lastName && <p id="lastName-error" className="settings-field-error">{nameErrors.lastName}</p>}
+                  </div>
+
+                  <div className="settings-field">
+                    <label className="label" htmlFor="email">Email address</label>
+                    <input id="email" type="email" value={email} className="input" disabled aria-describedby="email-hint" />
+                    <p id="email-hint" className="settings-field-hint">This is the address you sign in with. It cannot be changed here.</p>
+                  </div>
+
+                  <div className="settings-field">
+                    <label className="label" htmlFor="role">Role</label>
+                    <input id="role" type="text" value={roleLabel} className="input" disabled aria-describedby="role-hint" />
+                    <p id="role-hint" className="settings-field-hint">An administrator decides your role.</p>
+                  </div>
+                </div>
+
+                {profileError && <div role="alert" className="auth-alert settings-form-alert">{profileError}</div>}
+
+                <div className="settings-actions">
+                  <p className="settings-unsaved" aria-live="polite">{profileChanged ? "You have unsaved changes." : ""}</p>
+                  <button
+                    type="button"
+                    onClick={handleDiscardChanges}
+                    className="btn btn-secondary"
+                    disabled={!profileChanged || savingProfile}
+                  >
+                    Discard changes
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={!profileChanged || savingProfile || loading}>
+                    {savingProfile ? "Saving..." : "Save changes"}
+                  </button>
+                </div>
+              </form>
           </section>
+
+          <SecurityCard security={account?.security ?? null} loading={loading} onNotify={showToastMessage} />
+
+          <PerformanceCard />
+          </div>
 
           <div className="settings-side">
-          <section aria-label="Theme settings" className="card settings-card">
-              <h2 className="dashboard-section-title settings-card-title">Theme</h2>
-              <div className="settings-row">
-                <div className="settings-row-label">
-                  {theme === "light" ? <SunIcon size={20} /> : <MoonIcon size={20} />}
-                  <span>{theme === "light" ? "Light Mode" : "Dark Mode"}</span>
-                </div>
-                <button type="button" onClick={handleThemeToggle} className="btn btn-secondary">
-                  Switch to {theme === "light" ? "Dark" : "Light"} Mode
-                </button>
-              </div>
-          </section>
+          <AppearanceCard />
+
+          <FormatsCard />
+
+          <DataCard onNotify={showToastMessage} />
 
           <section aria-label="Account management" className="card settings-card">
-              <h2 className="dashboard-section-title settings-card-title">Account Management</h2>
+              <h2 className="dashboard-section-title settings-card-title">Account management</h2>
               <div className="settings-buttons">
                 <button type="button" onClick={handleLogout} className="btn btn-secondary">
                   Logout
@@ -341,24 +431,9 @@ export default function SettingsPage() {
               </div>
             </dialog>
           )}
- 
-          {showToast && (
-            <div
-              style={{
-                backgroundColor: "var(--brand-ink)",
-                color: "var(--brand-bg)",
-                position: "fixed",
-                right: "var(--space-5)",
-                bottom: "var(--space-5)",
-                zIndex: 60,
-                padding: "var(--space-3) var(--space-5)",
-                borderRadius: "var(--radius-md)",
-                boxShadow: "var(--shadow-card)",
-                fontFamily: "var(--font-body)",
-                fontSize: "var(--fs-body)"                
-              }}
-              role="alert"
-            >
+
+          {toastMessage && (
+            <div className="settings-toast" role="status" aria-live="polite">
               {toastMessage}
             </div>
           )}

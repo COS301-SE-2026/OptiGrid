@@ -29,6 +29,8 @@ import {
     YAxis,
 } from "recharts";
 import { rankByUsage } from "@/lib/rankBuildings";
+import { formatDate, formatDateTime, formatNumber, formatTime } from "@/lib/format";
+import { useFormatPreferences, useReducedMotion } from "@/lib/useDisplayPreferences";
 
 type ForecastParams = {
     building_id: string;
@@ -162,28 +164,24 @@ function localHour(d: Date, timeZone: string): string {
 function formatXTick(ts: string, horizon: "weekly" | "monthly", timeZone: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
-    if (horizon === "monthly") {
-        return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone }).format(d);
-    }
-    const monthDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone }).format(d);
-    const hour = localHour(d, timeZone);
-    if (hour === "00") return monthDay;
-    return `${monthDay} ${hour}:00`;
+    const monthDay = formatDate(d, { month: "short", day: "numeric", timeZone }, "en");
+    if (horizon === "monthly" || localHour(d, timeZone) === "00") return monthDay;
+    return `${monthDay} ${formatTime(d, { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone }, "en")}`;
 }
 
 function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly", timeZone: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
     if (horizon === "monthly") {
-        return new Intl.DateTimeFormat("en", {
+        return formatDate(d, {
             weekday: "short",
             month: "short",
             day: "numeric",
             year: "numeric",
             timeZone,
-        }).format(d);
+        }, "en");
     }
-    return new Intl.DateTimeFormat("en", {
+    return formatDateTime(d, {
         weekday: "short",
         month: "short",
         day: "numeric",
@@ -191,13 +189,13 @@ function formatTooltipLabel(ts: string, horizon: "weekly" | "monthly", timeZone:
         minute: "2-digit",
         hour12: false,
         timeZone,
-    }).format(d);
+    }, "en");
 }
 
 function formatPeakTimestamp(ts: string, timeZone: string): string {
     const d = new Date(ts);
     if (Number.isNaN(d.getTime())) return ts;
-    return new Intl.DateTimeFormat("en", {
+    return formatDateTime(d, {
         month: "short",
         day: "numeric",
         hour: "2-digit",
@@ -205,7 +203,7 @@ function formatPeakTimestamp(ts: string, timeZone: string): string {
         hour12: false,
         timeZone,
         timeZoneName: "short",
-    }).format(d);
+    }, "en");
 }
 
 function isLocalMidnight(ts: string, timeZone: string): boolean {
@@ -412,6 +410,7 @@ function ForecastChartContainer({
     timeZone: string;
     valueUnit: string;
 }>) {
+    const chartAnimation = !useReducedMotion();
     if (isPending) {
         return <Skeleton style={{ flex: "1 1 auto", minHeight: 280, width: "100%" }} />;
     }
@@ -468,7 +467,7 @@ function ForecastChartContainer({
                             name: `95% confidence interval (${valueUnit})`,
                             values: chartData.map((point) =>
                                 point.yhat_range
-                                    ? `${point.yhat_range[0].toLocaleString()} to ${point.yhat_range[1].toLocaleString()}`
+                                    ? `${formatNumber(point.yhat_range[0])} to ${formatNumber(point.yhat_range[1])}`
                                     : null,
                             ),
                         }]
@@ -507,8 +506,8 @@ function ForecastChartContainer({
                         labelFormatter={(ts) => formatTooltipLabel(ts as string, horizon, timeZone)}
                         formatter={(value: number | [number, number], name: string) => [
                             Array.isArray(value)
-                                ? `${value[0].toLocaleString()} to ${value[1].toLocaleString()} ${valueUnit}`
-                                : `${value.toLocaleString()} ${valueUnit}`,
+                                ? `${formatNumber(value[0])} to ${formatNumber(value[1])} ${valueUnit}`
+                                : `${formatNumber(value)} ${valueUnit}`,
                             name,
                         ]}
                     />
@@ -516,6 +515,7 @@ function ForecastChartContainer({
                         <Area
                             type="monotone"
                             dataKey="yhat_range"
+                            isAnimationActive={chartAnimation}
                             name="Confidence range"
                             fill={SERIES_COLOURS[0]}
                             fillOpacity={0.14}
@@ -540,6 +540,7 @@ function ForecastChartContainer({
                     <Line
                         type="monotone"
                         dataKey="kwh"
+                        isAnimationActive={chartAnimation}
                         name="Historical"
                         stroke={SERIES_COLOURS[0]}
                         strokeWidth={2}
@@ -550,6 +551,7 @@ function ForecastChartContainer({
                     <Line
                         type="monotone"
                         dataKey="yhat"
+                        isAnimationActive={chartAnimation}
                         name="Predicted"
                         stroke={SERIES_COLOURS[0]}
                         strokeWidth={2}
@@ -616,6 +618,7 @@ function ForecastChartContainer({
 }
 
 export default function ForecastPage() {
+    useFormatPreferences();
     const [buildingId, setBuildingId] = useState<string>("");
     const [horizon, setHorizon] = useState<"weekly" | "monthly">("weekly");
     const [forecastError, setForecastError] = useState<string | null>(null);
@@ -776,7 +779,7 @@ export default function ForecastPage() {
                 <KpiCard
                     label={horizon === "monthly" ? "Avg / week" : "Avg / day"}
                     isPending={isPending}
-                    value={result ? `${result.summary.avg_daily_kwh.toLocaleString()} ${averageUnit}` : null}
+                    value={result ? `${formatNumber(result.summary.avg_daily_kwh)} ${averageUnit}` : null}
                     skeletonWidth={150}
                 />
                 <KpiCard

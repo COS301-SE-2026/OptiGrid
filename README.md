@@ -335,7 +335,7 @@ OptiGrid
 
 Ensure the following are installed on your machine before proceeding:
 
-- [Node.js 18+](https://nodejs.org/)
+- [Node.js 20.19+](https://nodejs.org/) (Prisma 7 does not run on older versions)
 - [Python 3.11+](https://www.python.org/)
 - [pnpm](https://pnpm.io/installation) - `npm install -g pnpm`
 - [Docker](https://www.docker.com/get-started/) & Docker Compose
@@ -514,6 +514,9 @@ corepack pnpm run test:e2e:supabase -- tests/e2e/buildings/create-building.e2e.s
 ```
 
 The Supabase E2E launcher reads `supabase status -o env` and maps the local `DB_URL`, `API_URL`, `ANON_KEY`, and `SERVICE_ROLE_KEY` into the app environment automatically. It also runs `prisma db push --accept-data-loss` before starting the core API. It does not run `supabase/seed.sql`; keep that seed aligned with the current Prisma schema before using `supabase db reset`.
+
+Both launchers run `prisma db push --accept-data-loss` against the test database only. `prisma.config.ts` reads `DIRECT_URL` before `DATABASE_URL` and fills gaps from `backend/core/.env`. To keep the push local, the launchers point `DIRECT_URL` at the test database first. In the local Supabase flow, the push stops when `DATABASE_URL` is not on this machine. InfluxDB and Redis default to the local services CI starts (`127.0.0.1:8086` with token `token-1234`, and `127.0.0.1:6379`) unless you export other values.
+
 </details>
 
 <div align="center">

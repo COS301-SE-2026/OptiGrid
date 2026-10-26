@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { formatNumber } from "./format";
 
 export const SERIES_COLOURS = ["var(--chart-1)", "var(--chart-2)"] as const;
 export const axisTick = { fill: "var(--brand-ink-muted)", fontSize: 11 };
@@ -21,11 +22,11 @@ export const tooltipLabelStyle: CSSProperties = {
 };
 
 export function formatAxisNumber(value: number): string {
-    return Number.isFinite(value) ? Math.round(value).toLocaleString() : "";
+    return Number.isFinite(value) ? formatNumber(Math.round(value)) : "";
 }
 
 export function formatAxisRand(value: number): string {
-    return Number.isFinite(value) ? `R ${Math.round(value).toLocaleString()}` : "";
+    return Number.isFinite(value) ? `R ${formatNumber(Math.round(value))}` : "";
 }
 
 export function seriesDot(colour: string, radius = 4) {

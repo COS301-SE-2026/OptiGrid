@@ -19,11 +19,13 @@ import {
   useAnomalyPortfolioData,
 } from "../../../components/sharedanomaly";
 import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
+import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 
 type MetricType = "power" | "cost";
 
 export default function ViewerAnomalyPage() {
   const { toastMessage, setToastMessage } = useAnomalyWebSocket();
+  useFormatPreferences();
   const { data: buildingData, isLoading: buildingsLoading } = useBuildings();
   const buildings = buildingData ?? EMPTY_BUILDINGS;
   const { anomalies, historicAnomalies, loading } = useAnomalyPortfolioData("viewer", setToastMessage);

@@ -1,6 +1,8 @@
+import { createElement, Fragment, useEffect, type ReactNode } from "react";
 import { renderHook, act } from "@testing-library/react";
 import { useTelemetryStream } from "./useTelemetryStream";
 import { TAB_SESSION_STORAGE_KEY } from "./tab-session";
+import { DISPLAY_PREFERENCES_KEY, reloadDisplayPreferences, setDisplayPreferences } from "./displayPreferences";
 
 const TAB_ID = "6f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7";
 
@@ -44,6 +46,8 @@ describe("useTelemetryStream", () => {
     beforeEach(() => {
         MockEventSource.instances = [];
         window.sessionStorage.setItem(TAB_SESSION_STORAGE_KEY, TAB_ID);
+        window.localStorage.removeItem(DISPLAY_PREFERENCES_KEY);
+        reloadDisplayPreferences();
         originalEventSource = global.EventSource;
         global.EventSource = MockEventSource as unknown as typeof EventSource;
     });
@@ -318,5 +322,62 @@ describe("useTelemetryStream", () => {
         } finally {
             jest.useRealTimers();
         }
+    });
+
+    it("opens no stream while live updates are paused or on data saver", () => {
+        setDisplayPreferences({ liveUpdates: "paused" });
+        const paused = renderHook(() => useTelemetryStream("bld-123"));
+
+        expect(MockEventSource.instances).toHaveLength(0);
+        expect(paused.result.current.liveMode).toBe("paused");
+        expect(paused.result.current.isConnected).toBe(false);
+        paused.unmount();
+
+        setDisplayPreferences({ liveUpdates: "saver" });
+        const saver = renderHook(() => useTelemetryStream());
+
+        expect(MockEventSource.instances).toHaveLength(0);
+        expect(saver.result.current.liveMode).toBe("saver");
+        expect(saver.result.current.error).toBeNull();
+    });
+
+    it("closes the stream on pause and reconnects on resume", () => {
+        const { result } = renderHook(() => useTelemetryStream("bld-123"));
+        const first = MockEventSource.instances[0];
+        act(() => {
+            first.emitOpen();
+        });
+        expect(result.current.liveMode).toBe("normal");
+        expect(result.current.isConnected).toBe(true);
+
+        act(() => {
+            setDisplayPreferences({ liveUpdates: "paused" });
+        });
+        expect(first.closed).toBe(true);
+        expect(result.current.isConnected).toBe(false);
+        expect(result.current.error).toBeNull();
+
+        act(() => {
+            setDisplayPreferences({ liveUpdates: "normal" });
+        });
+        expect(MockEventSource.instances).toHaveLength(2);
+        expect(MockEventSource.instances[1].closed).toBe(false);
+    });
+
+    it("never connect when the saved choice is Paused", () => {
+        window.localStorage.setItem(DISPLAY_PREFERENCES_KEY, JSON.stringify({ liveUpdates: "paused" }));
+        function LoadSavedChoices() {
+            useEffect(() => {
+                reloadDisplayPreferences();
+            }, []);
+            return null;
+        }
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            createElement(Fragment, null, createElement(LoadSavedChoices), children);
+
+        const { result } = renderHook(() => useTelemetryStream("bld-123"), { wrapper });
+
+        expect(MockEventSource.instances).toHaveLength(0);
+        expect(result.current.liveMode).toBe("paused");
     });
 });

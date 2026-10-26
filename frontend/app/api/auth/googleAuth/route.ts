@@ -11,6 +11,14 @@ function withIntentCleared(response: NextResponse) {
     return response;
 }
 
+// After sign in only a path on this site is accepted. A value such as "@evil.com" would otherwise turn the redirect into https://<origin>@evil.com and take the user tp another host
+function safeNextPath(value: string | null): string {
+    if (!value?.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
+        return "/dashboard";
+    }
+    return value;
+}
+
 type SessionUser = {
     userId: string;
     email: string;
@@ -25,7 +33,7 @@ export async function GET(request: Request) {
     const forwardedProto = request.headers.get("x-forwarded-proto") || "http";
     const actualOrigin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : (process.env.NEXT_PUBLIC_SITE_URL || origin);
     const code = searchParams.get("code");
-    const next = searchParams.get("next") ?? "/dashboard";
+    const next = safeNextPath(searchParams.get("next"));
     const tabId = request.headers.get(TAB_SESSION_HEADER);
     const tabSessionId = isTabSessionId(tabId) ? tabId : null;
 

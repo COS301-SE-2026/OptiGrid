@@ -31,6 +31,8 @@ export default function LoginPage() {
             setNotice("Your password has been changed. Log in with your new password.");
         } else if (query.get("deleted") === "1") {
             setNotice("Your account has been deleted. To get it back, log in with the same email and password and choose Recover account.");
+        } else if (query.get("signedOut") === "all") {
+            setNotice("You have been signed out on all your devices. Log in again to continue.");
         } else if (loggedOut === "1") {
             setNotice("You have been logged out.");
         }

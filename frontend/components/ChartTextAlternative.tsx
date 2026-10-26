@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { formatNumber } from "@/lib/format";
 
 type Series = {
 	name: string;
@@ -18,7 +19,7 @@ function formatCell(value: string | number | null | undefined): string {
 		return "No data";
 	}
 
-	return typeof value === "number" ? value.toLocaleString() : String(value);
+	return typeof value === "number" ? formatNumber(value) : String(value);
 }
 
 //this is a screen-reader-only data table that carries the same information as a chart

@@ -6,6 +6,9 @@ import { memo, useCallback, useEffect, useId, useMemo, useRef, useState, type Re
 import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStream, type TelemetryData } from "@/lib/useTelemetryStream";
 import { useFitToScreen } from "@/lib/useFitToScreen";
+import { formatNumber } from "@/lib/format";
+import { LIVE_REFRESH_MS, type LiveUpdateMode } from "@/lib/displayPreferences";
+import { useLiveInterval, useReducedMotion } from "@/lib/useDisplayPreferences";
 import {
     STALE_AFTER_MS,
     buildTwinLayout,
@@ -54,7 +57,7 @@ type Snapshot = {
 
 const NO_SENSORS: TwinSensor[] = [];
 const LIST_LIMIT = 60;
-const SNAPSHOT_POLL_MS = 15000;
+const ONE_DECIMAL: Intl.NumberFormatOptions = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
 const HUD_REFRESH_MS = 250;
 
 const LENS_OPTIONS: Array<{ value: LoadLens; label: string; hint: string }> = [
@@ -150,21 +153,6 @@ function useDarkTheme(): boolean {
         return () => observer.disconnect();
     }, []);
     return dark;
-}
-
-function useReducedMotion(): boolean {
-    const [reduced, setReduced] = useState(false);
-    useEffect(() => {
-        if (typeof window.matchMedia !== "function") {
-            return;
-        }
-        const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-        setReduced(query.matches);
-        const update = (event: MediaQueryListEvent) => setReduced(event.matches);
-        query.addEventListener?.("change", update);
-        return () => query.removeEventListener?.("change", update);
-    }, []);
-    return reduced;
 }
 
 function useOnScreen(ref: RefObject<HTMLElement | null>): boolean {
@@ -377,11 +365,11 @@ function Inspector({
             <dl className="twin-inspector-grid">
                 <div>
                     <dt>Current</dt>
-                    <dd className="metric">{view.currentA === null ? "-" : `${view.currentA.toFixed(1)} A`}</dd>
+                    <dd className="metric">{view.currentA === null ? "-" : `${formatNumber(view.currentA, ONE_DECIMAL, "en")} A`}</dd>
                 </div>
                 <div>
                     <dt>Voltage</dt>
-                    <dd className="metric">{view.voltageV === null ? "-" : `${view.voltageV.toFixed(1)} V`}</dd>
+                    <dd className="metric">{view.voltageV === null ? "-" : `${formatNumber(view.voltageV, ONE_DECIMAL, "en")} V`}</dd>
                 </div>
                 <div>
                     <dt>Circuit limit</dt>
@@ -456,7 +444,13 @@ function attentionToneOf(summary: TwinSummary): StressBand | undefined {
     return summary.elevated > 0 ? "elevated" : undefined;
 }
 
-function streamStatus(summary: TwinSummary, isConnected: boolean, streamQuiet: boolean, streamError: unknown) {
+function streamStatus(summary: TwinSummary, isConnected: boolean, streamQuiet: boolean, streamError: unknown, liveMode: LiveUpdateMode = "normal") {
+    if (liveMode === "paused") {
+        return { tone: "idle", text: "Updates paused" };
+    }
+    if (liveMode === "saver") {
+        return { tone: summary.reporting > 0 ? "live" : "idle", text: "Data saver" };
+    }
     if (summary.reporting > 0 && (isConnected || !streamQuiet)) {
         return { tone: "live", text: "Live" };
     }
@@ -660,6 +654,7 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
     const dark = useDarkTheme();
     const reducedMotion = useReducedMotion();
     const onScreen = useOnScreen(stageRef);
+    const snapshotInterval = useLiveInterval(LIVE_REFRESH_MS.twinSnapshot);
 
     useEffect(() => {
         setWebgl(supportsWebGL());
@@ -708,7 +703,7 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
         enabled: buildingId !== "",
         retry: false,
         refetchOnWindowFocus: false,
-        refetchInterval: (query) => (query.state.data?.supported === false || !streamQuiet || !onScreen ? false : SNAPSHOT_POLL_MS),
+        refetchInterval: (query) => (query.state.data?.supported === false || !streamQuiet || !onScreen ? false : snapshotInterval),
     });
 
     useEffect(() => {
@@ -720,7 +715,7 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
     const ingest = useCallback((reading: TelemetryData) => {
         store.ingest(reading);
     }, [store]);
-    const { isConnected, error: streamError } = useTelemetryStream(buildingId, { onReading: ingest, trackLatest: false });
+    const { isConnected, error: streamError, liveMode } = useTelemetryStream(buildingId, { onReading: ingest, trackLatest: false });
 
     useEffect(() => {
         if (!onScreen) {
@@ -791,7 +786,7 @@ function DigitalTwin({ building }: Readonly<{ building: TwinBuilding }>) {
     const sensorCount = layout.placements.length;
     const attention = summary.critical + summary.elevated;
     const attentionTone = attentionToneOf(summary);
-    const stream = streamStatus(summary, isConnected, streamQuiet, streamError);
+    const stream = streamStatus(summary, isConnected, streamQuiet, streamError, liveMode);
 
     const buildingName = building.building_name?.trim() || "this building";
     const stageLabel = stageAriaLabel(buildingName, layout, sensorCount, summary);

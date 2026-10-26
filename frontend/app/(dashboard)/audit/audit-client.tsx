@@ -2,6 +2,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState, type CSSProperties } from "react";
 import { formatDateTime } from "@/lib/formatDate";
+import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 import { PageHeading } from "@/components/PageHeading";
 import { CurvedSelect } from "@/components/curvedselect";
 
@@ -27,6 +28,9 @@ const ACTION_FILTERS = [
     { value: "all", label: "All actions" },
     { value: "LOGIN", label: "Login" },
     { value: "LOGOUT", label: "Logout" },
+    { value: "LOGOUT_ALL_DEVICES", label: "Logout on all devices" },
+    { value: "PASSWORD_CHANGE", label: "Password change" },
+    { value: "DATA_EXPORT", label: "Data export" },
     { value: "CREATE", label: "Created" },
     { value: "UPDATE", label: "Updated" },
     { value: "DELETE", label: "Deleted" },
@@ -78,6 +82,7 @@ function Skeleton({ style }: Readonly<{ style?: CSSProperties }>) {
 }
 
 export default function AuditClient() {
+    useFormatPreferences();
     const [actionFilter, setActionFilter] = useState("all");
     const [pageFilter, setPageFilter] = useState("all");
     const [severityFilter, setSeverityFilter] = useState("all");

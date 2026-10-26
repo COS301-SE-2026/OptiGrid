@@ -8,6 +8,8 @@ import { humanise } from "../../lib/labels";
 import { LogoutButton } from "./logout-button";
 import { AuditPageTracker } from "../../components/AuditPageTracker";
 import { OptiGridLogo } from "../../components/logo";
+import { ThemePreferenceSync } from "./theme-preference-sync";
+import { LiveUpdatesNotice } from "./live-updates-notice";
 
 function getInitials(user: SessionUser): string {
     const first = user.firstName?.[0] ?? "";
@@ -35,6 +37,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     return (
         <div className="dashboard-page">
             <AuditPageTracker />
+            <ThemePreferenceSync userId={user.userId} />
             <div className="dashboard-shell">
                 <aside className="card dashboard-sidebar">
                     <Link
@@ -61,7 +64,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                     <NavLinks role={user.roleType} />
                     <LogoutButton />
                 </aside>
-                <main className="dashboard-main">{children}</main>
+                <main className="dashboard-main">
+                    <LiveUpdatesNotice />
+                    {children}
+                </main>
             </div>
         </div>
     );

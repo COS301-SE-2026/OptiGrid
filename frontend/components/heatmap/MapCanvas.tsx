@@ -5,6 +5,9 @@ import * as maplibregl from "maplibre-gl";
 import type { ExpressionSpecification, GeoJSONSource, MapLayerMouseEvent, MapMouseEvent, PaddingOptions, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { colourStops, parseColour, toTowerCollection, type Bounds, type HeatPalette, type HeatmapFeatureCollection } from "@/lib/heatmap";
+import { getDisplayPreferences } from "@/lib/displayPreferences";
+import { useDisplayPreferences } from "@/lib/useDisplayPreferences";
+import { mapRenderOptions } from "./mapQuality";
 
 export type MapPalette = HeatPalette & {
     primary: string;
@@ -204,6 +207,7 @@ function addDataLayers(map: maplibregl.Map, collection: HeatmapFeatureCollection
 
 export default function MapCanvas(props: Readonly<MapCanvasProps>) {
     const { collection, palette, dark, selectedId, fitTo, flyTo, placing, tilted, reducedMotion, active } = props;
+    const { graphics } = useDisplayPreferences();
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const readyRef = useRef(false);
@@ -237,6 +241,7 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
                 dragRotate: false,
                 pitchWithRotate: false,
                 fadeDuration: 0,
+                ...mapRenderOptions(getDisplayPreferences().graphics, globalThis.devicePixelRatio || 1),
             });
         }
         catch {
@@ -445,9 +450,21 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
         });
     }, [flyTo, reducedMotion]);
 
+    // sharpness can change while the map is open but smoothing only changes the next time the map is created
+    const appliedGraphics = useRef(graphics);
     useEffect(() => {
         const map = mapRef.current;
-        if (!map || reducedMotion || !active) {
+        if (!map || appliedGraphics.current === graphics) {
+            return;
+        }
+        appliedGraphics.current = graphics;
+        const deviceRatio = globalThis.devicePixelRatio || 1;
+        map.setPixelRatio(mapRenderOptions(graphics, deviceRatio).pixelRatio ?? deviceRatio);
+    }, [graphics]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || reducedMotion || graphics === "saver" || !active) {
             return;
         }
         let frame = 0;
@@ -470,7 +487,7 @@ export default function MapCanvas(props: Readonly<MapCanvasProps>) {
                 map.setPaintProperty("pulse", "circle-opacity", 0);
             }
         };
-    }, [reducedMotion, active]);
+    }, [reducedMotion, graphics, active]);
 
     return <div ref={containerRef} className="heat-map-canvas" data-map-ready="false" />;
 }

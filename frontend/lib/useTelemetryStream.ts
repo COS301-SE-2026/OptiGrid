@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getTabSessionPath } from "./tab-session";
+import { useDisplayPreferences } from "./useDisplayPreferences";
+import { getDisplayPreferences } from "./displayPreferences";
 
 export type TelemetryData = {
     building_id: string;
@@ -122,6 +124,9 @@ export function useTelemetryStream(buildingId?: string, options: TelemetryStream
     const [isConnected, setIsConnected] = useState<boolean>(false);
     const onReadingRef = useRef(options.onReading);
     const trackLatest = options.trackLatest ?? true;
+    const { liveUpdates } = useDisplayPreferences();
+    // Data saver and Paused both close the stream and pages then rely on slower polling or stay still
+    const streaming = liveUpdates === "normal";
 
     useEffect(() => {
         onReadingRef.current = options.onReading;
@@ -130,9 +135,13 @@ export function useTelemetryStream(buildingId?: string, options: TelemetryStream
     useEffect(() => {
         setLiveData(null);
         setError(null);
+    }, [buildingId]);
+
+    useEffect(() => {
         setIsConnected(false);
 
-        if (buildingId === "") {
+        if (buildingId === "" || !streaming || getDisplayPreferences().liveUpdates !== "normal") {
+            setError(null);
             return;
         }
 
@@ -155,7 +164,7 @@ export function useTelemetryStream(buildingId?: string, options: TelemetryStream
                 }
             },
         });
-    }, [buildingId, trackLatest]);
+    }, [buildingId, trackLatest, streaming]);
 
-    return { liveData, error, isConnected };
+    return { liveData, error, isConnected, liveMode: liveUpdates };
 }

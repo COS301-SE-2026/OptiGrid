@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatNumber } from "@/lib/format";
 
 type ChainBreak = {
     log_id: string;
@@ -171,7 +172,7 @@ export function IntegrityStatus({ state, showSignature = true, className }: Inte
                     <div>
                         <strong>Integrity check failed</strong>
                         {result.verified
-                            ? <p className="integrity-detail">All {result.records_checked.toLocaleString()} audit entries checked out.</p>
+                            ? <p className="integrity-detail">All {formatNumber(result.records_checked)} audit entries checked out.</p>
                             : <p className="integrity-detail">Verified {result.records_checked} of the signed entries before {reason}.</p>}
                         {carbonDetail}
                     </div>
@@ -184,7 +185,7 @@ export function IntegrityStatus({ state, showSignature = true, className }: Inte
                 <CheckIcon />
                 <div>
                     <strong>Data Cryptographically Verified ({result.algorithm})</strong>
-                    <p className="integrity-detail">{result.records_checked.toLocaleString()} ledger entries checked, chain unbroken.</p>
+                    <p className="integrity-detail">{formatNumber(result.records_checked)} ledger entries checked, chain unbroken.</p>
                     {carbonDetail}
                     {showSignature && result.current_hash && (<p className="integrity-hash" title={result.current_hash}>{result.current_hash}</p>)}
                 </div>

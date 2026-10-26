@@ -67,8 +67,8 @@ export default function HelpPage() {
             <header className="navbar landing-nav" role="banner" aria-label="Site header">
                 <div className="landing-shell landing-nav-inner">
                     <Link
-                        href="/"
-                        aria-label="OptiGrid home"
+                        href="/dashboard"
+                        aria-label="OptiGrid dashboard"
                         className="landing-wordmark"
                         style={{
                             display: "inline-flex",

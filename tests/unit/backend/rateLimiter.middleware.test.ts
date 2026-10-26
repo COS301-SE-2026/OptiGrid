@@ -142,4 +142,18 @@ describe("Token Bucket Rate Limit Tests", () => {
         expect(statusMock).not.toHaveBeenCalled();
                 
     });
+
+    it("should_keep_a_named_bucket_apart_from_the_route_wide_bucket", async () => {
+        (redis.get as jest.Mock).mockResolvedValue(null);
+        const middleware = rateLimiter(5, 1/60, "account-password");
+
+        await middleware(req as Request, resp as Response, nextFunc);
+
+        expect(redis.get).toHaveBeenCalledWith("rateLimit:account-password:/api/login-192.168.1.100");
+        expect(redis.set).toHaveBeenCalledWith(
+            "rateLimit:account-password:/api/login-192.168.1.100",
+            JSON.stringify({ tokens: 4, lastRefill: mockTime })
+        );
+        expect(nextFunc).toHaveBeenCalledTimes(1);
+    });
 });

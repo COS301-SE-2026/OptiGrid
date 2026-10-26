@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { formatNumber } from "@/lib/format";
 
 export type TradeoffPoint = {
     savings_level: number;
@@ -39,11 +40,11 @@ export function comfortBand(score: number, target: number): ComfortBand {
 }
 
 function formatKw(value: number): string {
-    return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} kW`;
+    return `${formatNumber(value, { maximumFractionDigits: 2 })} kW`;
 }
 
 function formatZar(value: number): string {
-    return `R ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `R ${formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function pointAt(profile: TradeoffProfile, level: number): TradeoffPoint {

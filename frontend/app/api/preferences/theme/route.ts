@@ -1,4 +1,3 @@
-/** @jest-environment node */
 import { NextResponse } from "next/server";
 
 const CORE_URL = process.env.CORE_URL ?? "http://core:4000";

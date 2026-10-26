@@ -21,6 +21,9 @@ import { getTabSessionPath } from "../../../lib/tab-session";
 import { useTabSessionId } from "../../../lib/use-tab-session-id";
 import VerifyIntegrityButton, { IntegrityStatus, useIntegrityVerification } from "@/components/VerifyIntegrityButton";
 import { humanise } from "@/lib/labels";
+import { formatDate, formatNumber } from "@/lib/format";
+import { LIVE_REFRESH_MS } from "@/lib/displayPreferences";
+import { useFormatPreferences, useLiveInterval, useReducedMotion } from "@/lib/useDisplayPreferences";
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
 
@@ -88,13 +91,13 @@ type PortfolioConsumptionResponse = {
 
 function formatNumberMetric(value: unknown): string {
     if (typeof value === "number" && Number.isFinite(value)) {
-        return value.toLocaleString();
+        return formatNumber(value);
     }
 
     if (typeof value === "string" && value.trim().length > 0) {
         const parsed = Number(value);
         if (Number.isFinite(parsed)) {
-            return parsed.toLocaleString();
+            return formatNumber(parsed);
         }
     }
 
@@ -206,9 +209,6 @@ async function fetchPortfolioConsumption(): Promise<PortfolioConsumption> {
     return payload.data;
 }
 
-// the overview refreshe itself. we need that so the numbers stay current without a reload
-const REFRESH_MS = 60_000;
-
 const STATUS_CLASSES: Record<BuildingStatus, string> = {
     Normal: "badge-success",
     "Peak alert": "badge-warning",
@@ -282,6 +282,7 @@ function KpiCard({
 }
 
 export default function DashboardPage() {
+    useFormatPreferences();
     const queryClient = useQueryClient();
     const ledgerVerification = useIntegrityVerification();
     const tabSessionId = useTabSessionId();
@@ -294,6 +295,9 @@ export default function DashboardPage() {
         retry: false,
     });
     const router = useRouter();
+    // the overview refreshes itself in orfer for the numbers to stay current without a reload. Settings can slow or pause it
+    const refreshInterval = useLiveInterval(LIVE_REFRESH_MS.dashboard);
+    const chartAnimation = !useReducedMotion();
 
     const {
         data: buildings = [],
@@ -304,7 +308,7 @@ export default function DashboardPage() {
     } = useQuery({
         queryKey: ["buildings"],
         queryFn: fetchBuildings,
-        refetchInterval: REFRESH_MS,
+        refetchInterval: refreshInterval,
     });
 
     const {
@@ -313,7 +317,7 @@ export default function DashboardPage() {
     } = useQuery({
         queryKey: ["portfolio-consumption"],
         queryFn: fetchPortfolioConsumption,
-        refetchInterval: REFRESH_MS,
+        refetchInterval: refreshInterval,
     });
 
     const deleteBuildingMutation = useMutation({
@@ -347,7 +351,7 @@ export default function DashboardPage() {
         todayKwh: building.todayKwh,
     }));
     const consumption: ConsumptionPoint[] = (portfolioConsumption?.daily ?? []).map((point) => ({
-        day: new Date(`${point.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "short" }),
+        day: formatDate(new Date(`${point.date}T00:00:00Z`), { weekday: "short" }),
         kwh: point.kwh,
     }));
     const summary: PortfolioSummary = {
@@ -420,7 +424,7 @@ export default function DashboardPage() {
                         style={{ 
                             marginTop: "var(--space-2)", 
                             display: "inline-block", 
-                            color: "var(--brand-primary)", 
+                            color: "var(--brand-primary-cta)", 
                             fontWeight: 600 
                         }}
                         aria-label="Add your first building to get started"
@@ -551,11 +555,12 @@ export default function DashboardPage() {
                                 contentStyle={tooltipContentStyle}
                                 labelStyle={tooltipLabelStyle}
                                 cursor={{ stroke: "var(--brand-border)" }}
-                                formatter={(value: number) => [`${value.toLocaleString()} kWh`, "Energy usage"]}
+                                formatter={(value: number) => [`${formatNumber(value)} kWh`, "Energy usage"]}
                             />
                             <Line
                                 type="monotone"
                                 dataKey="kwh"
+                                isAnimationActive={chartAnimation}
                                 stroke={SERIES_COLOURS[0]}
                                 strokeWidth={2}
                                 dot={seriesDot(SERIES_COLOURS[0])}

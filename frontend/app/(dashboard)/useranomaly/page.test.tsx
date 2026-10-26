@@ -7,8 +7,6 @@ import "@testing-library/jest-dom";
 import { 
   MOCK_ANOMALIES_VIEWER as MOCK_ANOMALIES, 
   MOCK_BUILDINGS, 
-  rechartsMockFactory,
-  getAnomaliesSection,
   getTableCell,
   getTableRow,
   getHistoricModal,
