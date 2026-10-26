@@ -35,7 +35,8 @@ export const changePasswordSchema = z.object({
         .min(8, 'Your new password needs at least 8 characters.')
         .refine((value) => Buffer.byteLength(value, 'utf8') <= PASSWORD_MAX_BYTES, 'Your new password is too long. Keep it under 72 characters.')
         .refine((value) => PASSWORD_PATTERN.test(value), 'Mix upper and lower case letters with at least one number and one symbol.'),
-    signOutOtherDevices: z.boolean({ error: 'signOutOtherDevices must be true or false.' }).default(false),
+
+    signOutOtherDevices: z.boolean({ error: 'signOutOtherDevices must be true or false.' }).optional(),
 }).strict().refine((body) => body.newPassword !== body.currentPassword, {
     path: ['newPassword'],
     message: 'Your new password must be different from your current one.',

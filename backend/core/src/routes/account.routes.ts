@@ -99,7 +99,7 @@ router.put('/me', updateMyProfile);
  * /api/accounts/me/password:
  *   post:
  *     summary: Change the signed-in user's password
- *     description: The current password is checked first. Accounts that sign in with Google receive 409.
+ *     description: The current password is checked first. Supabase Auth then signs out every other session, and the device that sent the request stays signed in. Accounts that sign in with Google receive 409.
  *     tags:
  *       - Accounts
  *     security:
@@ -119,7 +119,8 @@ router.put('/me', updateMyProfile);
  *                 minLength: 8
  *               signOutOtherDevices:
  *                 type: boolean
- *                 default: false
+ *                 deprecated: true
+ *                 description: Ignored. Other sessions are always signed out.
  *     responses:
  *       200:
  *         description: Password changed
@@ -141,7 +142,7 @@ router.put('/me', updateMyProfile);
  *                   field: "currentPassword"
  *                   message: "Your current password is not correct."
  *       409:
- *         description: The account has no password because it signs in with Google
+ *         description: The account signs in with Google and has no password, or Supabase asks the person to sign in again first
  *       429:
  *         description: Too many attempts
  */

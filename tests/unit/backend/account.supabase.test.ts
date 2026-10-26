@@ -9,6 +9,7 @@ import {
 
 // The real supabase-js client is used here and only the Auth server is replaced
 // These tests check the exact requests the account service sends
+// Like Supabase Auth, the fake server keeps only the calling session when a password changes
 jest.mock('../../../backend/core/src/lib/prisma', () => ({
     __esModule: true,
     default: {
@@ -19,6 +20,8 @@ jest.mock('../../../backend/core/src/lib/prisma', () => ({
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 const EMAIL = 'thandi@example.com';
 const USER_TOKEN = 'user-session-token';
+const OTHER_DEVICE_TOKEN = 'other-device-token';
+const SESSION_GONE = { code: 403, error_code: 'session_not_found', msg: 'Session from session_id claim in JWT does not exist' };
 
 type RecordedRequest = {
     method: string;
@@ -31,6 +34,7 @@ const fakeAuth = {
     password: 'OldPass123!',
     providers: ['email'],
     verificationCount: 0,
+    sessions: new Set<string>(),
     requests: [] as RecordedRequest[],
 };
 
@@ -53,9 +57,9 @@ function send(res: ServerResponse, status: number, payload?: unknown) {
     res.end(payload === undefined ? '' : JSON.stringify(payload));
 }
 
-function isKnownToken(authorization: string | undefined) {
+function liveSession(authorization: string | undefined) {
     const token = authorization?.replace(/^Bearer /, '') ?? '';
-    return token === USER_TOKEN || token.startsWith('verification-');
+    return fakeAuth.sessions.has(token) ? token : null;
 }
 
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown> | null> {
@@ -74,7 +78,7 @@ const server = http.createServer(async (req, res) => {
     fakeAuth.requests.push({ method: req.method ?? '', path: `${url.pathname}${url.search}`, authorization, body });
 
     if (req.method === 'GET' && url.pathname === '/auth/v1/user') {
-        return isKnownToken(authorization) ? send(res, 200, authUser()) : send(res, 401, { error_code: 'bad_jwt', msg: 'invalid JWT' });
+        return liveSession(authorization) ? send(res, 200, authUser()) : send(res, 403, SESSION_GONE);
     }
 
     if (req.method === 'POST' && url.pathname === '/auth/v1/token' && url.searchParams.get('grant_type') === 'password') {
@@ -82,8 +86,10 @@ const server = http.createServer(async (req, res) => {
             return send(res, 400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
         }
         fakeAuth.verificationCount += 1;
+        const token = `verification-${fakeAuth.verificationCount}`;
+        fakeAuth.sessions.add(token);
         return send(res, 200, {
-            access_token: `verification-${fakeAuth.verificationCount}`,
+            access_token: token,
             token_type: 'bearer',
             expires_in: 3600,
             expires_at: Math.floor(Date.now() / 1000) + 3600,
@@ -93,18 +99,32 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'PUT' && url.pathname === '/auth/v1/user') {
-        if (!isKnownToken(authorization)) {
-            return send(res, 401, { error_code: 'bad_jwt', msg: 'invalid JWT' });
+        const caller = liveSession(authorization);
+        if (!caller) {
+            return send(res, 403, SESSION_GONE);
         }
         if (body?.password === fakeAuth.password) {
             return send(res, 422, { code: 422, error_code: 'same_password', msg: 'New password should be different from the old password.' });
         }
         fakeAuth.password = String(body?.password);
+        fakeAuth.sessions = new Set([caller]);
         return send(res, 200, authUser());
     }
 
     if (req.method === 'POST' && url.pathname === '/auth/v1/logout') {
-        return isKnownToken(authorization) ? send(res, 204) : send(res, 401, { error_code: 'bad_jwt', msg: 'invalid JWT' });
+        const caller = liveSession(authorization);
+        if (!caller) {
+            return send(res, 403, SESSION_GONE);
+        }
+        const scope = url.searchParams.get('scope') ?? 'global';
+        if (scope === 'local') {
+            fakeAuth.sessions.delete(caller);
+        } else if (scope === 'others') {
+            fakeAuth.sessions = new Set([caller]);
+        } else {
+            fakeAuth.sessions.clear();
+        }
+        return send(res, 204);
     }
 
     return send(res, 404, { msg: 'not found' });
@@ -132,6 +152,7 @@ beforeEach(() => {
     fakeAuth.password = 'OldPass123!';
     fakeAuth.providers = ['email'];
     fakeAuth.verificationCount = 0;
+    fakeAuth.sessions = new Set([USER_TOKEN, OTHER_DEVICE_TOKEN]);
     fakeAuth.requests = [];
     mockedFindUnique.mockReset();
 });
@@ -141,41 +162,28 @@ function calls() {
 }
 
 describe('account service against Supabase Auth', () => {
-    it('changes the password through a separate check session and keeps this device signed in', async () => {
+    it('checks the password in its own session and sends the change from this device, which stays signed in', async () => {
         await expect(changePassword(USER_ID, USER_TOKEN, {
             currentPassword: 'OldPass123!',
             newPassword: 'NewPass456!',
-            signOutOtherDevices: true,
-        })).resolves.toEqual({ signedOutOtherDevices: true });
+        })).resolves.toBeUndefined();
 
         expect(fakeAuth.password).toBe('NewPass456!');
         expect(calls()).toEqual([
             `GET /auth/v1/user Bearer ${USER_TOKEN}`,
             'POST /auth/v1/token?grant_type=password Bearer anon-key',
-            'PUT /auth/v1/user Bearer verification-1',
             'POST /auth/v1/logout?scope=local Bearer verification-1',
-            `POST /auth/v1/logout?scope=others Bearer ${USER_TOKEN}`,
+            `PUT /auth/v1/user Bearer ${USER_TOKEN}`,
         ]);
         expect(fakeAuth.requests[1].body).toMatchObject({ email: EMAIL, password: 'OldPass123!' });
-        expect(fakeAuth.requests[2].body).toMatchObject({ password: 'NewPass456!' });
-    });
-
-    it('leaves other sessions alone when the user does not ask to sign them out', async () => {
-        await changePassword(USER_ID, USER_TOKEN, {
-            currentPassword: 'OldPass123!',
-            newPassword: 'NewPass456!',
-            signOutOtherDevices: false,
-        });
-
-        expect(calls().some((call) => call.includes('scope=others'))).toBe(false);
-        expect(calls()).toContain('POST /auth/v1/logout?scope=local Bearer verification-1');
+        expect(fakeAuth.requests[3].body).toEqual({ password: 'NewPass456!' });
+        expect([...fakeAuth.sessions]).toEqual([USER_TOKEN]);
     });
 
     it('rejects a wrong current password before any change is sent', async () => {
         await expect(changePassword(USER_ID, USER_TOKEN, {
             currentPassword: 'WrongPass1!',
             newPassword: 'NewPass456!',
-            signOutOtherDevices: false,
         })).rejects.toMatchObject({ code: 'INVALID_CURRENT_PASSWORD' });
 
         expect(fakeAuth.password).toBe('OldPass123!');
@@ -186,10 +194,10 @@ describe('account service against Supabase Auth', () => {
         await expect(changePassword(USER_ID, USER_TOKEN, {
             currentPassword: 'OldPass123!',
             newPassword: 'OldPass123!',
-            signOutOtherDevices: false,
         })).rejects.toMatchObject({ code: 'SAME_PASSWORD' });
 
         expect(calls()).toContain('POST /auth/v1/logout?scope=local Bearer verification-1');
+        expect([...fakeAuth.sessions]).toEqual([USER_TOKEN, OTHER_DEVICE_TOKEN]);
     });
 
     it('refuses to change the password of a Google account', async () => {
@@ -198,7 +206,6 @@ describe('account service against Supabase Auth', () => {
         await expect(changePassword(USER_ID, USER_TOKEN, {
             currentPassword: 'OldPass123!',
             newPassword: 'NewPass456!',
-            signOutOtherDevices: false,
         })).rejects.toMatchObject({ code: 'PASSWORD_NOT_AVAILABLE' });
 
         expect(calls()).toEqual([`GET /auth/v1/user Bearer ${USER_TOKEN}`]);

@@ -16,6 +16,7 @@ import {
     LastActiveAdminError,
     PasswordNotAvailableError,
     PasswordRejectedError,
+    ReauthenticationNeededError,
     SelfPermanentDeletionError,
 } from '../errors/account.errors';
 import { changePasswordSchema, updateProfileSchema } from '../validation/account.validation';
@@ -113,16 +114,16 @@ export async function changeMyPassword(req: Request, res: Response) {
     }
 
     try {
-        const { signedOutOtherDevices } = await changePassword(userId, accessToken, parsed.data);
+        await changePassword(userId, accessToken, parsed.data);
         await recordAuditLog({
             userId,
             actionType: 'PASSWORD_CHANGE',
             targetTable: 'users',
-            newValue: { signedOutOtherDevices },
+            newValue: { signedOutOtherDevices: true },
             ipAddress: getClientIp(req),
         });
 
-        return res.status(200).json({ message: 'Password changed', signedOutOtherDevices });
+        return res.status(200).json({ message: 'Password changed', signedOutOtherDevices: true });
     } catch (error: unknown) {
         if (error instanceof CurrentPasswordIncorrectError) {
             return res.status(400).json({ code: error.code, field: 'currentPassword', message: error.message });
@@ -130,7 +131,7 @@ export async function changeMyPassword(req: Request, res: Response) {
         if (error instanceof PasswordRejectedError) {
             return res.status(400).json({ code: error.code, field: 'newPassword', message: error.message });
         }
-        if (error instanceof PasswordNotAvailableError) {
+        if (error instanceof PasswordNotAvailableError || error instanceof ReauthenticationNeededError) {
             return res.status(409).json({ code: error.code, message: error.message });
         }
 

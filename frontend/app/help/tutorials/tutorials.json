@@ -134,7 +134,7 @@
             "Apart from the theme, these display choices stay on the device where you set them.",
             "The Your data card downloads a copy of the information OptiGrid holds about you.",
             "The Security card shows how you sign in. Select \"Change password\" to set a new one.",
-            "Leave \"Sign out of my other devices\" ticked if someone else might know your old password.",
+            "A new password signs you out on your other devices. You stay signed in on this one.",
             "\"Sign out everywhere\" ends every session on every device, this one included."
         ]
     }

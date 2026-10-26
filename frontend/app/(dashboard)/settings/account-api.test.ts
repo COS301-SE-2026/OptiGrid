@@ -49,7 +49,7 @@ describe("account api helpers", () => {
       message: "This account signs in with Google. Its password is managed by Google.",
     })) as jest.Mock;
 
-    const error = await changePassword({ currentPassword: "a", newPassword: "b", signOutOtherDevices: false }).catch((caught) => caught);
+    const error = await changePassword({ currentPassword: "a", newPassword: "b" }).catch((caught) => caught);
 
     expect(error.code).toBe("PASSWORD_NOT_AVAILABLE");
     expect(error.message).toBe("This account signs in with Google. Its password is managed by Google.");
@@ -59,13 +59,6 @@ describe("account api helpers", () => {
     global.fetch = jest.fn(() => reply(200, {})) as jest.Mock;
 
     await expect(signOutEverywhere()).resolves.toEqual({ redirectTo: "/login?signedOut=all" });
-  });
-
-  it("only treats a true flag as other devices being signed out", async () => {
-    global.fetch = jest.fn(() => reply(200, { signedOutOtherDevices: "yes" })) as jest.Mock;
-
-    await expect(changePassword({ currentPassword: "a", newPassword: "b", signOutOtherDevices: true }))
-      .resolves.toEqual({ signedOutOtherDevices: false });
   });
 
   it("builds a profile from the session reply", async () => {

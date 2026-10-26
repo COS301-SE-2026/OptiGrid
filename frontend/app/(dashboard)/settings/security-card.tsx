@@ -62,9 +62,8 @@ function RuleIcon({ met }: Readonly<{ met: boolean }>) {
   );
 }
 
-function PasswordForm({ onDone, onCancel }: Readonly<{ onDone: (signedOutOthers: boolean) => void; onCancel: () => void }>) {
+function PasswordForm({ onDone, onCancel }: Readonly<{ onDone: () => void; onCancel: () => void }>) {
   const [fields, setFields] = useState<PasswordFields>(EMPTY_PASSWORD_FIELDS);
-  const [signOutOthers, setSignOutOthers] = useState(true);
   const [errors, setErrors] = useState<Partial<Record<keyof PasswordFields, string>>>({});
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -96,12 +95,11 @@ function PasswordForm({ onDone, onCancel }: Readonly<{ onDone: (signedOutOthers:
     setSaving(true);
     setFormError("");
     try {
-      const result = await changePassword({
+      await changePassword({
         currentPassword: fields.currentPassword,
         newPassword: fields.newPassword,
-        signOutOtherDevices: signOutOthers,
       });
-      onDone(result.signedOutOtherDevices);
+      onDone();
     } catch (error) {
       if (error instanceof AccountRequestError && Object.keys(error.fieldErrors).length > 0) {
         setErrors(error.fieldErrors as Partial<Record<keyof PasswordFields, string>>);
@@ -165,20 +163,7 @@ function PasswordForm({ onDone, onCancel }: Readonly<{ onDone: (signedOutOthers:
         {errors.confirmPassword && <p id="confirmPassword-error" className="settings-field-error">{errors.confirmPassword}</p>}
       </div>
 
-      <div className="settings-check">
-        <input
-          id="signOutOtherDevices"
-          type="checkbox"
-          checked={signOutOthers}
-          onChange={(event) => setSignOutOthers(event.target.checked)}
-          disabled={saving}
-          aria-describedby="signOutOtherDevices-hint"
-        />
-        <span>
-          <label htmlFor="signOutOtherDevices" className="settings-check-label">Sign out of my other devices</label>
-          <span id="signOutOtherDevices-hint" className="settings-field-hint">A good idea if someone else might know your old password.</span>
-        </span>
-      </div>
+      <p className="settings-field-hint">Changing your password signs you out on your other devices. You stay signed in here.</p>
 
       {formError && <div role="alert" className="auth-alert">{formError}</div>}
 
@@ -221,11 +206,9 @@ export function SecurityCard({ security, loading, onNotify }: SecurityCardProps)
     setFormOpen(false);
   };
 
-  const handlePasswordChanged = (signedOutOthers: boolean) => {
+  const handlePasswordChanged = () => {
     setFormOpen(false);
-    setPasswordMessage(signedOutOthers
-      ? "Password updated. Your other devices were signed out."
-      : "Password updated.");
+    setPasswordMessage("Password updated. Your other devices were signed out.");
     onNotify("Password updated");
   };
 

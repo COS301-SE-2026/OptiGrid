@@ -168,7 +168,7 @@ describe('account routes', () => {
         });
 
         it('mounts POST /api/accounts/me/password', async () => {
-            mockedAccountServices.changePassword.mockResolvedValue({ signedOutOtherDevices: false });
+            mockedAccountServices.changePassword.mockResolvedValue(undefined);
 
             const response = await request(createApp())
                 .post('/api/accounts/me/password')
@@ -176,10 +176,10 @@ describe('account routes', () => {
                 .send({ currentPassword: 'OldPass123!', newPassword: 'NewPass456!' });
 
             expect(response.status).toBe(200);
+            expect(response.body).toEqual({ message: 'Password changed', signedOutOtherDevices: true });
             expect(mockedAccountServices.changePassword).toHaveBeenCalledWith(mockAuthenticatedUser.id, 'token-123', {
                 currentPassword: 'OldPass123!',
                 newPassword: 'NewPass456!',
-                signOutOtherDevices: false,
             });
         });
 

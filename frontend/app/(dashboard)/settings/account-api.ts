@@ -22,7 +22,6 @@ export type AccountOverview = {
 export type PasswordChangeRequest = {
   currentPassword: string;
   newPassword: string;
-  signOutOtherDevices: boolean;
 };
 
 export class AccountRequestError extends Error {
@@ -120,14 +119,11 @@ export async function saveProfile(names: { firstName: string; lastName: string }
   return payload.user;
 }
 
-export async function changePassword(change: PasswordChangeRequest): Promise<{ signedOutOtherDevices: boolean }> {
+export async function changePassword(change: PasswordChangeRequest): Promise<void> {
   const response = await fetch("/api/accounts/me/password", jsonRequest("POST", change));
   if (!response.ok) {
     throw await toRequestError(response, "We could not change your password. Please try again.");
   }
-
-  const payload = (await response.json()) as { signedOutOtherDevices?: unknown };
-  return { signedOutOtherDevices: payload.signedOutOtherDevices === true };
 }
 
 export async function signOutEverywhere(): Promise<{ redirectTo: string }> {

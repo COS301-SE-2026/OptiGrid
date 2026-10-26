@@ -325,7 +325,7 @@ describe("SettingsPage", () => {
     });
 
     it("catches a mismatched confirmation before sending", async () => {
-      routes["POST /api/accounts/me/password"] = { body: { signedOutOtherDevices: true } };
+      routes["POST /api/accounts/me/password"] = { body: { message: "Password changed" } };
       const form = await openPasswordForm();
       fillPasswordForm(form, "OldPass123!", "NewPass456!", "NewPass456?");
 
@@ -335,7 +335,14 @@ describe("SettingsPage", () => {
       expect(requestsTo("POST", "/api/accounts/me/password")).toHaveLength(0);
     });
 
-    it("changes the password and signs out other devices by default", async () => {
+    it("says up front that other devices will be signed out", async () => {
+      const form = await openPasswordForm();
+
+      expect(form.getByText("Changing your password signs you out on your other devices. You stay signed in here.")).toBeInTheDocument();
+      expect(form.queryByRole("checkbox")).not.toBeInTheDocument();
+    });
+
+    it("changes the password and confirms that other devices were signed out", async () => {
       routes["POST /api/accounts/me/password"] = { body: { message: "Password changed", signedOutOtherDevices: true } };
       const form = await openPasswordForm();
       fillPasswordForm(form, "OldPass123!", "NewPass456!");
@@ -346,21 +353,21 @@ describe("SettingsPage", () => {
       expect(bodyOf(requestsTo("POST", "/api/accounts/me/password")[0])).toEqual({
         currentPassword: "OldPass123!",
         newPassword: "NewPass456!",
-        signOutOtherDevices: true,
       });
       expect(screen.queryByRole("form", { name: "Change password" })).not.toBeInTheDocument();
     });
 
-    it("lets the user keep other devices signed in", async () => {
-      routes["POST /api/accounts/me/password"] = { body: { signedOutOtherDevices: false } };
+    it("asks the user to sign in again when Supabase wants a fresh sign in", async () => {
+      routes["POST /api/accounts/me/password"] = {
+        status: 409,
+        body: { code: "REAUTHENTICATION_NEEDED", message: "Please sign out and sign in again, then change your password." },
+      };
       const form = await openPasswordForm();
       fillPasswordForm(form, "OldPass123!", "NewPass456!");
-      fireEvent.click(form.getByLabelText("Sign out of my other devices"));
 
       fireEvent.click(form.getByRole("button", { name: "Update password" }));
 
-      expect(await screen.findByText("Password updated.")).toBeInTheDocument();
-      expect(bodyOf(requestsTo("POST", "/api/accounts/me/password")[0]).signOutOtherDevices).toBe(false);
+      expect(await form.findByRole("alert")).toHaveTextContent("Please sign out and sign in again, then change your password.");
     });
 
     it("shows a wrong current password next to that field", async () => {

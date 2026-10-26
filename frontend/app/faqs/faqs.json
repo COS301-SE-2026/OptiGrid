@@ -42,7 +42,7 @@
                 },
                 {
                     "question": "How do I change my password?",
-                    "answer": "Open the Security card in Settings and select Change password. Enter your current password first, then type the new one twice."
+                    "answer": "Open the Security card in Settings and select Change password. Enter your current password first, then type the new one twice. Your other devices are signed out when it changes."
                 },
                 {
                     "question": "I sign in with Google. Can I change my password here?",

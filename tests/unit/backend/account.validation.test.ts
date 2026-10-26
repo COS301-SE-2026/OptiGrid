@@ -45,8 +45,12 @@ describe('updateProfileSchema', () => {
 describe('changePasswordSchema', () => {
     const valid = { currentPassword: 'OldPass123!', newPassword: 'NewPass456!' };
 
-    it('accepts a strong new password and defaults to keeping other devices signed in', () => {
-        expect(changePasswordSchema.parse(valid)).toEqual({ ...valid, signOutOtherDevices: false });
+    it('accepts a strong new password', () => {
+        expect(changePasswordSchema.parse(valid)).toEqual(valid);
+    });
+
+    it('still accepts the checkbox value sent by pages opened before it was removed', () => {
+        expect(changePasswordSchema.parse({ ...valid, signOutOtherDevices: false })).toEqual({ ...valid, signOutOtherDevices: false });
     });
 
     it.each([

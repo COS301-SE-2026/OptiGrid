@@ -1,5 +1,5 @@
 import { AccountStatus, Prisma, UserRole } from '@prisma/client';
-import { createClient, type AuthError, type User as AuthUser } from '@supabase/supabase-js';
+import { createClient, type User as AuthUser } from '@supabase/supabase-js';
 import ws from 'ws';
 import prisma from '../lib/prisma';
 import {
@@ -8,6 +8,7 @@ import {
     LastActiveAdminError,
     PasswordNotAvailableError,
     PasswordRejectedError,
+    ReauthenticationNeededError,
     SelfPermanentDeletionError,
 } from '../errors/account.errors';
 import { isSupabaseInvalidCredentialsError } from './user_auth.services';
@@ -46,13 +47,17 @@ export type ProfileChanges = {
 export type PasswordChange = {
     currentPassword: string;
     newPassword: string;
-    signOutOtherDevices: boolean;
 };
 
 type SignInDetails = {
     email: string;
     methods: string[];
     lastSignInAt: string | null;
+};
+
+type AuthRefusal = {
+    code?: string;
+    message: string;
 };
 
 function getSupabaseAdminClient() {
@@ -132,8 +137,8 @@ async function readSignInDetails(accessToken: string): Promise<SignInDetails> {
     };
 }
 
-function toPasswordRejection(error: AuthError): Error {
-    const code = typeof error.code === 'string' ? error.code.toLowerCase() : '';
+function toPasswordRejection(error: AuthRefusal): Error {
+    const code = error.code?.toLowerCase() ?? '';
 
     if (code === 'same_password') {
         return new PasswordRejectedError('SAME_PASSWORD', 'Your new password must be different from your current one.');
@@ -141,8 +146,43 @@ function toPasswordRejection(error: AuthError): Error {
     if (code === 'weak_password') {
         return new PasswordRejectedError('WEAK_PASSWORD', 'That password is too easy to guess. Please choose a stronger one.');
     }
+    if (code === 'reauthentication_needed') {
+        return new ReauthenticationNeededError();
+    }
 
     return new Error(`Failed to update the password: ${error.message}`);
+}
+
+//  This request is sent by hand with the token of the session which asked for the change
+async function updatePasswordForSession(accessToken: string, password: string): Promise<AuthRefusal | null> {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Account security requires SUPABASE_URL and SUPABASE_ANON_KEY.');
+    }
+
+    const base = supabaseUrl.endsWith('/') ? supabaseUrl : `${supabaseUrl}/`;
+    const response = await fetch(new URL('auth/v1/user', base), {
+        method: 'PUT',
+        headers: {
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+    });
+
+    if (response.ok) {
+        return null;
+    }
+
+    const reply = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    const pick = (...values: unknown[]) => values.find((value): value is string => typeof value === 'string');
+    return {
+        code: pick(reply.error_code, reply.code),
+        message: pick(reply.msg, reply.message, reply.error_description) ?? `Supabase Auth answered ${response.status}`,
+    };
 }
 
 function withCounts<T>(total: number, items: T[]) {
@@ -225,28 +265,21 @@ export async function changePassword(userId: string, accessToken: string, change
         throw new Error(`Failed to verify the current password: ${error.message}`);
     }
 
+    // the check session is only needed to prove the current password
     const verificationToken = data.session?.access_token;
-    try {
-        if (!verificationToken || data.user?.id !== userId) {
-            throw new Error('Password verification returned a different session.');
-        }
-
-        const { error: updateError } = await verifier.auth.updateUser({ password: change.newPassword });
-        if (updateError) {
-            throw toPasswordRejection(updateError);
-        }
-    } finally {
-        if (verificationToken) {
-            await verifier.auth.admin.signOut(verificationToken, 'local').catch(() => undefined);
-        }
+    if (verificationToken) {
+        await verifier.auth.admin.signOut(verificationToken, 'local').catch(() => undefined);
+    }
+    if (!verificationToken || data.user?.id !== userId) {
+        throw new Error('Password verification returned a different session.');
     }
 
-    if (!change.signOutOtherDevices) {
-        return { signedOutOtherDevices: false };
+    // Supabase Auth ends every session except the one that sends the new password
+    //Sending it with this device token keeps the person signed in here
+    const refusal = await updatePasswordForSession(accessToken, change.newPassword);
+    if (refusal) {
+        throw toPasswordRejection(refusal);
     }
-
-    const { error: signOutError } = await verifier.auth.admin.signOut(accessToken, 'others');
-    return { signedOutOtherDevices: !signOutError };
 }
 
 export async function signOutEverywhere(accessToken: string) {

@@ -367,31 +367,52 @@ describe('account self-service', () => {
     });
 
     describe('changePassword', () => {
-        const change = { currentPassword: 'OldPass123!', newPassword: 'NewPass456!', signOutOtherDevices: false };
+        const change = { currentPassword: 'OldPass123!', newPassword: 'NewPass456!' };
+        const originalFetch = global.fetch;
+        let fetchMock: jest.Mock;
 
-        it('checks the current password, sets the new one and ends the check session', async () => {
-            await expect(changePassword(viewer.userId, accessToken, change)).resolves.toEqual({ signedOutOtherDevices: false });
+        function authReplies(status: number, body: unknown) {
+            fetchMock.mockResolvedValue({
+                ok: status >= 200 && status < 300,
+                status,
+                json: jest.fn().mockResolvedValue(body),
+            });
+        }
+
+        beforeEach(() => {
+            fetchMock = jest.fn();
+            global.fetch = fetchMock as unknown as typeof fetch;
+            authReplies(200, emailUser);
+        });
+
+        afterEach(() => {
+            global.fetch = originalFetch;
+        });
+
+        it('checks the current password, ends the check session, then sends the change with this device token', async () => {
+            await expect(changePassword(viewer.userId, accessToken, change)).resolves.toBeUndefined();
 
             expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: viewer.email, password: 'OldPass123!' });
-            expect(auth.updateUser).toHaveBeenCalledWith({ password: 'NewPass456!' });
             expect(auth.admin.signOut).toHaveBeenCalledTimes(1);
             expect(auth.admin.signOut).toHaveBeenCalledWith('verification-token', 'local');
+            expect(auth.updateUser).not.toHaveBeenCalled();
+
+            const [url, init] = fetchMock.mock.calls[0];
+            expect(String(url)).toBe('https://example.supabase.co/auth/v1/user');
+            expect(init).toMatchObject({
+                method: 'PUT',
+                headers: { apikey: 'anon-key', Authorization: `Bearer ${accessToken}` },
+            });
+            expect(JSON.parse(init.body)).toEqual({ password: 'NewPass456!' });
+            expect(auth.admin.signOut.mock.invocationCallOrder[0]).toBeLessThan(fetchMock.mock.invocationCallOrder[0]);
         });
 
-        it('signs out other devices when asked', async () => {
-            await expect(changePassword(viewer.userId, accessToken, { ...change, signOutOtherDevices: true }))
-                .resolves.toEqual({ signedOutOtherDevices: true });
+        it('keeps any path that the Supabase URL carries', async () => {
+            process.env.SUPABASE_URL = 'https://gateway.example.com/supabase/';
 
-            expect(auth.admin.signOut).toHaveBeenCalledWith(accessToken, 'others');
-        });
+            await changePassword(viewer.userId, accessToken, change);
 
-        it('reports when other devices could not be signed out', async () => {
-            auth.admin.signOut
-                .mockResolvedValueOnce({ data: null, error: null })
-                .mockResolvedValueOnce({ data: null, error: { message: 'unavailable' } });
-
-            await expect(changePassword(viewer.userId, accessToken, { ...change, signOutOtherDevices: true }))
-                .resolves.toEqual({ signedOutOtherDevices: false });
+            expect(String(fetchMock.mock.calls[0][0])).toBe('https://gateway.example.com/supabase/auth/v1/user');
         });
 
         it('rejects a wrong current password without touching the password', async () => {
@@ -401,7 +422,7 @@ describe('account self-service', () => {
             });
 
             await expect(changePassword(viewer.userId, accessToken, change)).rejects.toMatchObject({ code: 'INVALID_CURRENT_PASSWORD' });
-            expect(auth.updateUser).not.toHaveBeenCalled();
+            expect(fetchMock).not.toHaveBeenCalled();
         });
 
         it('refuses accounts that sign in with Google only', async () => {
@@ -415,13 +436,22 @@ describe('account self-service', () => {
         });
 
         it.each([
-            ['same_password', 'SAME_PASSWORD'],
-            ['weak_password', 'WEAK_PASSWORD'],
-        ])('maps the Supabase %s error to %s and still ends the check session', async (supabaseCode, code) => {
-            auth.updateUser.mockResolvedValue({ data: { user: null }, error: { code: supabaseCode, message: 'refused' } });
+            [{ code: 422, error_code: 'same_password', msg: 'New password should be different from the old password.' }, 'SAME_PASSWORD'],
+            [{ code: 'weak_password', message: 'Password is known to be weak and easy to guess.' }, 'WEAK_PASSWORD'],
+            [{ code: 400, error_code: 'reauthentication_needed', msg: 'Password update requires reauthentication' }, 'REAUTHENTICATION_NEEDED'],
+        ])('turns the Supabase reply %j into %s', async (reply, code) => {
+            authReplies(422, reply);
 
             await expect(changePassword(viewer.userId, accessToken, change)).rejects.toMatchObject({ code });
             expect(auth.admin.signOut).toHaveBeenCalledWith('verification-token', 'local');
+        });
+
+        it('passes other refusals on with the Supabase message, or the status when there is none', async () => {
+            authReplies(500, { msg: 'database unavailable' });
+            await expect(changePassword(viewer.userId, accessToken, change)).rejects.toThrow('Failed to update the password: database unavailable');
+
+            fetchMock.mockResolvedValue({ ok: false, status: 502, json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token <')) });
+            await expect(changePassword(viewer.userId, accessToken, change)).rejects.toThrow('Supabase Auth answered 502');
         });
 
         it('stops when the check session belongs to another user', async () => {
@@ -431,7 +461,7 @@ describe('account self-service', () => {
             });
 
             await expect(changePassword(viewer.userId, accessToken, change)).rejects.toThrow('different session');
-            expect(auth.updateUser).not.toHaveBeenCalled();
+            expect(fetchMock).not.toHaveBeenCalled();
             expect(auth.admin.signOut).toHaveBeenCalledWith('verification-token', 'local');
         });
 

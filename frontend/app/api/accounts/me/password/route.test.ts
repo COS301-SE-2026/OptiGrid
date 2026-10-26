@@ -41,7 +41,6 @@ describe("change password route", () => {
 		expect(JSON.parse(init.body)).toEqual({
 			currentPassword: "OldPass123!",
 			newPassword: "NewPass456!",
-			signOutOtherDevices: true,
 		});
 	});
 

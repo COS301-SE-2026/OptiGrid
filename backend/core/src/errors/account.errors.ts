@@ -61,6 +61,15 @@ export class CurrentPasswordIncorrectError extends Error {
     }
 }
 
+export class ReauthenticationNeededError extends Error {
+    readonly code = 'REAUTHENTICATION_NEEDED';
+
+    constructor() {
+        super('Please sign out and sign in again, then change your password.');
+        this.name = 'ReauthenticationNeededError';
+    }
+}
+
 export class PasswordRejectedError extends Error {
     readonly code: 'SAME_PASSWORD' | 'WEAK_PASSWORD';
 

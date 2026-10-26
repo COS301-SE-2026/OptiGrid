@@ -124,9 +124,12 @@ test.describe("Settings page", () => {
     await expect(page.getByText(/Following your device/)).toBeVisible();
   });
 
-  test("changes the password and logs in with the new one", async ({ page, request }) => {
+  test("changes the password and logs in with the new one", async ({ page, request, browser }) => {
     const user = await createUserAndOpenSettings(page, request);
     const newPassword = "NewStrongPass456!";
+    const otherContext = await browser.newContext();
+    const otherPage = await otherContext.newPage();
+    await logIn(otherPage, user.email, user.password);
 
     await page.getByRole("button", { name: "Change password" }).click();
     const form = page.getByRole("form", { name: "Change password" });
@@ -139,6 +142,12 @@ test.describe("Settings page", () => {
     await form.getByRole("button", { name: "Update password" }).click();
     expect((await changeResponsePromise).ok()).toBeTruthy();
     await expect(page.getByText("Password updated. Your other devices were signed out.")).toBeVisible();
+
+    const thisStatus = await page.evaluate(async () => (await fetch("/api/accounts/me", { cache: "no-store" })).status);
+    expect(thisStatus).toBe(200);
+    const otherStatus = await otherPage.evaluate(async () => (await fetch("/api/accounts/me", { cache: "no-store" })).status);
+    expect(otherStatus).toBe(401);
+    await otherContext.close();
 
     await logIn(page, user.email, newPassword);
   });

@@ -971,12 +971,12 @@ const SECTIONS: Section[] = [
         <ol>
           <li>In the Security card, click <strong>Change password</strong>.</li>
           <li>Enter your current password, then type the new one twice.</li>
-          <li>
-            Leave <strong>Sign out of my other devices</strong> ticked if
-            someone else might know your old password.
-          </li>
           <li>Click <strong>Update password</strong>.</li>
         </ol>
+        <p>
+          Your other devices are signed out when the password changes. The
+          device you used stays signed in.
+        </p>
         <p>
           Accounts that sign in with Google have no OptiGrid password. Change
           the password in your Google account instead.

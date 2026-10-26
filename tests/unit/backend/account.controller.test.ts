@@ -6,6 +6,7 @@ import {
     LastActiveAdminError,
     PasswordNotAvailableError,
     PasswordRejectedError,
+    ReauthenticationNeededError,
     SelfPermanentDeletionError,
 } from '../../../backend/core/src/errors/account.errors';
 import * as accountServices from '../../../backend/core/src/services/account.services';
@@ -340,7 +341,7 @@ describe('account self-service controller', () => {
 
         it('changes the password and records it without storing any password', async () => {
             const { res, status, json } = mockResponse();
-            mockedAccountServices.changePassword.mockResolvedValue({ signedOutOtherDevices: true });
+            mockedAccountServices.changePassword.mockResolvedValue(undefined);
 
             await changeMyPassword(signedInRequest({ body }), res);
 
@@ -356,6 +357,7 @@ describe('account self-service controller', () => {
             [new CurrentPasswordIncorrectError(), 400, { code: 'INVALID_CURRENT_PASSWORD', field: 'currentPassword' }],
             [new PasswordRejectedError('WEAK_PASSWORD', 'too weak'), 400, { code: 'WEAK_PASSWORD', field: 'newPassword' }],
             [new PasswordNotAvailableError(), 409, { code: 'PASSWORD_NOT_AVAILABLE' }],
+            [new ReauthenticationNeededError(), 409, { code: 'REAUTHENTICATION_NEEDED' }],
             [new Error('supabase down'), 500, { message: 'Internal server error' }],
         ])('maps %s to the right response', async (error, expectedStatus, expectedBody) => {
             const { res, status, json } = mockResponse();

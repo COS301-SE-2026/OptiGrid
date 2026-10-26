@@ -20,7 +20,6 @@ export async function POST(request: Request) {
 		body: {
 			currentPassword: received?.currentPassword,
 			newPassword: received?.newPassword,
-			signOutOtherDevices: received?.signOutOtherDevices,
 		},
 		successMessage: "Password changed",
 		failureMessage: "Unable to change your password",
