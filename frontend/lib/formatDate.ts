@@ -1,3 +1,5 @@
+import { formatDateTime as formatWithPreferences } from "./format";
+
 function stringToDate(val: string | null): Date | null {
     if (!val) {
         return null;
@@ -19,11 +21,11 @@ export function formatDate(val: string | null): string {
         return "-";
     }
 
-    return new Intl.DateTimeFormat("en", {
+    return formatWithPreferences(date, {
         year: "numeric",
         month: "short",
         day: "numeric",
-    }).format(date);
+    }, "en");
 }
 
 export function formatDateTime(val: string | null): string {
@@ -33,12 +35,12 @@ export function formatDateTime(val: string | null): string {
         return "-";
     }
 
-    return new Intl.DateTimeFormat("en", {
+    return formatWithPreferences(date, {
         year: "numeric",
         month: "short",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-    }).format(date);
+    }, "en");
 }

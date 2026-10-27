@@ -13,6 +13,8 @@ import type { Building, ComparisonBuilding, Metric, TimeRange } from "./types";
 import { AccessibleChart } from "../../../components/AccessibleChart";
 import { CurvedSelect } from "@/components/curvedselect";
 import { ChartLegend } from "../../../components/ChartLegend";
+import { formatNumber } from "@/lib/format";
+import { useReducedMotion } from "@/lib/useDisplayPreferences";
 import {
     SERIES_COLOURS,
     axisTick,
@@ -221,7 +223,7 @@ export function ComparisonMetricCards({
                                 {loading
                                     ? "--"
                                     : building?.square_footage
-                                      ? `${building.square_footage.toLocaleString()} m²`
+                                      ? `${formatNumber(Number(building.square_footage))} m²`
                                       : "--"}
                             </div>
                         </div>
@@ -255,6 +257,7 @@ export function ComparisonChart({
     buildingB,
     getBuildingName,
 }: ComparisonChartProps) {
+    const chartAnimation = !useReducedMotion();
     const renderContent = () => {
         if (loading) {
             return <Skeleton style={{ flex: "1 1 auto", minHeight: 280, width: "100%" }} />;
@@ -329,6 +332,7 @@ export function ComparisonChart({
                         <Line
                             type="monotone"
                             dataKey="A"
+                            isAnimationActive={chartAnimation}
                             name={getBuildingName(buildingA)}
                             stroke={SERIES_COLOURS[0]}
                             strokeWidth={2}
@@ -338,6 +342,7 @@ export function ComparisonChart({
                         <Line
                             type="monotone"
                             dataKey="B"
+                            isAnimationActive={chartAnimation}
                             name={getBuildingName(buildingB)}
                             stroke={SERIES_COLOURS[1]}
                             strokeWidth={2}
@@ -390,7 +395,7 @@ export function ComparisonInsights({
         if (efficiencyRatio === null) {
             return "--";
         }
-        return `${efficiencyRatio.toFixed(1)}%`;
+        return `${formatNumber(efficiencyRatio, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }, "en")}%`;
     };
 
     const formatDifference = () => {

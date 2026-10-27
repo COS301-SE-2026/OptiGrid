@@ -10,9 +10,12 @@ import {
 } from "./components";
 import { fetchBuildings, fetchComparison } from "./api";
 import { rankByUsage } from "@/lib/rankBuildings";
+import { formatDate } from "@/lib/format";
+import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 import type { ComparisonBuilding, ComparisonSeriesPoint, Metric, TimeRange } from "./types";
 
 export default function CompareBuildingPage() {
+    useFormatPreferences();
     const [buildingA, setBuildingA] = useState("");
     const [buildingB, setBuildingB] = useState("");
     const [dateRange, setDateRange] = useState<TimeRange>("30");
@@ -119,7 +122,7 @@ export default function CompareBuildingPage() {
         return Array.from(pointsByTimestamp.entries())
             .sort(([left], [right]) => left.localeCompare(right))
             .map(([timestamp, values]) => ({
-                period: new Date(timestamp).toLocaleDateString(undefined, {
+                period: formatDate(timestamp, {
                     day: "numeric",
                     month: "short",
                 }),

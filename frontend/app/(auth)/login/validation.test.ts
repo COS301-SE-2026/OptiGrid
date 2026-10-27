@@ -1,6 +1,6 @@
-import { getLoginError, initialLoginFormData } from "./validation";
+import { getLoginError } from "./validation";
 
-describe("Validarion tests for login page", () => {
+describe("Validation tests for login page", () => {
     it("should_do_nothing_if_correct", () => {
         expect(getLoginError({ 
             email: "test@example.com", 

@@ -2,24 +2,24 @@
     {
         "title": "Add a building",
         "description": "Add a new building so OptiGrid can track it and include it in forecasts.",
-        "sourceUrl": "/help/tutorials/add_building.mp4",
-        "posterUrl": "/help/tutorials/add_building-poster.jpg",
+        "sourceUrl": "/help/tutorials/add-building.mp4",
+        "posterUrl": "/help/tutorials/add-building-poster.jpg",
         "steps": [
             "From the dashboard, select \"+ Add building\".",
             "Type the building name. It is the only field you must fill in.",
             "Pick a building type from the list.",
-            "Enter the street address and press \"Validate\". The coordinates fill in for you.",
+            "Enter the street address. \"Validate\" fills in the coordinates for you, or you can type the latitude and longitude yourself.",
+            "Choose the building's timezone. Leaving it empty uses UTC.",
             "Add the floor area and the number of floors. The 3D model uses them for its shape.",
             "Set a circuit limit if yours is not 60 A. Rooftop solar has its own field.",
-            "Leave the timezone empty to use UTC.",
             "Select \"Add building\". You go back to the dashboard and the new building shows in the table."
         ]
     },
     {
         "title": "Compare two buildings",
         "description": "Put two buildings side by side to see which one uses more.",
-        "sourceUrl": "/help/tutorials/compare_buildings.mp4",
-        "posterUrl": "/help/tutorials/compare_buildings-poster.jpg",
+        "sourceUrl": "/help/tutorials/compare-buildings.mp4",
+        "posterUrl": "/help/tutorials/compare-buildings-poster.jpg",
         "steps": [
             "Open \"Compare\" from the sidebar. It opens with your two busiest buildings.",
             "Pick other buildings under Building 1 and Building 2 if you want.",
@@ -52,8 +52,8 @@
     {
         "title": "Explore the digital twin",
         "description": "Look around a 3D model of any building and check the live load on each sensor.",
-        "sourceUrl": "/help/tutorials/digital_twin.mp4",
-        "posterUrl": "/help/tutorials/digital_twin-poster.jpg",
+        "sourceUrl": "/help/tutorials/digital-twin.mp4",
+        "posterUrl": "/help/tutorials/digital-twin-poster.jpg",
         "steps": [
             "Open a building from the dashboard table. You can also choose \"Open 3D twin\" on the heatmap.",
             "The Digital twin section shows a model built from the building type and size.",
@@ -62,14 +62,15 @@
             "\"Circuit load\" compares each sensor with the circuit limit. \"Deviation\" compares it with its own normal use.",
             "Cards above the model show the live load and how many sensors need attention.",
             "Select a sensor in the model or in the Sensors list to see its readings.",
-            "Use \"Full view\" for a bigger model. \"Exit full view\" takes you back."
+            "Use \"Full view\" for a bigger model. \"Exit full view\" takes you back.",
+            "\"View on map\" opens the building on the heatmap with its card already showing."
         ]
     },
     {
         "title": "Review demand forecasts",
         "description": "Check how much energy a building is likely to need in the coming days or weeks.",
-        "sourceUrl": "/help/tutorials/run_forecast.mp4",
-        "posterUrl": "/help/tutorials/run_forecast-poster.jpg",
+        "sourceUrl": "/help/tutorials/forecast.mp4",
+        "posterUrl": "/help/tutorials/forecast-poster.jpg",
         "steps": [
             "Open \"Forecast\" from the sidebar. A 7 day forecast for your busiest building runs straight away.",
             "To see another one, pick a building and a horizon. Weekly looks 7 days ahead while Monthly looks 12 weeks ahead.",
@@ -77,14 +78,14 @@
             "The Demand trend chart shows past use as a solid line. The forecast carries on as a dashed line.",
             "A shaded band may appear around the forecast. Real demand will most likely fall inside it.",
             "Cards below the chart show the peak demand and the average use.",
-            "Model accuracy shows the MAPE. A lower number means a closer forecast."
+            "Forecast error shows the MAPE. A lower number means a closer forecast."
         ]
     },
     {
         "title": "Review insights",
         "description": "Read the load shifting ideas OptiGrid suggests. Managers can approve or dismiss them.",
-        "sourceUrl": "/help/tutorials/review_insights.mp4",
-        "posterUrl": "/help/tutorials/review_insights-poster.jpg",
+        "sourceUrl": "/help/tutorials/insights.mp4",
+        "posterUrl": "/help/tutorials/insights-poster.jpg",
         "steps": [
             "Open \"Insights\" from the sidebar. It opens on your busiest building.",
             "Pick another building if you need to. Use the Status filter if you only want to see some recommendations.",
@@ -97,34 +98,44 @@
         ]
     },
     {
-        "title": "View anomaly alerts",
-        "description": "Find readings that moved outside the normal range for a building.",
-        "sourceUrl": "/help/tutorials/review_anomaly.mp4",
-        "posterUrl": "/help/tutorials/review_anomaly-poster.png",
+        "title": "Manage your buildings",
+        "description": "Keep the buildings assigned to you up to date. Building managers can edit each one and look after its sensors.",
+        "sourceUrl": "/help/tutorials/manage.mp4",
+        "posterUrl": "/help/tutorials/manage-poster.jpg",
         "steps": [
-            "Open \"Anomaly\" from the sidebar. Building managers and viewers have this page.",
-            "The cards at the top count every alert. They also show how many are open or critical.",
-            "The Energy consumption chart compares actual use with the expected use for one building.",
-            "Filter the alerts by building or severity. You can also search by text.",
-            "Select an alert in the Current anomalies table to see its details.",
-            "Managers can choose \"Resolve\" or \"Ignore\" there. Viewers can read the details.",
-            "\"View Historic Alerts\" lists older alerts.",
-            "Managers can set their own limits with \"Configure Threshold\"."
+            "Open \"Manage\" from the sidebar. Only building managers see this page.",
+            "My Buildings lists every building assigned to you. Each row shows its lifecycle state and energy use next to the owner.",
+            "Narrow the list with the Lifecycle filter. Energy usage sorts the rows from highest to lowest or the other way round.",
+            "\"Reset filters\" brings the full list back.",
+            "Select \"Edit\" on a row to open the building form. It uses the same layout as Add building.",
+            "Change what you need, for example the maximum occupancy, and select \"Save changes\".",
+            "Open the building from the dashboard to see the new value under Specifications.",
+            "Back on My Buildings, select \"Sensors\" to list the sensors registered to that building.",
+            "\"View\" opens the full details of a sensor. \"Delete\" removes it from the building.",
+            "Select \"Register sensor\" to add one. Enter its MAC address and type, choose where it sits, then select \"Register\".",
+            "\"Back to building\" returns to the building page. \"View in 3D\" jumps straight to its digital twin."
         ]
     },
     {
         "title": "Manage your profile and settings",
-        "description": "Update your details and switch themes. You can also log out or delete your account.",
-        "sourceUrl": "/help/tutorials/manage_account.mp4",
-        "posterUrl": "/help/tutorials/manage_account-poster.jpg",
+        "description": "Update your details and set up how OptiGrid looks and runs. You can also secure your account and download your data.",
+        "sourceUrl": "/help/tutorials/settings.mp4",
+        "posterUrl": "/help/tutorials/settings-poster.jpg",
         "steps": [
             "Open \"Settings\" near the bottom of the sidebar.",
-            "Profile Information shows your name and email. Your role is shown too but you cannot change it.",
-            "Edit a field and select \"Save Changes\". \"Reset\" undoes your edits.",
-            "The Theme card switches between light and dark mode.",
-            "Account Management holds \"Logout\" and \"Delete Account\".",
-            "Deleted your account by mistake? Log in with the same details and choose \"Recover account\".",
-            "Help & Contact links to the Help Centre and the Contact page."
+            "The Profile card shows your name and email. Edit your name and select \"Save changes\". \"Discard changes\" undoes your edits.",
+            "Your email and role stay fixed here. An administrator sets your role.",
+            "In the Appearance card, pick Light or Dark. System follows the setting on your device.",
+            "Under the theme sits Motion. Choose Reduce to turn animations off or Full to keep them when your device asks for less.",
+            "The Dates and numbers card sets the region format and the clock. Its preview changes as you choose.",
+            "In the Performance card, Live updates decides how often pages refresh. Data saver checks for new data less often and Paused stops until you resume.",
+            "The table under it lists how often each page will update with your choice.",
+            "3D graphics covers the building model and the heatmap. Battery saver draws a lighter scene. High keeps full detail for a strong graphics card.",
+            "Apart from the theme, these display choices stay on the device where you set them.",
+            "The Your data card downloads a copy of the information OptiGrid holds about you.",
+            "The Security card shows how you sign in. Select \"Change password\" to set a new one.",
+            "A new password signs you out on your other devices. You stay signed in on this one.",
+            "\"Sign out everywhere\" ends every session on every device, this one included."
         ]
     }
 ]

@@ -3,14 +3,15 @@ import {redis } from "../lib/redis";
 
 export const rateLimiter = (
 capacity: number,
-refillRate: number) => {//refillrate is in seconds
+refillRate: number,
+bucket?: string) => {//refillrate is in seconds.
     return async (req:Request, resp: Response, nextFunc: NextFunction) : Promise<void> => {
         if (process.env.DISABLE_RATE_LIMIT === "true" || process.env.NODE_ENV === "test") {
             return nextFunc();
         }
         const id = req.ip || req.socket.remoteAddress || "unknown";
         const routes = `${req.baseUrl || ""}${req.path || ""}` || "unknown-route"; //allows for diff buckets for diff endpoints
-        const key = `rateLimit:${routes}-${id}`;
+        const key = bucket ? `rateLimit:${bucket}:${routes}-${id}` : `rateLimit:${routes}-${id}`;
         try {
             const currTime = Date.now();
             const exists = await redis.get(key);

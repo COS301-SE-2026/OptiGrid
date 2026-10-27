@@ -1,4 +1,5 @@
 import type { TelemetryData } from "./useTelemetryStream";
+import { formatNumber } from "./format";
 
 export type TwinSensorStatus = "Active" | "Offline" | "Maintenance";
 
@@ -418,7 +419,7 @@ export function describeBuilding(building: TwinBuilding, layout: TwinLayout): st
     facts.push(layout.floors === 1 ? "1 floor" : `${layout.floors} floors`);
     const area = positiveNumber(building.square_footage);
     if (area !== null) {
-        facts.push(`${Math.round(area).toLocaleString()} m\u00B2`);
+        facts.push(`${formatNumber(Math.round(area))} m\u00B2`);
     }
     return facts;
 }
@@ -910,7 +911,7 @@ export function formatKw(value: number | null): string {
         return "-";
     }
     const digits = Math.abs(value) >= 100 ? 0 : 1;
-    return `${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })} kW`;
+    return `${formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits })} kW`;
 }
 
 export function formatAge(lastSeenAt: number | null, now: number): string {

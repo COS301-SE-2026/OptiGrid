@@ -26,9 +26,9 @@ describe("Unit Tests for the route.ts file in Mangers page", () => {
             json: jest.fn().mockResolvedValueOnce(streamResp)
         });
         //act
-        const resp = await GET(req);
+        await GET(req);
         //assert
-        const [url, options] = (global.fetch as jest.Mock).mock.calls[0];
+        const [, options] = (global.fetch as jest.Mock).mock.calls[0];
         expect(options.headers.get("Authorization")).toBe("Valid");
         expect(options.headers.get("Cookie")).toBe("optigrid_access_token=test_token_123");
     });
@@ -46,7 +46,7 @@ describe("Unit Tests for the route.ts file in Mangers page", () => {
         expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    it("should_retun_502_for_unexpected_erro", async () => {
+    it("should_return_502_for_unexpected_error", async () => {
         const cookie = "optigrid_access_token=test_token_123";
         const req = new Request("http://localhost/api/buildings/manager", {
             headers: {
@@ -54,9 +54,6 @@ describe("Unit Tests for the route.ts file in Mangers page", () => {
                 "Authorization": "Vaild"
             }
         });
-        const streamResp = {
-            data: []
-        };
 
         (global.fetch as jest.Mock).mockResolvedValue(new TypeError("some error"));
         //act

@@ -38,9 +38,12 @@ function isNotificationStillActive(notification: NotificationPopup, anomalies: A
 }
 
 import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
+import { formatTime } from "@/lib/format";
+import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 
 export default function ManagerAnomalyPage() {
   const { toastMessage, setToastMessage } = useAnomalyWebSocket();
+  useFormatPreferences();
   const { data: buildingData, isLoading: buildingsLoading } = useBuildings();
   const buildings = buildingData ?? EMPTY_BUILDINGS;
   const {
@@ -108,7 +111,7 @@ export default function ManagerAnomalyPage() {
         id: anomaly.anomaly_id,
         message: anomaly.description,
         building: anomaly.building_name,
-        timestamp: new Date().toLocaleTimeString(),
+        timestamp: formatTime(new Date()),
       }))
     );
 

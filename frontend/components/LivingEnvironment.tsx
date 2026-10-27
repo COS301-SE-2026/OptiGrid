@@ -1,7 +1,8 @@
 'use client';
 
 import { useId, useMemo, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
+import { useReducedMotion } from '@/lib/useDisplayPreferences';
 import { fetchEsgHealthScore, type EsgHealthScore } from '@/lib/esg';
 
 type EcosystemState = 'thriving' | 'healthy' | 'declining' | 'critical';
@@ -130,7 +131,17 @@ function formatChange(change: number | null): string {
   return String(change);
 }
 
-export function LivingEnvironment({ buildingId, buildingName }: LivingEnvironmentProps) {
+//framer-motion keeps fades and drops movement when motion is reduced.
+export function LivingEnvironment(props: LivingEnvironmentProps) {
+  const reducedMotion = useReducedMotion();
+  return (
+    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
+      <LivingEnvironmentContent {...props} />
+    </MotionConfig>
+  );
+}
+
+function LivingEnvironmentContent({ buildingId, buildingName }: LivingEnvironmentProps) {
   const [baseline, setBaseline] = useState<{ energyEfficiency: number; renewables: number; hvacLoad: number; lighting: number } | null>(null);
   const [healthData, setHealthData] = useState<EsgHealthScore | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -505,7 +516,7 @@ function WhatIsAffectingPanel({
         }}
       >
         <span className="dashboard-section-meta">
-          Environmental score <span className="metric">{healthScore}</span>  tree is{' '}
+          Environmental score <span className="metric">{healthScore}</span>. The tree is{' '}
           <strong>{state}</strong>
         </span>
         <span className="dashboard-section-meta">
@@ -560,7 +571,7 @@ function DriverBar({ driver, rank }: { readonly driver: Driver;readonly rank: nu
             style={{
               fontSize: '0.9rem',
               fontWeight: 'var(--fw-semibold)',
-              color: tone.barColor,
+              color: tone.textColor,
             }}
           >
             {pct}%
@@ -616,21 +627,24 @@ function DriverBar({ driver, rank }: { readonly driver: Driver;readonly rank: nu
 }
 const toneStyle: Record<
   Driver['tone'],
-  { badge: string; barColor: string; verb: string }
+  { badge: string; barColor: string; textColor: string; verb: string }
 > = {
   positive: {
     badge: 'badge-success',
     barColor: 'var(--brand-success)',
+    textColor: 'var(--brand-success)',
     verb: 'Helping',
   },
   neutral: {
     badge: 'badge-default',
     barColor: 'var(--brand-primary)',
+    textColor: 'var(--brand-primary-cta)',
     verb: 'Holding',
   },
   negative: {
     badge: 'badge-danger',
     barColor: 'var(--brand-danger)',
+    textColor: 'var(--brand-danger)',
     verb: 'Dragging',
   },
 };
@@ -644,6 +658,12 @@ interface ControlSliderProps {
   readonly onChange: (v: number) => void;
   readonly accent: string;
 }
+
+// Track colours are too pale for small text in the light theme. So, the value label takes the matching text shade instead
+const TEXT_SHADES: Record<string, string> = {
+  '--brand-primary': '--brand-primary-cta',
+  '--brand-secondary': '--brand-secondary-text',
+};
 
 function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
   const id = useId();
@@ -669,7 +689,7 @@ function ControlSlider({ label, value, onChange, accent }: ControlSliderProps) {
           className="metric"
           style={{
             fontSize: 'var(--fs-small)',
-            color: `var(${accent})`,
+            color: `var(${TEXT_SHADES[accent] ?? accent})`,
             fontWeight: 'var(--fw-semibold)',
           }}
         >

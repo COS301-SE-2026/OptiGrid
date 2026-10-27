@@ -1,4 +1,28 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useState, useSyncExternalStore, type RefObject } from "react";
+import {
+    activateFormatPreferences,
+    getDisplayPreferences,
+    getFormatPreferences,
+    getServerDisplayPreferences,
+    getServerFormatPreferences,
+    liveInterval,
+    subscribeDisplayPreferences,
+    type DisplayPreferences,
+    type FormatPreferences,
+} from "./displayPreferences";
+
+export function useDisplayPreferences(): DisplayPreferences {
+    return useSyncExternalStore(subscribeDisplayPreferences, getDisplayPreferences, getServerDisplayPreferences);
+}
+
+// pages that print dates or numbers call this
+export function useFormatPreferences(): FormatPreferences {
+    const formats = useSyncExternalStore(subscribeDisplayPreferences, getFormatPreferences, getServerFormatPreferences);
+    useEffect(() => {
+        activateFormatPreferences();
+    }, []);
+    return formats;
+}
 
 export function useDarkTheme(): boolean {
     const [dark, setDark] = useState(false);
@@ -13,7 +37,7 @@ export function useDarkTheme(): boolean {
     return dark;
 }
 
-export function useReducedMotion(): boolean {
+export function useDeviceReducedMotion(): boolean {
     const [reduced, setReduced] = useState(false);
     useEffect(() => {
         if (typeof window.matchMedia !== "function") {
@@ -26,6 +50,17 @@ export function useReducedMotion(): boolean {
         return () => query.removeEventListener?.("change", update);
     }, []);
     return reduced;
+}
+
+export function useReducedMotion(): boolean {
+    const { motion } = useDisplayPreferences();
+    const deviceReduced = useDeviceReducedMotion();
+    return motion === "reduce" || (motion === "system" && deviceReduced);
+}
+
+export function useLiveInterval(baseMs: number): number | false {
+    const { liveUpdates } = useDisplayPreferences();
+    return liveInterval(baseMs, liveUpdates);
 }
 
 export function useOnScreen(ref: RefObject<HTMLElement | null>): boolean {

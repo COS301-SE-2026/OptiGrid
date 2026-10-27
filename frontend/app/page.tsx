@@ -76,7 +76,7 @@ function FeatureIcon({ name }: Readonly<{ name: string }>) {
 export default function LandingPage() {
     return (
         <div className="landing-page">
-            <PublicNav signedIn={false} anchorPrefix="" />
+            <PublicNav signedIn={false} anchorPrefix="" detectSession />
 
             <main>
                 <section className="landing-hero landing-screen">

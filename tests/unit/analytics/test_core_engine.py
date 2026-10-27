@@ -5,7 +5,7 @@ sys.modules['mlflow'] = MagicMock()
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, timezone
-from backend.analytics.src.core_engine import AnalyticsEngine
+from backend.analytics.src.core_engine import AnalyticsEngine, as_percent, mean_fold_error, percentage_error
 from backend.analytics.src.config import UTILITY_RATE_KWH
 
 # fixtures
@@ -545,3 +545,39 @@ def test_prefers_measured_sensor_rows_over_synthetic_rows():
         {"building_id": "measured", "usage": 12.0},
         {"building_id": "fallback", "usage": 8.0},
     ]
+
+
+def test_percentage_error_skips_idle_hours():
+    """An hour with zero usage must not blow the error up to an absurd number"""
+    actual = [0.0, 10.0, 20.0]
+    predicted = [5.0, 11.0, 18.0]
+
+    assert percentage_error(actual, predicted) == pytest.approx(0.1)
+
+
+def test_percentage_error_has_no_answer_without_usage():
+    assert np.isnan(percentage_error([0.0, 0.0], [1.0, 2.0]))
+
+
+def test_mean_fold_error_ignores_folds_without_usage():
+    assert mean_fold_error([float("nan"), -0.2, -0.4]) == pytest.approx(0.3)
+    assert mean_fold_error([float("nan")]) == float("inf")
+
+
+def test_as_percent_reports_missing_accuracy_as_none():
+    assert as_percent(0.05) == 5.0
+    assert as_percent(float("inf")) is None
+
+
+@patch('backend.analytics.src.core_engine.optuna.create_study')
+def test_train_and_forecast_weekly_without_a_usable_score(mock_study, engine, sample_weekly_timeseries):
+    """When no fold has usage to score the forecast still runs but reports no accuracy"""
+    mock_study_instance = MagicMock()
+    mock_study_instance.best_params = {"regressor": "RandomForest", "n_estimators": 2, "max_depth": 2}
+    mock_study_instance.best_value = float("inf")
+    mock_study.return_value = mock_study_instance
+
+    res = engine.train_and_forecast_weekly(sample_weekly_timeseries)
+
+    assert res["model_mape"] is None
+    assert len(res["forecast_series"]) == 168

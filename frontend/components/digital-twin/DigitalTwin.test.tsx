@@ -98,7 +98,7 @@ beforeEach(() => {
     streamState = { isConnected: false, error: null };
     mockUseTelemetryStream.mockImplementation((_buildingId, options) => {
         pushReading = (reading) => options?.onReading?.(reading);
-        return { liveData: null, ...streamState };
+        return { liveData: null, liveMode: "normal" as const, ...streamState };
     });
     getContextSpy = jest.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
         () => ({}) as unknown as RenderingContext,

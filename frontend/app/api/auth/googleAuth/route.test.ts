@@ -77,6 +77,20 @@ describe("Google Authentication route integrations", () => {
         expect(clearUnscopedAuthCookies).toHaveBeenCalled();
     });
 
+    it.each([
+        ["@evil.example", "http://localhost/dashboard"],
+        ["//evil.example/phish", "http://localhost/dashboard"],
+        ["/\\evil.example", "http://localhost/dashboard"],
+        ["https://evil.example", "http://localhost/dashboard"],
+        ["/settings", "http://localhost/settings"],
+    ])("keeps the redirect for next=%s on this site", async (next, location) => {
+        const req = new Request(`http://localhost/api/auth/callback?code=mock-code-123&next=${encodeURIComponent(next)}`, { method: "GET" });
+
+        const resp = await GET(req);
+
+        expect(resp.headers.get("Location")).toBe(location);
+    });
+
     const googleCallback = () => new Request("http://localhost/api/auth/callback?code=mock-code-123&next=/dashboard", { method: "GET" });
 
     it("sends a deleted Google account to the recovery prompt without signing in the user", async () => {

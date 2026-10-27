@@ -1,3 +1,5 @@
+import { formatDate, formatNumber } from "./format";
+
 export type TimeframeKind = "past" | "live" | "future";
 
 export type TimeframeId = "-90d" | "-30d" | "-7d" | "live" | "+7d" | "+30d" | "+90d";
@@ -47,7 +49,7 @@ export function timeframeTarget(frame: Timeframe, now: number): { start: number;
 
 export function describeTimeframe(frame: Timeframe, now: number): string {
     const target = timeframeTarget(frame, now);
-    const format = (value: number) => new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    const format = (value: number) => formatDate(value, { day: "numeric", month: "short" });
     if (frame.kind === "live") {
         return "Streaming now";
     }
@@ -361,7 +363,7 @@ export function formatEnergy(value: number | null, unit: EnergyUnit): string {
         return "-";
     }
     const digits = Math.abs(value) >= 100 ? 0 : 1;
-    const amount = value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    const amount = formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits });
     return `${amount} ${unit}`;
 }
 
@@ -370,7 +372,7 @@ export function formatIntensity(value: number | null): string {
         return "-";
     }
     const digits = value < 1 ? 3 : 2;
-    return `${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })} per m²`;
+    return `${formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits })} per m²`;
 }
 
 export const BASELINE_TIMEFRAME: TimeframeId = "-7d";

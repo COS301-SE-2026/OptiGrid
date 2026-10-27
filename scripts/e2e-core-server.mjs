@@ -12,6 +12,39 @@ const REQUIRED_LOCAL_SUPABASE_ENV = [
   "SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
 ];
+const LOCAL_DATABASE_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "host.docker.internal"]);
+
+// The core fills any variable missing here from backend/core/.env, which may point at hosted services
+
+const LOCAL_SERVICE_DEFAULTS = {
+  INFLUX_URL: "http://127.0.0.1:8086",
+  INFLUXDB_URL: "http://127.0.0.1:8086",
+  INFLUX_TOKEN: "token-1234",
+  INFLUXDB_TOKEN: "token-1234",
+  INFLUX_ORG: "OptiGrid",
+  INFLUXDB_ORG: "OptiGrid",
+  INFLUX_BUCKET: "EnergyData",
+  INFLUXDB_BUCKET: "EnergyData",
+  REDIS_URL: "redis://127.0.0.1:6379",
+  REDIS_HOST: "127.0.0.1",
+  REDIS_PORT: "6379",
+};
+
+function assertLocalDatabase(databaseUrl) {
+  const { hostname } = new URL(databaseUrl);
+  if (!LOCAL_DATABASE_HOSTS.has(hostname)) {
+    throw new Error(
+      `DATABASE_URL points at ${hostname}. The E2E launcher only pushes the schema to a database on this machine.`
+    );
+  }
+}
+
+// prisma.config.ts prefers DIRECT_URL and loads backend/core/.env for anything unset
+
+function pinTestDatabase(env, databaseUrl) {
+  env.DATABASE_URL = databaseUrl;
+  env.DIRECT_URL = databaseUrl;
+}
 
 function runOrExit(command, args, env) {
   const result = spawnSync(command, args, {
@@ -117,6 +150,7 @@ async function main() {
 
   try {
     const serviceEnv = {
+      ...LOCAL_SERVICE_DEFAULTS,
       ...process.env,
       NODE_ENV: "test",
       PORT: CORE_PORT,
@@ -125,6 +159,8 @@ async function main() {
 
     if (USE_LOCAL_SUPABASE) {
       requireLocalSupabaseEnv();
+      assertLocalDatabase(process.env.DATABASE_URL);
+      pinTestDatabase(serviceEnv, process.env.DATABASE_URL);
       console.log("[e2e-core] using local Supabase database and auth services");
     } else {
       container = await new GenericContainer("postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea")
@@ -143,7 +179,10 @@ async function main() {
         .withStartupTimeout(120_000)
         .start();
 
-      serviceEnv.DATABASE_URL = `postgresql://${PG_USER}:${PG_PASSWORD}@${container.getHost()}:${container.getMappedPort(5432)}/${PG_DB}`;
+      pinTestDatabase(
+        serviceEnv,
+        `postgresql://${PG_USER}:${PG_PASSWORD}@${container.getHost()}:${container.getMappedPort(5432)}/${PG_DB}`
+      );
     }
 
     pushPrismaSchema(serviceEnv);

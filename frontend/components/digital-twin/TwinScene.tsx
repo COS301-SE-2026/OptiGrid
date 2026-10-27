@@ -5,6 +5,8 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { Html, OrbitControls, PerformanceMonitor } from "@react-three/drei";
 import * as THREE from "three";
 import BuildingDetail from "./BuildingDetail";
+import { twinRenderSettings } from "./twinQuality";
+import { useDisplayPreferences } from "@/lib/useDisplayPreferences";
 import {
     cameraFraming,
     describeSensor,
@@ -1229,31 +1231,41 @@ function SceneContents({
 
 function TwinScene(props: Readonly<TwinSceneProps>) {
     const { layout, active, reducedMotion, onContextLost, onSelect } = props;
+    const { graphics } = useDisplayPreferences();
     const framing = useMemo(() => cameraFraming(layout, FOV), [layout]);
-    const maxDpr = useMemo(() => Math.min(globalThis.devicePixelRatio || 1, 1.75), []);
-    const [dpr, setDpr] = useState(maxDpr);
-    const [lowQuality, setLowQuality] = useState(false);
+    const settings = useMemo(() => twinRenderSettings(graphics, globalThis.devicePixelRatio || 1), [graphics]);
+    const [dpr, setDpr] = useState(settings.maxDpr);
+    const [lowQuality, setLowQuality] = useState(settings.lowQuality);
     const lostRef = useRef(onContextLost);
 
     useEffect(() => {
         lostRef.current = onContextLost;
     }, [onContextLost]);
 
+    useEffect(() => {
+        setDpr(settings.maxDpr);
+        setLowQuality(settings.lowQuality);
+    }, [settings]);
+
+    //Battery saver also holds the scene still between readings
+    const calm = reducedMotion || settings.calm;
     let frameloop: "always" | "demand" | "never" = "always";
     if (!active) {
         frameloop = "never";
-    } else if (reducedMotion) {
+    } else if (calm) {
         frameloop = "demand";
     }
 
     return (
         <Canvas
+            key={graphics}
             className="twin-canvas"
+            data-graphics={graphics}
             flat
             frameloop={frameloop}
             dpr={dpr}
             camera={{ position: framing.position, fov: FOV, near: 0.1, far: 500 }}
-            gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+            gl={{ antialias: settings.antialias, alpha: true, powerPreference: settings.powerPreference }}
             onCreated={({ gl }) => {
                 gl.domElement.addEventListener("webglcontextlost", (event) => {
                     event.preventDefault();
@@ -1262,16 +1274,18 @@ function TwinScene(props: Readonly<TwinSceneProps>) {
             }}
             onPointerMissed={() => onSelect(null)}
         >
-            <PerformanceMonitor
-                flipflops={3}
-                onDecline={() => setDpr(1)}
-                onIncline={() => setDpr(maxDpr)}
-                onFallback={() => {
-                    setDpr(1);
-                    setLowQuality(true);
-                }}
-            />
-            <SceneContents {...props} framing={framing} lowQuality={lowQuality} />
+            {settings.adaptive && (
+                <PerformanceMonitor
+                    flipflops={3}
+                    onDecline={() => setDpr(settings.minDpr)}
+                    onIncline={() => setDpr(settings.maxDpr)}
+                    onFallback={() => {
+                        setDpr(settings.minDpr);
+                        setLowQuality(true);
+                    }}
+                />
+            )}
+            <SceneContents {...props} reducedMotion={calm} framing={framing} lowQuality={lowQuality} />
         </Canvas>
     );
 }

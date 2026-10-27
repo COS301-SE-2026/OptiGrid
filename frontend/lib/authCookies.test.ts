@@ -5,6 +5,7 @@ import {
     setSessionCookie,
     shouldUseSecureCookies,
     clearUnscopedAuthCookies,
+    clearAuthCookies,
 } from "./authCookies";
 
 const user = {
@@ -56,5 +57,26 @@ describe("authentication cookies", () => {
             expect.stringMatching(/^optigrid_access_token=;.*Path=\/;.*Max-Age=0/),
             expect.stringMatching(new RegExp(`^optigrid_access_token=token;.*Path=/_sessions/${tabId}`)),
         ]));
+    });
+
+    it("expires the login cookies at the root and at the tab path", () => {
+        const response = NextResponse.json({ ok: true });
+
+        clearAuthCookies(response, "f647d7d3-56fe-4679-9d60-28d2dd7f0f9c", true);
+
+        expect(response.headers.getSetCookie()).toEqual([
+            "optigrid_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure",
+            "optigrid_access_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure",
+            "optigrid_session=; Path=/_sessions/f647d7d3-56fe-4679-9d60-28d2dd7f0f9c; Max-Age=0; HttpOnly; SameSite=Lax; Secure",
+            "optigrid_access_token=; Path=/_sessions/f647d7d3-56fe-4679-9d60-28d2dd7f0f9c; Max-Age=0; HttpOnly; SameSite=Lax; Secure",
+        ]);
+    });
+
+    it("only expires root cookies when there is no tab", () => {
+        const response = NextResponse.json({ ok: true });
+
+        clearAuthCookies(response, null);
+
+        expect(response.headers.getSetCookie()).toHaveLength(2);
     });
 });

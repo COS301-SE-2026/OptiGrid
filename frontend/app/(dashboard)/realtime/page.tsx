@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStream } from "@/lib/useTelemetryStream";
 import { humanise } from "@/lib/labels";
 import { getTabSessionPath } from "@/lib/tab-session";
+import { formatNumber, formatTime as formatClockTime } from "@/lib/format";
+import { LIVE_REFRESH_MS } from "@/lib/displayPreferences";
+import { useFormatPreferences, useLiveInterval } from "@/lib/useDisplayPreferences";
 
 type BuildingStatus = "Normal" | "Peak alert" | "Offline";
 
@@ -27,7 +30,6 @@ type RawBuilding = {
     status?: unknown;
 };
 
-const REFETCH_METADATA_MS = 60_000;
 const SKELETON_KEYS = ["sk-1", "sk-2", "sk-3", "sk-4", "sk-5", "sk-6"];
 
 const STATUS_STYLES: Record<BuildingStatus, { badge: string; tone: string }> = {
@@ -49,11 +51,11 @@ function formatReading(value: number | null | undefined): string {
     if (value === null || value === undefined || !Number.isFinite(value)){
         return "--";
     }
-    return value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return formatNumber(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function formatTime(date: Date): string {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return formatClockTime(date, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function mapBuilding(raw: RawBuilding): Building {
@@ -126,6 +128,7 @@ type StatusFilter = "All" | BuildingStatus;
 const STATUS_FILTERS: StatusFilter[] = ["All", "Normal", "Peak alert", "Offline"];
 
 export default function RealtimePage() {
+    useFormatPreferences();
     const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
     const [latestReadings, setLatestReadings] = useState<Record<string, { currentKw: number; timestamp: string }>>({});
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
@@ -134,13 +137,16 @@ export default function RealtimePage() {
         setLastRefreshedAt(new Date());
     }, []);
 
+    const metadataInterval = useLiveInterval(LIVE_REFRESH_MS.buildingList);
+    const readingsInterval = useLiveInterval(LIVE_REFRESH_MS.liveReadings);
+
     const { data: baseBuildings = [], isLoading: isMetadataLoading, isError, error, refetch } = useQuery({
         queryKey: ["buildings-metadata"],
         queryFn: fetchBuildings,
-        refetchInterval: REFETCH_METADATA_MS,
+        refetchInterval: metadataInterval,
     });
 
-    const { liveData, isConnected } = useTelemetryStream();
+    const { liveData, isConnected, liveMode } = useTelemetryStream();
 
     useQuery({
         queryKey: ["live-telemetry-poll"],
@@ -163,7 +169,7 @@ export default function RealtimePage() {
             }
             return payload;
         },
-        refetchInterval: 5000,
+        refetchInterval: readingsInterval,
     });
 
     useEffect(() => {
@@ -217,6 +223,13 @@ export default function RealtimePage() {
     };
     const visibleBuildings = mergedBuildings.filter((b) => statusFilter === "All" || b.status === statusFilter)
         .sort((a, b) => (b.currentKw ?? b.todayKwh ?? -1) - (a.currentKw ?? a.todayKwh ?? -1));
+
+    let connection = isConnected ? { tone: "on", label: "Connected" } : { tone: "off", label: "Disconnected" };
+    if (liveMode === "paused") {
+        connection = { tone: "paused", label: "Updates paused" };
+    } else if (liveMode === "saver") {
+        connection = { tone: "saver", label: "Data saver" };
+    }
 
     const renderMainContent = () => {
         if (isMetadataLoading) {
@@ -287,8 +300,8 @@ export default function RealtimePage() {
                     <p className="dashboard-subtitle">Active power across your buildings as it streams in.</p>
                 </div>
                 <div className="live-connection" role="status" aria-label="Live readings status">
-                    <span className={`live-dot ${isConnected ? "on" : "off"}`} aria-hidden="true" />
-                    <span className={`live-status-label ${isConnected ? "on" : "off"}`}>{isConnected ? "Connected" : "Disconnected"}</span>
+                    <span className={`live-dot ${connection.tone}`} aria-hidden="true" />
+                    <span className={`live-status-label ${connection.tone}`}>{connection.label}</span>
                     <span className="live-connection-time">
                         {lastRefreshedAt ? `Last updated ${formatTime(lastRefreshedAt)}` : "Connecting..."}
                     </span>

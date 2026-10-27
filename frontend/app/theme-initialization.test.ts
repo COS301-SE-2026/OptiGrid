@@ -35,4 +35,13 @@ describe("themeInitializationScript", () => {
     expect(document.documentElement).toHaveClass("dark");
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
   });
+
+  it("follows the device when the saved choice is system", () => {
+    window.matchMedia = mockMatchMedia(true);
+    localStorage.setItem(THEME_STORAGE_KEY, "system");
+
+    runThemeInitializationScript();
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+  });
 });

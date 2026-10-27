@@ -12,6 +12,14 @@
                     "answer": "No. The form will ask you to log in instead."
                 },
                 {
+                    "question": "Can I change my name?",
+                    "answer": "Yes. Edit your first or last name in Settings and select Save changes. The sidebar shows the new name straight away."
+                },
+                {
+                    "question": "Can I change my email address?",
+                    "answer": "Not from Settings. Your email is how you sign in and it stays fixed. Contact the team if it needs to change."
+                },
+                {
                     "question": "What happens when I delete my account?",
                     "answer": "You are logged out and lose access straight away. Your data is kept in case you change your mind."
                 },
@@ -33,8 +41,16 @@
                     "answer": "Click Forgot password? on the login page. We will email you a link to set a new one."
                 },
                 {
+                    "question": "How do I change my password?",
+                    "answer": "Open the Security card in Settings and select Change password. Enter your current password first, then type the new one twice. Your other devices are signed out when it changes."
+                },
+                {
+                    "question": "I sign in with Google. Can I change my password here?",
+                    "answer": "No. Your password belongs to your Google account. Change it with Google instead, using the link in Settings."
+                },
+                {
                     "question": "How do I log out?",
-                    "answer": "Use the Logout button at the bottom of the sidebar."
+                    "answer": "Use the Logout button at the bottom of the sidebar. Settings has one as well."
                 },
                 {
                     "question": "Why was I sent back to the login page?",
@@ -43,6 +59,10 @@
                 {
                     "question": "Can I use two accounts at the same time?",
                     "answer": "Yes. Each browser tab keeps its own login."
+                },
+                {
+                    "question": "Can I log out of every device at once?",
+                    "answer": "Yes. In Settings, open the Security card and select Sign out everywhere. Every session ends, including the one you are using."
                 }
             ]
         },
@@ -51,11 +71,90 @@
             "items": [
                 {
                     "question": "Does OptiGrid have a dark mode?",
-                    "answer": "Yes. Open Settings near the bottom of the sidebar and press the theme button."
+                    "answer": "Yes. Open Settings and pick Dark in the Appearance card. The change happens straight away."
                 },
                 {
                     "question": "Is my theme saved?",
-                    "answer": "It is. OptiGrid remembers your choice for your account."
+                    "answer": "It is. Your choice is saved to your account and follows you when you log in on another device."
+                },
+                {
+                    "question": "What does the System theme do?",
+                    "answer": "It copies the setting on your device. When your device switches to dark mode at night, OptiGrid switches with it."
+                },
+                {
+                    "question": "Can I turn animations off?",
+                    "answer": "Yes. Under Motion in the Appearance card, choose Reduce. Charts appear at once and the 3D model holds still."
+                },
+                {
+                    "question": "What does Match device do for motion?",
+                    "answer": "OptiGrid follows the reduced motion setting on your computer or phone. Pick Full if you want animations even when your device asks for less."
+                },
+                {
+                    "question": "Do my other display choices follow me to other devices?",
+                    "answer": "Only your theme does, because it is saved to your account. Every other display choice stays on the device where you set it. A phone on mobile data and an office desktop rarely need the same settings."
+                }
+            ]
+        },
+        {
+            "category": "Performance",
+            "items": [
+                {
+                    "question": "How do I make OptiGrid use less data?",
+                    "answer": "Open Settings and set Live updates to Data saver. Live streams close and pages check for new readings four times less often."
+                },
+                {
+                    "question": "What happens when I pause live updates?",
+                    "answer": "Pages stop refreshing on their own. A banner at the top of each page reminds you and offers Resume live updates. Anomaly alerts still come through."
+                },
+                {
+                    "question": "The Live page says Updates paused. Is something wrong?",
+                    "answer": "No. Live updates are paused in Settings on this device. Resume them from the banner or pick Normal again in Settings."
+                },
+                {
+                    "question": "The 3D view is slow on my laptop. What can I do?",
+                    "answer": "Set 3D graphics to Battery saver in Settings. The building model then draws at a lower resolution and holds still between readings. The heatmap gets lighter too."
+                },
+                {
+                    "question": "What does Auto do for 3D graphics?",
+                    "answer": "It starts at full sharpness and lowers the resolution whenever your device struggles to keep up. Most people can leave it there."
+                }
+            ]
+        },
+        {
+            "category": "Dates & Numbers",
+            "items": [
+                {
+                    "question": "Can I change how dates and numbers look?",
+                    "answer": "Yes. Pick a Region format in the Dates and numbers card in Settings. With South Africa chosen, 12480.5 shows as 12 480,5."
+                },
+                {
+                    "question": "How do I switch to a 24-hour clock?",
+                    "answer": "Choose 24-hour under Clock in Settings. Times on every page change straight away."
+                },
+                {
+                    "question": "What does the Default region format do?",
+                    "answer": "Every screen keeps the format it used before. Most numbers then follow the language set in your browser."
+                }
+            ]
+        },
+        {
+            "category": "Privacy & Your Data",
+            "items": [
+                {
+                    "question": "Can I see the data OptiGrid keeps about me?",
+                    "answer": "Yes. Open Settings and select Download my data. A file with the personal information we hold about you downloads at once."
+                },
+                {
+                    "question": "Why does OptiGrid offer this download?",
+                    "answer": "South Africa's Protection of Personal Information Act (POPIA) gives you the right to know what we hold about you. The download makes that quick."
+                },
+                {
+                    "question": "How do I open the file?",
+                    "answer": "It is a JSON file. Any text editor can open it."
+                },
+                {
+                    "question": "Is my password in the file?",
+                    "answer": "No. Passwords are never kept in a form anyone can read. The file leaves them out."
                 }
             ]
         },
@@ -291,6 +390,10 @@
                 {
                     "question": "Can I compare buildings?",
                     "answer": "Pick any two and compare their cost or energy over time."
+                },
+                {
+                    "question": "Does it work on a slow connection?",
+                    "answer": "Yes. Turn on Data saver in Settings and pages check for new readings less often. Older laptops can also use a lighter 3D mode."
                 }
             ]
         },
@@ -329,6 +432,10 @@
                 {
                     "question": "How do I contact the team?",
                     "answer": "Use the Contact link at the bottom of the page."
+                },
+                {
+                    "question": "Can I get a copy of my data?",
+                    "answer": "Yes. After you log in, open Settings and select Download my data."
                 }
             ]
         }

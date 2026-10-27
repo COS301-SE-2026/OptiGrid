@@ -8,7 +8,6 @@ import {
   MOCK_ANOMALIES_MANAGER as MOCK_ANOMALIES, 
   MOCK_BUILDINGS, 
   MOCK_THRESHOLDS, 
-  rechartsMockFactory,
   getAnomaliesSection,
   getTableCell,
   getTableRow,

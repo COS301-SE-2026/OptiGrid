@@ -95,7 +95,7 @@ function isSupabaseDuplicateUserError(error: { message?: string; code?: string }
 }
 
 // Detects invalid credential responses from Supabase sign-in.
-function isSupabaseInvalidCredentialsError(error: { message?: string; code?: string } | null): boolean {
+export function isSupabaseInvalidCredentialsError(error: { message?: string; code?: string } | null): boolean {
     if (!error) {
         return false;
     }
@@ -575,11 +575,13 @@ export const googleAuthLogin = async (accessToken: string, email: string, firstN
     if (userExists?.accountStatus === AccountStatus.DEACTIVATED) throw new AccountDeactivatedError();
 
     const role: UserRole = userExists?.roleType ?? "VIEWER";
+    // Google sends its own name on every sign in and once the profile has a name, the one saved in Settings is kept
+    const keepSavedName = Boolean(userExists?.firstName);
     const user = await createOrUpsertUser({
         userId,
         email: email || data.user.email || userExists?.email || "",
-        firstName: firstName || userExists?.firstName || "",
-        lastName: lastName || userExists?.lastName || "",
+        firstName: keepSavedName ? (userExists?.firstName ?? "") : (firstName || ""),
+        lastName: keepSavedName ? (userExists?.lastName ?? "") : (lastName || userExists?.lastName || ""),
         roleType: role,
     });
     return {user,accessToken};

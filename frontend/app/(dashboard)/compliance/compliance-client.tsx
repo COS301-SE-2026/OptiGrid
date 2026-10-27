@@ -3,6 +3,8 @@
 import type { CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDateTime } from "@/lib/formatDate";
+import { formatNumber as formatDisplayNumber } from "@/lib/format";
+import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 import { PageHeading } from "@/components/PageHeading";
 import { getTabSessionPath } from "../../../lib/tab-session";
 import { useTabSessionId } from "../../../lib/use-tab-session-id";
@@ -117,7 +119,7 @@ function formatNumber(value: number | null, decimals = 2): string {
     if (value === null || value === undefined || Number.isNaN(value)) {
         return "No data";
     }
-    return value.toLocaleString(undefined, {
+    return formatDisplayNumber(value, {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
     });
@@ -137,6 +139,7 @@ function Metric({ label, value }: Readonly<{ label: string; value: string }>) {
 }
 
 export default function ComplianceClient() {
+    useFormatPreferences();
     const tabSessionId = useTabSessionId();
     const { data, isLoading, isError, error, refetch } = useQuery<ComplianceReport>({
         queryKey: ["compliance-report"],
@@ -337,15 +340,15 @@ export default function ComplianceClient() {
                         ? "Unavailable due to integrity failure"
                         : `${formatNumber(data.carbon_accounting.total_kg_co2e)} kg CO2e`}
                     />
-                    <Metric label="Signed daily entries" value={data.carbon_accounting.ledger_entries.toLocaleString()} />
-                    <Metric label="Telemetry-backed entries" value={`${data.carbon_accounting.source_complete_entries.toLocaleString()} of ${data.carbon_accounting.expected_entries.toLocaleString()}`} />
-                    <Metric label="Buildings checked" value={data.carbon_accounting.buildings.length.toLocaleString()} />
+                    <Metric label="Signed daily entries" value={formatDisplayNumber(data.carbon_accounting.ledger_entries)} />
+                    <Metric label="Telemetry-backed entries" value={`${formatDisplayNumber(data.carbon_accounting.source_complete_entries)} of ${formatDisplayNumber(data.carbon_accounting.expected_entries)}`} />
+                    <Metric label="Buildings checked" value={formatDisplayNumber(data.carbon_accounting.buildings.length)} />
                 </div>
                 {data.carbon_accounting.scope_status === "INCOMPLETE" && (
                     <p className="text-muted" style={{ margin: "var(--space-2) 0 0", fontSize: "var(--fs-small)" }}>
-                        {data.carbon_accounting.source_incomplete_entries.toLocaleString()} signed site-days have no source telemetry
+                        {formatDisplayNumber(data.carbon_accounting.source_incomplete_entries)} signed site-days have no source telemetry
                         {data.carbon_accounting.missing_entries > 0
-                            ? `, and ${data.carbon_accounting.missing_entries.toLocaleString()} expected ledger entries are missing.`
+                            ? `, and ${formatDisplayNumber(data.carbon_accounting.missing_entries)} expected ledger entries are missing.`
                             : "."}
                     </p>
                 )}
@@ -457,8 +460,8 @@ export default function ComplianceClient() {
                     gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", 
                     gap: "var(--space-4)" 
                 }}>
-                    <Metric label="Entries this period" value={data.audit_trail.entries_in_period.toLocaleString()} />
-                    <Metric label="Signed entries" value={data.audit_trail.total_chained_entries.toLocaleString()} />
+                    <Metric label="Entries this period" value={formatDisplayNumber(data.audit_trail.entries_in_period)} />
+                    <Metric label="Signed entries" value={formatDisplayNumber(data.audit_trail.total_chained_entries)} />
                     <Metric label="Algorithm" value={integrity.algorithm} />
                     <Metric label="Last entry" value={integrity.chain_updated_at ? formatDateTime(integrity.chain_updated_at) : "No entries"}/>
                 </div>
@@ -469,7 +472,7 @@ export default function ComplianceClient() {
                     <span className="signature-label">Digital signature</span>
                     <p className="signature-value">{signature.value ?? "No signed entries yet"}</p>
                     <p className="signature-note">
-                        {signature.algorithm} {readable(signature.source)} head over {signature.records_covered.toLocaleString()} entries, signed {formatDateTime(signature.signed_at)}.
+                        {signature.algorithm} {readable(signature.source)} head over {formatDisplayNumber(signature.records_covered)} entries, signed {formatDateTime(signature.signed_at)}.
                         {signature.value && (signatureVerified
                             ? " Verified against the ledger."
                             : " Press Verify Data Integrity to confirm it.")}

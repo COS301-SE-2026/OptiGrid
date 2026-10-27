@@ -245,7 +245,7 @@ jobs:
 
   e2e:
     name: E2E (${{ matrix.suite }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       redis:
         image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2

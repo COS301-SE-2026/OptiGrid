@@ -12,7 +12,7 @@ const createTestRedis = (): any => {
             store.set(k, v);
             return Promise.resolve("OK");
         },
-        keys: async (pattern: string) => Array.from(store.keys()),
+        keys: async (_pattern: string) => Array.from(store.keys()),
         del: async (...keys: string[]) => {
             let deleted = 0;
             for (const key of keys) { if (store.delete(key)) deleted++; }
@@ -24,7 +24,7 @@ const createTestRedis = (): any => {
                     for (const key of keys) store.delete(key);
                     return p;
                 },
-                set: (key: string, value: string, ...opts: any[]) => {
+                set: (key: string, value: string, ..._opts: any[]) => {
                     store.set(key, value);
                     return p;
                 },

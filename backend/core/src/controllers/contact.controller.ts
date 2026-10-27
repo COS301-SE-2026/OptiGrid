@@ -20,7 +20,7 @@ export const handleSubmit = async (req: Request, resp: Response): Promise<void> 
         const out = await contactService.sendMail(correct);
         const load = {
             success: true,
-            message: "Recieved the ticket",
+            message: "Received the ticket",
             id: out?.id
         };
         

@@ -5,12 +5,27 @@ import { SessionUser, SESSION_COOKIE_NAME } from "./session";
 export const ACCESS_TOKEN_COOKIE_NAME = "optigrid_access_token";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
-function clearRootCookie(resp: NextResponse, name: string, secure: boolean): void {
+function expireCookie(resp: NextResponse, name: string, path: string, secure: boolean): void {
     const secureAttribute = secure ? "; Secure" : "";
     resp.headers.append(
         "Set-Cookie",
-        `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secureAttribute}`,
+        `${name}=; Path=${path}; Max-Age=0; HttpOnly; SameSite=Lax${secureAttribute}`,
     );
+}
+
+function clearRootCookie(resp: NextResponse, name: string, secure: boolean): void {
+    expireCookie(resp, name, "/", secure);
+}
+
+// remove the login cookies at the root path and at the tab path
+export function clearAuthCookies(resp: NextResponse, tabId: string | null, secure = false): void {
+    clearRootCookie(resp, SESSION_COOKIE_NAME, secure);
+    clearRootCookie(resp, ACCESS_TOKEN_COOKIE_NAME, secure);
+    if (tabId) {
+        const tabPath = getTabSessionCookiePath(tabId);
+        expireCookie(resp, SESSION_COOKIE_NAME, tabPath, secure);
+        expireCookie(resp, ACCESS_TOKEN_COOKIE_NAME, tabPath, secure);
+    }
 }
 
 export function clearUnscopedAuthCookies(

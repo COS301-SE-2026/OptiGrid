@@ -7,6 +7,7 @@ import {
   isValidElement,
   type ReactNode,
 } from "react";
+import { preferredScrollBehavior } from "@/lib/displayPreferences";
 
 
 
@@ -425,15 +426,15 @@ const SECTIONS: Section[] = [
         <h3>Who should read this manual?</h3>
         <ul>
           <li>
-            <strong>General Users</strong>  monitor energy usage, view
+            <strong>General Users</strong>: monitor energy usage, view
             dashboards, analyze reports, and manage personal account settings.
           </li>
           <li>
-            <strong>Building Managers</strong>  responsible for the
+            <strong>Building Managers</strong>: responsible for the
             operational management of specific buildings.
           </li>
           <li>
-            <strong>Administrators</strong>  oversee user access, building
+            <strong>Administrators</strong>: oversee user access, building
             profiles, and system configuration.
           </li>
         </ul>
@@ -441,27 +442,27 @@ const SECTIONS: Section[] = [
         <h3>Key features at a glance</h3>
         <ul>
           <li>
-            <strong>Energy Monitoring Dashboard</strong>  real-time and
+            <strong>Energy Monitoring Dashboard</strong>: real-time and
             historical visualization of energy consumption.
           </li>
           <li>
-            <strong>Energy Demand Forecasting</strong>  predictive analytics
+            <strong>Energy Demand Forecasting</strong>: predictive analytics
             for future energy needs.
           </li>
           <li>
-            <strong>Building Comparison</strong>  analysis of energy
+            <strong>Building Comparison</strong>: analysis of energy
             performance across multiple buildings.
           </li>
           <li>
-            <strong>Sensor Management</strong>  registering and monitoring IoT
+            <strong>Sensor Management</strong>: registering and monitoring IoT
             sensors within buildings.
           </li>
           <li>
-            <strong>Anomaly Alerts</strong>  automatic detection of unusual
+            <strong>Anomaly Alerts</strong>: automatic detection of unusual
             consumption patterns.
           </li>
           <li>
-            <strong>Role-Based Access</strong>  secure access controls tailored
+            <strong>Role-Based Access</strong>: secure access controls tailored
             to different user roles.
           </li>
         </ul>
@@ -497,30 +498,30 @@ const SECTIONS: Section[] = [
 
         <h3>Creating an account</h3>
         <ol>
-          <li>On the landing page, click <strong>Sign Up</strong> or <strong>Register</strong>.</li>
+          <li>On the landing page, click <strong>Get started free</strong>.</li>
           <li>
             Fill in the registration form: first name, last name, email address,
             and password.
           </li>
-          <li>Click <strong>Create Account</strong> to complete registration.</li>
+          <li>Click <strong>Create account</strong> to complete registration.</li>
         </ol>
 
         <h3>Logging in</h3>
         <ol>
           <li>Go to the OptiGrid landing page.</li>
-          <li>Click the <strong>Log In</strong> button.</li>
+          <li>Click the <strong>Log in</strong> button.</li>
           <li>Enter your registered email address and password.</li>
-          <li>Click <strong>Log In</strong> to access the dashboard.</li>
+          <li>Click <strong>Log in</strong> to open the dashboard.</li>
         </ol>
 
         <h3>Logging out</h3>
         <p>You can log out using either of the following methods:</p>
         <ul>
           <li>
-            <strong>Navigation Bar</strong>  click <strong>Logout</strong> at the bottom of the sidebar.
+            <strong>Navigation Bar</strong>: click <strong>Logout</strong> at the bottom of the sidebar.
           </li>
           <li>
-            <strong>Settings Page</strong>  navigate to Settings and click <strong>Logout</strong>.
+            <strong>Settings Page</strong>: navigate to Settings and click <strong>Logout</strong>.
           </li>
         </ul>
       </>
@@ -574,15 +575,15 @@ const SECTIONS: Section[] = [
         </p>
         <ul>
           <li>
-            <strong>Portfolio consumption chart</strong>  energy usage across
+            <strong>Portfolio consumption chart</strong>: energy usage across
             the last 7 days.
           </li>
           <li>
-            <strong>KPI cards</strong>  buildings count, today&apos;s usage,
+            <strong>KPI cards</strong>: buildings count, today&apos;s usage,
             estimated cost, and active alerts.
           </li>
           <li>
-            <strong>Building list</strong>  a table of all your buildings with
+            <strong>Building list</strong>: a table of all your buildings with
             status and quick actions.
           </li>
         </ul>
@@ -594,24 +595,24 @@ const SECTIONS: Section[] = [
           depend on your user role.
         </p>
         <ul>
-          <li><strong>Dashboard</strong>  the main overview page.</li>
-          <li><strong>Compare</strong>  compare performance across buildings.</li>
-          <li><strong>Live</strong>  real-time readings.</li>
-          <li><strong>Forecast</strong>  predictive analytics.</li>
-          <li><strong>Insights</strong>  recommended optimizations.</li>
-          <li><strong>Compliance</strong>  regulatory tracking.</li>
-          <li><strong>Anomaly</strong>  detected unusual patterns.</li>
-          <li><strong>Settings</strong>  profile and appearance.</li>
-          <li><strong>Help Centre</strong>  documentation and FAQs.</li>
-          <li><strong>Contact Us</strong>  reach the team for support.</li>
-          <li><strong>Logout</strong>  end your current session.</li>
+          <li><strong>Dashboard</strong>: the main overview page.</li>
+          <li><strong>Compare</strong>: compare performance across buildings.</li>
+          <li><strong>Live</strong>: real-time readings.</li>
+          <li><strong>Forecast</strong>: predictive analytics.</li>
+          <li><strong>Insights</strong>: recommended optimizations.</li>
+          <li><strong>Compliance</strong>: regulatory tracking.</li>
+          <li><strong>Anomaly</strong>: detected unusual patterns.</li>
+          <li><strong>Settings</strong>: your account and how OptiGrid looks and runs.</li>
+          <li><strong>Help Centre</strong>: documentation and FAQs.</li>
+          <li><strong>Contact Us</strong>: reach the team for support.</li>
+          <li><strong>Logout</strong>: end your current session.</li>
         </ul>
 
-        <h3>Switching between light and dark mode</h3>
+        <h3>Choosing a theme</h3>
         <p>
-          Navigate to the Settings page and locate the Theme section. Toggle
-          between light mode and dark mode to change the visual theme of the
-          platform.
+          Navigate to the Settings page and find the Appearance card. Pick
+          Light or Dark, or pick System to match your device. The new theme
+          applies straight away and is saved to your account.
         </p>
       </>
     ),
@@ -730,15 +731,15 @@ const SECTIONS: Section[] = [
         <h3>Understanding the key figures</h3>
         <ul>
           <li>
-            <strong>kWh</strong>  kilowatt-hours, the standard unit of
+            <strong>kWh</strong>: kilowatt-hours, the standard unit of
             measurement for energy consumption.
           </li>
           <li>
-            <strong>Energy cost</strong>  an estimated cost based on the local
+            <strong>Energy cost</strong>: an estimated cost based on the local
             utility rate and energy consumption.
           </li>
           <li>
-            <strong>Peak usage</strong>  the highest energy consumption
+            <strong>Peak usage</strong>: the highest energy consumption
             recorded during a specific period.
           </li>
         </ul>
@@ -794,18 +795,18 @@ const SECTIONS: Section[] = [
         <h3>Reading the forecast chart</h3>
         <ul>
           <li>
-            <strong>Demand trend graph</strong>  shows the predicted future
+            <strong>Demand trend graph</strong>: shows the predicted future
             demand.
           </li>
           <li>
-            <strong>Peak demand</strong>  the highest predicted demand.
+            <strong>Peak demand</strong>: the highest predicted demand.
           </li>
           <li>
-            <strong>Average kWh per day</strong>  the average energy consumption
+            <strong>Average kWh per day</strong>: the average energy consumption
             forecasted per day.
           </li>
           <li>
-            <strong>Model accuracy</strong>  an indication of the forecast
+            <strong>Model accuracy</strong>: an indication of the forecast
             model&apos;s reliability.
           </li>
         </ul>
@@ -839,15 +840,15 @@ const SECTIONS: Section[] = [
         <h3>How anomalies are detected</h3>
         <ul>
           <li>
-            <strong>Statistical deviation</strong>  a reading that sits a
+            <strong>Statistical deviation</strong>: a reading that sits a
             configurable number of standard deviations from the recent baseline.
           </li>
           <li>
-            <strong>Threshold breach</strong>  a value that exceeds a fixed
+            <strong>Threshold breach</strong>: a value that exceeds a fixed
             maximum or minimum set per building or per sensor.
           </li>
           <li>
-            <strong>Pattern shift</strong>  a sustained change in the daily or
+            <strong>Pattern shift</strong>: a sustained change in the daily or
             weekly shape of consumption.
           </li>
         </ul>
@@ -958,15 +959,84 @@ const SECTIONS: Section[] = [
         <h3>Updating your profile</h3>
         <ol>
           <li>Navigate to the Settings page.</li>
-          <li>Locate the profile section.</li>
-          <li>Update your information, such as your name and email address.</li>
-          <li>Click <strong>Save changes</strong> to apply.</li>
+          <li>Edit your first or last name in the Profile card.</li>
+          <li>Click <strong>Save changes</strong>. The sidebar shows your new name straight away.</li>
         </ol>
+        <p>
+          You sign in with your email address and it cannot be changed here.
+          An administrator sets your role.
+        </p>
+
+        <h3>Changing your password</h3>
+        <ol>
+          <li>In the Security card, click <strong>Change password</strong>.</li>
+          <li>Enter your current password, then type the new one twice.</li>
+          <li>Click <strong>Update password</strong>.</li>
+        </ol>
+        <p>
+          Your other devices are signed out when the password changes. The
+          device you used stays signed in.
+        </p>
+        <p>
+          Accounts that sign in with Google have no OptiGrid password. Change
+          the password in your Google account instead.
+        </p>
+
+        <h3>Signing out of all devices</h3>
+        <p>
+          Click <strong>Sign out everywhere</strong> in the Security card and
+          confirm. Every session ends at once, including this one. The login
+          page opens next.
+        </p>
+
+        <h3>Downloading your data</h3>
+        <p>
+          POPIA lets you ask what personal information OptiGrid holds about
+          you. Click <strong>Download my data</strong> in the Your data card to
+          save a copy as a JSON file.
+        </p>
+
+        <h3>Motion</h3>
+        <p>
+          The Motion setting sits in the Appearance card. Match device follows
+          the reduced motion setting on your computer or phone. Reduce turns
+          animations off in OptiGrid, while Full keeps them on even when the
+          device asks for less.
+        </p>
+
+        <h3>Live updates</h3>
+        <p>
+          The Performance card controls how often pages refresh. Normal streams
+          readings as they arrive. Data saver closes the live streams and checks
+          for new data four times less often. With Paused, pages refresh only
+          when you open or reload them, and a banner at the top of each page
+          lets you resume. Anomaly alerts arrive in every mode.
+        </p>
+
+        <h3>3D graphics</h3>
+        <p>
+          This choice applies to the 3D building model and the heatmap. Auto
+          lowers the resolution when the device struggles. Battery saver draws
+          a still scene at a lower resolution, which suits laptops running on
+          battery. High keeps full resolution with smooth edges.
+        </p>
+
+        <h3>Dates and numbers</h3>
+        <p>
+          Pick a region format to change how dates and numbers are written.
+          South Africa, for example, shows 12 480,5 where the United States
+          shows 12,480.5. Clock lets you show every time in OptiGrid on a
+          12-hour or a 24-hour clock. A preview in the card shows the result.
+        </p>
+        <p>
+          Your theme is saved to your account. The other display choices on
+          this page stay on the device where you set them.
+        </p>
       </>
     ),
     snapshot: {
-      caption: "Figure 12: Updating user profile",
-      alt: "Settings page with profile information fields and save button",
+      caption: "Figure 12: The Settings page",
+      alt: "The Settings page in light mode",
       src: "/settings.png",
     },
   },
@@ -980,7 +1050,7 @@ const SECTIONS: Section[] = [
         rows={[
           [
             "Cannot log in.",
-            "Verify your email and password. Use the 'Forgot Password' link to reset your password if needed.",
+            "Verify your email and password. Use the 'Forgot password?' link to reset your password if needed.",
           ],
           [
             "No data is showing for a building.",
@@ -989,6 +1059,14 @@ const SECTIONS: Section[] = [
           [
             "The dashboard is loading slowly.",
             "Check your internet connection. Try refreshing the browser.",
+          ],
+          [
+            "Pages have stopped updating.",
+            "Live updates may be paused on this device. Click Resume live updates in the banner at the top of the page.",
+          ],
+          [
+            "The 3D model or the heatmap feels slow.",
+            "Set 3D graphics to Battery saver on the Settings page.",
           ],
         ]}
       />
@@ -1003,29 +1081,52 @@ const SECTIONS: Section[] = [
         <h3>Sign up &amp; account</h3>
         <p>
           <strong>How do I create an OptiGrid account?</strong> Click{" "}
-          <em>Sign up</em> on the landing page, complete the registration form,
-          and click <em>Create Account</em>.
+          <em>Get started free</em> on the landing page. Fill in the form, then
+          click <em>Create account</em>.
         </p>
         <p>
           <strong>Can I sign up with an email that is already registered?</strong>{" "}
-          No use the password reset flow instead, or contact support if you
+          No. Use the password reset flow instead, or contact support if you
           no longer have access.
         </p>
 
         <h3>Login &amp; session</h3>
         <p>
-          <strong>How do I log in?</strong> Click <em>Log In</em> on the
-          landing page, enter your credentials, and click <em>Log In</em>.
+          <strong>How do I log in?</strong> Click <em>Log in</em> on the
+          landing page. Enter your email and password, then click <em>Log in</em>.
         </p>
         <p>
           <strong>How do I log out?</strong> Use the <em>Logout</em> button at
           the bottom of the sidebar, or from the Settings page.
         </p>
+        <p>
+          <strong>Can I sign out of every device?</strong> Yes. Use{" "}
+          <em>Sign out everywhere</em> in the Security card on the Settings
+          page.
+        </p>
 
         <h3>Appearance</h3>
         <p>
-          <strong>Does OptiGrid support dark mode?</strong> Yes  toggle the
-          theme from the Settings page under the Theme section.
+          <strong>Does OptiGrid support dark mode?</strong> Yes. Pick Dark in
+          the Appearance card on the Settings page, or pick System to follow
+          your device.
+        </p>
+        <p>
+          <strong>Can I turn off animations?</strong> Yes. Set Motion to
+          Reduce in the Appearance card.
+        </p>
+
+        <h3>Performance</h3>
+        <p>
+          <strong>Can OptiGrid use less data?</strong> Yes. Set Live updates
+          to Data saver in the Performance card. Pages then check for new
+          readings less often.
+        </p>
+
+        <h3>Dates and numbers</h3>
+        <p>
+          <strong>Can I use a 24-hour clock?</strong> Yes. Pick 24-hour under
+          Clock in the Dates and numbers card.
         </p>
       </>
     ),
@@ -1075,7 +1176,7 @@ export default function ManualPage() {
     setActiveId(id);
     const el = document.getElementById(id);
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.scrollIntoView({ behavior: preferredScrollBehavior(), block: "start" });
     }
   };
 
@@ -1241,9 +1342,7 @@ export default function ManualPage() {
                         style={{
                           minWidth: 26,
                           fontSize: "0.85rem",
-                          color: isActive
-                            ? "var(--brand-primary-cta)"
-                            : "var(--brand-primary)",
+                          color: "var(--brand-primary-cta)",
                           fontWeight: "var(--fw-semibold)",
                         }}
                       >

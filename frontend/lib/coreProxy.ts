@@ -12,7 +12,7 @@ export function getCoreUrl(): string {
 	return coreUrl.replace(/\/$/, "");
 }
 
-function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
+export function readCookieValue(cookieHeader: string | null, cookieName: string): string | null {
 	if (!cookieHeader) {
 		return null;
 	}
@@ -28,7 +28,7 @@ function readCookieValue(cookieHeader: string | null, cookieName: string): strin
 	return null;
 }
 
-function hasTrustedMutationOrigin(request: Request): boolean {
+export function hasTrustedMutationOrigin(request: Request): boolean {
 	const origin = request.headers.get("origin");
 	if (!origin) {
 		return true;

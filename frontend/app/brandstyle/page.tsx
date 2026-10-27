@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Image from "next/image";
 import { PublicNav } from "../../components/PublicNav";
+import { preferredScrollBehavior } from "../../lib/displayPreferences";
 
 import mainLogo from "./mainlogo.png";
 import secondaryLogo from "./secondarylogo.png";
@@ -373,17 +374,14 @@ function BodyText({ children, mb = "var(--space-3)" }) {
 }
 
 export default function OptiGridStyleGuide() {
-  const [navOpen, setNavOpen] = useState(false);
-
   const scrollTo = (id) => {
-    setNavOpen(false);
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (el) el.scrollIntoView({ behavior: preferredScrollBehavior(), block: "start" });
   };
 
   return (
     <div className="landing-page" style={{ fontFamily: "var(--font-body)" }}>
-      <PublicNav signedIn={false} wide />
+      <PublicNav signedIn={false} wide detectSession />
       <div className="brand-guide">
         <aside className="brand-guide-nav">
           <div>

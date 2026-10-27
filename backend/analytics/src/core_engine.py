@@ -1,4 +1,5 @@
 import logging
+import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
@@ -8,6 +9,7 @@ import optuna
 import pandas as pd
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.metrics import make_scorer
 from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 from supabase import Client, create_client
 import uuid
@@ -26,6 +28,30 @@ from backend.analytics.src.config import (
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def percentage_error(y_true, y_pred) -> float:
+    actual = np.asarray(y_true, dtype=float)
+    predicted = np.asarray(y_pred, dtype=float)
+    floor = max(1e-6, 0.01 * float(np.mean(np.abs(actual)))) if actual.size else 1e-6
+    usable = np.abs(actual) > floor
+    if not usable.any():
+        return float("nan")
+    return float(np.mean(np.abs(predicted[usable] - actual[usable]) / np.abs(actual[usable])))
+
+
+PERCENTAGE_ERROR_SCORER = make_scorer(percentage_error, greater_is_better=False)
+
+
+def mean_fold_error(scores) -> float:
+    # folds with nothing left to score come back as nan and are skipped
+    errors = -np.asarray(scores, dtype=float)
+    errors = errors[np.isfinite(errors)]
+    return float(errors.mean()) if errors.size else float("inf")
+
+
+def as_percent(error: float) -> Optional[float]:
+    return round(error * 100.0, 4) if math.isfinite(error) else None
 
 # stops optuna's default printing spam stuff
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -285,8 +311,8 @@ class AnalyticsEngine:
             # Select the model using percentage error so the persisted metric
             # is a genuine MAPE value rather than an MAE with a percent sign.
             time_series_CV = TimeSeriesSplit(n_splits=3)
-            scores = cross_val_score(model, X, y, cv=time_series_CV, scoring='neg_mean_absolute_percentage_error')
-            return -scores.mean()
+            scores = cross_val_score(model, X, y, cv=time_series_CV, scoring=PERCENTAGE_ERROR_SCORER)
+            return mean_fold_error(scores)
 
         study = optuna.create_study(direction="minimize")
         study.optimize(objective, n_trials=10)
@@ -343,7 +369,7 @@ class AnalyticsEngine:
         return {
             "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
             "forecast_avg_day": round(sum(daily_sums) / 7.0, 2),
-            "model_mape": round(study.best_value * 100.0, 4),
+            "model_mape": as_percent(study.best_value),
             "forecast_series": forecast_series,
             "min_historic": round(df['usage'].min(), 2),
             "max_historic": round(df['usage'].max(), 2),
@@ -409,8 +435,8 @@ class AnalyticsEngine:
             
             # Keep model selection and the displayed validation metric aligned.
             time_series = TimeSeriesSplit(n_splits=2)
-            scores = cross_val_score(model, X, y, cv=time_series, scoring='neg_mean_absolute_percentage_error')
-            return -scores.mean()
+            scores = cross_val_score(model, X, y, cv=time_series, scoring=PERCENTAGE_ERROR_SCORER)
+            return mean_fold_error(scores)
 
         study = optuna.create_study(direction="minimize")
         study.optimize(objective, n_trials=10)
@@ -472,7 +498,7 @@ class AnalyticsEngine:
         return {
             "forecast_peak": round(max(f["predicted_usage"] for f in forecast_series), 2),
             "forecast_avg_day": round(sum(f["predicted_usage"] for f in forecast_series) / 12.0, 2),
-            "model_mape": round(study.best_value * 100.0, 4),
+            "model_mape": as_percent(study.best_value),
             "forecast_series": forecast_series,
             "min_historic": round(df['usage'].min(), 2),
             "max_historic": round(df['usage'].max(), 2),

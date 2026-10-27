@@ -40,6 +40,11 @@ describe("HelpPage", () => {
   );
     });
 
+    it("keeps signed in readers inside the app from the logo", () => {
+        expect(screen.getByRole("link", { name: "OptiGrid dashboard" })).toHaveAttribute("href", "/dashboard");
+        expect(screen.queryByRole("link", { name: "OptiGrid home" })).toBeNull();
+    });
+
     it("renders the help footer", () => {
         expect(screen.getByText(/© 2026 OptiGrid\. All rights reserved\./)).toBeInTheDocument();
     });

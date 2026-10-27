@@ -87,3 +87,6 @@ infrastructure/docker/.generated/
 !frontend/app/landing.json
 !frontend/app/faqs/faqs.json
 !frontend/app/help/tutorials/tutorials.json
+
+# Device credentials for the sensor sketch
+scripts/sketch_sep26a/arduino_secrets.h

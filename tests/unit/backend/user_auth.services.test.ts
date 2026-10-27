@@ -480,6 +480,22 @@ describe('Google authentication profile handling', () => {
         expect(mockedPrisma.user.upsert).not.toHaveBeenCalled();
     });
 
+    it('keeps a name saved in Settings when Google sends a different one', async () => {
+        mockedCreateClient.mockReturnValue({ auth: {
+            getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1', email: 'a@example.com' } }, error: null }),
+        } } as unknown as ReturnType<typeof createClient>);
+        mockedPrisma.user.findUnique.mockResolvedValue({
+            userId: 'user-1', firstName: 'Lerato', lastName: '', roleType: 'VIEWER', accountStatus: 'ACTIVE',
+        });
+        mockedPrisma.user.upsert.mockResolvedValue({ userId: 'user-1' });
+
+        await authServices.googleAuthLogin('token', 'a@example.com', 'Google', 'Name');
+
+        expect(mockedPrisma.user.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            update: expect.objectContaining({ firstName: 'Lerato', lastName: '' }),
+        }));
+    });
+
     it('upserts a Google user with the existing role and Supabase email fallback', async () => {
         mockedCreateClient.mockReturnValue({ auth: {
             getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1', email: 'a@example.com' } }, error: null }),

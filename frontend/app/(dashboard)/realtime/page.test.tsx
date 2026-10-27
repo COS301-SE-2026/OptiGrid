@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom";
+import { reloadDisplayPreferences, setDisplayPreferences } from "@/lib/displayPreferences";
 
 //these are few buildings in the raw snake_case shape which the API hands back 
 const sandtonOffice = {
@@ -62,6 +63,8 @@ function expectOrder(names: string[]) {
 
 beforeEach(() => {
     (global.fetch as jest.Mock) = jest.fn();
+    window.localStorage.clear();
+    reloadDisplayPreferences();
 });
 
 afterEach(() => {
@@ -193,5 +196,31 @@ describe("Empty and error states", () => {
         renderPage();
         await waitFor(() => expect(screen.getByText(/server error/i)).toBeInTheDocument());
         expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
+    });
+});
+
+describe("Live updates choice", () => {
+    it("says Disconnected while the stream has not opened", async () => {
+        mockBuildings([sandtonOffice]);
+        renderPage();
+        await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
+        expect(screen.getByText("Disconnected")).toBeInTheDocument();
+    });
+
+    it("labels the stream as paused when updates are paused", async () => {
+        setDisplayPreferences({ liveUpdates: "paused" });
+        mockBuildings([sandtonOffice]);
+        renderPage();
+        await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
+        expect(screen.getByText("Updates paused")).toBeInTheDocument();
+    });
+
+    it("labels the stream honestly on data saver", async () => {
+        setDisplayPreferences({ liveUpdates: "saver" });
+        mockBuildings([sandtonOffice]);
+        renderPage();
+        await waitFor(() => expect(screen.getByText("Sandton Office")).toBeInTheDocument());
+        expect(screen.getByText("Data saver")).toBeInTheDocument();
+        expect(screen.queryByText("Disconnected")).not.toBeInTheDocument();
     });
 });

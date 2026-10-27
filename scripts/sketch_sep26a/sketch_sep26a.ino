@@ -3,12 +3,15 @@
 #include <ArduinoJson.h>
 #include "EmonLib.h"
 
-const char* ssid = "low2.4G.101pro_VKYZ";
-const char* password = "YZNTLMMZ";
+// Device settings live in arduino_secrets.h which is ignored by git . copy arduino_secrets.example.h to start one
+#include "arduino_secrets.h"
 
-const char* serverUrl = "http://54.172.88.178:8000/api/telemetry/ingest";
+const char* ssid = SECRET_WIFI_SSID;
+const char* password = SECRET_WIFI_PASSWORD;
 
-const char* authToken = "optigrid-hw-63c8f039";
+const char* serverUrl = SECRET_SERVER_URL;
+
+const char* authToken = SECRET_AUTH_TOKEN;
 
 const char* buildingId = "4bd4a998-3ef9-476f-80af-7568a4b6cbf0";
 const char* sensorId = "2bbac30a-d9af-40b1-a31c-cc4bbd31a758";

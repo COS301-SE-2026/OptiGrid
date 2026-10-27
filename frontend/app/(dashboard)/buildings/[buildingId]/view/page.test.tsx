@@ -78,6 +78,7 @@ describe("ViewBuildingPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseTelemetryStream.mockReturnValue({
+      liveMode: "normal",
       liveData: null,
       isConnected: true,
       error: null,
@@ -134,6 +135,7 @@ describe("ViewBuildingPage", () => {
 
   it("renders live telemetry for the opened building", async () => {
     mockUseTelemetryStream.mockReturnValue({
+      liveMode: "normal",
       liveData: {
         building_id: "111",
         sensor_id: "sensor-111",
@@ -163,6 +165,7 @@ describe("ViewBuildingPage", () => {
 
   it("does not show telemetry from a different building", async () => {
     mockUseTelemetryStream.mockReturnValue({
+      liveMode: "normal",
       liveData: {
         building_id: "222",
         sensor_id: "sensor-222",
@@ -188,6 +191,7 @@ describe("ViewBuildingPage", () => {
 
   it("shows telemetry stream errors", async () => {
     mockUseTelemetryStream.mockReturnValue({
+      liveMode: "normal",
       liveData: null,
       isConnected: false,
       error: new Error("Lost connection to telemetry stream."),
@@ -200,6 +204,41 @@ describe("ViewBuildingPage", () => {
       expect(screen.getByText("Connecting")).toBeInTheDocument();
       expect(screen.getByText("Lost connection to telemetry stream.")).toBeInTheDocument();
     });
+  });
+
+  it("explains a closed stream when the data saver is on", async () => {
+    mockUseTelemetryStream.mockReturnValue({
+      liveMode: "saver",
+      liveData: null,
+      isConnected: false,
+      error: null,
+    });
+    mockFetchOk();
+
+    render(<ViewBuildingPage params={makeParams("111")} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Data saver")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Data saver keeps the live stream closed on this device/)).toBeInTheDocument();
+    expect(screen.queryByText("Connecting")).not.toBeInTheDocument();
+  });
+
+  it("marks the stream as paused when live updates are paused", async () => {
+    mockUseTelemetryStream.mockReturnValue({
+      liveMode: "paused",
+      liveData: null,
+      isConnected: false,
+      error: null,
+    });
+    mockFetchOk();
+
+    render(<ViewBuildingPage params={makeParams("111")} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Updates paused")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Readings come back when you resume them/)).toBeInTheDocument();
   });
 
 

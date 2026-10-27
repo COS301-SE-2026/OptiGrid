@@ -14,6 +14,8 @@ import {
 } from "recharts";
 import { ChartLegend } from "./ChartLegend";
 import { humanise } from "../lib/labels";
+import { formatDateTime as formatDisplayDateTime, formatNumber } from "../lib/format";
+import { useReducedMotion } from "../lib/useDisplayPreferences";
 import { CurvedSelect } from "./curvedselect";
 import {
   SERIES_COLOURS,
@@ -105,7 +107,7 @@ export function getZScoreLabel(zScore: number): string {
 
 export function formatZScoreDeviation(zScore: number): string {
   const sign = zScore >= 0 ? "+" : "";
-  return `${sign}${zScore.toFixed(1)}σ from baseline`;
+  return `${sign}${formatNumber(zScore, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }, "en")}σ from baseline`;
 }
 
 export function toFiniteValue(value: unknown): number {
@@ -118,7 +120,7 @@ export function roundToTwo(value: number): number {
 }
 
 export function formatMetricValue(value: number, metric: MetricType): string {
-  const amount = roundToTwo(value).toLocaleString(undefined, {
+  const amount = formatNumber(roundToTwo(value), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -131,7 +133,7 @@ export function formatAxisTick(value: number): string {
     return "0";
   }
 
-  return value.toLocaleString(undefined, {
+  return formatNumber(value, {
     maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 2,
   });
 }
@@ -512,6 +514,7 @@ function ChartStatusMessage({ message, tone }: Readonly<{ message: string; tone:
 }
 
 export function EnergyChart(props: Readonly<EnergyChartProps>) {
+  const chartAnimation = !useReducedMotion();
   const {
     chartData,
     anomalyPoints,
@@ -661,6 +664,7 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
               <Area
                 type="monotone"
                 dataKey={getDataKey()}
+                isAnimationActive={chartAnimation}
                 stroke={SERIES_COLOURS[0]}
                 strokeWidth={2}
                 fill="url(#colorActual)"
@@ -671,6 +675,7 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
               <Line
                 type="monotone"
                 dataKey={getExpectedKey()}
+                isAnimationActive={chartAnimation}
                 stroke="var(--brand-ink-muted)"
                 strokeWidth={1.5}
                 strokeDasharray="5 4"
@@ -686,15 +691,6 @@ export function EnergyChart(props: Readonly<EnergyChartProps>) {
     </div>
   );
 }
-
-function createMockAnomalies() { return { anomalies: [], buildings: [], historic: [] }; }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const mockViewerData: any = { anomalies: [], buildings: [], historic: [] };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const mockManagerData: any = { anomalies: [], buildings: [], historic: [] };
-
-export const mockInitialThresholds: AlertThreshold[] = [];
 
 type ModalProps = {
   open: boolean;
@@ -779,7 +775,7 @@ export function Modal({
 
 
 export function formatDate(date: string) {
-  return new Date(date).toLocaleString(undefined, {
+  return formatDisplayDateTime(date, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -789,7 +785,7 @@ export function formatDate(date: string) {
 }
 
 export function formatChartTime(timestamp: string) {
-  return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return formatDisplayDateTime(timestamp, { month: "short", day: "numeric" });
 }
 
 export function parseNumberOrNull(value: string): number | null {
