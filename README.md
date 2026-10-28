@@ -52,6 +52,11 @@
 ### $\color{#4D869C}{\textsf{Project Website }}\color{#7AB2B2}{\textsf{Link}}$
  **[Visit Live Platform (optigrid.co.za)](https://www.optigrid.co.za)**
 
+<br>
+
+### $\color{#4D869C}{\textsf{OptiGrid Trailer }}\color{#7AB2B2}{\textsf{Video}}$
+ **[Watch Trailer Video (YouTube)](https://youtu.be/wAng1KbH0TE)**
+
 </div>
 
 <div align="center">
