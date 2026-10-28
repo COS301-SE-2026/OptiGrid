@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState, type MouseEvent } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import {
   XAxis,
   YAxis,
@@ -799,14 +799,24 @@ const SERIES_ERROR_MESSAGE = "Unable to load energy consumption data.";
 
 type AnomalyPortfolioMode = "manager" | "viewer";
 
+function isCurrentAnomaly(anomaly: Anomaly, mode: AnomalyPortfolioMode): boolean {
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const hasActiveStatus = anomaly.status === "Open" || anomaly.status === "In_Progress";
+  const isWithinViewerWindow = new Date(anomaly.detected_timestamp) >= oneWeekAgo;
+  return hasActiveStatus && (mode === "manager" || isWithinViewerWindow);
+}
+
 export function useAnomalyPortfolioData(
   mode: AnomalyPortfolioMode,
   reportError: (message: string) => void,
+  liveAnomaly: Anomaly | null = null,
 ) {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [historicAnomalies, setHistoricAnomalies] = useState<Anomaly[]>([]);
   const [summary, setSummary] = useState<AnomalySummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const seenLiveIds = useRef(new Set<string>());
 
   useEffect(() => {
     let cancelled = false;
@@ -820,16 +830,9 @@ export function useAnomalyPortfolioData(
         if (cancelled) return;
 
         const allAnomalies: Anomaly[] = payload.data || [];
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        const isCurrent = (anomaly: Anomaly) => {
-          const hasActiveStatus = anomaly.status === "Open" || anomaly.status === "In_Progress";
-          const isWithinViewerWindow = new Date(anomaly.detected_timestamp) >= oneWeekAgo;
-          return hasActiveStatus && (mode === "manager" || isWithinViewerWindow);
-        };
 
         setSummary(payload.summary || null);
-        setAnomalies(allAnomalies.filter(isCurrent));
+        setAnomalies(allAnomalies.filter((anomaly) => isCurrentAnomaly(anomaly, mode)));
         setHistoricAnomalies(allAnomalies.filter(
           (anomaly) => anomaly.status === "Resolved" || anomaly.status === "Ignored",
         ));
@@ -847,6 +850,26 @@ export function useAnomalyPortfolioData(
       cancelled = true;
     };
   }, [mode, reportError]);
+
+  // alerts from the live stream join the list straight away instead of waiting for a reload
+  useEffect(() => {
+    if (!liveAnomaly || !isCurrentAnomaly(liveAnomaly, mode)){ 
+      return;
+    }
+    if (seenLiveIds.current.has(liveAnomaly.anomaly_id)){ 
+      return;
+    }
+    seenLiveIds.current.add(liveAnomaly.anomaly_id);
+
+    setAnomalies((current) =>
+      current.some((anomaly) => anomaly.anomaly_id === liveAnomaly.anomaly_id) ? current : [liveAnomaly, ...current],
+    );
+    setSummary((current) => current && {
+      total: current.total + 1,
+      open: current.open + 1,
+      critical: current.critical + (liveAnomaly.severity_level === "critical" ? 1 : 0),
+    });
+  }, [liveAnomaly, mode]);
 
   return {
     anomalies,

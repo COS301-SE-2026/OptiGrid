@@ -100,7 +100,7 @@ export const refreshAnalyticsController = async (req: Request, res: Response) =>
         await analyticsQueue.add("refresh_building", { building_id });
         return res.status(202).json({ 
             status: "accepted", 
-            message: "Analytics refresh task queued, a FORECAST_READY websocket event will be sent shortly" 
+            message: "Analytics refresh task queued. Updated forecasts appear once the job finishes" 
         });
     } catch (error) {
         console.error("Analytics failed:", error);
