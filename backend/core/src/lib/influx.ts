@@ -451,7 +451,7 @@ export const queryUsageBetween = async (
 
 export const queryUsageDetails = async (buildingId: string, timeRange: string): Promise<UsageDetails> => {
     if (!InfluxDB) {
-        return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [] };
+        return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [] as PeakUsageTime[] };
     }
 
     const normalizedRange = normalizeTimeRange(timeRange);
@@ -461,7 +461,7 @@ export const queryUsageDetails = async (buildingId: string, timeRange: string): 
         buildingId,
         (details) => hasUsageTotals(details) || details.peak_usage_times.length > 0,
         (bucketName) => queryBucketUsageDetails(queryApi, buildingId, normalizedRange, bucketName),
-        { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [] },
+        { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [] as PeakUsageTime[] },
         `[InfluxDB] Failed to query detailed energy usage for building ${buildingId}. Returning fallback. Error:`,
     );
 };
@@ -470,7 +470,7 @@ export const queryUsageDetails = async (buildingId: string, timeRange: string): 
 // the window size so comparison charts stay readable for both short and long periods.
 export const queryUsageSeries = async (buildingId: string, timeRange: string): Promise<UsageSeriesPoint[]> => {
     if (!InfluxDB) {
-        return [];
+        return [] as UsageSeriesPoint[];
     }
 
     const normalizedRange = normalizeTimeRange(timeRange);
@@ -480,7 +480,7 @@ export const queryUsageSeries = async (buildingId: string, timeRange: string): P
         buildingId,
         (series) => series.length > 0,
         (bucketName) => queryBucketUsageSeries(queryApi, buildingId, normalizedRange, bucketName),
-        [],
+        [] as UsageSeriesPoint[],
         `[InfluxDB] Failed to query telemetry series for building ${buildingId}. Returning fallback. Error:`,
     );
 };
@@ -559,7 +559,7 @@ export const queryMeasuredDemandSeries = async (
     horizon: 'weekly' | 'monthly',
 ): Promise<MeasuredDemandPoint[]> => {
     if (!InfluxDB) {
-        return [];
+        return [] as MeasuredDemandPoint[];
     }
 
     const influxClient = new InfluxDB({ url, token });
@@ -568,7 +568,7 @@ export const queryMeasuredDemandSeries = async (
         buildingId,
         (points) => points.length > 0,
         (bucketName) => queryBucketMeasuredDemand(queryApi, bucketName, buildingId, horizon),
-        [],
+        [] as MeasuredDemandPoint[],
         '[InfluxDB] Failed to query measured demand. Returning no history. Error:',
     );
 };
