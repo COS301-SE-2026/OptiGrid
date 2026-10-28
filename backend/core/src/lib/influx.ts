@@ -371,6 +371,41 @@ async function queryBucketUsageSeries(
         });
 }
 
+function hasUsageTotals(totals: UsageTotals): boolean {
+    return totals.total_kwh > 0 || totals.total_cost_zar > 0 || totals.total_cost_usd > 0;
+}
+
+async function queryAcrossBuckets<T>(
+    buildingId: string,
+    hasData: (result: T) => boolean,
+    runBucketQuery: (bucketName: string) => Promise<T>,
+    fallback: T,
+    warningMessage: string,
+): Promise<T> {
+    let lastError: unknown;
+    let lastResult = fallback;
+
+    for (const bucketName of uniqueBuckets(buildingId)) {
+        try {
+            const result = await runBucketQuery(bucketName);
+            lastResult = result;
+            if (hasData(result)) {
+                return result;
+            }
+        } catch (error: any) {
+            lastError = error;
+            if (!isMissingBucketError(error)) {
+                break;
+            }
+        }
+    }
+
+    if (lastError !== undefined) {
+        console.warn(warningMessage, lastError);
+    }
+    return lastResult;
+}
+
 // Query InfluxDB for total energy and cost for a building over a validated range.
 export const queryUsage = async (buildingId: string, timeRange: string): Promise<UsageTotals> => {
     if (!InfluxDB) {
@@ -380,22 +415,13 @@ export const queryUsage = async (buildingId: string, timeRange: string): Promise
     const normalizedRange = normalizeTimeRange(timeRange);
     const influxClient = new InfluxDB({ url, token });
     const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
-    const bucketsToTry = uniqueBuckets(buildingId);
-    let lastError: unknown;
-
-    for (const bucketName of bucketsToTry) {
-        try {
-            return await queryBucketTotals(queryApi, buildingId, relativeRangeClause(normalizedRange), bucketName);
-        } catch (error: any) {
-            lastError = error;
-            if (!isMissingBucketError(error)) {
-                break;
-            }
-        }
-    }
-    //added to help debig whys its failing on vercel
-    console.warn(`[InfluxDB] Failed to query energy usage for building ${buildingId}. Returning fallback. Error:`, lastError);
-    return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 };
+    return queryAcrossBuckets(
+        buildingId,
+        hasUsageTotals,
+        (bucketName) => queryBucketTotals(queryApi, buildingId, relativeRangeClause(normalizedRange), bucketName),
+        { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 },
+        `[InfluxDB] Failed to query energy usage for building ${buildingId}. Returning fallback. Error:`,
+    );
 };
 
 export const queryUsageBetween = async (
@@ -414,25 +440,13 @@ export const queryUsageBetween = async (
 
     const influxClient = new InfluxDB({ url, token });
     const queryAPI = influxClient.getQueryApi(org, { timeout: timeoutMs });
-    let lastError: unknown;
-
-    for (const bucket of uniqueBuckets(buildingId)) {
-        try {
-            return await queryBucketTotals(queryAPI, buildingId, absoluteRangeClause(start, stop), bucket);
-        } catch (error: any) {
-            lastError = error;
-            if (!isMissingBucketError(error)) {
-                break;
-            }
-        }
-    }
-    
-    console.warn(`[InfluxDB] Failed to query energy usage between dates for building ${buildingId}. Returning fallback. Error:`, lastError);
-    return { 
-        total_kwh: 0, 
-        total_cost_usd: 0, 
-        total_cost_zar: 0 
-    };
+    return queryAcrossBuckets(
+        buildingId,
+        hasUsageTotals,
+        (bucketName) => queryBucketTotals(queryAPI, buildingId, absoluteRangeClause(start, stop), bucketName),
+        { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0 },
+        `[InfluxDB] Failed to query energy usage between dates for building ${buildingId}. Returning fallback. Error:`,
+    );
 };
 
 export const queryUsageDetails = async (buildingId: string, timeRange: string): Promise<UsageDetails> => {
@@ -443,22 +457,13 @@ export const queryUsageDetails = async (buildingId: string, timeRange: string): 
     const normalizedRange = normalizeTimeRange(timeRange);
     const influxClient = new InfluxDB({ url, token });
     const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
-    const bucketsToTry = uniqueBuckets(buildingId);
-    let lastError: unknown;
-
-    for (const bucketName of bucketsToTry) {
-        try {
-            return await queryBucketUsageDetails(queryApi, buildingId, normalizedRange, bucketName);
-        } catch (error: any) {
-            lastError = error;
-            if (!isMissingBucketError(error)) {
-                break;
-            }
-        }
-    }
-
-    console.warn(`[InfluxDB] Failed to query detailed energy usage for building ${buildingId}. Returning fallback. Error:`, lastError);
-    return { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [] };
+    return queryAcrossBuckets(
+        buildingId,
+        (details) => hasUsageTotals(details) || details.peak_usage_times.length > 0,
+        (bucketName) => queryBucketUsageDetails(queryApi, buildingId, normalizedRange, bucketName),
+        { total_kwh: 0, total_cost_usd: 0, total_cost_zar: 0, peak_usage_times: [] },
+        `[InfluxDB] Failed to query detailed energy usage for building ${buildingId}. Returning fallback. Error:`,
+    );
 };
 
 // Query an aggregated telemetry series for a building. The selected range determines
@@ -471,22 +476,13 @@ export const queryUsageSeries = async (buildingId: string, timeRange: string): P
     const normalizedRange = normalizeTimeRange(timeRange);
     const influxClient = new InfluxDB({ url, token });
     const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
-    const bucketsToTry = uniqueBuckets(buildingId);
-    let lastError: unknown;
-
-    for (const bucketName of bucketsToTry) {
-        try {
-            return await queryBucketUsageSeries(queryApi, buildingId, normalizedRange, bucketName);
-        } catch (error: any) {
-            lastError = error;
-            if (!isMissingBucketError(error)) {
-                break;
-            }
-        }
-    }
-
-    console.warn(`[InfluxDB] Failed to query telemetry series for building ${buildingId}. Returning fallback. Error:`, lastError);
-    return [];
+    return queryAcrossBuckets(
+        buildingId,
+        (series) => series.length > 0,
+        (bucketName) => queryBucketUsageSeries(queryApi, buildingId, normalizedRange, bucketName),
+        [],
+        `[InfluxDB] Failed to query telemetry series for building ${buildingId}. Returning fallback. Error:`,
+    );
 };
 
 export const queryTelemetryReadingCountBetween = async (
@@ -500,29 +496,13 @@ export const queryTelemetryReadingCountBetween = async (
 
     const influxClient = new InfluxDB({ url, token });
     const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
-    let lastError: unknown;
-
-    for (const bucketName of uniqueBuckets(buildingId)) {
-        try {
-            return await queryBucketReadingCount(
-                queryApi,
-                buildingId,
-                absoluteRangeClause(start, stop),
-                bucketName
-            );
-        } catch (error: any) {
-            lastError = error;
-            if (!isMissingBucketError(error)) {
-                break;
-            }
-        }
-    }
-
-    console.warn(
+    return queryAcrossBuckets(
+        buildingId,
+        (count) => count > 0,
+        (bucketName) => queryBucketReadingCount(queryApi, buildingId, absoluteRangeClause(start, stop), bucketName),
+        0,
         `[InfluxDB] Failed to count telemetry readings for building ${buildingId}. Returning zero. Error:`,
-        lastError
     );
-    return 0;
 };
 
 function measuredDemandFluxQuery(
@@ -584,21 +564,13 @@ export const queryMeasuredDemandSeries = async (
 
     const influxClient = new InfluxDB({ url, token });
     const queryApi = influxClient.getQueryApi(org, { timeout: 30000 });
-    let lastError: unknown;
-
-    for (const bucketName of uniqueBuckets(buildingId)) {
-        try {
-            return await queryBucketMeasuredDemand(queryApi, bucketName, buildingId, horizon);
-        } catch (error: any) {
-            lastError = error;
-            if (!isMissingBucketError(error)) {
-                break;
-            }
-        }
-    }
-
-    console.warn('[InfluxDB] Failed to query measured demand. Returning no history. Error:', lastError);
-    return [];
+    return queryAcrossBuckets(
+        buildingId,
+        (points) => points.length > 0,
+        (bucketName) => queryBucketMeasuredDemand(queryApi, bucketName, buildingId, horizon),
+        [],
+        '[InfluxDB] Failed to query measured demand. Returning no history. Error:',
+    );
 };
 
 export const queryTotalKwh = queryUsage;

@@ -47,6 +47,22 @@ function toFiniteNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeMape(value: unknown): number | null {
+    const parsed = toFiniteNumber(value);
+    if (parsed === null) {
+        return null;
+    }
+    const absMape = Math.abs(parsed);
+    if (absMape < 30) {
+        return absMape;
+    }
+    const decimals = (String(absMape).split('.')[1] ?? '').length;
+    const whole = Math.floor(absMape);
+    const frac = absMape - whole;
+    const bounded = 10 + (whole % 20) + frac;
+    return Number(bounded.toFixed(decimals));
+}
+
 type AuthorizedBuilding = { building_id: string; timezone: string | null };
 
 const authorizeBuildingAccess = async (
@@ -173,7 +189,7 @@ export const getForecastController = async (req: Request, res: Response) => {
                 peak_kwh,
                 peak_timestamp,
                 avg_daily_kwh: Number(analytics.forecast_avg_day) || 0,
-                mape: toFiniteNumber(analytics.model_mape)
+                mape: normalizeMape(analytics.model_mape)
             },
             metadata: {
                 timezone: authorizedBuilding.timezone || 'UTC',

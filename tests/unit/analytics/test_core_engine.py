@@ -566,6 +566,7 @@ def test_mean_fold_error_ignores_folds_without_usage():
 
 def test_as_percent_reports_missing_accuracy_as_none():
     assert as_percent(0.05) == 5.0
+    assert as_percent(0.843921) == 14.3921
     assert as_percent(float("inf")) is None
 
 

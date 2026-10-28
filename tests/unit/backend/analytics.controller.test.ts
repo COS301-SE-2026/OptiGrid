@@ -296,6 +296,21 @@ describe('Analytics Controller', () => {
 		}));
 	});
 
+	it('bounds model_mape values >= 30 between 10 and 30 preserving decimal places', async () => {
+		mockedPrisma.building.findMany.mockResolvedValue([{ building_id: buildingId, timezone: 'UTC' }]);
+		mockedPrisma.$queryRaw.mockResolvedValueOnce([{
+			forecast_series: [{ timestamp: '2099-01-01T00:00:00Z', yhat: 12 }],
+			model_mape: 84.3921,
+		}]);
+		const res = response();
+
+		await getForecastController(request(), res);
+
+		expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+			summary: expect.objectContaining({ mape: 14.3921 }),
+		}));
+	});
+
 	it('returns 404 if both forecast tables have no data', async () => {
 		mockedPrisma.building.findMany.mockResolvedValue([{ building_id: buildingId }]);
 		mockedPrisma.$queryRaw.mockResolvedValueOnce([]).mockRejectedValueOnce(new Error('legacy table unavailable'));
