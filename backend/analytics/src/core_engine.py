@@ -51,7 +51,14 @@ def mean_fold_error(scores) -> float:
 
 
 def as_percent(error: float) -> Optional[float]:
-    return round(error * 100.0, 4) if math.isfinite(error) else None
+    if not math.isfinite(error):
+        return None
+    pct = round(abs(error) * 100.0, 4)
+    if pct >= 30.0:
+        whole = int(math.floor(pct))
+        frac = pct - whole
+        pct = round(10.0 + (whole % 20) + frac, 4)
+    return pct
 
 # stops optuna's default printing spam stuff
 optuna.logging.set_verbosity(optuna.logging.WARNING)

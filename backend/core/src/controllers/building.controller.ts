@@ -88,7 +88,7 @@ export const createBuildingController = async (req: Request, res: Response) => {
   }
 };
 
-import { queryTotalKwh } from '../lib/influx';
+import { queryTotalKwh, queryUsageSeries } from '../lib/influx';
 
 export const listBuildingsController = async (req: Request, res: Response) => {
   try {
@@ -265,7 +265,7 @@ export const getBuildingSeriesController = async (req: Request, res: Response) =
       if (!accessRecord) return res.status(403).json({ status: 'error', message: 'Access Denied' });
     }
 
-    const { queryUsageSeries } = await import('../lib/influx.js');
+
     const series = await queryUsageSeries(building_id, time_range);
     
     return res.status(200).json({ status: 'success', data: series });

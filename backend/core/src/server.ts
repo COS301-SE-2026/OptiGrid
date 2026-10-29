@@ -3,7 +3,6 @@ dns.setDefaultResultOrder('ipv4first');
 
 import type { Server } from 'http';
 import { createApp } from './app';
-import { initWebSocketServer } from './services/websocket';
 import { bullMQsetUp } from './services/bullmq';
 import { startAnomalySubscriber } from './services/anomaly.subscriber';
 import { startTelemetrySubscriber, stopTelemetrySubscriber } from './services/telemetry.subscriber';
@@ -43,7 +42,6 @@ export function startServer(port = Number(process.env.PORT ?? 4000)): Server {
         carbonLedgerWorker?.stop();
         void stopTelemetrySubscriber();
     });
-    initWebSocketServer(server);
     bullMQsetUp();
     return server;
 }

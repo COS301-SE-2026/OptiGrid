@@ -80,7 +80,7 @@ describe('Analytics API Integration', () => {
 		expect(response.status).toBe(202);
 		expect(response.body).toEqual({
 			status: 'accepted',
-			message: 'Analytics refresh task queued, a FORECAST_READY websocket event will be sent shortly',
+			message: 'Analytics refresh task queued. Updated forecasts appear once the job finishes',
 		});
 		const jobs = await analyticsQueue.getJobs(['waiting', 'delayed']);
 		expect(jobs).toHaveLength(1);

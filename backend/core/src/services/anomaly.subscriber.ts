@@ -1,7 +1,7 @@
 import Redis from 'ioredis';
 import prisma from '../lib/prisma';
 import { dispatchAnomalyNotification } from './notification.service';
-import { broadcastEvent } from './websocket';
+import { publishAnomaly } from './anomalyStream.service';
 
 let isSubscribed = false;
 
@@ -71,11 +71,14 @@ export const startAnomalySubscriber = async () => {
 
 				const anomalyWithBuildingName = {
 					...anomaly,
-					building_name: building.building_name
+					building_name: building.building_name,
+					resolved_by: null
 				};
 
-				// broadcast the anomaly via websockets for real-time dashboard updates
-				broadcastEvent('ANOMALY_DETECTED', anomalyWithBuildingName);
+				// stream the anomaly to open dashboards. a failure here must not stop the notification below
+				await publishAnomaly(building_id, anomalyWithBuildingName).catch((streamError) => {
+					console.error('[AnomalySubscriber] Failed to stream anomaly:', streamError);
+				});
 
 				// only notify if there is an active unmuted threshold
 				if (activeThreshold) {

@@ -18,17 +18,17 @@ import {
   EMPTY_BUILDINGS,
   useAnomalyPortfolioData,
 } from "../../../components/sharedanomaly";
-import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
+import { useAnomalyAlerts } from "@/lib/useAnomalyAlerts";
 import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 
 type MetricType = "power" | "cost";
 
 export default function ViewerAnomalyPage() {
-  const { toastMessage, setToastMessage } = useAnomalyWebSocket();
+  const { latestAnomaly, toastMessage, setToastMessage } = useAnomalyAlerts();
   useFormatPreferences();
   const { data: buildingData, isLoading: buildingsLoading } = useBuildings();
   const buildings = buildingData ?? EMPTY_BUILDINGS;
-  const { anomalies, historicAnomalies, loading } = useAnomalyPortfolioData("viewer", setToastMessage);
+  const { anomalies, historicAnomalies, loading } = useAnomalyPortfolioData("viewer", setToastMessage, latestAnomaly);
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showHistoricModal, setShowHistoricModal] = useState<boolean>(false);

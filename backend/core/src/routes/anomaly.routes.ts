@@ -4,11 +4,33 @@ import {
 	updateAnomalyStatus,
 	getAnomalyContext,
 	getPortfolioAnomalies,
+	streamAnomalies,
 } from '../controllers/anomaly.controller';
 
 const router = Router();
 
 router.get('/portfolio', getPortfolioAnomalies);
+/**
+ * @swagger
+ * /api/anomalies/stream:
+ *   get:
+ *     summary: Stream new anomalies as they are detected
+ *     description: Opens a server-sent events stream. Each message is a JSON object with event ANOMALY_DETECTED and the new anomaly as payload. Users only receive anomalies for buildings they can access.
+ *     tags:
+ *       - Anomalies
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: Event stream opened
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *       '401':
+ *         description: Unauthorized
+ */
+router.get('/stream', streamAnomalies);
 router.get('/building/:buildingId', getAnomalies);
 /**
  * @swagger

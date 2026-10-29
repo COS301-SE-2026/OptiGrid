@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AnomalyStatus } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { checkBuildingAccess, getAllowedBuildingIds } from '../utils/auth.utils';
+import { addAnomalyListener } from '../services/anomalyStream.service';
 
 interface AnomalySummary {
 	total: number;
@@ -220,4 +221,21 @@ export const getPortfolioAnomalies = async (req: Request, res: Response): Promis
 		console.error('[AnomalyController] Error fetching portfolio anomalies:', error);
 		res.status(500).json({ status: 'error', message: 'Failed to fetch portfolio anomalies' });
 	}
+};
+
+// server-sent events reach the browser through the Next.js proxy and they work on HTTPS pages also
+export const streamAnomalies = (req: Request, res: Response): void => {
+	if (!req.user) {
+		res.status(401).json({ status: 'error', message: 'Unauthorized' });
+		return;
+	}
+
+	res.setHeader('Content-Type', 'text/event-stream');
+	res.setHeader('Cache-Control', 'no-cache');
+	res.setHeader('Connection', 'keep-alive');
+	if (typeof res.flushHeaders === 'function') {
+		res.flushHeaders();
+	}
+
+	addAnomalyListener(req.user.id, req.user.roleType, res);
 };

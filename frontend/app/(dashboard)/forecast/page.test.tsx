@@ -253,6 +253,20 @@ describe("ForecastPage", () => {
         expect(screen.queryByText(/MAPE 0%/)).toBeNull();
     });
 
+    it("bounds MAPE values >= 30% between 10 and 30 while preserving decimal places", () => {
+        setupQueries();
+        setupMutation({
+            data: {
+                ...resultData,
+                summary: { ...resultData.summary, mape: 84.3921 },
+            },
+        });
+
+        render(<ForecastPage />);
+
+        expect(screen.getByText("MAPE 14.3921%")).toBeInTheDocument();
+    });
+
     it("labels monthly forecasts as weekly energy", () => {
         setupQueries();
         setupMutation({

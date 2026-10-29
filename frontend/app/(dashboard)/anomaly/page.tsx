@@ -37,12 +37,12 @@ function isNotificationStillActive(notification: NotificationPopup, anomalies: A
   return anomaly?.severity_level !== "critical" || anomaly?.status !== "Open";
 }
 
-import { useAnomalyWebSocket } from "@/lib/useAnomalyWebSocket";
+import { useAnomalyAlerts } from "@/lib/useAnomalyAlerts";
 import { formatTime } from "@/lib/format";
 import { useFormatPreferences } from "@/lib/useDisplayPreferences";
 
 export default function ManagerAnomalyPage() {
-  const { toastMessage, setToastMessage } = useAnomalyWebSocket();
+  const { latestAnomaly, toastMessage, setToastMessage } = useAnomalyAlerts();
   useFormatPreferences();
   const { data: buildingData, isLoading: buildingsLoading } = useBuildings();
   const buildings = buildingData ?? EMPTY_BUILDINGS;
@@ -53,7 +53,7 @@ export default function ManagerAnomalyPage() {
     setHistoricAnomalies,
     summary,
     loading,
-  } = useAnomalyPortfolioData("manager", setToastMessage);
+  } = useAnomalyPortfolioData("manager", setToastMessage, latestAnomaly);
   const [thresholds, setThresholds] = useState<AlertThreshold[]>([]);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
